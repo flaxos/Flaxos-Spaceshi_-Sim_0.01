@@ -1,0 +1,24 @@
+ship_id: test_ship_001
+position:
+  x: 0.0
+  y: 0.0
+  z: 0.0
+
+velocity:
+  x: 0.0
+  y: 0.0
+  z: 0.0
+
+orientation:
+  pitch: 0.0
+  yaw: 0.0
+  roll: 0.0
+
+mass: 250000.0
+throttle: 0.0
+
+systems:
+  impulse_drive: online
+  reaction_control_system: online
+
+event_log: []

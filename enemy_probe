@@ -1,0 +1,9329 @@
+event_log:
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000.0
+    y: 0.0
+    z: 1000.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+mass: 100000.0
+orientation:
+  pitch: 0.0
+  roll: 0.0
+  yaw: 180.0
+position:
+  x: 1000.0
+  y: 0.0
+  z: 1000.0
+sector:
+  x: 0
+  y: 0
+  z: 0
+ship_id: enemy_probe
+systems:
+  impulse_drive: online
+  reaction_control_system: online
+throttle: 0.0
+velocity:
+  x: 0.0
+  y: 0.0
+  z: 0.0

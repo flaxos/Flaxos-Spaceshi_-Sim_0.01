@@ -1,0 +1,36 @@
+[
+  {
+    "id": "test_ship_001",
+    "position": { "x": 0.0, "y": 0.0, "z": 0.0 },
+    "mass": 1000,
+    "systems": {
+      "navigation": {
+        "type": "impulse",
+        "max_thrust": 1000
+      },
+      "sensor": {
+        "type": "sensor",
+        "range": 2000
+      },
+      "rcs": {
+        "type": "rcs",
+        "torque_rating": 90
+      }
+    }
+  },
+  {
+    "id": "enemy_probe",
+    "position": { "x": 1000, "y": 0, "z": 0 },
+    "mass": 500,
+    "systems": {
+      "navigation": {
+        "type": "impulse",
+        "max_thrust": 50
+      },
+      "sensors": {
+        "type": "sensor",
+        "range": 1500
+      }
+    }
+  }
+]

@@ -1,0 +1,13 @@
+[
+  {
+    "id": "d30ee535-ac75-46a0-b867-2f131bf09421",
+    "timestamp": "2025-05-14T10:23:55.454502",
+    "type": "hull_breach",
+    "severity": "critical",
+    "message": "Hull breach detected in sector fore",
+    "data": {
+      "sector": "fore",
+      "integrity": 50.0
+    }
+  }
+]

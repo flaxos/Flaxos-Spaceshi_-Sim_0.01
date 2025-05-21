@@ -1,0 +1,50 @@
+commands:
+  set_throttle:
+    authority: player
+    system_required: impulse_drive
+
+  rotate_pitch:
+    authority: player
+    system_required: reaction_control_system
+
+  rotate_yaw:
+    authority: player
+    system_required: reaction_control_system
+
+  rotate_roll:
+    authority: player
+    system_required: reaction_control_system
+
+  get_position:
+    authority: player
+    system_required: null
+
+  get_orientation:
+    authority: player
+    system_required: null
+
+  get_velocity:
+    authority: player
+    system_required: null
+
+  set_vector:
+    authority: god
+    system_required: null
+
+  set_position:
+    authority: god
+    system_required: null
+
+  teleport:
+    authority: god
+    system_required: null
+
+  spawn_object:
+    authority: god
+    system_required: null
+
+  dump_state:
+    authority: player
+    system_required: null
+
+

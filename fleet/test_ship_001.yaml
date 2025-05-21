@@ -1,0 +1,9145 @@
+acceleration:
+  x: 0.0
+  y: 0.0
+  z: 0.0
+event_log:
+- event: tick
+  position:
+    x: 10.0
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 10.0
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 10.0
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 10.0
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 10.0
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 10.0
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 10.0
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 10.0
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 10.0
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 10.0
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 10.0
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 10.0
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 10.0
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 10.0
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 10.0
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 10.0
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 10.0
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 10.0
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 10.0
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 10.0
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 10.0
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 10.0
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 10.0
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 12.117325972423714
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2.0578269958496094
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 16.355717207048656
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 4.116865158081055
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 22.7082857520777
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 6.174532890319824
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 31.17462420488164
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 8.231573104858398
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 42.16508523134519
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 10.35442590713501
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 55.20352019125505
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 12.449104309082031
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 70.13994154678971
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 14.508143901824951
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 87.17638992974094
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 16.5650577545166
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 107.00465536781326
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 18.687182426452637
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 128.70421932432168
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 20.776081085205078
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 152.26222932676524
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 22.839040756225586
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 177.87745524459103
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 24.896756649017334
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 206.090119390523
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 26.987547874450684
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 236.52607050087784
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 29.080750465393066
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 269.03906363646956
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 31.167115688323975
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 303.3688297933752
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 33.233113288879395
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 340.2815395545406
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 35.323116302490234
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 379.3779948110972
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 37.41310358047485
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 420.74118551827735
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 39.50706768035889
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 464.0789346757706
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 41.59106111526489
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 509.7944232037114
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 43.68406629562378
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 557.748092852798
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 45.77907037734985
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 608.4225602241397
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 47.895129680633545
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 660.8642367972893
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 49.99308681488037
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 715.4271350465865
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 52.08810997009277
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 772.2390051845897
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 54.18506669998169
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 831.3109838279271
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 56.28413009643555
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 894.1570280246381
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 58.43509912490845
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 957.4065973894469
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 60.5251259803772
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1024.7817581445638
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 62.67510747909546
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1092.7959526384398
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 64.77511739730835
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1163.5732761384377
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 66.89130640029907
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1235.8656078861798
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 68.98712730407715
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1311.603117333182
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 71.11706638336182
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1388.331333938029
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 73.21309089660645
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1468.957159115674
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 75.35303974151611
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1550.2852368849403
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 77.45309972763062
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1633.8163381225536
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 79.55310821533203
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1720.5156529424153
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 81.67611122131348
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1809.189179507046
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 83.79261112213135
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1900.6286850597517
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 85.92106485366821
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1995.5778324398275
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 88.0771107673645
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2091.325058606999
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 90.20010662078857
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2189.156716405668
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 92.31952095031738
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2289.173488240765
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 94.43767499923706
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2392.9557140307425
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 96.58667182922363
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2500.3630847242016
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 98.76175212860107
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2611.798449680161
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 100.96906900405884
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2723.9832783544607
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 103.14436626434326
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2835.4174935009555
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 105.26164674758911
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2950.99008162043
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 107.41356468200684
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 3067.2069551900136
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 109.53555822372437
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 3187.6229758916543
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 111.6917781829834
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 3308.7866426226587
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 113.82080316543579
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 3432.9824223094365
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 115.96279668807983
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 3560.1957490823024
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 118.11682224273682
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 3688.0340538466503
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 120.24315214157104
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 3819.4823740588317
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 122.39115571975708
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 3953.617011125485
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 124.54514789581299
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 4090.008849732395
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 126.69816780090332
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 4228.494151373877
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 128.8477635383606
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 4369.384497662282
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 130.99878120422363
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 4514.889969416897
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 133.18381357192993
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 4660.822619992774
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 135.34034204483032
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 4811.138536377264
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 137.52633666992188
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 4964.059586678182
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 139.71537351608276
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 5119.15949624284
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 141.90139722824097
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 5275.769158460237
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 144.07539319992065
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 5435.336234067599
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 146.25739669799805
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 5597.588915043342
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 148.44345045089722
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 5762.152496635377
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 150.62847661972046
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 5928.949186451019
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 152.81151485443115
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 6095.769900572201
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 154.96453285217285
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 6267.376327589405
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 157.1485357284546
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 6441.044494684304
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 159.32853651046753
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 6617.415990661164
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 161.51253414154053
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 6796.172449013291
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 163.69653224945068
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 6977.569119945001
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 165.88356828689575
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 7158.805504284456
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 168.04062271118164
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 7347.193342793214
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 170.2536482810974
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 7535.495422580612
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 172.43765020370483
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 7731.665103040197
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 174.6836495399475
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 7924.9853686737515
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 176.8696689605713
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 8119.968148129492
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 179.04766750335693
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 8317.784097238795
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 181.23069667816162
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 8518.170077114826
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 183.41574335098267
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 8723.85762517534
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 185.63182401657104
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 8931.422889650488
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 187.84182453155518
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 9142.211056221224
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 190.05994749069214
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 9355.16044425861
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 192.27499771118164
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 9567.509999442902
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 194.45900106430054
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 9784.338216860366
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 196.66406297683716
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 10001.888193815761
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 198.85212087631226
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 10230.977813892874
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 201.13014459609985
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 10456.597106496101
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 203.34917783737183
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 10684.154824674912
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 205.5631709098816
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 10911.125901833537
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 207.74822998046875
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 11143.765872448967
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 209.96422624588013
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 11381.863446668063
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 212.2082257270813
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 11615.980533351347
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 214.39223289489746
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 11859.162494508826
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 216.6372938156128
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 12101.872270270349
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 218.85528707504272
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 12343.808556774784
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 221.04431676864624
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 12591.522201761029
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 223.263343334198
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 12841.241818687395
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 225.4783639907837
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 13092.965945331613
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 227.6894817352295
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 13351.183524976954
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 229.93548202514648
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 13611.456226988239
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 232.17749691009521
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 13874.45598202761
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 234.42131805419922
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 14139.755516910145
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 236.6633176803589
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 14403.836646452579
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 238.87436389923096
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 14670.845513873332
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 241.08938360214233
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 14940.55936309853
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 243.3064546585083
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 15216.21549285261
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 245.55165338516235
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 15497.49288818022
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 247.8216519355774
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 15778.019262355878
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 250.06527709960938
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 16064.927949104522
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 252.3392686843872
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 16346.593623225386
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 254.55229663848877
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 16630.575538924346
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 256.7643013000488
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 16921.318260851935
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 259.0093379020691
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 17214.44437480434
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 261.2533369064331
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 17514.69540172639
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 263.5320053100586
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 17813.304725278016
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 265.77905464172363
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 18114.984205630637
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 268.03014087677
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 18418.92246593643
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 270.27920961380005
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 18725.004281495683
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 272.5254716873169
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 19033.725845901972
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 274.77257776260376
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 19362.42647620661
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 277.14462900161743
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 19675.90104920915
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 279.388632774353
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 19996.57932830111
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 281.66564655303955
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 20314.989361045253
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 283.90869188308716
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 20636.62970990831
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 286.15669345855713
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 20978.67329873069
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 288.52765226364136
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 21346.344199846808
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 291.05413007736206
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 21718.64546889008
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 293.59032583236694
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 22061.2447688338
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 295.90592193603516
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 22412.95137173646
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 298.2642774581909
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 22783.7295514088
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 300.73013067245483
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 23128.98884659001
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 303.0090022087097
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 23481.24077580059
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 305.31645679473877
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 23833.36090991762
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 307.6058807373047
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 24201.476163828087
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 309.9809637069702
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 24561.328631769153
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 312.28560066223145
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 24919.755926977046
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 314.564480304718
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 25301.451861403435
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 316.9728627204895
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 25665.67475409438
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 319.25457096099854
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 26036.92430062275
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 321.56359815597534
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 26436.096602793492
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 324.02741622924805
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 26813.30442439764
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 326.3391695022583
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 27254.908247380044
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 329.02349948883057
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 27737.708604923835
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 331.93252658843994
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 28139.02671325657
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 334.333233833313
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 28548.8538388941
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 336.7671241760254
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 28944.59577789535
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 339.1011881828308
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 29341.131525982142
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 341.42402267456055
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 29742.82170856335
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 343.76105403900146
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 30148.412694260296
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 346.10480070114136
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 30556.122995058013
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 348.4449710845947
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 30972.548326430293
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 350.818989276886
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 31385.010463784314
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 353.154860496521
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 31801.397961159637
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 355.49742317199707
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 32212.692122823188
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 357.7964630126953
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 32632.683794308956
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 360.12891483306885
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 33067.265038194455
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 362.5264296531677
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 33513.013235389524
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 364.9690923690796
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 33997.12370154173
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 367.6029691696167
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 34430.438436991666
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 369.9455556869507
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 34859.12006060517
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 372.2487554550171
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 35291.76524342031
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 374.55891370773315
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 35730.77869986009
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 376.8885860443115
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 36168.458350718356
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 379.1970410346985
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 36605.26054788524
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 381.4870386123657
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 37047.393420406304
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 383.79106760025024
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 37493.48858754115
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 386.1018319129944
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 38002.77173304954
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 388.7221260070801
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 38466.39768150454
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 391.09305000305176
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 38927.66685807657
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 393.43786334991455
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 39396.06244284299
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 395.80466508865356
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 39856.327846685395
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 398.11687755584717
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 40319.25930822048
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 400.42905473709106
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 40787.7001801263
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 402.75523614883423
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 41295.546377094906
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 405.26150035858154
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 41777.27493806062
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 407.6250867843628
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 42261.8105331662
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 409.9887399673462
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 42743.70142319131
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 412.32616567611694
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 43228.6368716189
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 414.6650915145874
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 43723.83838153165
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 417.03993129730225
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 44226.12880499635
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 419.43501234054565
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 44726.35212169609
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 421.80682468414307
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 45229.92799910186
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 424.1811680793762
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 45735.377303260255
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 426.55110359191895
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 46237.38740548333
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 428.8920660018921
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 46739.97196471967
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 431.2230386734009
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 47249.33774231792
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 433.57265996932983
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 47758.74026452245
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 435.90985202789307
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 48285.48934225484
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 438.3133792877197
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 48798.997915788736
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 440.64409732818604
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 49317.065848843245
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 442.9830937385559
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 49845.73953500466
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 445.35724925994873
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 50370.402985089124
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 447.70106077194214
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 50910.976857741734
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 450.10306119918823
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 51447.20338910428
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 452.4732632637024
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 51985.217452218974
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 454.8389973640442
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 52526.08727903364
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 457.2049813270569
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 53075.801993404406
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 459.5971403121948
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 53631.17337959488
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 462.0013384819031
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 54183.48773312816
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 464.38005542755127
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 54738.678211294566
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 466.7589726448059
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 55294.52204846079
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 469.1286587715149
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 55860.67227901933
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 471.5299916267395
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 56423.716525410724
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 473.9061760902405
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 57003.553908622176
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 476.34072494506836
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 57578.424681963006
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 478.74231243133545
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 58157.82304068176
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 481.1506986618042
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 58740.514804137056
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 483.5607032775879
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 59322.90968910986
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 485.9575991630554
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 59915.648079788065
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 488.3849401473999
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 60505.66593874228
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 490.7893033027649
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 61089.956781993154
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 493.1588878631592
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 61677.21404115151
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 495.5291109085083
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 62314.20684154286
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 498.08686876296997
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 62923.532245269496
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 500.5216302871704
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 63534.604576070094
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 502.95157527923584
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 64133.29610705105
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 505.32112407684326
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 64744.59686219468
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 507.7291040420532
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 65361.88401896873
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 510.14913034439087
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 65987.22275754731
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 512.5890526771545
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 66614.58122317049
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 515.0252766609192
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 67235.44336886248
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 517.4250912666321
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 67874.82744359627
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 519.8848056793213
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 68509.44564246757
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 522.3148274421692
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 69149.18902586472
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 524.7530918121338
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 69783.81837943548
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 527.1608176231384
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 70427.8079815354
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 529.5928354263306
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 71082.29759029395
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 532.0530772209167
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 71734.39042517041
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 534.4931192398071
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 72396.36201195951
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 536.958752155304
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 73044.12005357251
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 539.3606996536255
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 73730.59132309345
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 541.8942980766296
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 74401.21525483539
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 544.3582048416138
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 75065.26890826643
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 546.7871341705322
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 75734.2630283384
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 549.2232804298401
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 76413.9009951315
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 551.6871333122253
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 77088.36381540362
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 554.1214833259583
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 77765.05839660174
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 556.5532169342041
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 78435.78689243252
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 558.9531621932983
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 79119.23193110226
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 561.3880023956299
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 79805.7959106063
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 563.8233890533447
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 80494.83895859237
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 566.2570648193359
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 81185.76537103025
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 568.6869654655457
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 81880.84447818257
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 571.1210522651672
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 82578.91357724661
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 573.5552349090576
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 83279.23025449198
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 575.9869451522827
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 83982.62443703545
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 578.4190716743469
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 84681.364547176
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 580.8250975608826
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 85417.55897971638
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 583.3491244316101
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 86148.72421920318
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 585.8452281951904
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 86875.25656026248
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 588.3151030540466
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 87630.33090018202
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 590.8709044456482
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 88345.89575179557
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 593.283124923706
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 89081.02808879034
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 595.751042842865
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 89810.21916072641
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 598.1890382766724
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 90551.60377619318
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 600.6576147079468
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 91302.26026577863
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 603.1467485427856
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 92059.40845246708
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 605.6470437049866
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 92836.7077399449
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 608.2030954360962
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 93598.24086485036
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 610.6970753669739
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 94361.6498958928
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 613.1870465278625
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 95120.7480638251
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 615.653039932251
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 95871.11767033495
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 618.0811018943787
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 96635.15547428076
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 620.5435810089111
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 97402.59500645514
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 623.007242679596
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 98173.75563188015
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 625.473090171814
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 98939.84674103961
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 627.9132080078125
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 99736.60879109456
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 630.440842628479
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 100516.74921289833
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 632.9061069488525
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 101293.46751651021
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 635.3511118888855
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 102089.39561560482
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 637.8467836380005
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 102899.15624957281
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 640.3758006095886
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 103681.37717059291
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 642.8095569610596
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 104497.00379114955
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 645.3373098373413
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 105314.20428934434
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 647.8600783348083
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 106125.50586879515
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 650.3550281524658
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 106919.97667800731
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 652.7891092300415
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 107759.46648084662
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 655.3510637283325
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 108580.47403896587
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 657.8471074104309
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 109403.92365286945
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 660.3411202430725
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 110252.00567667876
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 662.8998236656189
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 111090.83977899003
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 665.4210367202759
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 111913.01255164186
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 667.883062839508
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 112751.16640708227
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 670.3835830688477
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 113590.8244165521
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 672.8792996406555
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 114444.45515311793
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 675.4070515632629
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 115284.06280802801
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 677.8841934204102
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 116145.63158172781
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 680.4166674613953
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 117005.9410586663
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 682.9361109733582
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 117893.39309458758
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 685.5252265930176
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 118877.83345648285
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 688.3853697776794
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 119781.55829829945
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 691.0010671615601
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 120744.31145989808
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 693.7764658927917
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 121668.83297131865
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 696.4314908981323
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 122578.15563465601
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 701.6156549453735
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 123520.19399096479
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 706.9458417892456
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 124430.94249164395
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 712.0619611740112
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 125348.96276271014
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 717.1821126937866
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 126286.2760628022
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 722.3723077774048
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 127211.37229261525
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 727.4590339660645
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 128150.1858923904
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 732.5850658416748
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 129104.10364023338
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 737.7570543289185
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 130053.87860979715
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 742.8711309432983
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 131012.44688495458
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 747.9971837997437
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 131989.3372375932
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 753.1852321624756
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 132950.8413545628
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 758.2574100494385
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 133987.1944490991
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 763.6855764389038
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 134996.8301320019
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 768.9376831054688
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 136061.18434132703
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 774.435131072998
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 137094.30497805937
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 779.7349863052368
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 138183.5613667763
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 785.2833347320557
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 139244.26189390596
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 790.6495580673218
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 140311.27784146043
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 796.0113706588745
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 141387.58701219378
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 801.3836250305176
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 142444.71143425952
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 806.6258296966553
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 143495.99829298636
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 811.8058214187622
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 144591.8226971863
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 817.1698198318481
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 145719.52376454437
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 822.6530599594116
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 146805.36032047324
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 827.8992853164673
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 147884.64094222744
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 833.0813989639282
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 148970.19233352464
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 838.2614126205444
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 150234.4794520367
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 844.2515096664429
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 151369.9352767105
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 849.5973634719849
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 152504.59929125317
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 854.9063148498535
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 153633.58973674965
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 860.1564779281616
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 154798.5534019043
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 865.5402307510376
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 155924.38430122985
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 870.712230682373
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 157074.55030588433
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 875.9643440246582
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 158240.91699991736
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 881.2584400177002
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 159417.40673966246
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 886.5665121078491
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 160573.53647013975
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 891.7523899078369
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 161806.3631411588
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 897.2484226226807
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 162963.67344701284
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 902.3784666061401
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 164154.82372119246
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 907.6279754638672
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 165364.45289462138
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 912.9279737472534
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 166595.92456681587
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 918.2921562194824
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 167804.8222731751
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 923.5281534194946
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 169064.98391953207
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 928.9543046951294
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 170333.90923993412
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 934.3864269256592
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 171578.23949104812
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 939.6832342147827
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 172813.88401462272
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 944.9139518737793
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 174088.20659679783
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 950.2779512405396
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 175340.62362201422
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 955.5208177566528
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 176643.7633546442
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 960.9452257156372
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 177909.96250867363
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 966.1872701644897
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 179198.66410825116
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 971.4933347702026
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 180521.39779803233
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 976.9093284606934
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 181855.73882436616
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 982.3426303863525
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 183166.3499306001
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 987.6506252288818
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 184500.5010271638
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 993.024715423584
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 185808.02581659163
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 998.2639102935791
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 187156.94538279797
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1003.6400194168091
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 188510.8075430084
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1009.0071258544922
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 189854.35662349683
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1014.3055257797241
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 191208.41170045556
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1019.6175374984741
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 192595.98856017724
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1025.0323009490967
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 193977.24977410084
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1030.3943691253662
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 195353.20227538783
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1035.7084226608276
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 196733.0793142828
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1041.0104904174805
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 198105.2625772174
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1046.256558418274
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 199535.95188044067
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1051.698003768921
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 200954.53877177244
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1057.0660200119019
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 202429.08586917174
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1062.6166467666626
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 203813.51524557403
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1067.8027334213257
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 205239.65815543986
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1073.1186151504517
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 206656.65778339756
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1078.3746719360352
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 208060.9770819129
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1083.5587720870972
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 209486.1781548003
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1088.7946577072144
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 210917.14703575478
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1094.0265922546387
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 212414.69069043902
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1099.4748067855835
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 213844.51066791185
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1104.6522550582886
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 215298.03183971022
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1109.890685081482
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 216763.35690058453
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1115.146764755249
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 218228.81161854372
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1120.3787622451782
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 219727.12641100815
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1125.7027778625488
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 221215.51578644032
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1130.966908454895
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 222721.0346567236
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1136.2667865753174
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 224270.70735103794
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1141.69615650177
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 225773.30957365295
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1146.9365587234497
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 227340.04358765564
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1152.3748378753662
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 228857.6573354558
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1157.6187534332275
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 230417.22705084976
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1162.9827871322632
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 231963.99249137656
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1168.2786655426025
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 233609.89767916527
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1173.887059211731
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 235173.38610158037
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1179.1906576156616
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 236744.58793944799
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1184.4965467453003
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 238312.14880922643
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1189.76669216156
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 239918.39695209818
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1195.1426134109497
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 241517.46867749357
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1200.4707622528076
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 243152.65815600535
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1205.8947496414185
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 244764.7712777745
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1211.2186870574951
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 246381.54995057965
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1216.5347003936768
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 247983.28148204676
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1221.77863407135
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 249644.73650108578
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1227.1940937042236
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 251300.20018838748
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1232.566505432129
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 252944.63437438261
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1237.8802156448364
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 254600.12247478723
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1243.2067251205444
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 256297.0479302734
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1248.642788887024
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 257997.53840586127
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1254.0667123794556
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 259688.9801953921
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1259.4387617111206
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 261405.26340040175
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1264.8663177490234
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 263166.6439920392
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1270.4121732711792
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 264841.1142853105
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1275.6626844406128
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 266578.78122409654
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1281.0882806777954
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 268346.0718654497
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1286.5828065872192
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 270298.71378682076
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1292.6252136230469
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 272201.6855118023
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1298.4873323440552
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 274331.2600496574
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1305.01469039917
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 276130.2991512267
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1310.5058193206787
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 277907.54841648624
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1315.908169746399
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 279700.1478219031
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1321.3348016738892
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 281477.52620510873
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1326.6936225891113
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 283282.61608574336
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1332.1138496398926
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 285093.92107094225
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1337.5307121276855
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 286958.1025276732
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1343.0826606750488
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 288785.3194623078
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1348.5026483535767
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 290600.84178400284
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1353.8666105270386
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 292439.6606206915
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1359.277774810791
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 294272.7840055409
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1364.650938987732
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 296134.03259422944
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1370.0849046707153
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 297992.9164145052
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1375.4906377792358
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 299863.7383378709
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1380.909737586975
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 301725.8520580773
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1386.2827072143555
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 303653.7004023795
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1391.8232049942017
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 305618.31667574326
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1397.446650505066
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 307542.30887547764
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1402.9322814941406
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 309447.9576782658
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1408.3447313308716
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 311358.68548796594
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1413.7508544921875
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 313283.55387455446
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1419.1761665344238
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 315234.8443889882
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1424.654800415039
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 317175.05791934684
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1430.0816612243652
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 319116.1659551762
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1435.490566253662
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 321093.1150615993
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1440.9783630371094
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 323049.7896678904
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1446.3895597457886
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 325520.5872288903
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1453.1905879974365
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 327680.5319909406
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1459.1118469238281
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 329832.7381565786
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1464.9882249832153
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 332015.3375472671
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1470.923542022705
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 334266.1430203772
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1477.0190773010254
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 336419.12083685165
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1482.8268432617188
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 338431.0918395212
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1488.2345151901245
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 340509.0242488179
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1493.798671722412
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 342775.1707942092
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1499.8423643112183
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 345024.81723075383
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1505.818242073059
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 347380.2875724514
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1512.0494413375854
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 349554.50281548616
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1517.7794313430786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 351807.59592129267
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1523.694248199463
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 353887.06833078415
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1529.1338567733765
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 356009.4243900978
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1534.6656312942505
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 358113.5755972505
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1540.1304960250854
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 360237.3334519929
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1545.6266689300537
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 362363.6045379628
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1551.1098937988281
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 364538.58091351355
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1556.6985836029053
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 366753.6776841916
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1562.369704246521
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 368928.27613245504
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1567.917441368103
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 371109.50353050756
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1573.4624795913696
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 373306.64609447046
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1579.0282888412476
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 375502.92950121796
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1584.572455406189
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 377733.21428421466
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1590.1825904846191
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 379945.43637911696
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1595.727952003479
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 382165.7243480193
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1601.2742547988892
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 384420.265147729
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1606.8864517211914
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 386860.69701333926
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1612.9385900497437
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 389105.5593460344
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1618.4866428375244
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 391479.1579870368
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1624.331750869751
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 393943.6036852092
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1630.3780679702759
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 396246.6717883184
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1636.0090103149414
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 398502.4928604088
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1641.5059652328491
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 400944.3902882707
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1647.4349336624146
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 403235.96384718776
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1652.9802474975586
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 405510.6046812717
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1658.466378211975
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 407822.5820909086
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1664.0239362716675
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 410139.3979702272
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1669.5746097564697
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 412494.7174278873
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1675.1985864639282
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 414777.0238815557
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1680.6306104660034
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 417217.25995593565
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1686.4185829162598
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 419539.44162046915
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1691.908670425415
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 421897.77783182485
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1697.4659805297852
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 424338.76137919154
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1703.1986846923828
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 426934.7800068231
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1709.2738227844238
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 429391.722990491
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1715.0042877197266
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 431803.49494357913
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1720.6110677719116
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 434271.1379911119
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1726.3287343978882
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 436750.14793625247
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1732.05375289917
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 439339.5269092709
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1738.0131530761719
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 442055.9546279679
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1744.2426252365112
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 444569.3035612105
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1749.9874639511108
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 447148.0135995091
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1755.8619804382324
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 449681.9686975246
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1761.6156873703003
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 452315.5097618285
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1767.5753564834595
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 454864.22383081604
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1773.3243646621704
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 457567.77161671116
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1779.401795387268
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 460191.6046619926
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1785.2806091308594
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 462768.7977648498
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1791.0363674163818
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 465403.85974717187
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1796.9021558761597
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 468022.2243170712
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1802.7119903564453
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 470734.66278125334
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1808.710602760315
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 473337.4940373533
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1814.448613166809
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 475990.1665131776
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1820.2777729034424
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 478645.8825038125
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1826.0950298309326
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 481278.52928459586
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1831.8436574935913
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 483946.55054651917
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1837.651117324829
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 486594.91820617183
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1843.3978261947632
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 489317.88941997866
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1849.2875995635986
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 491975.334122194
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1855.0178833007812
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 494591.01376250765
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1860.6410627365112
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 497617.2836446798
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1867.12433719635
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 500366.8233316411
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1872.9962968826294
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 503331.2709655933
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1879.3059616088867
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 506046.8745968473
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1885.0683069229126
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 508795.46427974745
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1890.8827123641968
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 511556.9115711934
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1896.7063808441162
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 514323.1672760947
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1902.5223560333252
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 517063.5935819238
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1908.2666816711426
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 519946.6985646157
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1914.2910633087158
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 522872.49930065783
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1920.3852586746216
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 525764.6894588048
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1926.3906660079956
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 528751.2462386218
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1932.5721826553345
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 531786.5723481224
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1938.8343496322632
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 534648.9806553059
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1944.7218923568726
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 537572.1972105898
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1950.7160329818726
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 540382.7210267781
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1956.4621677398682
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 543273.2087473639
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1962.35404586792
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 546243.3974147819
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1968.3898191452026
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 549174.5296023205
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1974.328309059143
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 552074.5431315895
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1980.1863708496094
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 554896.4720585175
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1985.870385169983
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 557758.5058487146
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1991.6185417175293
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 560725.3047229332
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 1997.5593891143799
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 563756.495188174
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2003.6108446121216
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 566708.2826116798
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2009.4865493774414
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 569659.9001354866
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2015.3448371887207
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 572532.6837840413
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2021.030616760254
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 575435.0630217065
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2026.7587366104126
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 578349.6357215515
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2032.4946880340576
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 581248.269060348
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2038.1833486557007
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 584248.1323364128
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2044.053768157959
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 587262.0438043444
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2049.9347581863403
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 590244.5269919154
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2055.7379941940308
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 593206.0534388514
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2061.484390258789
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 596148.9355343545
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2067.178879737854
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 599090.3402092706
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2072.8549251556396
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 602072.4797683385
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2078.5936889648438
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 605101.6207215816
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2084.406644821167
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 608099.0611993998
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2090.1429805755615
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 611135.416595063
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2095.9377241134644
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 614310.8594478116
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2101.9804878234863
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 617368.4574883203
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2107.7829790115356
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 620428.1923980257
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2113.5736169815063
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 623634.3517869541
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2119.624047279358
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 626681.3534479839
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2125.358612060547
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 629737.3528340264
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2131.094630241394
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 632801.2620047799
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2136.8300590515137
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 635908.0900351679
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2142.6300859451294
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 639038.9744099486
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2148.459164619446
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 642170.5967785759
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2154.273880004883
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 645348.6289189884
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2160.1586923599243
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 648484.2181298552
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2165.9493894577026
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 651633.9531300851
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2171.750672340393
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 654794.8217413721
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2177.5569381713867
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 657954.1078332533
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2183.3449125289917
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 661133.863423769
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2189.154927253723
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 664258.7887095702
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2194.849941253662
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 667513.5717962482
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2200.765669822693
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 670675.6387450338
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2206.4979515075684
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 673868.146468707
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2212.2703161239624
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 677056.6519390818
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2218.020498275757
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 680363.8631996491
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2223.9688034057617
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 683664.694097804
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2229.889868736267
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 687112.6671222403
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2236.0578184127808
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 690363.3021189461
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2241.857713699341
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 693687.8714107206
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2247.7739124298096
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 696991.9401864538
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2253.6383295059204
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 700306.5684757099
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2259.5062103271484
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 703640.5082733374
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2265.3929414749146
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 706972.7195468344
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2271.2614183425903
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 710272.4780928383
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2277.057948112488
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 713658.1828379761
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2282.990001678467
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 717042.5317762129
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2288.9043579101562
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 720408.0292702586
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2294.7707347869873
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 723781.6370866864
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2300.6362562179565
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 727164.4309301012
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2306.5027894973755
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 730584.5908386165
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2312.4189491271973
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 733978.5503201522
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2318.2749576568604
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 737455.3107192552
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2324.2583894729614
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 741134.1583128121
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2330.5724563598633
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 744629.6977161356
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2336.5565433502197
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 748123.1986275655
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2342.5219106674194
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 751599.6067042736
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2348.443123817444
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 755119.2962357401
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2354.422830581665
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 758693.0119531498
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2360.478747367859
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 762310.3915848801
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2366.592819213867
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 765865.9848319954
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2372.5872764587402
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 769498.8909180915
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2378.6963472366333
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 773139.6057596662
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2384.802872657776
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 776762.218725678
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2390.8636331558228
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 780352.4195063397
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2396.855152130127
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 783986.4524042454
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2402.904552459717
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 787674.548194133
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2409.0283422470093
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 791409.8341233785
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2415.2146015167236
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 795082.9608221638
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2421.282669067383
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 798677.5870572034
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2427.2065591812134
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 802437.0903744997
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2433.386429786682
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 806285.6680110825
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2439.696358680725
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 810026.7860330612
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2445.8147583007812
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 813883.7447065811
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2452.106424331665
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 817642.6418721649
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2458.222870826721
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 821449.5454499015
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2464.401901245117
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 825273.1003090749
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2470.592408180237
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 829096.350234848
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2476.766989707947
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 832929.686402267
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2482.9424629211426
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 836701.7532064302
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2489.0044317245483
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 840529.5214635426
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2495.140788078308
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 844394.5196161667
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2501.321517944336
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 848301.2822243469
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2507.553508758545
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 852177.251681888
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2513.7212085723877
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 856186.2888162876
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2520.0845460891724
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 860051.8224393255
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2526.2052421569824
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 863964.3784103335
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2532.385274887085
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 867883.9198241985
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2538.561279296875
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 871864.0788515611
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2544.8173809051514
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 875836.0544805438
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2551.0453777313232
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 879824.1946951075
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2557.2834663391113
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 883779.7050717197
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2563.4556198120117
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 887581.8014239476
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2569.374719619751
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 891438.6893550063
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2575.365152359009
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 895340.1588810389
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2581.4106369018555
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 899216.066147768
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2587.402603149414
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 903509.261527475
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2594.022738456726
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 907490.1834777797
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2600.146887779236
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 911474.541068236
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2606.2619409561157
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 915430.0484845951
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2612.3186407089233
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 919717.2529517745
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2618.866823196411
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 924007.276791119
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2625.4029989242554
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 928073.1670594634
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 932022.90212058
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 935995.2719247768
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 939944.6123397741
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 943928.2719091054
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 948078.1791364016
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 952054.4765792415
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 956120.3022234995
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 960144.0168053875
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 964172.9320576765
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 968104.5980987805
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 972212.4563781196
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 976186.051530283
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 980086.1741156722
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 984399.3412349243
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 988343.5851309604
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 992371.7706957508
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 996401.9395298305
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1000392.0257449476
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1004307.2208004837
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1008305.9089206799
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1012329.7282814262
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1016396.1261311863
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1020388.8638160966
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1024375.6046367658
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1028393.61347651
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1032578.2608558286
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1036880.960127937
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1040940.7951821372
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1045128.2910405995
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1049149.309605994
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1053219.613134756
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1057204.6160066966
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1061203.358712286
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1065233.666205813
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1069254.1194673069
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1073283.5435558483
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1077546.77194185
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1081692.2972796443
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1085887.9420471631
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1089987.940657288
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1094231.0847556542
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1098298.2436638286
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1102288.9227892521
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1106363.2254823449
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1110804.6645112964
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1114791.5929300415
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1118894.2041100243
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1123208.1222489977
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1127233.734771284
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1131294.6728268794
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1135315.3400380183
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1139417.9098083924
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1143573.2517331208
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1147723.1583329986
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1151807.494699762
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1156015.3276954403
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1160117.8742513368
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1164181.0992466852
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1168326.323423689
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1172684.7907725992
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1176760.2698750298
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1180791.7198973056
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1185012.6740921757
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1189196.0798106517
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1193410.7435095098
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1197633.7154816762
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1202150.1887215842
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1206364.713760995
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1210681.8693784664
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1214951.6480116618
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1219093.7583115753
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1223354.2925633385
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1227583.2720658574
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1231933.2749142991
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1236086.4422071527
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1240352.2379888936
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1244544.3497638889
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1248765.4056005257
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1252990.4555821468
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1257256.2438348678
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1261546.9983171225
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1265852.2643575517
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1270206.270134834
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1274511.539312355
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1278822.3103210675
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1283090.8240789426
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1287480.3285569884
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1291750.1203659684
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1296071.2613445676
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1300379.1625419138
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1304642.325676411
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1309035.3380502479
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1313381.4333374328
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1317582.717340754
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1321768.287652412
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1326130.2108213932
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1330522.4213546254
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1334840.866316731
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1339109.9798865141
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1343412.6201813011
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1347852.1054296242
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1352614.3440697226
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1357295.929340448
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1361648.8132937856
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1366017.2421632602
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1370285.6787486828
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1374713.3484553248
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1379065.0647831808
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1383427.5971753446
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1387777.6219834273
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1392183.6181518454
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1396582.1449052403
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1401755.9404703798
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1406362.537959104
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1411450.9450288583
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1415806.4315133607
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1420493.6259038094
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1425387.3180918754
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1430194.569604044
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1434621.4173926953
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1439584.0509324747
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1444593.333023868
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1450038.5328111637
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1454224.1426501754
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1458493.4664050934
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1462731.629429468
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1466916.9280689962
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1471138.29008577
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1475523.4302420265
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1481887.0298986866
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1486279.022717764
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1490555.0209487018
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1494860.8937026402
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1499455.7101576906
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1504543.6052541009
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1508783.338079096
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1513054.0936026056
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1517271.1759990626
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1521542.2496236572
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1525800.1004072933
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1529992.3019031072
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1534223.1379364158
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1538529.3068317983
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1543213.3923645034
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1547565.5271803746
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1552118.6529433248
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1556391.2091573942
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1556391.2091573942
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1560708.6452308518
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1564953.8328306652
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1569186.3522273093
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1573499.2269696272
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1577843.8986446585
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1582061.3349050444
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1586330.978015884
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1590646.6322213311
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1594909.9170749811
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1599288.7115224143
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1603704.4903971776
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1608057.2269072116
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1612404.1968155254
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1616754.5805068836
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1621312.0969431922
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1625665.8875159929
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1629970.4081834655
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1634733.5559527
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1639045.646422126
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1643325.6670318723
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1647637.3383858649
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1651946.838245074
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1656311.075960214
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1660615.2258234634
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1664933.2830410514
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1669681.2152887636
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1674302.3425307935
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1678763.9455295065
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1683149.1509372678
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1687539.0814323486
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1692014.97513799
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1696574.3104599896
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1701092.7387353627
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1701092.7387353627
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1704557.2799210658
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1708131.7391485416
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1711744.0731099343
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1715317.893625567
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1718846.1717280725
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1722378.9088925323
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1725907.1769563446
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1729430.958979215
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1733038.7818029332
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1736606.6092188344
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1740175.527715183
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1743897.120301701
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1747496.7760212312
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1751221.0828193736
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1754837.8030621964
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1758371.4355525898
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1761985.9617135702
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1765642.237543972
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1769258.0310899457
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1773071.2731792
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1776845.517455756
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1780580.1233255155
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1784286.0674718746
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1788011.2520282376
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1791790.4698497653
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1795399.7219324016
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1799060.3445168799
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1802776.137248507
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1806571.4219982086
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1810263.5409820282
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1813881.964038154
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1817572.7892854111
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1821308.3657713018
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1825003.1079910903
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1828772.6704721905
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1832422.682785568
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1836282.3055188165
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1839904.2659593942
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1843556.9253506367
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1847421.874237949
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1851113.9775363107
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1854798.1929316341
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1858368.020557119
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1862465.820066055
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1866357.4455252236
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1869895.3996729609
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1873468.0324857258
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1877125.8925473695
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1880657.5129072312
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1884228.0394767176
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1887925.9972153632
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1891459.6861734048
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1894949.6490943371
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1898565.3422533807
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1902144.6476599104
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1902144.6476599104
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1905736.0647495652
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1909306.4871676115
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1912883.2898024884
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1916626.1763391504
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1920216.6353610405
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1923795.8159113259
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1927679.9443490657
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1931247.2729674077
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1934846.9456272325
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1938385.954465155
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1941989.96133069
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1945646.8608148955
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1949502.6399835548
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1953071.4104091814
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1956677.035386547
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1960300.253173425
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1964023.6376666464
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1967591.6972273237
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1971209.8122210577
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1974829.8740938187
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1978405.5473757312
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1981968.10761489
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1985541.7104163677
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1989118.4095272229
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1992679.077472748
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1996227.0941553984
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 1999825.3375563049
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2003430.3997394433
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2007001.7908913656
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2010603.3232190718
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2014203.2995493605
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2017822.8739180919
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2021394.704890252
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2024949.5811373247
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2028510.1486959197
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2032076.5110900588
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2035650.7457017782
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2039222.9932796985
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2042796.2535107771
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2046355.394320127
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2049930.8467507933
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2053490.7021896024
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2057103.2212393975
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2060711.7699861045
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2064284.3425667114
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2067856.2237323367
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2071465.9940625
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2075053.741382439
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2078665.3293434568
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2082274.7037726643
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2085928.1624948382
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2089568.1988570301
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2093184.2716041533
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2096790.739204314
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2100409.1892394274
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2100409.1892394274
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2104100.5590857808
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2107736.3152002376
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2111432.922734672
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2115074.271655976
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2118686.6514189052
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2122437.8964223405
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2126226.3153334367
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2129941.490058025
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2133673.6784850224
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2137420.40984111
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2141155.586034117
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2144933.932999025
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2148702.8956682174
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2152361.0838696393
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2156137.476426501
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2159861.643310359
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2163592.9797032867
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2167403.9618317755
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2171119.563200817
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2174779.2402658965
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2178423.7294158596
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2182081.2023604037
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2185862.520778445
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2189479.4744208804
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2193129.6523726927
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2196747.8414017875
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2200399.9994857972
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2204013.1334055397
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2207634.965225363
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2211326.964999703
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2215011.0793806785
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2218673.1513014613
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2222338.2975719804
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2226022.342936941
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2229672.2567456434
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2233327.2162524234
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2237000.6795801073
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2240656.8173784805
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2244387.8350429046
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2248126.962089032
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2251964.6433764366
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2255709.543925885
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2259409.3588227388
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2263059.560616447
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2266710.323949546
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2270455.6837692005
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2274158.8540991955
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2277816.1545037036
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2281822.1256956835
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2285926.653011196
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2289742.417949489
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2293513.956798277
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2297198.413122233
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+- event: tick
+  position:
+    x: 2301071.5535830474
+    y: 10.0
+    z: 0.0
+  velocity:
+    x: 2631.5831422805786
+    y: 0.0
+    z: 0.0
+mass: 250000.0
+orientation:
+  pitch: 0.0
+  roll: 0.0
+  yaw: 0.0
+position:
+  x: 2301071.5535830474
+  y: 10.0
+  z: 0.0
+sector:
+  x: 23
+  y: 0
+  z: 0
+sensor_signature: 100.0
+systems:
+  impulse_drive: online
+  reaction_control_system: online
+throttle: 0.0
+velocity:
+  x: 2631.5831422805786
+  y: 0.0
+  z: 0.0
+visibility_state: []
