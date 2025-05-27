@@ -1,56 +1,99 @@
-# send.py — CLI tool to issue commands to the running simulation
-
 import argparse
-import socket
 import json
+import socket
 
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 9999
 
-VALID_COMMANDS = [
-    "set_thrust",
-    "set_orientation",
-    "rotate",
-    "get_state",
-    "get_position",
-    "get_velocity",
-    "get_orientation",
-    "status",
-    "events"
-]
-
-
-def send_command(host, port, command_type, ship_id, params):
-    payload = {
-        "command_type": command_type,
-        "ship_id": ship_id,
-        "params": params or {}
-    }
-    message = json.dumps(payload).encode()
-
-    if args.command_type in ["set_orientation", "rotate"] and args.value is not None:
-        params["yaw"] = args.value
-
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.connect((host, port))
-        s.sendall(message)
-        response = s.recv(4096)
-        print("[RESPONSE]", response.decode())
+def send_command(host, port, ship_id, command):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.connect((host, port))
+    payload = {"ship": ship_id, **command}
+    sock.send(json.dumps(payload).encode("utf-8"))
+    response = sock.recv(4096).decode("utf-8")
+    sock.close()
+    print("[RESPONSE]", response)
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Send command to simulated ship.")
-    parser.add_argument("command_type", choices=VALID_COMMANDS, help="Type of command to send")
-    parser.add_argument("--ship", required=True, help="Target ship ID")
-    parser.add_argument("--value", type=float, help="Value for thrust, yaw, or other input")
+    parser = argparse.ArgumentParser()
     parser.add_argument("--host", default=DEFAULT_HOST)
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)
 
+    subparsers = parser.add_subparsers(dest="command_type", required=True)
+
+    # Shared args
+    def add_common_args(p):
+        p.add_argument("--ship", required=True)
+
+    # Command: set_thrust
+    thrust_parser = subparsers.add_parser("set_thrust")
+    add_common_args(thrust_parser)
+    thrust_parser.add_argument("--x", type=float, default=0.0)
+    thrust_parser.add_argument("--y", type=float, default=0.0)
+    thrust_parser.add_argument("--z", type=float, default=0.0)
+
+    # Command: set_orientation
+    orient_parser = subparsers.add_parser("set_orientation")
+    add_common_args(orient_parser)
+    orient_parser.add_argument("--pitch", type=float, default=0.0)
+    orient_parser.add_argument("--yaw", type=float, default=0.0)
+    orient_parser.add_argument("--roll", type=float, default=0.0)
+
+    # Command: set_angular_velocity ✅ NEW
+    angvel_parser = subparsers.add_parser("set_angular_velocity")
+    add_common_args(angvel_parser)
+    angvel_parser.add_argument("--pitch", type=float, default=0.0)
+    angvel_parser.add_argument("--yaw", type=float, default=0.0)
+    angvel_parser.add_argument("--roll", type=float, default=0.0)
+
+    # Command: rotate
+    rotate_parser = subparsers.add_parser("rotate")
+    add_common_args(rotate_parser)
+    rotate_parser.add_argument("--axis", choices=["pitch", "yaw", "roll"], required=True)
+    rotate_parser.add_argument("--value", type=float, required=True)
+
+    # Info commands
+    for name in ["get_state", "get_position", "get_velocity", "get_orientation", "status", "events"]:
+        info_parser = subparsers.add_parser(name)
+        add_common_args(info_parser)
+
     args = parser.parse_args()
+    cmd_type = args.command_type
 
-    params = {}
-    if args.command_type in ["set_orientation", "rotate"] and args.value is not None:
-        params["yaw"] = args.value
-    elif args.value is not None:
-        params["value"] = args.value
+    command = {}
 
-    send_command(args.host, args.port, args.command_type, args.ship, params)
+    if cmd_type == "set_thrust":
+        command = {
+            "command": "set_thrust",
+            "x": args.x,
+            "y": args.y,
+            "z": args.z
+        }
+
+    elif cmd_type == "set_orientation":
+        command = {
+            "command": "set_orientation",
+            "pitch": args.pitch,
+            "yaw": args.yaw,
+            "roll": args.roll
+        }
+
+    elif cmd_type == "set_angular_velocity":
+        command = {
+            "command": "set_angular_velocity",
+            "pitch": args.pitch,
+            "yaw": args.yaw,
+            "roll": args.roll
+        }
+
+    elif cmd_type == "rotate":
+        command = {
+            "command": "rotate",
+            "axis": args.axis,
+            "value": args.value
+        }
+
+    else:  # Info commands
+        command = {"command": cmd_type}
+
+    send_command(args.host, args.port, args.ship, command)

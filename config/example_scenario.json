@@ -1,0 +1,20 @@
+{
+  "ships": [
+    {
+      "id": "test_ship_001",
+      "position": { "x": 0, "y": 0, "z": 0 },
+      "mass": 1000,
+      "systems": {
+        "propulsion": { "thrust": { "x": 0, "y": 0, "z": 0 } }
+      }
+    },
+    {
+      "id": "enemy_probe",
+      "position": { "x": 1000, "y": 0, "z": 0 },
+      "mass": 500,
+      "systems": {
+        "propulsion": { "thrust": { "x": 0, "y": 0, "z": 0 } }
+      }
+    }
+  ]
+}

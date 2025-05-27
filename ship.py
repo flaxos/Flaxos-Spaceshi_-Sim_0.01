@@ -1,28 +1,22 @@
-# ship.py — Core ship logic including physics state and system integration
-
-import math
-
+# ship.py
 class Ship:
-    def __init__(self, ship_id, position, systems, mass=1000):
+    def __init__(self, ship_id, position=None, velocity=None, orientation=None, angular_velocity=None, thrust=None, systems=None, mass=1.0):
         self.id = ship_id
-        self.position = position  # {"x": float, "y": float, "z": float}
-        self.velocity = {"x": 0.0, "y": 0.0, "z": 0.0}
-        self.orientation = {"yaw": 0.0, "pitch": 0.0, "roll": 0.0}  # degrees
-        self.systems = systems  # Dict[str, BaseSystem]
-        self.orientation = {"yaw": 0.0, "pitch": 0.0, "roll": 0.0}  # degrees
-        self.angular_velocity = {"yaw": 0.0, "pitch": 0.0, "roll": 0.0}  # degrees per second
-        self.target_orientation = {"yaw": 0.0, "pitch": 0.0, "roll": 0.0}  # command goal
-        self.mass = mass  # default mass
+        self.position = position or {"x": 0.0, "y": 0.0, "z": 0.0}
+        self.velocity = velocity or {"x": 0.0, "y": 0.0, "z": 0.0}
+        self.orientation = orientation or {"pitch": 0.0, "yaw": 0.0, "roll": 0.0}
+        self.angular_velocity = angular_velocity or {"pitch": 0.0, "yaw": 0.0, "roll": 0.0}
+        self.thrust = thrust or {"x": 0.0, "y": 0.0, "z": 0.0}
+        self.systems = systems or {}
+        self.mass = mass
 
-    def tick(self, delta_time):
-        for system in self.systems.values():
-            system.tick(delta_time, self)
-
-    def get_state(self):
+    def state(self):
         return {
-            "id": self.id,
             "position": self.position,
             "velocity": self.velocity,
             "orientation": self.orientation,
-            "systems": {name: sys.get_state() for name, sys in self.systems.items()}
+            "angular_velocity": self.angular_velocity,
+            "thrust": self.thrust,
+            "systems": self.systems,
+            "mass": self.mass,
         }
