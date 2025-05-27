@@ -1,18 +1,30 @@
-[
-  {
-    "id": "test_ship_001",
-    "position": { "x": 0, "y": 0, "z": 0 },
-    "mass": 1000,
-    "systems": {
-      "propulsion": { "thrust": { "x": 0, "y": 0, "z": 0 } }
+{
+  "ships": [
+    {
+      "id": "test_ship_001",
+      "position": { "x": 0, "y": 0, "z": 0 },
+      "mass": 1000,
+      "systems": {
+        "propulsion": {
+          "main_drive": { "thrust": { "x": 0, "y": 0, "z": 0 } }
+        },
+        "bio_monitor": {
+          "g_limit": 8.0,
+          "fail_timer": 0,
+          "current_g": 0.0,
+          "status": "nominal",
+          "crew_health": 1.0
+        },
+        "navigation": {
+          "destination": null,
+          "enabled": true
+        },
+        "power": {
+          "capacity": 1000,
+          "current": 1000,
+          "generation": 5
+        }
+      }
     }
-  },
-  {
-    "id": "enemy_probe",
-    "position": { "x": 1000, "y": 0, "z": 0 },
-    "mass": 500,
-    "systems": {
-      "propulsion": { "thrust": { "x": 0, "y": 0, "z": 0 } }
-    }
-  }
-]
+  ]
+}

@@ -23,7 +23,12 @@ DEFAULT_SYSTEMS = {
         "main_drive": {
             "thrust": {"x": 0.0, "y": 0.0, "z": 0.0}
         }
+    },
+    "helm": {
+        "manual_thrust": {"x": 0.0, "y": 0.0, "z": 0.0},
+        "mode": "autopilot"  # or "manual"
     }
+
 }
 
 

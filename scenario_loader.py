@@ -7,8 +7,11 @@ def load_scenario(path, sector_manager=None):
     with open(path) as f:
         data = json.load(f)
 
+    # ✅ Support both array or wrapped format: { "ships": [...] }
+    ships_data = data.get("ships", data)
+
     ships = []
-    for ship_cfg in data:
+    for ship_cfg in ships_data:
         ship = build_ship_from_config(ship_cfg)
         ships.append(ship)
 
