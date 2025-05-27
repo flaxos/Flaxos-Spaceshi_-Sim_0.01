@@ -39,7 +39,7 @@ if __name__ == "__main__":
     orient_parser.add_argument("--yaw", type=float, default=0.0)
     orient_parser.add_argument("--roll", type=float, default=0.0)
 
-    # Command: set_angular_velocity ✅ NEW
+    # Command: set_angular_velocity
     angvel_parser = subparsers.add_parser("set_angular_velocity")
     add_common_args(angvel_parser)
     angvel_parser.add_argument("--pitch", type=float, default=0.0)
@@ -52,6 +52,10 @@ if __name__ == "__main__":
     rotate_parser.add_argument("--axis", choices=["pitch", "yaw", "roll"], required=True)
     rotate_parser.add_argument("--value", type=float, required=True)
 
+    # Command: override_bio_monitor
+    override_parser = subparsers.add_parser("override_bio_monitor")
+    add_common_args(override_parser)
+
     # Info commands
     for name in ["get_state", "get_position", "get_velocity", "get_orientation", "status", "events"]:
         info_parser = subparsers.add_parser(name)
@@ -60,8 +64,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     cmd_type = args.command_type
 
-    command = {}
-
+    # Dispatch logic
     if cmd_type == "set_thrust":
         command = {
             "command": "set_thrust",
@@ -69,7 +72,6 @@ if __name__ == "__main__":
             "y": args.y,
             "z": args.z
         }
-
     elif cmd_type == "set_orientation":
         command = {
             "command": "set_orientation",
@@ -77,7 +79,6 @@ if __name__ == "__main__":
             "yaw": args.yaw,
             "roll": args.roll
         }
-
     elif cmd_type == "set_angular_velocity":
         command = {
             "command": "set_angular_velocity",
@@ -85,14 +86,16 @@ if __name__ == "__main__":
             "yaw": args.yaw,
             "roll": args.roll
         }
-
     elif cmd_type == "rotate":
         command = {
             "command": "rotate",
             "axis": args.axis,
             "value": args.value
         }
-
+    elif cmd_type == "override_bio_monitor":
+        command = {
+            "command": "override_bio_monitor"
+        }
     else:  # Info commands
         command = {"command": cmd_type}
 

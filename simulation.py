@@ -1,4 +1,5 @@
 # simulation.py
+from systems_tick import tick_all_systems
 from utils.logger import logger
 from math import radians, cos, sin
 
@@ -6,8 +7,10 @@ def simulation_loop(sectors, dt=0.1):
     while True:
         for sector_key, ships in sectors.items():
             for ship in ships:
+                tick_all_systems(ship, dt)
                 update_orientation(ship, dt)
                 update_position(ship, dt)
+
                 pos = ship.position
                 logger.debug(f"[TICK] {ship.id} in sector {sector_key} @ ({pos['x']:.2f}, {pos['y']:.2f}, {pos['z']:.2f})")
         yield
@@ -22,12 +25,22 @@ def update_position(ship, dt):
     yaw = radians(ship.orientation["yaw"])
     roll = radians(ship.orientation["roll"])
 
-    tx, ty, tz = ship.thrust["x"], ship.thrust["y"], ship.thrust["z"]
+    try:
+        thrust = ship.systems["propulsion"]["main_drive"].get("thrust", {"x": 0.0, "y": 0.0, "z": 0.0})
+    except KeyError:
+        thrust = {"x": 0.0, "y": 0.0, "z": 0.0}
+
+    tx, ty, tz = thrust["x"], thrust["y"], thrust["z"]
+
     thrust_world = rotate_vector(tx, ty, tz, pitch, yaw, roll)
 
-    ax, ay, az = (thrust_world[0] / ship.mass,
-                  thrust_world[1] / ship.mass,
-                  thrust_world[2] / ship.mass)
+    ax = thrust_world[0] / ship.mass
+    ay = thrust_world[1] / ship.mass
+    az = thrust_world[2] / ship.mass
+
+    ship.acceleration["x"] = ax
+    ship.acceleration["y"] = ay
+    ship.acceleration["z"] = az
 
     ship.velocity["x"] += ax * dt
     ship.velocity["y"] += ay * dt
@@ -38,16 +51,16 @@ def update_position(ship, dt):
     ship.position["z"] += ship.velocity["z"] * dt
 
 def rotate_vector(x, y, z, pitch, yaw, roll):
-    x1 = x*cos(roll) - y*sin(roll)
-    y1 = x*sin(roll) + y*cos(roll)
+    x1 = x * cos(roll) - y * sin(roll)
+    y1 = x * sin(roll) + y * cos(roll)
     z1 = z
 
     x2 = x1
-    y2 = y1*cos(pitch) - z1*sin(pitch)
-    z2 = y1*sin(pitch) + z1*cos(pitch)
+    y2 = y1 * cos(pitch) - z1 * sin(pitch)
+    z2 = y1 * sin(pitch) + z1 * cos(pitch)
 
-    x3 = x2*cos(yaw) + z2*sin(yaw)
+    x3 = x2 * cos(yaw) + z2 * sin(yaw)
     y3 = y2
-    z3 = -x2*sin(yaw) + z2*cos(yaw)
+    z3 = -x2 * sin(yaw) + z2 * cos(yaw)
 
     return (x3, y3, z3)

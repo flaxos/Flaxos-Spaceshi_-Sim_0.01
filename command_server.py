@@ -1,4 +1,3 @@
-# command_server.py
 import socketserver
 import json
 import threading
@@ -8,8 +7,8 @@ class CommandHandler(socketserver.BaseRequestHandler):
         data = self.request.recv(4096).decode()
         command = json.loads(data)
 
-        ship_id = command.get("ship")  # ✅ matches "ship" from send.py
-        cmd = command.get("command")   # ✅ matches "command" from send.py
+        ship_id = command.get("ship")
+        cmd = command.get("command")
 
         ship = self.server.ships.get(ship_id)
         response = {}
@@ -18,11 +17,24 @@ class CommandHandler(socketserver.BaseRequestHandler):
             response["error"] = f"Ship {ship_id} not found"
         else:
             if cmd == "set_thrust":
-                ship.thrust = {
+                thrust = {
                     "x": command.get("x", 0.0),
                     "y": command.get("y", 0.0),
                     "z": command.get("z", 0.0)
                 }
+
+                # Ensure system path exists
+                if "propulsion" not in ship.systems:
+                    ship.systems["propulsion"] = {}
+                if "main_drive" not in ship.systems["propulsion"]:
+                    ship.systems["propulsion"]["main_drive"] = {
+                        "thrust": {"x": 0.0, "y": 0.0, "z": 0.0},
+                        "status": "online",
+                        "throttle": 0.0,
+                        "max_thrust": 100.0
+                    }
+
+                ship.systems["propulsion"]["main_drive"]["thrust"] = thrust
                 response["status"] = f"Thrust updated for {ship_id}"
 
             elif cmd == "set_orientation":
@@ -59,15 +71,30 @@ class CommandHandler(socketserver.BaseRequestHandler):
                     "position": ship.position,
                     "velocity": ship.velocity,
                     "orientation": ship.orientation,
-                    "thrust": ship.thrust,
+                    "thrust": ship.systems.get("propulsion", {}).get("main_drive", {}).get("thrust", {}),
+                    "bio_monitor": ship.systems.get("bio_monitor", {}),
                     "angular_velocity": ship.angular_velocity
                 }
 
             elif cmd == "status":
                 response = {"status": f"{ship_id} is online"}
 
+            elif cmd == "override_bio_monitor":
+                # Ensure bio_monitor exists
+                if "bio_monitor" not in ship.systems:
+                    ship.systems["bio_monitor"] = {
+                        "g_limit": 8.0,
+                        "fail_timer": 0.0,
+                        "current_g": 0.0,
+                        "status": "nominal",
+                        "crew_health": 1.0
+                    }
+                ship.systems["bio_monitor"]["override"] = True
+                response = {"status": "Crew safety overridden on " + ship.id}
+
+
             elif cmd == "events":
-                response = {"events": []}  # Placeholder
+                response = {"events": []}
 
             else:
                 response["error"] = f"Unknown command: {cmd}"
