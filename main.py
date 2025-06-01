@@ -21,8 +21,11 @@ def main():
         while True:
             next(sim)
             time.sleep(0.1)
+    except StopIteration:
+        logger.warning("Simulation generator ended unexpectedly.")
     except KeyboardInterrupt:
         logger.info("Simulation loop stopped.")
+
 
 if __name__ == "__main__":
     main()

@@ -36,10 +36,18 @@ def build_default_systems():
             }
         },
         "sensors": {
-            "range": 3000.0,
-            "fov": 120.0,
-            "cooldown": 0.0,
-            "detected_contacts": []
+            "passive": {
+                "range": 3000.0,
+                "fov": 120.0,  # ⬅️ New field added correctly here
+                "signature_threshold": 0.1,
+                "contacts": []
+            },
+            "active": {
+                "scan_range": 5000.0,
+                "cooldown": 0.0,
+                "last_ping_time": 0.0,
+                "contacts": []
+            }
         },
         "weapons": {
             "railguns": [

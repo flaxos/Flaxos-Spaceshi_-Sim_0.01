@@ -1,30 +1,142 @@
-{
-  "ships": [
-    {
-      "id": "test_ship_001",
-      "position": { "x": 0, "y": 0, "z": 0 },
-      "mass": 1000,
-      "systems": {
-        "propulsion": {
-          "main_drive": { "thrust": { "x": 0, "y": 0, "z": 0 } }
+[
+  {
+    "id": "test_ship_001",
+    "position": { "x": 0, "y": 0, "z": 0 },
+    "mass": 1000,
+    "orientation": { "pitch": 0.0, "yaw": 0.0, "roll": 0.0 },
+    "systems": {
+      "propulsion": {
+        "main_drive": { "thrust": { "x": 0, "y": 0, "z": 0 } }
+      },
+      "bio_monitor": {
+        "g_limit": 8.0,
+        "fail_timer": 0,
+        "current_g": 0.0,
+        "status": "nominal",
+        "crew_health": 1.0
+      },
+      "navigation": {
+        "target": null,
+        "autopilot": true
+      },
+      "helm": {
+        "mode": "manual",
+        "manual_thrust": { "x": 0.0, "y": 0.0, "z": 0.0 }
+      },
+      "sensors": {
+        "passive": {
+          "range": 3000.0,
+          "fov": 120.0,
+          "signature_threshold": 0.00001,
+          "contacts": []
         },
-        "bio_monitor": {
-          "g_limit": 8.0,
-          "fail_timer": 0,
-          "current_g": 0.0,
-          "status": "nominal",
-          "crew_health": 1.0
+        "active": {
+          "scan_range": 5000.0,
+          "scan_fov": 120.0,
+          "cooldown": 0.0,
+          "last_ping_time": null,
+          "processed": false,
+          "contacts": []
+        }
+      },
+      "power": {
+        "capacity": 1000,
+        "current": 1000,
+        "generation": 5
+      }
+    }
+  },
+  {
+    "id": "test_ship_002",
+    "position": { "x": 10000, "y": 0, "z": 0 },
+    "mass": 1000,
+    "orientation": { "pitch": 0.0, "yaw": 180.0, "roll": 0.0 },
+    "systems": {
+      "propulsion": {
+        "main_drive": { "thrust": { "x": 0, "y": 0, "z": 0 } }
+      },
+      "bio_monitor": {
+        "g_limit": 8.0,
+        "fail_timer": 0,
+        "current_g": 0.0,
+        "status": "nominal",
+        "crew_health": 1.0
+      },
+      "navigation": {
+        "target": null,
+        "autopilot": true
+      },
+      "helm": {
+        "mode": "manual",
+        "manual_thrust": { "x": 0.0, "y": 0.0, "z": 0.0 }
+      },
+      "sensors": {
+        "passive": {
+          "range": 3000.0,
+          "fov": 120.0,
+          "signature_threshold": 0.00001,
+          "contacts": []
         },
-        "navigation": {
-          "destination": null,
-          "enabled": true
-        },
-        "power": {
-          "capacity": 1000,
-          "current": 1000,
-          "generation": 5
+        "active": {
+          "scan_range": 5000.0,
+          "scan_fov": 120.0,
+          "cooldown": 0.0,
+          "last_ping_time": null,
+          "processed": false,
+          "contacts": []
+        }
+      },
+      "power": {
+        "capacity": 1000,
+        "current": 1000,
+        "generation": 5
+      }
+    }
+  },
+  {
+    "id": "probe_passive_target",
+    "position": { "x": 2500, "y": 0, "z": 0 },
+    "mass": 100,
+    "orientation": { "pitch": 0.0, "yaw": 90.0, "roll": 0.0 },
+    "systems": {
+      "propulsion": {
+        "main_drive": { "thrust": { "x": 0, "y": 0, "z": 0 } }
+      },
+      "sensors": {
+        "passive": {
+          "range": 2000.0,
+          "fov": 120.0,
+          "signature_threshold": 0.00001,
+          "contacts": []
         }
       }
     }
-  ]
-}
+  },
+  {
+    "id": "probe_active_target",
+    "position": { "x": 7000, "y": 0, "z": 0 },
+    "mass": 100,
+    "orientation": { "pitch": 0.0, "yaw": 270.0, "roll": 0.0 },
+    "systems": {
+      "propulsion": {
+        "main_drive": { "thrust": { "x": 0, "y": 0, "z": 0 } }
+      },
+      "sensors": {
+        "passive": {
+          "range": 2000.0,
+          "fov": 120.0,
+          "signature_threshold": 0.00001,
+          "contacts": []
+        },
+        "active": {
+          "scan_range": 4000.0,
+          "scan_fov": 90.0,
+          "cooldown": 0.0,
+          "last_ping_time": null,
+          "processed": false,
+          "contacts": []
+        }
+      }
+    }
+  }
+]

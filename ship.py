@@ -28,12 +28,12 @@ class Ship:
         return f"<Ship {self.id} @ {self.position}>"
 
     def get_state(self):
-        """Return a snapshot of the ship's current state."""
         return {
             "position": self.position,
             "velocity": self.velocity,
             "orientation": self.orientation,
             "thrust": self.systems.get("propulsion", {}).get("main_drive", {}).get("thrust", {}),
             "angular_velocity": self.angular_velocity,
-            "bio_monitor": self.systems.get("bio_monitor", {})
+            "bio_monitor": self.systems.get("bio_monitor", {}),
+            "sensors": self.systems.get("sensors", {})  # <- new addition
         }

@@ -2,13 +2,17 @@
 from systems_tick import tick_all_systems
 from utils.logger import logger
 from math import radians, cos, sin
+
 def simulation_loop(sectors, dt=0.1):
     while True:
+        all_ships = [ship for sector in sectors.values() for ship in sector]
+
         for sector_key, ships in sectors.items():
             for ship in ships:
                 update_orientation(ship, dt)
                 update_position(ship, dt)
-                tick_all_systems(ship, dt)
+                tick_all_systems(ship, all_ships, dt)
+
                 pos = ship.position
                 logger.debug(f"[TICK] {ship.id} in sector {sector_key} @ ({pos['x']:.2f}, {pos['y']:.2f}, {pos['z']:.2f})")
         yield

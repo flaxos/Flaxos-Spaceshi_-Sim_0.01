@@ -1,6 +1,7 @@
 import socketserver
 import json
 import threading
+from datetime import datetime
 
 class CommandHandler(socketserver.BaseRequestHandler):
     def handle(self):
@@ -21,6 +22,7 @@ class CommandHandler(socketserver.BaseRequestHandler):
                     "y": command.get("y", 0.0),
                     "z": command.get("z", 0.0)
                 }
+                # This is the correct place for setting thrust for manual control
                 ship.systems["helm"]["manual_thrust"] = thrust
                 response = {"status": f"Thrust updated for {ship_id}"}
 
@@ -53,8 +55,23 @@ class CommandHandler(socketserver.BaseRequestHandler):
                 response = {"status": f"Autopilot {'enabled' if command.get('enabled') else 'disabled'} for {ship_id}"}
 
             elif cmd == "helm_override":
-                ship.systems["helm"]["manual_override"] = command.get("enabled", False)
+                ship.systems["helm"]["mode"] = "manual" if command.get("enabled", False) else "autopilot"
                 response = {"status": f"Manual helm {'enabled' if command.get('enabled') else 'disabled'} for {ship_id}"}
+
+            elif cmd == "ping_sensors":
+                sensors = ship.systems.get("sensors", {}).get("active", None)
+                if sensors is None:
+                    response = {"error": "Active sensors not available on this ship."}
+                elif sensors.get("cooldown", 0.0) > 0.0:
+                    response = {"error": f"Active sensors cooling down: {sensors['cooldown']:.1f}s"}
+                else:
+                    now = datetime.utcnow().isoformat()
+                    sensors["last_ping_time"] = now
+                    sensors["processed"] = False
+                    response = {
+                        "status": f"Active sensor ping triggered on {ship_id}",
+                        "cooldown_started": 10.0
+                    }
 
             elif cmd == "get_position":
                 response = ship.position
@@ -67,6 +84,11 @@ class CommandHandler(socketserver.BaseRequestHandler):
 
             elif cmd == "get_state":
                 response = ship.get_state()
+
+            elif cmd == "get_contacts":
+                passive = ship.systems.get("sensors", {}).get("passive", {}).get("contacts", [])
+                active = ship.systems.get("sensors", {}).get("active", {}).get("contacts", [])
+                response = {"contacts": passive + active}
 
             elif cmd == "status":
                 response = {"status": f"{ship_id} is online"}

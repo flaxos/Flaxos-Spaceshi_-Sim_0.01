@@ -1,92 +1,111 @@
 import argparse
-import json
 import socket
+import json
+import sys
 
-DEFAULT_HOST = "127.0.0.1"
-DEFAULT_PORT = 9999
+def send_command(host: str, port: int, command: dict):
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.connect((host, port))
+            message = json.dumps(command) + '\n'
+            sock.sendall(message.encode('utf-8'))
 
-def send_command(host, port, ship_id, command):
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.connect((host, port))
-    payload = {"ship": ship_id, **command}
-    sock.send(json.dumps(payload).encode("utf-8"))
-    response = sock.recv(4096).decode("utf-8")
-    sock.close()
-    print("[RESPONSE]", response)
+            # Read response
+            response = ''
+            while True:
+                data = sock.recv(1024)
+                if not data:
+                    break
+                response += data.decode('utf-8')
+                if '\n' in response:
+                    break
+            print("[RESPONSE]", response.strip())
+    except ConnectionRefusedError:
+        print(f"ERROR: Could not connect to {host}:{port}")
+        sys.exit(1)
+    except Exception as e:
+        print(f"ERROR: {str(e)}")
+        sys.exit(1)
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--host", default=DEFAULT_HOST)
-    parser.add_argument("--port", type=int, default=DEFAULT_PORT)
+def main():
+    parser = argparse.ArgumentParser(description="CLI for spaceship_sim commands")
+    parser.add_argument('--host', default='127.0.0.1', help='Simulation server host')
+    parser.add_argument('--port', type=int, default=9999, help='Simulation server port')
+    parser.add_argument('--ship', required=True, help='Ship ID to control')
+    subparsers = parser.add_subparsers(dest='command', required=True)
 
-    def add_common_args(p):
-        p.add_argument("--ship", required=True)
+    # Throttle command
+    throttle_parser = subparsers.add_parser('set_thrust', help='Set main drive thrust')
+    throttle_parser.add_argument('--x', type=float, default=0.0)
+    throttle_parser.add_argument('--y', type=float, default=0.0)
+    throttle_parser.add_argument('--z', type=float, default=0.0)
 
-    subparsers = parser.add_subparsers(dest="command_type", required=True)
+    # Orientation
+    orient_parser = subparsers.add_parser('set_orientation')
+    orient_parser.add_argument('--pitch', type=float)
+    orient_parser.add_argument('--yaw', type=float)
+    orient_parser.add_argument('--roll', type=float)
 
-    # Thrust commands (manual or autopilot)
-    thrust_parser = subparsers.add_parser("set_thrust")
-    add_common_args(thrust_parser)
-    thrust_parser.add_argument("--x", type=float, default=0.0)
-    thrust_parser.add_argument("--y", type=float, default=0.0)
-    thrust_parser.add_argument("--z", type=float, default=0.0)
+    angvel_parser = subparsers.add_parser('set_angular_velocity')
+    angvel_parser.add_argument('--pitch', type=float)
+    angvel_parser.add_argument('--yaw', type=float)
+    angvel_parser.add_argument('--roll', type=float)
 
-    # Orientation / angular commands
-    orient_parser = subparsers.add_parser("set_orientation")
-    add_common_args(orient_parser)
-    orient_parser.add_argument("--pitch", type=float, default=0.0)
-    orient_parser.add_argument("--yaw", type=float, default=0.0)
-    orient_parser.add_argument("--roll", type=float, default=0.0)
-
-    angvel_parser = subparsers.add_parser("set_angular_velocity")
-    add_common_args(angvel_parser)
-    angvel_parser.add_argument("--pitch", type=float, default=0.0)
-    angvel_parser.add_argument("--yaw", type=float, default=0.0)
-    angvel_parser.add_argument("--roll", type=float, default=0.0)
-
-    rotate_parser = subparsers.add_parser("rotate")
-    add_common_args(rotate_parser)
-    rotate_parser.add_argument("--axis", choices=["pitch", "yaw", "roll"], required=True)
-    rotate_parser.add_argument("--value", type=float, required=True)
+    # Rotation
+    rotate_parser = subparsers.add_parser('rotate')
+    rotate_parser.add_argument('--axis', choices=['pitch', 'yaw', 'roll'])
+    rotate_parser.add_argument('--value', type=float)
 
     # Navigation
-    nav_parser = subparsers.add_parser("set_course")
-    add_common_args(nav_parser)
-    nav_parser.add_argument("--x", type=float, required=True)
-    nav_parser.add_argument("--y", type=float, required=True)
-    nav_parser.add_argument("--z", type=float, required=True)
+    course_parser = subparsers.add_parser('set_course')
+    course_parser.add_argument('--x', type=float, required=True)
+    course_parser.add_argument('--y', type=float, required=True)
+    course_parser.add_argument('--z', type=float, required=True)
 
-    nav_toggle = subparsers.add_parser("autopilot")
-    add_common_args(nav_toggle)
-    nav_toggle.add_argument("--enabled", type=int, choices=[0, 1], required=True)
+    autopilot_parser = subparsers.add_parser('autopilot')
+    autopilot_parser.add_argument('--enabled', type=int, choices=[0, 1], required=True)
 
-    # Helm manual control
-    helm_parser = subparsers.add_parser("helm_override")
-    add_common_args(helm_parser)
-    helm_parser.add_argument("--enabled", type=int, choices=[0, 1], required=True)
+    helm_parser = subparsers.add_parser('helm_override')
+    helm_parser.add_argument('--enabled', type=int, choices=[0, 1], required=True)
 
-    # Info commands
-    for name in ["get_state", "get_position", "get_velocity", "get_orientation", "status", "events", "override_bio_monitor"]:
-        p = subparsers.add_parser(name)
-        add_common_args(p)
+    # Ping sensors (active)
+    ping_parser = subparsers.add_parser('ping_sensors', help='Trigger active sensor ping')
+
+    # Misc
+    subparsers.add_parser('get_position')
+    subparsers.add_parser('get_velocity')
+    subparsers.add_parser('get_orientation')
+    subparsers.add_parser('get_state')
+    subparsers.add_parser('get_contacts')
+    subparsers.add_parser('status')
+    subparsers.add_parser('events')
+    subparsers.add_parser('override_bio_monitor')
 
     args = parser.parse_args()
 
-    if args.command_type == "set_thrust":
-        cmd = {"command": "set_thrust", "x": args.x, "y": args.y, "z": args.z}
-    elif args.command_type == "set_orientation":
-        cmd = {"command": "set_orientation", "pitch": args.pitch, "yaw": args.yaw, "roll": args.roll}
-    elif args.command_type == "set_angular_velocity":
-        cmd = {"command": "set_angular_velocity", "pitch": args.pitch, "yaw": args.yaw, "roll": args.roll}
-    elif args.command_type == "rotate":
-        cmd = {"command": "rotate", "axis": args.axis, "value": args.value}
-    elif args.command_type == "set_course":
-        cmd = {"command": "set_course", "target": {"x": args.x, "y": args.y, "z": args.z}}
-    elif args.command_type == "autopilot":
-        cmd = {"command": "autopilot", "enabled": bool(args.enabled)}
-    elif args.command_type == "helm_override":
-        cmd = {"command": "helm_override", "enabled": bool(args.enabled)}
-    else:
-        cmd = {"command": args.command_type}
+    # Build command payload
+    command = {"command": args.command, "ship": args.ship}
 
-    send_command(args.host, args.port, args.ship, cmd)
+    if args.command in ["set_thrust", "set_orientation", "set_angular_velocity"]:
+        for field in ["x", "y", "z", "pitch", "yaw", "roll"]:
+            if hasattr(args, field):
+                val = getattr(args, field, None)
+                if val is not None:
+                    command[field] = val
+
+    elif args.command in ["rotate"]:
+        command["axis"] = args.axis
+        command["value"] = args.value
+
+    elif args.command == "set_course":
+        command["target"] = {"x": args.x, "y": args.y, "z": args.z}
+
+    elif args.command in ["autopilot", "helm_override"]:
+        command["enabled"] = bool(args.enabled)
+
+    # ping_sensors has no extra payload
+
+    send_command(args.host, args.port, command)
+
+if __name__ == '__main__':
+    main()
