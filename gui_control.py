@@ -1,4 +1,4 @@
-# PHASE 4 GUI ENHANCEMENT: Full telemetry + cooldown + parsed returns
+# PHASE 4 GUI ENHANCEMENT: Full telemetry + cooldown + parsed returns + cooldown light + placeholder expansions
 
 import tkinter as tk
 from tkinter import ttk, scrolledtext
@@ -79,7 +79,14 @@ def create_gui():
 
     # --- Sensors ---
     ttk.Label(left, text="Sensors & Bio").pack(pady=(10, 2))
-    ttk.Button(left, text="Ping Sensors", command=lambda: run_command("ping_sensors", {}, ship_var.get(), output_box)).pack(pady=1)
+    cooldown_label = ttk.Label(left, text="Cooldown: N/A", foreground="blue")
+    cooldown_label.pack()
+    def ping_and_check():
+        parsed = run_command("ping_sensors", {}, ship_var.get(), output_box, return_json=True)
+        if parsed:
+            cooldown = parsed.get("cooldown_started") or parsed.get("error")
+            cooldown_label.config(text=f"Cooldown: {cooldown}")
+    ttk.Button(left, text="Ping Sensors", command=ping_and_check).pack(pady=1)
     ttk.Button(left, text="Override Bio Monitor", command=lambda: run_command("override_bio_monitor", {}, ship_var.get(), output_box)).pack(pady=1)
 
     # --- Output Panels ---
@@ -125,6 +132,9 @@ def create_gui():
             state_vars["wy"].set(angv.get("yaw", 0))
             state_vars["wz"].set(angv.get("roll", 0))
             state_vars["spike"].set(parsed.get("sensors", {}).get("spike_until", ""))
+            cooldown_val = parsed.get("sensors", {}).get("active", {}).get("cooldown")
+            if cooldown_val is not None:
+                cooldown_label.config(text=f"Cooldown: {cooldown_val:.1f}s")
 
         contacts = run_command("get_contacts", {}, ship_var.get(), output_box, return_json=True)
         contacts_output.config(state='normal')
