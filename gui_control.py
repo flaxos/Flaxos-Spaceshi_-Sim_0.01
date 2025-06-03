@@ -388,7 +388,8 @@ class ShipConsoleGUI:
         self.cooldown_label = None
         self.state_vars = {}
         self.command_runner = CommandRunner()
-        
+        self.status_var = tk.StringVar(value="Ready")
+
         # Create and configure the main layout
         self.create_layout()
         
@@ -472,9 +473,9 @@ class ShipConsoleGUI:
         status_frame = ttk.Frame(self.root)
         status_frame.grid(row=1, column=0, columnspan=2, sticky="ew")
         
-        self.status_var = tk.StringVar(value="Ready")
-        status_label = ttk.Label(status_frame, textvariable=self.status_var, 
-                               relief=tk.SUNKEN, anchor=tk.W)
+        self.status_var.set("Ready")
+        status_label = ttk.Label(status_frame, textvariable=self.status_var,
+                                 relief=tk.SUNKEN, anchor=tk.W)
         status_label.pack(fill=tk.X)
         
         # Initialize auto-refresh
