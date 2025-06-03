@@ -1,0 +1,651 @@
+{
+  "name": "Sensor Test Scenario",
+  "description": "A scenario designed for testing sensor capabilities at various ranges",
+  "ships": [
+    {
+      "id": "player_ship",
+      "position": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "velocity": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "orientation": {
+        "pitch": 0.0,
+        "yaw": 0.0,
+        "roll": 0.0
+      },
+      "angular_velocity": {
+        "pitch": 0.0,
+        "yaw": 0.0,
+        "roll": 0.0
+      },
+      "mass": 1000.0,
+      "systems": {
+        "propulsion": {
+          "enabled": true,
+          "power_draw": 50,
+          "mass": 200,
+          "slot_type": "propulsion",
+          "tech_level": 2,
+          "main_drive": {
+            "thrust": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "max_thrust": 200.0
+          },
+          "power_status": true
+        },
+        "sensors": {
+          "enabled": true,
+          "power_draw": 10,
+          "mass": 50,
+          "slot_type": "sensor",
+          "tech_level": 2,
+          "passive": {
+            "range": 1000.0,
+            "contacts": []
+          },
+          "active": {
+            "scan_range": 8000.0,
+            "scan_fov": 180.0,
+            "cooldown": 0,
+            "cooldown_time": 5.0,
+            "contact_count": 0,
+            "last_ping_time": 0
+          },
+          "signature_base": 0.8,
+          "contacts": []
+        },
+        "navigation": {
+          "enabled": true,
+          "power_draw": 5,
+          "mass": 20,
+          "slot_type": "navigation",
+          "tech_level": 2,
+          "autopilot": {
+            "enabled": false,
+            "target": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "close_contact",
+      "position": {
+        "x": 800.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "velocity": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "orientation": {
+        "pitch": 0.0,
+        "yaw": 180.0,
+        "roll": 0.0
+      },
+      "mass": 300.0,
+      "systems": {
+        "propulsion": {
+          "enabled": true,
+          "power_draw": 20,
+          "mass": 100,
+          "slot_type": "propulsion",
+          "tech_level": 1,
+          "main_drive": {
+            "thrust": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "max_thrust": 100.0
+          },
+          "power_status": true
+        },
+        "sensors": {
+          "enabled": true,
+          "power_draw": 5,
+          "mass": 30,
+          "slot_type": "sensor",
+          "tech_level": 1,
+          "passive": {
+            "range": 500.0,
+            "contacts": []
+          },
+          "active": {
+            "scan_range": 3000.0,
+            "scan_fov": 120.0,
+            "cooldown": 0,
+            "cooldown_time": 10.0,
+            "contact_count": 0,
+            "last_ping_time": 0,
+            "contacts": [],
+            "processed": true
+          },
+          "signature_base": 2.5,
+          "contacts": []
+        }
+      }
+    },
+    {
+      "id": "mid_range_contact",
+      "position": {
+        "x": 2500.0,
+        "y": 500.0,
+        "z": 500.0
+      },
+      "velocity": {
+        "x": 5.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "orientation": {
+        "pitch": 0.0,
+        "yaw": 90.0,
+        "roll": 0.0
+      },
+      "mass": 800.0,
+      "systems": {
+        "propulsion": {
+          "enabled": true,
+          "power_draw": 30,
+          "mass": 150,
+          "slot_type": "propulsion",
+          "tech_level": 1,
+          "main_drive": {
+            "thrust": {
+              "x": 20.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "max_thrust": 150.0
+          },
+          "power_status": true
+        },
+        "sensors": {
+          "enabled": true,
+          "power_draw": 8,
+          "mass": 40,
+          "slot_type": "sensor",
+          "tech_level": 1,
+          "passive": {
+            "range": 800.0,
+            "contacts": []
+          },
+          "active": {
+            "scan_range": 6000.0,
+            "scan_fov": 150.0,
+            "cooldown": 0,
+            "cooldown_time": 8.0,
+            "contact_count": 0,
+            "last_ping_time": 0
+          },
+          "signature_base": 1.5
+        }
+      }
+    },
+    {
+      "id": "distant_contact",
+      "position": {
+        "x": 7000.0,
+        "y": -1000.0,
+        "z": 2000.0
+      },
+      "velocity": {
+        "x": -3.0,
+        "y": 1.0,
+        "z": 0.0
+      },
+      "orientation": {
+        "pitch": 15.0,
+        "yaw": 270.0,
+        "roll": 0.0
+      },
+      "mass": 1200.0,
+      "systems": {
+        "propulsion": {
+          "enabled": true,
+          "power_draw": 40,
+          "mass": 180,
+          "slot_type": "propulsion",
+          "tech_level": 2,
+          "main_drive": {
+            "thrust": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "max_thrust": 180.0
+          },
+          "power_status": true
+        },
+        "sensors": {
+          "enabled": true,
+          "power_draw": 12,
+          "mass": 60,
+          "slot_type": "sensor",
+          "tech_level": 2,
+          "passive": {
+            "range": 1200.0,
+            "contacts": []
+          },
+          "active": {
+            "scan_range": 7000.0,
+            "scan_fov": 160.0,
+            "cooldown": 0,
+            "cooldown_time": 6.0,
+            "contact_count": 0,
+            "last_ping_time": 0
+          },
+          "signature_base": 3.0
+        }
+      }
+    },
+    {
+      "id": "stealth_contact",
+      "position": {
+        "x": 4000.0,
+        "y": 200.0,
+        "z": -3000.0
+      },
+      "velocity": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 1.0
+      },
+      "orientation": {
+        "pitch": 0.0,
+        "yaw": 0.0,
+        "roll": 0.0
+      },
+      "mass": 500.0,
+      "systems": {
+        "propulsion": {
+          "enabled": true,
+          "power_draw": 25,
+          "mass": 120,
+          "slot_type": "propulsion",
+          "tech_level": 3,
+          "main_drive": {
+            "thrust": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "max_thrust": 120.0
+          },
+          "power_status": true
+        },
+        "sensors": {
+          "enabled": true,
+          "power_draw": 8,
+          "mass": 35,
+          "slot_type": "sensor",
+          "tech_level": 3,
+          "passive": {
+            "range": 900.0,
+            "contacts": []
+          },
+          "active": {
+            "scan_range": 5000.0,
+            "scan_fov": 140.0,
+            "cooldown": 0,
+            "cooldown_time": 7.0,
+            "contact_count": 0,
+            "last_ping_time": 0
+          },
+          "signature_base": 0.5
+        }
+      }
+    }
+  ]
+}
+{
+  "name": "Sensor Test Scenario",
+  "description": "A scenario specifically designed for testing sensor systems at various ranges and configurations",
+  "ships": [
+    {
+      "id": "player_ship",
+      "position": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "velocity": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "orientation": {
+        "pitch": 0.0,
+        "yaw": 0.0,
+        "roll": 0.0
+      },
+      "angular_velocity": {
+        "pitch": 0.0,
+        "yaw": 0.0,
+        "roll": 0.0
+      },
+      "mass": 1000.0,
+      "systems": {
+        "propulsion": {
+          "enabled": true,
+          "power_draw": 50,
+          "mass": 200,
+          "slot_type": "propulsion",
+          "tech_level": 2,
+          "main_drive": {
+            "thrust": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "max_thrust": 200.0
+          },
+          "power_status": true
+        },
+        "sensors": {
+          "enabled": true,
+          "power_draw": 10,
+          "mass": 50,
+          "slot_type": "sensor",
+          "tech_level": 2,
+          "passive": {
+            "range": 1000.0,
+            "contacts": []
+          },
+          "active": {
+            "scan_range": 8000.0,
+            "scan_fov": 180.0,
+            "cooldown": 0,
+            "cooldown_time": 5.0,
+            "contact_count": 0,
+            "last_ping_time": 0
+          },
+          "signature_base": 0.8,
+          "contacts": []
+        },
+        "navigation": {
+          "enabled": true,
+          "power_draw": 5,
+          "mass": 20,
+          "slot_type": "navigation",
+          "tech_level": 2,
+          "autopilot": {
+            "enabled": false,
+            "target": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "close_contact",
+      "position": {
+        "x": 500.0,
+        "y": 0.0,
+        "z": 200.0
+      },
+      "velocity": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "orientation": {
+        "pitch": 0.0,
+        "yaw": 180.0,
+        "roll": 0.0
+      },
+      "angular_velocity": {
+        "pitch": 0.0,
+        "yaw": 0.0,
+        "roll": 0.0
+      },
+      "mass": 100.0,
+      "systems": {
+        "propulsion": {
+          "enabled": true,
+          "power_draw": 10,
+          "mass": 40,
+          "slot_type": "propulsion",
+          "tech_level": 1,
+          "main_drive": {
+            "thrust": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "max_thrust": 50.0
+          },
+          "power_status": true
+        },
+        "sensors": {
+          "enabled": true,
+          "power_draw": 5,
+          "mass": 20,
+          "slot_type": "sensor",
+          "tech_level": 1,
+          "passive": {
+            "range": 300.0,
+            "contacts": []
+          },
+          "active": {
+            "scan_range": 2000.0,
+            "scan_fov": 120.0,
+            "cooldown": 0,
+            "cooldown_time": 8.0,
+            "contact_count": 0,
+            "last_ping_time": 0
+          },
+          "signature_base": 0.6,
+          "contacts": []
+        }
+      }
+    },
+    {
+      "id": "medium_contact",
+      "position": {
+        "x": 1500.0,
+        "y": 200.0,
+        "z": -800.0
+      },
+      "velocity": {
+        "x": 2.0,
+        "y": 0.0,
+        "z": 1.0
+      },
+      "orientation": {
+        "pitch": 0.0,
+        "yaw": 90.0,
+        "roll": 0.0
+      },
+      "angular_velocity": {
+        "pitch": 0.0,
+        "yaw": 0.0,
+        "roll": 0.0
+      },
+      "mass": 800.0,
+      "systems": {
+        "propulsion": {
+          "enabled": true,
+          "power_draw": 30,
+          "mass": 150,
+          "slot_type": "propulsion",
+          "tech_level": 1,
+          "main_drive": {
+            "thrust": {
+              "x": 10.0,
+              "y": 0.0,
+              "z": 5.0
+            },
+            "max_thrust": 150.0
+          },
+          "power_status": true
+        },
+        "sensors": {
+          "enabled": true,
+          "power_draw": 8,
+          "mass": 40,
+          "slot_type": "sensor",
+          "tech_level": 1,
+          "passive": {
+            "range": 800.0,
+            "contacts": []
+          },
+          "active": {
+            "scan_range": 6000.0,
+            "scan_fov": 150.0,
+            "cooldown": 0,
+            "cooldown_time": 8.0,
+            "contact_count": 0,
+            "last_ping_time": 0
+          },
+          "signature_base": 1.8,
+          "contacts": []
+        }
+      }
+    },
+    {
+      "id": "distant_contact",
+      "position": {
+        "x": 4000.0,
+        "y": -500.0,
+        "z": 3000.0
+      },
+      "velocity": {
+        "x": -1.0,
+        "y": 0.0,
+        "z": -2.0
+      },
+      "orientation": {
+        "pitch": 15.0,
+        "yaw": 270.0,
+        "roll": 0.0
+      },
+      "angular_velocity": {
+        "pitch": 0.0,
+        "yaw": 0.0,
+        "roll": 0.0
+      },
+      "mass": 1500.0,
+      "systems": {
+        "propulsion": {
+          "enabled": true,
+          "power_draw": 40,
+          "mass": 200,
+          "slot_type": "propulsion",
+          "tech_level": 2,
+          "main_drive": {
+            "thrust": {
+              "x": -5.0,
+              "y": 0.0,
+              "z": -10.0
+            },
+            "max_thrust": 180.0
+          },
+          "power_status": true
+        },
+        "sensors": {
+          "enabled": true,
+          "power_draw": 12,
+          "mass": 60,
+          "slot_type": "sensor",
+          "tech_level": 2,
+          "passive": {
+            "range": 1200.0,
+            "contacts": []
+          },
+          "active": {
+            "scan_range": 7000.0,
+            "scan_fov": 160.0,
+            "cooldown": 0,
+            "cooldown_time": 6.0,
+            "contact_count": 0,
+            "last_ping_time": 0
+          },
+          "signature_base": 2.5,
+          "contacts": []
+        }
+      }
+    },
+    {
+      "id": "stealth_contact",
+      "position": {
+        "x": 900.0,
+        "y": 300.0,
+        "z": 1200.0
+      },
+      "velocity": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "orientation": {
+        "pitch": 0.0,
+        "yaw": 45.0,
+        "roll": 0.0
+      },
+      "angular_velocity": {
+        "pitch": 0.0,
+        "yaw": 0.0,
+        "roll": 0.0
+      },
+      "mass": 200.0,
+      "systems": {
+        "propulsion": {
+          "enabled": false,
+          "power_draw": 15,
+          "mass": 80,
+          "slot_type": "propulsion",
+          "tech_level": 2,
+          "main_drive": {
+            "thrust": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "max_thrust": 100.0
+          },
+          "power_status": false
+        },
+        "sensors": {
+          "enabled": true,
+          "power_draw": 5,
+          "mass": 30,
+          "slot_type": "sensor",
+          "tech_level": 1,
+          "passive": {
+            "range": 900.0,
+            "contacts": []
+          },
+          "active": {
+            "scan_range": 4000.0,
+            "scan_fov": 140.0,
+            "cooldown": 0,
+            "cooldown_time": 10.0,
+            "contact_count": 0,
+            "last_ping_time": 0
+          },
+          "signature_base": 0.3,
+          "contacts": []
+        }
+      }
+    }
+  ]
+}

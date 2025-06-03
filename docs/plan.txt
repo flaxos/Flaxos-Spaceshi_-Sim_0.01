@@ -1,0 +1,126 @@
+
+🛠️ FlaxDeck Core Development Plan — LLM Execution Brief
+
+Project Overview
+----------------
+FlaxDeck is a modular hard sci-fi spaceship simulator designed to simulate real-world-ish ship physics, power systems, sensor logic, and multi-ship interaction. The project currently supports both CLI and GUI interfaces, loads ships from JSON files, and simulates physics, navigation, and sensors in 3D space.
+
+Our development philosophy:
+- Simulation-first
+- Modularity-focused
+- CLI/core logic before GUI polish
+- Future extensibility (LLM-generated missions, ships, etc.)
+
+Current Code State
+------------------
+- Ships are defined via JSON with systems such as propulsion, power, helm, navigation, sensors, etc.
+- A CLI (send.py) routes commands to individual ships.
+- GUI exists via Tkinter and displays limited controls/state.
+- Placeholder values for power_draw, mass, and slot_type are embedded in the schema.
+- We use a get_state command to fetch per-ship JSON state.
+
+Next Development Phase: v0.5.0 → v0.6.0
+---------------------------------------
+This plan guides the next stage of development, focusing on core simulation features, system-level resource enforcement, and schema scaffolding for future features.
+
+1. Tick Engine
+--------------
+Goal: Simulate time passage per ship.
+
+Each tick should:
+- Update velocity and position based on thrust.
+- Apply autopilot course changes if autopilot is enabled.
+- Deduct power from active systems.
+- Update sensor cooldowns and detection logic.
+
+Required Components:
+- tick(ship_state: dict) -> dict function in tick.py
+- tick_all_ships() to run all ships from fleet/ or memory
+- Integrate with existing simulation loop
+
+2. Power Consumption & System Enablement
+----------------------------------------
+Goal: Enforce power as a core resource.
+
+Actions:
+- Each system should have a power_draw value (already scaffolded).
+- On every tick:
+  - Subtract power from power.current
+  - If power is 0, disable affected systems (enabled: false)
+- Implement CLI command:
+  python send.py set_system_state --ship <id> --system sensors --enabled 0
+
+3. Active Sensor Pings + Contact Logic
+--------------------------------------
+Goal: Complete the sensor gameplay loop.
+
+Actions:
+- Implement active_ping(ship_state, fleet_state):
+  - Detect ships within range and fov
+  - Add to contacts list with timestamp
+  - Apply cooldown timer (cooldown_time)
+- CLI command:
+  python send.py ping_sensors --ship <id>
+- GUI should reflect:
+  - Sensor cooldown
+  - Active/passive contacts
+  - System status
+
+4. Launch Bay & Ship Hierarchies (Scaffold Only)
+------------------------------------------------
+Goal: Prepare capital ships to deploy other vessels.
+
+Actions:
+- Add launch_bay to ship schema:
+  "launch_bay": {
+    "capacity": 4,
+    "types_allowed": ["drone", "probe"],
+    "active": []
+  }
+
+- Add optional parent_ship_id field
+- CLI stub:
+  python send.py spawn_child --parent <id> --type probe
+
+- Store child ship JSON in /fleet/ folder
+Note: No physical deployment logic needed yet — schema only.
+
+5. System State Scaffolding
+---------------------------
+All ship systems must support:
+  "enabled": true,
+  "power_draw": 10,
+  "mass": 50,
+  "slot_type": "utility",
+  "tech_level": 1
+
+- Must be toggleable via CLI or tick logic
+- Safe to fail gracefully if disabled
+- Compatible with GUI or JSON readout
+
+Notes for LLM
+-------------
+- Maintain existing CLI and GUI compatibility unless enhancing.
+- Separate logic into modules: tick.py, sensors.py, etc.
+- Use Python 3.10+ (type hints, match/case if useful).
+- Ensure all JSON changes are backward-compatible or handled with defaults.
+- Comment all logic and include function docstrings.
+
+Deliverables
+------------
+1. tick.py — with tick() and tick_all_ships() functions
+2. sensors.py — with ping_sensors() and contact processing
+3. Updated JSON ship schema with full scaffolding
+4. CLI commands in send.py:
+   - ping_sensors
+   - set_system_state
+   - spawn_child (stub only)
+5. GUI enhancements (only where needed to reflect new simulation logic)
+6. Optional: logs or debug output per tick
+
+Future Extensions (Not Required Now)
+------------------------------------
+- Joystick support (6DOF input mapping)
+- GUI visualizations for contact map and system health
+- validate_ship.py to enforce schema rules
+- LLM prompt system (tova_generate.py) for ship and mission creation

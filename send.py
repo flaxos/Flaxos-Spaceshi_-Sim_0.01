@@ -64,7 +64,122 @@ def main():
 
     autopilot_parser = subparsers.add_parser('autopilot')
     autopilot_parser.add_argument('--enabled', type=int, choices=[0, 1], required=True)
+#!/usr/bin/env python3
+# Command sender for hybrid simulator
+# This script sends commands to ships in the simulator
 
+import argparse
+import json
+import requests
+import sys
+import socket
+import time
+
+# Default parameters
+DEFAULT_HOST = "localhost"
+DEFAULT_PORT = 7979  # Default server port
+
+def send_command(ship_id, command, args, host=DEFAULT_HOST, port=DEFAULT_PORT):
+    """
+    Send a command to a ship via the command server
+    
+    Args:
+        ship_id (str): ID of the ship to send command to
+        command (str): Command to send
+        args (dict): Command arguments
+        host (str): Server hostname or IP
+        port (int): Server port
+        
+    Returns:
+        dict: Command response
+    """
+    try:
+        # Create a socket
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.connect((host, port))
+        
+        # Create command message
+        message = {
+            "ship_id": ship_id,
+            "command": command,
+            "args": args
+        }
+        
+        # Send the command
+        sock.sendall(json.dumps(message).encode() + b'\n')
+        
+        # Wait for response
+        response = b''
+        while True:
+            data = sock.recv(4096)
+            if not data:
+                break
+            response += data
+            if b'\n' in data:
+                break
+        
+        # Close the socket
+        sock.close()
+        
+        # Parse and return the response
+        return json.loads(response.decode())
+    
+    except ConnectionRefusedError:
+        # Try local fallback using hybrid_runner directly
+        try:
+            from hybrid_runner import HybridRunner
+            runner = HybridRunner()
+            runner.load_ships()
+            result = runner.send_command(ship_id, command, args)
+            return result
+        except Exception as e:
+            return {"error": f"Connection refused and fallback failed: {str(e)}"}
+    
+    except Exception as e:
+        return {"error": str(e)}
+
+def main():
+    """Parse command line arguments and send the command"""
+    parser = argparse.ArgumentParser(description="Send commands to ships in the hybrid simulator")
+    
+    parser.add_argument("command", help="Command to send")
+    parser.add_argument("--ship", required=True, help="Ship ID")
+    parser.add_argument("--host", default=DEFAULT_HOST, help=f"Server hostname (default: {DEFAULT_HOST})")
+    parser.add_argument("--port", type=int, default=DEFAULT_PORT, help=f"Server port (default: {DEFAULT_PORT})")
+    
+    # Common command arguments
+    parser.add_argument("--x", type=float, help="X coordinate")
+    parser.add_argument("--y", type=float, help="Y coordinate")
+    parser.add_argument("--z", type=float, help="Z coordinate")
+    parser.add_argument("--pitch", type=float, help="Pitch angle")
+    parser.add_argument("--yaw", type=float, help="Yaw angle")
+    parser.add_argument("--roll", type=float, help="Roll angle")
+    parser.add_argument("--enabled", type=int, help="Enable/disable flag (0/1)")
+    parser.add_argument("--mode", help="Mode setting")
+    parser.add_argument("--duration", type=float, help="Duration in seconds")
+    parser.add_argument("--system", help="System name")
+    parser.add_argument("--direction", type=float, help="Direction in degrees")
+    parser.add_argument("--power", type=int, help="Power setting (0-100)")
+    
+    # Parse arguments
+    args = parser.parse_args()
+    
+    # Extract command arguments
+    command_args = {}
+    for arg in ["x", "y", "z", "pitch", "yaw", "roll", "enabled", "mode", 
+                "duration", "system", "direction", "power"]:
+        if hasattr(args, arg) and getattr(args, arg) is not None:
+            command_args[arg] = getattr(args, arg)
+    
+    # Send the command
+    response = send_command(args.ship, args.command, command_args, args.host, args.port)
+    
+    # Print the response
+    print("[RESPONSE]")
+    print(json.dumps(response, indent=2))
+
+if __name__ == "__main__":
+    main()
     helm_parser = subparsers.add_parser('helm_override')
     helm_parser.add_argument('--enabled', type=int, choices=[0, 1], required=True)
 

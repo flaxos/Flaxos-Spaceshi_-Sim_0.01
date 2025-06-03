@@ -28,12 +28,39 @@ class Ship:
         return f"<Ship {self.id} @ {self.position}>"
 
     def get_state(self):
-        return {
-            "position": self.position,
-            "velocity": self.velocity,
-            "orientation": self.orientation,
-            "thrust": self.systems.get("propulsion", {}).get("main_drive", {}).get("thrust", {}),
-            "angular_velocity": self.angular_velocity,
-            "bio_monitor": self.systems.get("bio_monitor", {}),
-            "sensors": self.systems.get("sensors", {})  # <- new addition
-        }
+            # Create base state dictionary
+            state = {
+                "position": self.position,
+                "velocity": self.velocity,
+                "orientation": self.orientation,
+                "angular_velocity": self.angular_velocity,
+                "thrust": self.systems.get("propulsion", {}).get("main_drive", {}).get("thrust", {})
+            }
+            
+            # Handle bio_monitor if available
+            if "bio_monitor" in self.systems:
+                bio_system = self.systems["bio_monitor"]
+                if hasattr(bio_system, "get_state"):
+                    state["bio_monitor"] = bio_system.get_state()
+                else:
+                    state["bio_monitor"] = bio_system
+            
+            # Handle sensors system properly
+            if "sensors" in self.systems:
+                sensors = self.systems["sensors"]
+                # Check if sensors is an object with get_state method
+                if hasattr(sensors, "get_state") and callable(sensors.get_state):
+                    state["sensors"] = sensors.get_state()
+                # Check if sensors is a dictionary
+                elif isinstance(sensors, dict):
+                    state["sensors"] = sensors
+                else:
+                    # Create a minimal valid sensor state
+                    state["sensors"] = {
+                        "enabled": True,
+                        "passive": {"contacts": []},
+                        "active": {"contacts": [], "last_ping_time": 0},
+                        "contacts": []
+                    }
+                    
+            return state
