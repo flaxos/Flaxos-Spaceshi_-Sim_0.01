@@ -42,5 +42,3 @@ class SectorManager:
                     keys.append((cx + dx, cy + dy, cz + dz))
         return keys
 
-print("[DEBUG] Simulation exited unexpectedly.")
-
