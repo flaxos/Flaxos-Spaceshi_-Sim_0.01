@@ -259,14 +259,13 @@ class CommandHandler(socketserver.BaseRequestHandler):
             "timestamp": now
         }
 
-
-def _handle_override_bio(self, ship, ship_id):
-    """Handle override_bio_monitor command"""
-    ship.systems["bio_monitor"]["override"] = True
-    return {
-        "status": f"Crew safety overridden on {ship_id}",
-        "timestamp": datetime.utcnow().isoformat()
-    }
+    def _handle_override_bio(self, ship, ship_id):
+        """Handle override_bio_monitor command"""
+        ship.systems["bio_monitor"]["override"] = True
+        return {
+            "status": f"Crew safety overridden on {ship_id}",
+            "timestamp": datetime.utcnow().isoformat()
+        }
 
 
 class CommandServer:
