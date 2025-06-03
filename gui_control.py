@@ -764,200 +764,200 @@ class ShipConsoleGUI:
         ttk.Button(toolbar, text="Refresh", 
               command=self.refresh_contacts_table).pack(side=tk.RIGHT, padx=5)
             
-                            # Create the table with Treeview
-                            columns = ("id", "distance", "bearing", "signature", "method", "timestamp")
-                            self.contacts_table = ttk.Treeview(table_frame, columns=columns, show="headings", 
-                                                 selectmode="browse", height=10)
-                            
-                            # Define column headings
-                            self.contacts_table.heading("id", text="Contact ID", command=lambda: self.sort_contacts("id"))
-                            self.contacts_table.heading("distance", text="Distance", command=lambda: self.sort_contacts("distance"))
-                            self.contacts_table.heading("bearing", text="Bearing", command=lambda: self.sort_contacts("bearing"))
-                            self.contacts_table.heading("signature", text="Signature", command=lambda: self.sort_contacts("signature"))
-                            self.contacts_table.heading("method", text="Method", command=lambda: self.sort_contacts("method"))
-                            self.contacts_table.heading("timestamp", text="Last Updated", command=lambda: self.sort_contacts("timestamp"))
-                            
-                            # Set column widths
-                            self.contacts_table.column("id", width=100)
-                            self.contacts_table.column("distance", width=80)
-                            self.contacts_table.column("bearing", width=80)
-                            self.contacts_table.column("signature", width=80)
-                            self.contacts_table.column("method", width=80)
-                            self.contacts_table.column("timestamp", width=150)
-                            
-                            # Add a scrollbar
-                            table_scroll = ttk.Scrollbar(table_frame, orient="vertical", command=self.contacts_table.yview)
-                            self.contacts_table.configure(yscrollcommand=table_scroll.set)
-                            
-                            # Pack the table and scrollbar
-                            self.contacts_table.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-                            table_scroll.pack(side=tk.RIGHT, fill=tk.Y)
-                            
-                            # Add selection event
-                            self.contacts_table.bind("<<TreeviewSelect>>", self.on_contact_selected)
-                    
-                                    # Details panel below the table
-                                    details_frame = ttk.LabelFrame(parent, text="Contact Details")
-                                    details_frame.pack(fill=tk.X, padx=5, pady=5)
-                                    
-                                    # Create text widget for contact details
-                                    self.contact_details = scrolledtext.ScrolledText(
-                                        details_frame, 
-                                        height=4, 
-                                        wrap=tk.WORD,
-                                        font=('Consolas', 9)
-                                    )
-                                    self.contact_details.pack(fill=tk.X, padx=5, pady=5)
-                                    
-                                    # Action buttons for selected contact
-                                    actions_frame = ttk.Frame(details_frame)
-                                    actions_frame.pack(fill=tk.X, padx=5, pady=5)
-                                    
-                                    ttk.Button(actions_frame, text="Set Course", 
-                                          command=self.set_course_to_contact).pack(side=tk.LEFT, padx=5)
-                                    ttk.Button(actions_frame, text="Track", 
-                                          command=self.track_contact).pack(side=tk.LEFT, padx=5)
-                                    ttk.Button(actions_frame, text="Delete", 
-                                          command=self.delete_contact).pack(side=tk.LEFT, padx=5)
+        # Create the table with Treeview
+        columns = ("id", "distance", "bearing", "signature", "method", "timestamp")
+        self.contacts_table = ttk.Treeview(table_frame, columns=columns, show="headings", 
+                             selectmode="browse", height=10)
         
-                        def _create_sensor_controls(self, parent):
-                            """Create sensor mode controls"""
-                            # Sensor status and controls
-                            controls_frame = ttk.Frame(parent)
-                            controls_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
-                            
-                            # Create sensor status display
-                            status_frame = ttk.LabelFrame(controls_frame, text="Sensor Status")
-                            status_frame.pack(fill=tk.X, padx=5, pady=5)
-                            
-                            # Sensor power status
-                            power_frame = ttk.Frame(status_frame)
-                            power_frame.pack(fill=tk.X, padx=5, pady=5)
-                            
-                            ttk.Label(power_frame, text="Power:").grid(row=0, column=0, padx=5, pady=2, sticky=tk.W)
-                            self.sensor_power_var = tk.StringVar(value="Online")
-                            power_label = ttk.Label(power_frame, textvariable=self.sensor_power_var, foreground="green")
-                            power_label.grid(row=0, column=1, padx=5, pady=2, sticky=tk.W)
-                            
-                            # Sensor mode
-                            ttk.Label(power_frame, text="Mode:").grid(row=1, column=0, padx=5, pady=2, sticky=tk.W)
-                            self.sensor_mode_var = tk.StringVar(value="Passive")
-                            mode_label = ttk.Label(power_frame, textvariable=self.sensor_mode_var, foreground="blue")
-                            mode_label.grid(row=1, column=1, padx=5, pady=2, sticky=tk.W)
-                            
-                            # Cooldown status
-                            ttk.Label(power_frame, text="Cooldown:").grid(row=2, column=0, padx=5, pady=2, sticky=tk.W)
-                            self.cooldown_var = tk.StringVar(value="Ready")
-                            self.cooldown_label = ttk.Label(power_frame, textvariable=self.cooldown_var, foreground="green")
-                            self.cooldown_label.grid(row=2, column=1, padx=5, pady=2, sticky=tk.W)
-                            
-                            # Last ping time
-                            ttk.Label(power_frame, text="Last Ping:").grid(row=3, column=0, padx=5, pady=2, sticky=tk.W)
-                            self.last_ping_var = tk.StringVar(value="N/A")
-                            ttk.Label(power_frame, textvariable=self.last_ping_var).grid(row=3, column=1, padx=5, pady=2, sticky=tk.W)
-                            
-                            # Sensor range information
-                            range_frame = ttk.LabelFrame(controls_frame, text="Sensor Ranges")
-                            range_frame.pack(fill=tk.X, padx=5, pady=5)
-                            
-                            # Passive range
-                            ttk.Label(range_frame, text="Passive Range:").grid(row=0, column=0, padx=5, pady=2, sticky=tk.W)
-                            self.passive_range_var = tk.StringVar(value="1000 km")
-                            ttk.Label(range_frame, textvariable=self.passive_range_var).grid(row=0, column=1, padx=5, pady=2, sticky=tk.W)
-                            
-                            # Active range
-                            ttk.Label(range_frame, text="Active Range:").grid(row=1, column=0, padx=5, pady=2, sticky=tk.W)
-                            self.active_range_var = tk.StringVar(value="8000 km")
-                            ttk.Label(range_frame, textvariable=self.active_range_var).grid(row=1, column=1, padx=5, pady=2, sticky=tk.W)
-                            
-                            # FOV
-                            ttk.Label(range_frame, text="Scan FOV:").grid(row=2, column=0, padx=5, pady=2, sticky=tk.W)
-                            self.scan_fov_var = tk.StringVar(value="180°")
-                            ttk.Label(range_frame, textvariable=self.scan_fov_var).grid(row=2, column=1, padx=5, pady=2, sticky=tk.W)
-                            
-                            # Sensor control buttons
-                            control_frame = ttk.LabelFrame(controls_frame, text="Sensor Controls")
-                            control_frame.pack(fill=tk.X, padx=5, pady=5)
-                            
-                            # Active sensor ping button
-                            ttk.Button(control_frame, text="Active Ping", 
-                                  command=self.ping_sensors).pack(side=tk.LEFT, padx=5, pady=5)
-                            
-                            # Toggle passive mode
-                            self.passive_mode_var = tk.BooleanVar(value=True)
-                            ttk.Checkbutton(control_frame, text="Passive Mode", 
-                                       variable=self.passive_mode_var,
-                                       command=self.toggle_passive_mode).pack(side=tk.LEFT, padx=5, pady=5)
-                            
-                            # Toggle stealth mode
-                            self.stealth_mode_var = tk.BooleanVar(value=False)
-                            ttk.Checkbutton(control_frame, text="Stealth Mode", 
-                                       variable=self.stealth_mode_var,
-                                       command=self.toggle_stealth_mode).pack(side=tk.LEFT, padx=5, pady=5)
-                            
-                            # Set scan parameters
-                            scan_frame = ttk.Frame(control_frame)
-                            scan_frame.pack(side=tk.RIGHT, padx=5, pady=5)
-                            
-                            ttk.Label(scan_frame, text="Scan Direction:").grid(row=0, column=0, padx=5, pady=2, sticky=tk.W)
-                            self.scan_direction_var = tk.StringVar(value="0")
-                            ttk.Entry(scan_frame, textvariable=self.scan_direction_var, width=5).grid(row=0, column=1, padx=5, pady=2)
-                            
-                            ttk.Button(scan_frame, text="Set Direction", 
-                                  command=self.set_scan_direction).grid(row=0, column=2, padx=5, pady=2)
+        # Define column headings
+        self.contacts_table.heading("id", text="Contact ID", command=lambda: self.sort_contacts("id"))
+        self.contacts_table.heading("distance", text="Distance", command=lambda: self.sort_contacts("distance"))
+        self.contacts_table.heading("bearing", text="Bearing", command=lambda: self.sort_contacts("bearing"))
+        self.contacts_table.heading("signature", text="Signature", command=lambda: self.sort_contacts("signature"))
+        self.contacts_table.heading("method", text="Method", command=lambda: self.sort_contacts("method"))
+        self.contacts_table.heading("timestamp", text="Last Updated", command=lambda: self.sort_contacts("timestamp"))
         
-                            def _create_signature_analysis(self, parent):
-                                """Create signature analysis tools"""
-                                # Signature analysis frame
-                                analysis_frame = ttk.Frame(parent)
-                                analysis_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
-                                
-                                # Ship signature display
-                                signature_frame = ttk.LabelFrame(analysis_frame, text="Ship Signature")
-                                signature_frame.pack(fill=tk.X, padx=5, pady=5)
-                                
-                                # Base signature
-                                ttk.Label(signature_frame, text="Base Signature:").grid(row=0, column=0, padx=5, pady=2, sticky=tk.W)
-                                self.base_signature_var = tk.StringVar(value="0.8")
-                                ttk.Label(signature_frame, textvariable=self.base_signature_var).grid(row=0, column=1, padx=5, pady=2, sticky=tk.W)
-                                
-                                # Current signature
-                                ttk.Label(signature_frame, text="Current Signature:").grid(row=1, column=0, padx=5, pady=2, sticky=tk.W)
-                                self.current_signature_var = tk.StringVar(value="1.2")
-                                ttk.Label(signature_frame, textvariable=self.current_signature_var).grid(row=1, column=1, padx=5, pady=2, sticky=tk.W)
-                                
-                                # EM spike status
-                                ttk.Label(signature_frame, text="EM Spike:").grid(row=2, column=0, padx=5, pady=2, sticky=tk.W)
-                                self.spike_var = tk.StringVar(value="None")
-                                ttk.Label(signature_frame, textvariable=self.spike_var).grid(row=2, column=1, padx=5, pady=2, sticky=tk.W)
-                                
-                                # Signature control
-                                control_frame = ttk.LabelFrame(analysis_frame, text="Signature Control")
-                                control_frame.pack(fill=tk.X, padx=5, pady=5)
-                                
-                                # Trigger EM spike
-                                spike_frame = ttk.Frame(control_frame)
-                                spike_frame.pack(fill=tk.X, padx=5, pady=5)
-                                
-                                ttk.Label(spike_frame, text="Spike Duration (s):").pack(side=tk.LEFT, padx=5)
-                                self.spike_duration_var = tk.StringVar(value="3.0")
-                                ttk.Entry(spike_frame, textvariable=self.spike_duration_var, width=5).pack(side=tk.LEFT, padx=5)
-                                
-                                ttk.Button(spike_frame, text="Trigger EM Spike", 
-                                      command=self.trigger_signature_spike).pack(side=tk.LEFT, padx=5)
-                                
-                                # Signature analysis
-                                analysis_output_frame = ttk.LabelFrame(analysis_frame, text="Signature Analysis")
-                                analysis_output_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
-                                
-                                self.signature_analysis = scrolledtext.ScrolledText(
-                                    analysis_output_frame, 
-                                    height=6, 
-                                    wrap=tk.WORD,
-                                    font=('Consolas', 9)
-                                )
-                                self.signature_analysis.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
-    
+        # Set column widths
+        self.contacts_table.column("id", width=100)
+        self.contacts_table.column("distance", width=80)
+        self.contacts_table.column("bearing", width=80)
+        self.contacts_table.column("signature", width=80)
+        self.contacts_table.column("method", width=80)
+        self.contacts_table.column("timestamp", width=150)
+        
+        # Add a scrollbar
+        table_scroll = ttk.Scrollbar(table_frame, orient="vertical", command=self.contacts_table.yview)
+        self.contacts_table.configure(yscrollcommand=table_scroll.set)
+        
+        # Pack the table and scrollbar
+        self.contacts_table.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        table_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # Add selection event
+        self.contacts_table.bind("<<TreeviewSelect>>", self.on_contact_selected)
+
+        # Details panel below the table
+        details_frame = ttk.LabelFrame(parent, text="Contact Details")
+        details_frame.pack(fill=tk.X, padx=5, pady=5)
+        
+        # Create text widget for contact details
+        self.contact_details = scrolledtext.ScrolledText(
+            details_frame, 
+            height=4, 
+            wrap=tk.WORD,
+            font=('Consolas', 9)
+        )
+        self.contact_details.pack(fill=tk.X, padx=5, pady=5)
+        
+        # Action buttons for selected contact
+        actions_frame = ttk.Frame(details_frame)
+        actions_frame.pack(fill=tk.X, padx=5, pady=5)
+        
+        ttk.Button(actions_frame, text="Set Course", 
+              command=self.set_course_to_contact).pack(side=tk.LEFT, padx=5)
+        ttk.Button(actions_frame, text="Track", 
+              command=self.track_contact).pack(side=tk.LEFT, padx=5)
+        ttk.Button(actions_frame, text="Delete", 
+              command=self.delete_contact).pack(side=tk.LEFT, padx=5)
+        
+    def _create_sensor_controls(self, parent):
+        """Create sensor mode controls"""
+        # Sensor status and controls
+        controls_frame = ttk.Frame(parent)
+        controls_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        
+        # Create sensor status display
+        status_frame = ttk.LabelFrame(controls_frame, text="Sensor Status")
+        status_frame.pack(fill=tk.X, padx=5, pady=5)
+        
+        # Sensor power status
+        power_frame = ttk.Frame(status_frame)
+        power_frame.pack(fill=tk.X, padx=5, pady=5)
+        
+        ttk.Label(power_frame, text="Power:").grid(row=0, column=0, padx=5, pady=2, sticky=tk.W)
+        self.sensor_power_var = tk.StringVar(value="Online")
+        power_label = ttk.Label(power_frame, textvariable=self.sensor_power_var, foreground="green")
+        power_label.grid(row=0, column=1, padx=5, pady=2, sticky=tk.W)
+        
+        # Sensor mode
+        ttk.Label(power_frame, text="Mode:").grid(row=1, column=0, padx=5, pady=2, sticky=tk.W)
+        self.sensor_mode_var = tk.StringVar(value="Passive")
+        mode_label = ttk.Label(power_frame, textvariable=self.sensor_mode_var, foreground="blue")
+        mode_label.grid(row=1, column=1, padx=5, pady=2, sticky=tk.W)
+        
+        # Cooldown status
+        ttk.Label(power_frame, text="Cooldown:").grid(row=2, column=0, padx=5, pady=2, sticky=tk.W)
+        self.cooldown_var = tk.StringVar(value="Ready")
+        self.cooldown_label = ttk.Label(power_frame, textvariable=self.cooldown_var, foreground="green")
+        self.cooldown_label.grid(row=2, column=1, padx=5, pady=2, sticky=tk.W)
+        
+        # Last ping time
+        ttk.Label(power_frame, text="Last Ping:").grid(row=3, column=0, padx=5, pady=2, sticky=tk.W)
+        self.last_ping_var = tk.StringVar(value="N/A")
+        ttk.Label(power_frame, textvariable=self.last_ping_var).grid(row=3, column=1, padx=5, pady=2, sticky=tk.W)
+        
+        # Sensor range information
+        range_frame = ttk.LabelFrame(controls_frame, text="Sensor Ranges")
+        range_frame.pack(fill=tk.X, padx=5, pady=5)
+        
+        # Passive range
+        ttk.Label(range_frame, text="Passive Range:").grid(row=0, column=0, padx=5, pady=2, sticky=tk.W)
+        self.passive_range_var = tk.StringVar(value="1000 km")
+        ttk.Label(range_frame, textvariable=self.passive_range_var).grid(row=0, column=1, padx=5, pady=2, sticky=tk.W)
+        
+        # Active range
+        ttk.Label(range_frame, text="Active Range:").grid(row=1, column=0, padx=5, pady=2, sticky=tk.W)
+        self.active_range_var = tk.StringVar(value="8000 km")
+        ttk.Label(range_frame, textvariable=self.active_range_var).grid(row=1, column=1, padx=5, pady=2, sticky=tk.W)
+        
+        # FOV
+        ttk.Label(range_frame, text="Scan FOV:").grid(row=2, column=0, padx=5, pady=2, sticky=tk.W)
+        self.scan_fov_var = tk.StringVar(value="180°")
+        ttk.Label(range_frame, textvariable=self.scan_fov_var).grid(row=2, column=1, padx=5, pady=2, sticky=tk.W)
+        
+        # Sensor control buttons
+        control_frame = ttk.LabelFrame(controls_frame, text="Sensor Controls")
+        control_frame.pack(fill=tk.X, padx=5, pady=5)
+        
+        # Active sensor ping button
+        ttk.Button(control_frame, text="Active Ping", 
+              command=self.ping_sensors).pack(side=tk.LEFT, padx=5, pady=5)
+        
+        # Toggle passive mode
+        self.passive_mode_var = tk.BooleanVar(value=True)
+        ttk.Checkbutton(control_frame, text="Passive Mode", 
+                   variable=self.passive_mode_var,
+                   command=self.toggle_passive_mode).pack(side=tk.LEFT, padx=5, pady=5)
+        
+        # Toggle stealth mode
+        self.stealth_mode_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(control_frame, text="Stealth Mode", 
+                   variable=self.stealth_mode_var,
+                   command=self.toggle_stealth_mode).pack(side=tk.LEFT, padx=5, pady=5)
+        
+        # Set scan parameters
+        scan_frame = ttk.Frame(control_frame)
+        scan_frame.pack(side=tk.RIGHT, padx=5, pady=5)
+        
+        ttk.Label(scan_frame, text="Scan Direction:").grid(row=0, column=0, padx=5, pady=2, sticky=tk.W)
+        self.scan_direction_var = tk.StringVar(value="0")
+        ttk.Entry(scan_frame, textvariable=self.scan_direction_var, width=5).grid(row=0, column=1, padx=5, pady=2)
+        
+        ttk.Button(scan_frame, text="Set Direction", 
+              command=self.set_scan_direction).grid(row=0, column=2, padx=5, pady=2)
+
+    def _create_signature_analysis(self, parent):
+        """Create signature analysis tools"""
+        # Signature analysis frame
+        analysis_frame = ttk.Frame(parent)
+        analysis_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        
+        # Ship signature display
+        signature_frame = ttk.LabelFrame(analysis_frame, text="Ship Signature")
+        signature_frame.pack(fill=tk.X, padx=5, pady=5)
+        
+        # Base signature
+        ttk.Label(signature_frame, text="Base Signature:").grid(row=0, column=0, padx=5, pady=2, sticky=tk.W)
+        self.base_signature_var = tk.StringVar(value="0.8")
+        ttk.Label(signature_frame, textvariable=self.base_signature_var).grid(row=0, column=1, padx=5, pady=2, sticky=tk.W)
+        
+        # Current signature
+        ttk.Label(signature_frame, text="Current Signature:").grid(row=1, column=0, padx=5, pady=2, sticky=tk.W)
+        self.current_signature_var = tk.StringVar(value="1.2")
+        ttk.Label(signature_frame, textvariable=self.current_signature_var).grid(row=1, column=1, padx=5, pady=2, sticky=tk.W)
+        
+        # EM spike status
+        ttk.Label(signature_frame, text="EM Spike:").grid(row=2, column=0, padx=5, pady=2, sticky=tk.W)
+        self.spike_var = tk.StringVar(value="None")
+        ttk.Label(signature_frame, textvariable=self.spike_var).grid(row=2, column=1, padx=5, pady=2, sticky=tk.W)
+        
+        # Signature control
+        control_frame = ttk.LabelFrame(analysis_frame, text="Signature Control")
+        control_frame.pack(fill=tk.X, padx=5, pady=5)
+        
+        # Trigger EM spike
+        spike_frame = ttk.Frame(control_frame)
+        spike_frame.pack(fill=tk.X, padx=5, pady=5)
+        
+        ttk.Label(spike_frame, text="Spike Duration (s):").pack(side=tk.LEFT, padx=5)
+        self.spike_duration_var = tk.StringVar(value="3.0")
+        ttk.Entry(spike_frame, textvariable=self.spike_duration_var, width=5).pack(side=tk.LEFT, padx=5)
+        
+        ttk.Button(spike_frame, text="Trigger EM Spike", 
+              command=self.trigger_signature_spike).pack(side=tk.LEFT, padx=5)
+        
+        # Signature analysis
+        analysis_output_frame = ttk.LabelFrame(analysis_frame, text="Signature Analysis")
+        analysis_output_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        
+        self.signature_analysis = scrolledtext.ScrolledText(
+            analysis_output_frame, 
+            height=6, 
+            wrap=tk.WORD,
+            font=('Consolas', 9)
+        )
+        self.signature_analysis.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+
     def save_output_log(self):
         """Save the output log to a file"""
         try:
@@ -1138,7 +1138,7 @@ class ShipConsoleGUI:
             self.output_box.delete("1.0", tk.END)
             self.output_box.config(state='disabled')
     
-                    def refresh_panels(self):
+    def refresh_panels(self):
         """Refresh all data panels"""
         self.status_var.set("Refreshing data...")
         
