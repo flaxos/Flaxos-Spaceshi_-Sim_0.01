@@ -18,6 +18,5 @@ for file in fleet/*.yaml; do
     # just with .yaml extension
     cp "$file" "$output_file"
 done
-
 echo "Conversion complete. JSON files in fleet_json directory."
 echo "Now run: python -m hybrid.converter fleet_json hybrid_fleet"
