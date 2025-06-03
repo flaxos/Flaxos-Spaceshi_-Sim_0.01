@@ -1,0 +1,29 @@
+{
+  "id": "enemy_probe",
+  "position": {
+    "x": 1000,
+    "y": 0,
+    "z": 1000
+  },
+  "velocity": {
+    "x": 0,
+    "y": 0,
+    "z": 0
+  },
+  "orientation": {
+    "pitch": 0,
+    "yaw": 180,
+    "roll": 0
+  },
+  "systems": {
+    "propulsion": {
+      "impulse_drive": true
+    },
+    "sensors": {
+      "cone_angle_deg": 90
+    }
+  },
+  "sensors": {
+    "visible": []
+  }
+}
