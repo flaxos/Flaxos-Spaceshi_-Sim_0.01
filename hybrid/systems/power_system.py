@@ -1,7 +1,7 @@
 # hybrid/systems/power_system.py
 """Power generation, storage and distribution for ships."""
 
-from hybrid.base_system import BaseSystem
+from hybrid.core.base_system import BaseSystem
 
 class PowerSystem(BaseSystem):
     """Handles power generation, storage and distribution."""

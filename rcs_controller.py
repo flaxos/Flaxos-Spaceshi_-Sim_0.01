@@ -1,6 +1,6 @@
 # rcs_controller.py — RCS system for smooth orientation changes over time
 
-from base_system import BaseSystem
+from hybrid.core.base_system import BaseSystem
 
 class RCSController(BaseSystem):
     def __init__(self, torque_rating):

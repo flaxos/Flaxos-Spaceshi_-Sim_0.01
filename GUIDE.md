@@ -1,61 +1,27 @@
 # 🛰️ Developer Guide
 
-This guide provides an overview of the project layout and explains how to extend or run the Flaxos Spaceship Simulator.
+This guide explains the project layout and how to extend the simulator.
 
-## Project Structure
+## Structure
 
-- **`core/`** – foundational utilities such as `command.py` and math helpers used across the project.
-- **`cli/`** – small command line helpers (for example `power_demo.py`).
-- **`hybrid/`** – primary implementation of ship systems and the event‑driven simulator.
-  - `systems/` – contains modular subsystems including the power manager, navigation and sensors.
-  - `ship.py` – object representing a single ship composed of systems.
-  - `simulator.py` – runs the hybrid event loop and orchestrates ship updates.
-- **`scenarios/`** – JSON/YAML scenario files for loading predefined fleets.
-- **`fleet/`** – sample ship definitions.
-- **`gui_control.py` / `simple_gui.py`** – Tkinter interfaces for visual interaction.
+- **`hybrid/core/`** – shared modules: `base_system.py`, `event_bus.py` and `constants.py`.
+- **`hybrid/systems/`** – subsystem packages such as power, weapons, navigation and sensors.
+- **`hybrid/cli/`** & **`hybrid/gui/`** – entry points for text and graphical control.
+- **`tests/`** – unit tests mirroring the package layout.
 
-## Core Components
+Ships are created via helper functions in `hybrid/ship_factory.py` which assemble reactors, weapons and navigation components using definitions from JSON files.
 
-- **Command Server (`command_server.py`)** – routes CLI or GUI actions to individual ships.
-- **Power Management System** – layered reactors defined in `hybrid/systems/power_management_system.py`.
-- **Navigation System** – autopilot, waypoint handling and thrust limits (`hybrid/systems/navigation_system.py`).
-- **Simulation Loop (`simulation.py`)** – updates ship physics each tick.
-- **RCS Controller (`rcs_controller.py`)** – handles reaction control thrusters.
+## Adding Reactors or Weapons
 
-## Scenario Format
+To introduce a new reactor type, subclass `Reactor` in `hybrid/systems/power/reactor.py` and supply any specialised behaviour. Register it in ship configuration when building `PowerManagementSystem`.
 
-Scenarios are JSON files specifying starting conditions and objectives. A minimal example:
-```json
-{
-  "scenario_id": "example_001",
-  "ships": [
-    {
-      "id": "ship_alpha",
-      "initial_state": {
-        "position": {"x": 0, "y": 0, "z": 0},
-        "velocity": {"x": 0, "y": 0, "z": 0}
-      }
-    }
-  ],
-  "objectives": ["reach_waypoint", "engage_target"]
-}
-```
-Place scenario files in the `scenarios/` directory and load them using the CLI or GUI.
+New weapons can be created by subclassing `Weapon` in `hybrid/systems/weapons/weapon_system.py`. Mount them on `Hardpoint` objects in the ship config.
 
 ## Extending the Simulator
 
-1. **Add a new subsystem** by creating a Python module in `hybrid/systems/` that subclasses `BaseSystem` and implements the `tick`, `command` and `get_state` methods.
-2. **Update ship configurations** in `fleet/` to include the new subsystem under the `systems` section.
-3. **Run tests** in `hybrid/tests/` or add new ones with `unittest`.
+Future modules such as launch bays, ship hierarchy handling or fleet management should be placed under `hybrid/systems/` in a dedicated subpackage. The `Simulation` class in `hybrid/systems/simulation.py` can be expanded to manage multiple fleets or more complex event logic.
 
-Unit tests can be executed with:
+Run unit tests with:
 ```bash
 pytest
 ```
-
-## Design Philosophy
-
-- **Modularity** – each system is self contained and communicates via the event bus.
-- **Realistic but Playable Physics** – thrust, inertia and sensor ranges are simulated using simplified equations for ease of experimentation.
-- **Scalability** – multiple ships and scenarios can run in parallel using the simulator or the command server.
-
