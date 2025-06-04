@@ -66,6 +66,9 @@ class HybridSimGUI:
         
         # Create sensors panel
         self._create_sensors_panel(left_frame)
+
+        # Create power management panel
+        self._create_power_panel(left_frame)
         
         # Create custom command panel
         self._create_command_panel(left_frame)
@@ -160,8 +163,45 @@ class HybridSimGUI:
         
         ttk.Button(buttons_frame, text="Ping Sensors", 
                   command=self._ping_sensors).pack(side=tk.LEFT, padx=5)
-        ttk.Button(buttons_frame, text="Override Bio Monitor", 
+        ttk.Button(buttons_frame, text="Override Bio Monitor",
                   command=self._override_bio).pack(side=tk.LEFT, padx=5)
+
+    def _create_power_panel(self, parent):
+        """Display power levels and provide control actions."""
+        frame = ttk.LabelFrame(parent, text="Power Management", padding="5")
+        frame.pack(fill=tk.X, pady=5)
+
+        self.power_vars = {}
+        for i, layer in enumerate(["primary", "secondary", "tertiary"]):
+            ttk.Label(frame, text=f"{layer.capitalize()}:").grid(row=i, column=0, sticky=tk.W, padx=5, pady=2)
+            var = tk.StringVar(value="0/0")
+            ttk.Label(frame, textvariable=var).grid(row=i, column=1, sticky=tk.W, padx=5, pady=2)
+            self.power_vars[layer] = var
+
+        # Request power controls
+        req = ttk.Frame(frame)
+        req.grid(row=3, column=0, columnspan=2, pady=4)
+        ttk.Label(req, text="Request:" ).grid(row=0,column=0,padx=2)
+        self.req_amount = tk.StringVar(value="0")
+        ttk.Entry(req, textvariable=self.req_amount, width=6).grid(row=0,column=1,padx=2)
+        ttk.Label(req, text="for").grid(row=0,column=2,padx=2)
+        self.req_system = tk.StringVar(value="propulsion")
+        ttk.Entry(req, textvariable=self.req_system, width=10).grid(row=0,column=3,padx=2)
+        ttk.Button(req, text="Send", command=self._request_power).grid(row=0,column=4,padx=2)
+
+        # Reroute controls
+        rer = ttk.Frame(frame)
+        rer.grid(row=4, column=0, columnspan=2, pady=4)
+        ttk.Label(rer, text="Reroute:" ).grid(row=0,column=0,padx=2)
+        self.reroute_amount = tk.StringVar(value="0")
+        ttk.Entry(rer, textvariable=self.reroute_amount, width=6).grid(row=0,column=1,padx=2)
+        ttk.Label(rer, text="from").grid(row=0,column=2,padx=2)
+        self.from_layer = tk.StringVar(value="primary")
+        ttk.Combobox(rer, textvariable=self.from_layer, width=8, values=["primary","secondary","tertiary"]).grid(row=0,column=3,padx=2)
+        ttk.Label(rer, text="to").grid(row=0,column=4,padx=2)
+        self.to_layer = tk.StringVar(value="secondary")
+        ttk.Combobox(rer, textvariable=self.to_layer, width=8, values=["primary","secondary","tertiary"]).grid(row=0,column=5,padx=2)
+        ttk.Button(rer, text="Go", command=self._reroute_power).grid(row=0,column=6,padx=2)
     
     def _create_command_panel(self, parent):
         """Create custom command entry panel"""
@@ -264,7 +304,7 @@ class HybridSimGUI:
         systems_grid = ttk.Frame(systems_frame)
         systems_grid.pack(fill=tk.X, padx=5, pady=5)
         
-        systems = ["power", "propulsion", "sensors", "nav", "helm", "bio"]
+        systems = ["power", "propulsion", "sensors", "nav", "helm", "bio", "power_management"]
         for i, system in enumerate(systems):
             ttk.Label(systems_grid, text=f"{system.capitalize()}:").grid(
                 row=i//3, column=(i%3)*2, sticky=tk.W, padx=5, pady=2)
@@ -429,10 +469,17 @@ class HybridSimGUI:
             
         # Update systems status
         systems = state.get('systems', {})
-        for system in ['power', 'propulsion', 'sensors', 'nav', 'helm', 'bio']:
+        for system in ['power', 'propulsion', 'sensors', 'nav', 'helm', 'bio', 'power_management']:
             if system in systems:
                 status = systems[system].get('status', 'Unknown')
                 self.state_vars[f'system_{system}'].set(status)
+
+        if 'power_management' in systems and hasattr(self, 'power_vars'):
+            pm = systems['power_management']
+            for layer in ['primary', 'secondary', 'tertiary']:
+                if layer in pm:
+                    info = pm[layer]
+                    self.power_vars[layer].set(f"{info.get('available',0):.1f}/{info.get('output',0):.1f}")
     
     def _send_command(self):
         """Send a command to the selected ship"""
@@ -631,6 +678,51 @@ class HybridSimGUI:
             self._refresh_panels()
         else:
             self.status_var.set(f"Failed to override bio monitor: {result.get('error', 'Unknown error')}")
+
+    def _request_power(self):
+        """Request power from the power management system"""
+        if not self.selected_ship:
+            self.status_var.set("No ship selected")
+            return
+        try:
+            amount = float(self.req_amount.get())
+        except ValueError:
+            self.status_var.set("Invalid amount")
+            return
+        system = self.req_system.get().strip() or "general"
+        result = self.runner.send_command(self.selected_ship, "request_power", {"amount": amount, "system": system})
+        if result.get("success"):
+            self.status_var.set("Power requested")
+            self._log_output(json.dumps(result.get("result", {}), indent=2))
+            self._refresh_panels()
+        else:
+            self.status_var.set(f"Power request failed: {result.get('error', 'Unknown error')}")
+
+    def _reroute_power(self):
+        """Reroute power between layers"""
+        if not self.selected_ship:
+            self.status_var.set("No ship selected")
+            return
+        try:
+            amount = float(self.reroute_amount.get())
+        except ValueError:
+            self.status_var.set("Invalid amount")
+            return
+        result = self.runner.send_command(
+            self.selected_ship,
+            "reroute_power",
+            {
+                "amount": amount,
+                "from_layer": self.from_layer.get(),
+                "to_layer": self.to_layer.get(),
+            },
+        )
+        if result.get("success"):
+            self.status_var.set("Power rerouted")
+            self._log_output(json.dumps(result.get("result", {}), indent=2))
+            self._refresh_panels()
+        else:
+            self.status_var.set(f"Reroute failed: {result.get('error', 'Unknown error')}")
     
     def _load_example(self, command, args):
         """Load an example command into the entry fields"""

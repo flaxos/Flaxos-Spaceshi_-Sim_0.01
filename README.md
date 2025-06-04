@@ -40,6 +40,21 @@ Run a scenario:
 
 python sim/run_scenario.py --scenario scenarios/sample_scenario.json
 
+Power Management
+----------------
+
+The simulator includes a three-layer power management system. A command-line
+demo allows querying status, requesting power, and rerouting between layers:
+
+```
+python cli/power_demo.py status
+python cli/power_demo.py request --amount 10 --system propulsion
+python cli/power_demo.py reroute --amount 5 --from_layer primary --to_layer secondary
+```
+
+For a graphical interface, run `python simple_gui.py` and use the "Power
+Management" panel to monitor reactors or issue power commands.
+
 Contributing
 
 Fork the repository
