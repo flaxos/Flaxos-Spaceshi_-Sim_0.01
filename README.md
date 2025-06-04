@@ -45,7 +45,11 @@ Launch the GUI:
 python -m hybrid.gui.run_gui
 ```
 
-The new power management system models reactor ramp‑up, thermal limits and failover. Weapons draw power via the management system and build heat over time.
+The unified GUI loads scenarios, starts the simulation server and exposes
+navigation, helm, sensors and power controls. A placeholder panel for weapons is
+included for future work. The new power management system models reactor
+ramp‑up, thermal limits and failover. Weapons will draw power via the management
+system and build heat over time.
 
 ## Roadmap
 
