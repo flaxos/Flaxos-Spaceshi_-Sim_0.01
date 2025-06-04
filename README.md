@@ -14,7 +14,12 @@ This project provides a simulation environment for spacecraft with a hybrid obje
    python -m hybrid.converter fleet_json hybrid_fleet
    ```
 
-3. Run the simulation with GUI:
+3. Start the command server (required for GUI commands):
+   ```
+   python main.py
+   ```
+
+4. In a separate terminal, launch the GUI:
    ```
    python run_hybrid_sim.py
    ```
