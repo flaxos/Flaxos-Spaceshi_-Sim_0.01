@@ -53,6 +53,9 @@ class Ship:
             "set_course": self._cmd_set_course,
             "rotate": self._cmd_rotate,
             "get_system_state": self._cmd_get_system_state,
+            "request_power": self._cmd_request_power,
+            "reroute_power": self._cmd_reroute_power,
+            "get_power_state": self._cmd_get_power_state,
         }
         
     def _get_vector3_config(self, config, x_key="x", y_key="y", z_key="z"):
@@ -334,3 +337,32 @@ class Ship:
                 return {"status": "System found but state not available"}
         else:
             return {"error": f"System '{system_type}' not found"}
+
+    def _cmd_request_power(self, params):
+        """Request power via the power management system"""
+        pm = self.systems.get("power_management")
+        if not pm:
+            return {"error": "Power management system not available"}
+        amount = float(params.get("amount", 0))
+        system = params.get("system", "")
+        layer = params.get("layer")
+        success = pm.request_power(amount, system, layer)
+        return {"success": success, "state": pm.get_state()}
+
+    def _cmd_reroute_power(self, params):
+        """Reroute power between layers"""
+        pm = self.systems.get("power_management")
+        if not pm:
+            return {"error": "Power management system not available"}
+        amount = float(params.get("amount", 0))
+        from_layer = params.get("from_layer", "primary")
+        to_layer = params.get("to_layer", "secondary")
+        moved = pm.reroute_power(amount, from_layer, to_layer)
+        return {"moved": moved, "state": pm.get_state()}
+
+    def _cmd_get_power_state(self, params):
+        """Return power management system state"""
+        pm = self.systems.get("power_management")
+        if not pm:
+            return {"error": "Power management system not available"}
+        return pm.get_state()
