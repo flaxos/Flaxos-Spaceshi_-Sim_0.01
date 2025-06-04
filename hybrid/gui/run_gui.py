@@ -4,6 +4,14 @@ from tkinter import ttk, scrolledtext
 import json
 import time
 import threading
+import os
+import sys
+
+# Allow importing modules from the project root when running this script
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
+
 from hybrid_runner import HybridRunner
 
 # Constants
