@@ -1,114 +1,69 @@
-# Hybrid Ship Simulator - User Guide
+GUIDE.md
 
-This guide will help you start the simulator, launch the GUI, and test both navigation and sensor gameplay elements.
+🛰️ Developer Guide
 
-## Starting the Simulator
+Project Structure
 
-To launch the GUI and start the simulation:
+core/: Contains critical simulation modules including command processing, propulsion control, and simulation mechanics.
 
-1. Open a terminal/command prompt
-2. Navigate to the project directory
-3. Run the following command:
-   ```
-   python run_hybrid_sim.py
-   ```
-   
-   This will start the GUI with the default test scenario.
+fleet/: Manages fleet configuration and state definitions.
 
-4. If you want to use a specific scenario, you can specify it with:
-   ```
-   python run_hybrid_sim.py --scenario sensor_test_scenario
-   ```
+hybrid/: Handles hybrid propulsion system logic.
 
-## Using the GUI
+scenarios/: Defines scenarios for simulation testing.
 
-Once the GUI launches, you'll see a ship control interface with several panels:
+utils/: Provides utility functions supporting the core modules.
 
-### Loading and Starting the Simulation
+Core Components
 
-1. **Load Ships**: Click the "Load Ships" button to load available ships from the hybrid_fleet directory
-2. **Load Scenario**: Click the "Load Scenario" button to load a predefined scenario
-3. **Start Simulation**: Click the "Start Simulation" button to begin the simulation
-   - The button will change to "Stop Simulation" when running
-   - You'll see the telemetry updating in real-time
+Command Server (command_server.py): Central command routing and handling for simulation.
 
-### Ship Selection
+RCS Controller (rcs_controller.py): Manages Reaction Control Systems for spacecraft maneuvering.
 
-- Use the ship dropdown to select different ships in the simulation
-- The active ship's state information will be displayed in the telemetry panels
+Base Systems (base_system.py): Fundamental class structure and interfaces for various ship systems.
 
-### Testing Navigation
+Scenario Management
 
-1. **Setting a Course**:
-   - Enter X, Y, Z coordinates in the Navigation panel
-   - Click "Set Course" to establish the destination
-   - Click "Enable Autopilot" to have the ship navigate automatically
+Scenarios are defined in JSON format specifying initial conditions, targets, and objectives:
 
-2. **Manual Thrust Control**:
-   - Enter X, Y, Z thrust values in the Thrust Control panel
-   - Click "Set Thrust" to apply the thrust
-   - Click "Manual Helm On" to take direct control
-   - The ship will respond according to the physical model
+{
+  "scenario_id": "example_001",
+  "ships": [
+    {
+      "id": "ship_alpha",
+      "initial_state": {
+        "position": {"x": 0, "y": 0, "z": 0},
+        "velocity": {"x": 0, "y": 0, "z": 0}
+      }
+    }
+  ],
+  "objectives": ["reach_waypoint", "engage_target"]
+}
 
-3. **Verifying Navigation**:
-   - Watch the ship's position, velocity, and orientation change in the telemetry panels
-   - The autopilot should adjust thrust to reach the target coordinates
-   - Manual thrust allows direct control of the ship's movement
+Extending the Simulator
 
-### Testing Sensor Gameplay
+Adding New Modules:
 
-1. **Active Sensor Ping**:
-   - Click "Ping Sensors" to perform an active sensor scan
-   - This will detect ships at a longer range but will make your ship detectable
-   - The cooldown indicator will show when you can ping again
+Create new Python files within the appropriate directories (core, fleet, etc.).
 
-2. **Viewing Contacts**:
-   - Detected ships will appear in the Sensor Contacts panel
-   - The display shows ship ID, distance, and detection method
-   - Use the "Show" dropdown to filter contacts (all, active, passive, recent)
-   - Use "Sort by" to organize contacts by distance, name, timestamp, or signature
+Ensure modules follow clear and consistent interfaces.
 
-3. **Passive Sensors**:
-   - Passive sensors work automatically without interaction
-   - They have shorter range but don't reveal your position
-   - You'll see passively detected ships in the contacts panel
+Testing:
 
-## Advanced Testing
+Implement tests within a new or existing test directory.
 
-For more comprehensive testing:
+Write unit and integration tests to validate functionality.
 
-1. **Custom Commands**:
-   - Use the Custom Command panel to send specific commands
-   - Example: `get_state`, `set_thrust`, `rotate`, etc.
+Pull Requests:
 
-2. **Multi-Ship Testing**:
-   - Load a scenario with multiple ships
-   - Switch between ships to test interactions
-   - Try to detect other ships using sensors
+Clearly document all changes in pull requests.
 
-3. **Bio Override**:
-   - Click "Override Bio Monitor" to bypass safety limits
-   - This allows more aggressive maneuvers but increases risk
+Maintain consistent coding style and include comprehensive comments.
 
-## Troubleshooting
+Design Philosophy
 
-If you encounter issues:
+Modularity: Components should be independent and interchangeable.
 
-- Check the console output for error messages
-- Ensure all ships are loaded properly
-- Try restarting the simulation
-- Verify that the hybrid_fleet directory contains ship files
+Realism with Flexibility: Realistic physics and logic balanced with gameplay-friendly adjustments.
 
-## Command Reference
-
-### Navigation Commands:
-- `set_course`: Set destination coordinates
-- `autopilot`: Enable/disable autopilot
-- `set_thrust`: Apply specific thrust values
-- `helm_override`: Enable/disable manual helm control
-
-### Sensor Commands:
-- `ping_sensors`: Perform active sensor scan
-- `get_contacts`: Retrieve all sensor contacts
-
-Remember that some commands have cooldown periods, especially sensor pings!
+Scalability: Easy to extend and manage multiple ships and scenarios.
