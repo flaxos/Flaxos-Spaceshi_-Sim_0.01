@@ -3,7 +3,7 @@
     "id": "test_ship_001",
     "position": { "x": 0, "y": 0, "z": 0 },
     "mass": 1000,
-    "orientation": { "pitch": 0.0, "yaw": 0.0, "roll": 0.0 },
+    "orientation": { "pitch": 0.0, "yaw": 90.0, "roll": 0.0 },
     "systems": {
       "propulsion": {
         "main_drive": { "thrust": { "x": 0, "y": 0, "z": 0 } }
@@ -48,9 +48,9 @@
   },
   {
     "id": "test_ship_002",
-    "position": { "x": 2000, "y": 0, "z": 0 },
+    "position": { "x": 200, "y": 0, "z": 0 },
     "mass": 1000,
-    "orientation": { "pitch": 0.0, "yaw": 180.0, "roll": 0.0 },
+    "orientation": { "pitch": 0.0, "yaw": 270.0, "roll": 0.0 },
     "systems": {
       "propulsion": {
         "main_drive": { "thrust": { "x": 0, "y": 0, "z": 0 } }
@@ -95,9 +95,9 @@
   },
   {
     "id": "probe_passive_target",
-    "position": { "x": 2500, "y": 0, "z": 0 },
+    "position": { "x": 250, "y": 0, "z": 0 },
     "mass": 100,
-    "orientation": { "pitch": 0.0, "yaw": 90.0, "roll": 0.0 },
+    "orientation": { "pitch": 0.0, "yaw": 270.0, "roll": 0.0 },
     "systems": {
       "propulsion": {
         "main_drive": { "thrust": { "x": 0, "y": 0, "z": 0 } }
@@ -114,7 +114,7 @@
   },
   {
     "id": "probe_active_target",
-    "position": { "x": 7000, "y": 0, "z": 0 },
+    "position": { "x": 300, "y": 0, "z": 0 },
     "mass": 100,
     "orientation": { "pitch": 0.0, "yaw": 270.0, "roll": 0.0 },
     "systems": {
