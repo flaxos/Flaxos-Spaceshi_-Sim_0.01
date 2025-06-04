@@ -1148,17 +1148,20 @@ class ShipConsoleGUI:
                                          self.output_box, return_json=True)
         if parsed:
             # Update orientation
-            self.state_vars["pitch"].set(parsed["orientation"].get("pitch", 0))
-            self.state_vars["yaw"].set(parsed["orientation"].get("yaw", 0))
-            self.state_vars["roll"].set(parsed["orientation"].get("roll", 0))
-            
+            orientation = parsed.get("orientation", {})
+            self.state_vars["pitch"].set(orientation.get("pitch", 0))
+            self.state_vars["yaw"].set(orientation.get("yaw", 0))
+            self.state_vars["roll"].set(orientation.get("roll", 0))
+
             # Update velocity
-            self.state_vars["vx"].set(parsed["velocity"].get("x", 0))
-            self.state_vars["vy"].set(parsed["velocity"].get("y", 0))
-            self.state_vars["vz"].set(parsed["velocity"].get("z", 0))
+            velocity = parsed.get("velocity", {})
+            self.state_vars["vx"].set(velocity.get("x", 0))
+            self.state_vars["vy"].set(velocity.get("y", 0))
+            self.state_vars["vz"].set(velocity.get("z", 0))
             
             # Update bio monitor
-            self.state_vars["gx"].set(parsed["bio_monitor"].get("current_g", 0))
+            bio = parsed.get("bio_monitor", {})
+            self.state_vars["gx"].set(bio.get("current_g", 0))
             
             # Update thrust
             thrust = parsed.get("thrust", {})
