@@ -5,7 +5,7 @@ Tests for the Ship class in the hybrid architecture.
 
 import unittest
 from hybrid.ship import Ship
-from hybrid.event_bus import EventBus
+from hybrid.core.event_bus import EventBus
 
 class TestShip(unittest.TestCase):
     """

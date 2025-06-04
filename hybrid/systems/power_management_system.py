@@ -1,6 +1,6 @@
 """Power management system with layered reactors."""
 from dataclasses import dataclass
-from hybrid.base_system import BaseSystem
+from hybrid.core.base_system import BaseSystem
 
 @dataclass
 class PowerLayer:

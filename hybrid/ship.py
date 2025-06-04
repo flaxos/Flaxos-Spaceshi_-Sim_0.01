@@ -3,7 +3,7 @@
 """
 Ship implementation that manages systems and handles physics.
 """
-from hybrid.event_bus import EventBus
+from hybrid.core.event_bus import EventBus
 import math
 import time
 import copy

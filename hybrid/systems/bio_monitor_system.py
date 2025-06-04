@@ -1,7 +1,7 @@
 # hybrid/systems/bio_monitor_system.py
 """Monitor crew health and g-force limits."""
 
-from hybrid.base_system import BaseSystem
+from hybrid.core.base_system import BaseSystem
 import math
 import logging
 

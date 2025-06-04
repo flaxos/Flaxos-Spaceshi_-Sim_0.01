@@ -2,7 +2,7 @@
 """Helm system implementation for ship simulation.
 Combines manual control with integration to navigation and power systems."""
 
-from hybrid.base_system import BaseSystem
+from hybrid.core.base_system import BaseSystem
 import math
 import logging
 

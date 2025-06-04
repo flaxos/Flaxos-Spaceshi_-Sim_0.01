@@ -1,4 +1,4 @@
-from hybrid.base_system import BaseSystem
+from hybrid.core.base_system import BaseSystem
 from datetime import datetime, timedelta
 import math
 import logging

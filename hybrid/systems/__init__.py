@@ -34,11 +34,11 @@ def get_system_class(system_type):
 # Import system implementations
 from hybrid.systems.power_system import PowerSystem
 from hybrid.systems.propulsion_system import PropulsionSystem
-from hybrid.systems.sensor_system import SensorSystem
-from hybrid.systems.navigation_system import NavigationSystem
+from hybrid.systems.sensors.sensor_system import SensorSystem
+from hybrid.systems.navigation.navigation import NavigationSystem
 from hybrid.systems.helm_system import HelmSystem
 from hybrid.systems.bio_monitor_system import BioMonitorSystem
-from hybrid.systems.power_management_system import PowerManagementSystem
+from hybrid.systems.power.management import PowerManagementSystem
 __all__ = [
     'PowerSystem',
     'SensorSystem',

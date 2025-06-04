@@ -1,7 +1,7 @@
 # hybrid/systems/navigation_system.py
 """Navigation system handling autopilot and course plotting."""
 
-from hybrid.base_system import BaseSystem
+from hybrid.core.base_system import BaseSystem
 import math
 import logging
 

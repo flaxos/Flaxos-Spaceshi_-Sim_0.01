@@ -1,6 +1,6 @@
 # impulse_drive.py — Navigation system that applies directional thrust
 
-from base_system import BaseSystem
+from hybrid.core.base_system import BaseSystem
 import math
 
 class ImpulseDrive(BaseSystem):

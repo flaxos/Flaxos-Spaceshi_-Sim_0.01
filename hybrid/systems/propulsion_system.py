@@ -1,7 +1,7 @@
 # hybrid/systems/propulsion_system.py
 """Propulsion system providing thrust and fuel management."""
 
-from hybrid.base_system import BaseSystem
+from hybrid.core.base_system import BaseSystem
 import math
 import logging
 

@@ -1,6 +1,6 @@
 # sensors.py — Sensor system using BaseSystem and sector proximity
 
-from base_system import BaseSystem
+from hybrid.core.base_system import BaseSystem
 
 class SensorArray(BaseSystem):
     def __init__(self, range):
