@@ -207,13 +207,21 @@ class Simulator:
         # Get sensor system
         sensor_system = observer_ship.systems["sensors"]
         
-        # Skip if not a proper sensor system
-        if not hasattr(sensor_system, "passive_range"):
+        # Determine the passive sensor range. Older sensor implementations used
+        # a `passive_range` attribute while newer versions store the range in
+        # the `passive` configuration dictionary.  Support both so tests can
+        # rely on passive detection working regardless of which sensor class
+        # variant is loaded.
+        passive_range = getattr(sensor_system, "passive_range", None)
+        if passive_range is None and hasattr(sensor_system, "passive") and isinstance(sensor_system.passive, dict):
+            passive_range = sensor_system.passive.get("range")
+
+        # If no passive range is available we cannot perform detection
+        if passive_range is None:
             return
-            
+
         # Calculate detection probability based on distance
-        if hasattr(sensor_system, "passive_range"):
-            passive_range = sensor_system.passive_range
+        if passive_range:
             
             # Check if within passive sensor range
             if distance <= passive_range:
@@ -460,7 +468,7 @@ class Simulator:
     def _process_sensor_interactions(self, all_ships):
         """
         Process sensor interactions between ships
-        
+
         Args:
             all_ships (list): List of all ships in simulation
         """
@@ -470,3 +478,65 @@ class Simulator:
                 sensor_system = ship.systems["sensors"]
                 if hasattr(sensor_system, 'process_active_ping'):
                     sensor_system.process_active_ping(all_ships)
+
+        # Handle passive detection between each pair of ships
+        for i in range(len(all_ships)):
+            for j in range(i + 1, len(all_ships)):
+                self._check_passive_detection(all_ships[i], all_ships[j])
+                self._check_passive_detection(all_ships[j], all_ships[i])
+
+    def _check_passive_detection(self, observer_ship, target_ship):
+        """Check if observer ship can detect target ship with passive sensors."""
+        if "sensors" not in observer_ship.systems:
+            return
+
+        sensor_system = observer_ship.systems["sensors"]
+
+        # Determine passive range (support old and new sensor implementations)
+        passive_range = getattr(sensor_system, "passive_range", None)
+        if passive_range is None and hasattr(sensor_system, "passive") and isinstance(sensor_system.passive, dict):
+            passive_range = sensor_system.passive.get("range")
+
+        if not passive_range:
+            return
+
+        # Calculate distance
+        dx = target_ship.position["x"] - observer_ship.position["x"]
+        dy = target_ship.position["y"] - observer_ship.position["y"]
+        dz = target_ship.position["z"] - observer_ship.position["z"]
+        distance = math.sqrt(dx ** 2 + dy ** 2 + dz ** 2)
+
+        if distance > passive_range or distance == 0:
+            return
+
+        detection_prob = min(0.95, (passive_range / distance) ** 2)
+        if random.random() >= detection_prob:
+            return
+
+        yaw = math.degrees(math.atan2(dy, dx))
+        pitch = math.degrees(math.asin(dz / distance))
+        contact = {
+            "id": target_ship.id,
+            "distance": distance,
+            "bearing": {"pitch": pitch, "yaw": yaw},
+            "signature": 0.5,
+            "detection_method": "passive",
+            "last_updated": time.time(),
+        }
+
+        if hasattr(sensor_system, "passive") and isinstance(sensor_system.passive, dict):
+            sensor_system.passive.setdefault("contacts", [])
+            for i, existing in enumerate(sensor_system.passive["contacts"]):
+                if existing.get("id") == target_ship.id:
+                    sensor_system.passive["contacts"][i] = contact
+                    break
+            else:
+                sensor_system.passive["contacts"].append(contact)
+
+        if hasattr(sensor_system, "contacts") and isinstance(getattr(sensor_system, "contacts" ,None), list):
+            for i, existing in enumerate(sensor_system.contacts):
+                if existing.get("id") == target_ship.id:
+                    sensor_system.contacts[i] = contact
+                    break
+            else:
+                sensor_system.contacts.append(contact)

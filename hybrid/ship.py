@@ -271,6 +271,9 @@ class Ship:
         # Initialize command handler
         self.command_handlers = {
             "get_state": self._cmd_get_state,
+            "get_position": self._cmd_get_position,
+            "get_velocity": self._cmd_get_velocity,
+            "get_orientation": self._cmd_get_orientation,
             "set_thrust": self._cmd_set_thrust,
             "set_course": self._cmd_set_course,
             "rotate": self._cmd_rotate,
@@ -319,12 +322,13 @@ class Ship:
                     "error": str(e)
                 }
     
-    def tick(self, dt):
+    def tick(self, dt, all_ships=None):
         """
         Update ship state for the current time step
-        
+
         Args:
             dt (float): Time delta in seconds
+            all_ships (list, optional): Unused but accepted for compatibility
         """
         # First pass: update all systems
         for system_type, system in self.systems.items():
@@ -337,22 +341,34 @@ class Ship:
         # Update physics after systems have updated
         self._update_physics(dt)
     
-    def _update_physics(self, dt):
-        """
-        Update ship physics for the current time step
-        
+    def _update_physics(self, dt, force=None):
+        """Update ship physics for the current time step
+
         Args:
             dt (float): Time delta in seconds
+            force (dict, optional): Net force vector acting on the ship. If not
+                provided, the existing acceleration is used.
         """
+        if force is not None:
+            self.acceleration = {
+                "x": force.get("x", 0.0) / self.mass,
+                "y": force.get("y", 0.0) / self.mass,
+                "z": force.get("z", 0.0) / self.mass,
+            }
+
+            self.velocity["x"] += self.acceleration["x"] * dt
+            self.velocity["y"] += self.acceleration["y"] * dt
+            self.velocity["z"] += self.acceleration["z"] * dt
+        else:
+            # Update velocity based on current acceleration
+            self.velocity["x"] += self.acceleration["x"] * dt
+            self.velocity["y"] += self.acceleration["y"] * dt
+            self.velocity["z"] += self.acceleration["z"] * dt
+
         # Update position based on velocity
         self.position["x"] += self.velocity["x"] * dt
         self.position["y"] += self.velocity["y"] * dt
         self.position["z"] += self.velocity["z"] * dt
-        
-        # Update velocity based on acceleration
-        self.velocity["x"] += self.acceleration["x"] * dt
-        self.velocity["y"] += self.acceleration["y"] * dt
-        self.velocity["z"] += self.acceleration["z"] * dt
         
         # Update orientation based on angular velocity
         self.orientation["pitch"] += self.angular_velocity["pitch"] * dt
@@ -457,6 +473,18 @@ class Ship:
     def _cmd_get_state(self, params):
         """Command handler for get_state"""
         return self.get_state()
+
+    def _cmd_get_position(self, params):
+        """Return current ship position"""
+        return dict(self.position)
+
+    def _cmd_get_velocity(self, params):
+        """Return current ship velocity"""
+        return dict(self.velocity)
+
+    def _cmd_get_orientation(self, params):
+        """Return current ship orientation"""
+        return dict(self.orientation)
     
     def _cmd_set_thrust(self, params):
         """Command handler for set_thrust"""
