@@ -18,10 +18,5 @@ This project provides a simulation environment for spacecraft with a hybrid obje
    ```
    python main.py
    ```
-
-4. In a separate terminal, launch the GUI:
-   ```
-   python run_hybrid_sim.py
-   ```
-
-## Running without GUI
+In a separate terminal, launch the GUI **via `run_hybrid_sim.py`** (do not
+   run `gui_control.py` directly):

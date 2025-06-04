@@ -1177,7 +1177,7 @@ class ShipConsoleGUI:
             
             # Update cooldown
             cooldown_val = parsed.get("sensors", {}).get("active", {}).get("cooldown")
-            if cooldown_val is not None:
+            if cooldown_val is not None and self.cooldown_label is not None:
                 self.cooldown_label.config(text=f"Cooldown: {cooldown_val:.1f}s")
 
         # Get contacts
