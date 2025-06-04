@@ -1,0 +1,22 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+
+# IDE directories
+.idea/
+.vscode/
+
+# Logs and runtime artifacts
+*.log
+logs/
+fleet_state/
+
+# Test artifacts
+.pytest_cache/
+
+# Virtual environments
+venv/
+ENV/
+
+# Misc
+.DS_Store
