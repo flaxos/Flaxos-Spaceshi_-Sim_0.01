@@ -30,6 +30,7 @@ class HybridSimGUI:
         self.running = False
         self.auto_refresh = tk.BooleanVar(value=False)
         self.auto_refresh_id = None
+        self.last_tick_count = 0
         
         # State variables
         self.state_vars = {}
@@ -47,6 +48,20 @@ class HybridSimGUI:
         
         right_frame = ttk.Frame(self.root, padding="5")
         right_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=5, pady=5)
+
+        # Notebook for right side tabs
+        self.notebook = ttk.Notebook(right_frame)
+        self.notebook.pack(fill=tk.BOTH, expand=True)
+
+        output_tab = ttk.Frame(self.notebook)
+        state_tab = ttk.Frame(self.notebook)
+        contacts_tab = ttk.Frame(self.notebook)
+        debug_tab = ttk.Frame(self.notebook)
+
+        self.notebook.add(output_tab, text="Output")
+        self.notebook.add(state_tab, text="State")
+        self.notebook.add(contacts_tab, text="Contacts")
+        self.notebook.add(debug_tab, text="Debug")
         
         # Create control panel
         control_frame = ttk.LabelFrame(left_frame, text="Control Panel", padding="5")
@@ -100,13 +115,16 @@ class HybridSimGUI:
                        command=self._toggle_auto_refresh).pack(side=tk.LEFT)
         
         # Create output panel (right side)
-        self._create_output_panel(right_frame)
-        
+        self._create_output_panel(output_tab)
+
         # Create state panel (right side)
-        self._create_state_panel(right_frame)
-        
+        self._create_state_panel(state_tab)
+
         # Create contacts panel (right side)
-        self._create_contacts_panel(right_frame)
+        self._create_contacts_panel(contacts_tab)
+
+        # Create debug panel (right side)
+        self._create_debug_panel(debug_tab)
         
         # Status bar at bottom
         status_frame = ttk.Frame(self.root)
@@ -361,9 +379,17 @@ class HybridSimGUI:
         """Create sensor contacts display"""
         contacts_frame = ttk.LabelFrame(parent, text="Sensor Contacts", padding="5")
         contacts_frame.pack(fill=tk.X, padx=5, pady=5)
-        
+
         self.contacts_output = scrolledtext.ScrolledText(contacts_frame, height=6, wrap=tk.WORD)
         self.contacts_output.pack(fill=tk.X, padx=5, pady=5)
+
+    def _create_debug_panel(self, parent):
+        """Create debug tick display"""
+        frame = ttk.LabelFrame(parent, text="Debug Tick Log", padding="5")
+        frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+
+        self.debug_text = scrolledtext.ScrolledText(frame, height=10, wrap=tk.WORD)
+        self.debug_text.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
     
     def _load_ships(self):
         """Load ships from the fleet directory"""
@@ -454,6 +480,7 @@ class HybridSimGUI:
             if self.selected_ship:
                 state = self.runner.get_ship_state(self.selected_ship)
                 self._update_state_display(state)
+            self._append_debug_info()
             time.sleep(0.1)
     
     def _on_ship_select(self, event):
@@ -885,6 +912,26 @@ class HybridSimGUI:
             if last:
                 line += f" - last {last}"
             self.contacts_output.insert(tk.END, line + "\n")
+
+    def _append_debug_info(self):
+        """Append debug information for the current tick"""
+        if not hasattr(self, "debug_text"):
+            return
+
+        tick = self.runner.tick_count
+        if tick == self.last_tick_count:
+            return
+
+        states = self.runner.get_all_ship_states()
+        lines = [f"Tick {tick}"]
+        for sid, st in states.items():
+            pos = st.get("position", {})
+            lines.append(
+                f"{sid}: ({pos.get('x',0):.1f}, {pos.get('y',0):.1f}, {pos.get('z',0):.1f})"
+            )
+        self.debug_text.insert(tk.END, "\n".join(lines) + "\n")
+        self.debug_text.see(tk.END)
+        self.last_tick_count = tick
     
     def _toggle_auto_refresh(self):
         """Toggle automatic refresh"""
