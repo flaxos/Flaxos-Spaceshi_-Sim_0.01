@@ -70,6 +70,16 @@ def main():
     # Ping sensors (active)
     ping_parser = subparsers.add_parser('ping_sensors', help='Trigger active sensor ping')
 
+    subparsers.add_parser('reactor_start', help='Start the ship reactor')
+    subparsers.add_parser('get_power_status', help='Get power system status')
+    alloc_parser = subparsers.add_parser('set_power_allocation', help='Set bus power allocation')
+    alloc_parser.add_argument('--primary', type=float, required=True)
+    alloc_parser.add_argument('--secondary', type=float, required=True)
+    alloc_parser.add_argument('--tertiary', type=float, required=True)
+    toggle_parser = subparsers.add_parser('toggle_system', help='Toggle a ship system')
+    toggle_parser.add_argument('--system', required=True)
+    toggle_parser.add_argument('--state', type=int, choices=[0,1], required=True)
+
     # Misc
     subparsers.add_parser('get_position')
     subparsers.add_parser('get_velocity')
@@ -101,6 +111,19 @@ def main():
 
     elif args.command in ["autopilot", "helm_override"]:
         command["enabled"] = bool(args.enabled)
+
+    elif args.command == "set_power_allocation":
+        command.update({
+            "primary": args.primary,
+            "secondary": args.secondary,
+            "tertiary": args.tertiary,
+        })
+
+    elif args.command == "toggle_system":
+        command["system"] = args.system
+        command["state"] = bool(args.state)
+
+    # reactor_start and get_power_status require no extra fields
 
     # ping_sensors has no extra payload
 

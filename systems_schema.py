@@ -25,15 +25,12 @@ def build_default_systems():
             "override": False
         },
         "power": {
-            "generation": 100.0,
-            "capacity": 1000.0,
-            "current": 800.0,
-            "distribution": {
-                "propulsion": 0.4,
-                "sensors": 0.2,
-                "weapons": 0.3,
-                "pdc": 0.1
-            }
+            "reactor_output_max": 1000,
+            "battery_capacity": 500,
+            "battery_charge_rate": 50,
+            "primary": ["main_drive", "railgun", "active_sensors"],
+            "secondary": ["rcs", "pdc", "comms", "passive_sensors", "drones"],
+            "tertiary": ["life_support", "bio_monitor", "nav_computer"]
         },
         "sensors": {
             "passive": {
