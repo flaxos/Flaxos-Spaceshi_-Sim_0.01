@@ -35,6 +35,7 @@ class HybridSimGUI:
         self.state_vars = {}
         self.nav_fields = {}
         self.thrust_fields = {}
+        self.orientation_fields = {}
         
         # Create the GUI
         self._create_widgets()
@@ -71,6 +72,9 @@ class HybridSimGUI:
         
         # Create thrust panel
         self._create_thrust_panel(left_frame)
+
+        # Create rotation/orientation panel
+        self._create_orientation_panel(left_frame)
         
         # Create sensors panel
         self._create_sensors_panel(left_frame)
@@ -158,8 +162,29 @@ class HybridSimGUI:
                   command=self._set_thrust).pack(side=tk.LEFT, padx=5)
         ttk.Button(buttons_frame, text="Manual Helm On", 
                   command=self._manual_helm_on).pack(side=tk.LEFT, padx=5)
-        ttk.Button(buttons_frame, text="Manual Helm Off", 
+        ttk.Button(buttons_frame, text="Manual Helm Off",
                   command=self._manual_helm_off).pack(side=tk.LEFT, padx=5)
+
+    def _create_orientation_panel(self, parent):
+        """Create rotation/orientation controls"""
+        orient_frame = ttk.LabelFrame(parent, text="Orientation", padding="5")
+        orient_frame.pack(fill=tk.X, pady=5)
+
+        controls = ttk.Frame(orient_frame)
+        controls.pack(fill=tk.X, padx=5, pady=5)
+
+        for i, axis in enumerate(["pitch", "yaw", "roll"]):
+            ttk.Label(controls, text=f"{axis.capitalize()}: ").grid(row=0, column=i*2, padx=2)
+            self.orientation_fields[axis] = ttk.Entry(controls, width=8)
+            self.orientation_fields[axis].grid(row=0, column=i*2+1, padx=2)
+
+        buttons = ttk.Frame(orient_frame)
+        buttons.pack(fill=tk.X, padx=5, pady=5)
+
+        ttk.Button(buttons, text="Set Orientation",
+                  command=self._set_orientation).pack(side=tk.LEFT, padx=5)
+        ttk.Button(buttons, text="Rotate",
+                  command=self._rotate).pack(side=tk.LEFT, padx=5)
     
     def _create_sensors_panel(self, parent):
         """Create sensors controls"""
@@ -657,6 +682,67 @@ class HybridSimGUI:
             self._refresh_panels()
         else:
             self.status_var.set(f"Failed to disable manual helm: {result.get('error', 'Unknown error')}")
+
+    def _set_orientation(self):
+        """Set absolute ship orientation"""
+        if not self.selected_ship:
+            self.status_var.set("No ship selected")
+            return
+
+        args = {}
+        try:
+            for axis in self.orientation_fields:
+                val = self.orientation_fields[axis].get().strip()
+                if val:
+                    args[axis] = float(val)
+        except ValueError:
+            self.status_var.set("Invalid orientation values")
+            return
+
+        if not args:
+            self.status_var.set("No orientation values specified")
+            return
+
+        result = self.runner.send_command(self.selected_ship, "set_orientation", args)
+
+        if result.get("success"):
+            self.status_var.set("Orientation set successfully")
+            self._log_output(f"Orientation set to {args}")
+            self._refresh_panels()
+        else:
+            self.status_var.set(f"Failed to set orientation: {result.get('error', 'Unknown error')}")
+
+    def _rotate(self):
+        """Rotate ship by given angles on each axis"""
+        if not self.selected_ship:
+            self.status_var.set("No ship selected")
+            return
+
+        any_sent = False
+        for axis in ["pitch", "yaw", "roll"]:
+            val = self.orientation_fields.get(axis)
+            if not val:
+                continue
+            angle_str = val.get().strip()
+            if not angle_str:
+                continue
+            try:
+                angle = float(angle_str)
+            except ValueError:
+                self.status_var.set(f"Invalid rotation value for {axis}")
+                return
+
+            result = self.runner.send_command(self.selected_ship, "rotate", {"axis": axis, "value": angle})
+            if result.get("success"):
+                any_sent = True
+                self._log_output(f"Rotated {axis} by {angle}")
+            else:
+                self.status_var.set(f"Failed to rotate {axis}: {result.get('error', 'Unknown error')}")
+                return
+
+        if any_sent:
+            self._refresh_panels()
+            self.status_var.set("Rotation command(s) sent")
     
     def _ping_sensors(self):
         """Ping ship sensors"""
