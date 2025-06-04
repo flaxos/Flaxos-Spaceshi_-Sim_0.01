@@ -3,6 +3,8 @@ import logging
 import json
 import os
 from datetime import datetime
+import math
+import random
 from hybrid.ship import Ship
 
 logger = logging.getLogger(__name__)
