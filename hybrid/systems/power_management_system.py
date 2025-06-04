@@ -99,4 +99,3 @@ class PowerManagementSystem(BaseSystem):
             moved = self.reroute_power(amount, from_layer, to_layer)
             return {"moved": moved, "state": self.get_state()}
         return super().command(action, params)
-
