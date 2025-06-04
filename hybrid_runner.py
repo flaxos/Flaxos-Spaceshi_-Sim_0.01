@@ -15,7 +15,9 @@ class HybridRunner:
             fleet_dir (str): Directory containing ship JSON files
             dt (float): Simulation time step in seconds
         """
-        self.fleet_dir = fleet_dir
+        self.root_dir = os.path.dirname(os.path.abspath(__file__))
+        self.fleet_dir = os.path.join(self.root_dir, fleet_dir)
+        self.scenarios_dir = os.path.join(self.root_dir, "scenarios")
         self.dt = dt
         self.simulator = Simulator(dt=dt)
         self.running = False
@@ -26,10 +28,10 @@ class HybridRunner:
         self.last_update_time = 0
         
         # Create fleet_state directory if it doesn't exist
-        os.makedirs("fleet_state", exist_ok=True)
-        
+        os.makedirs(os.path.join(self.root_dir, "fleet_state"), exist_ok=True)
+
         # Create scenarios directory if it doesn't exist
-        os.makedirs("scenarios", exist_ok=True)
+        os.makedirs(self.scenarios_dir, exist_ok=True)
         
     def load_ships(self):
         """Load ships from the fleet directory"""
@@ -47,7 +49,7 @@ class HybridRunner:
         Returns:
             int: Number of ships loaded
         """
-        scenario_path = f"scenarios/{scenario_name}.json"
+        scenario_path = os.path.join(self.scenarios_dir, f"{scenario_name}.json")
         if not os.path.exists(scenario_path):
             print(f"Scenario file not found: {scenario_path}")
             return 0
@@ -217,8 +219,9 @@ class HybridRunner:
         states = self.get_all_ship_states()
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         
+        fleet_state_dir = os.path.join(self.root_dir, "fleet_state")
         for ship_id, state in states.items():
-            filename = f"fleet_state/{ship_id}_{timestamp}.json"
+            filename = os.path.join(fleet_state_dir, f"{ship_id}_{timestamp}.json")
             with open(filename, "w") as f:
                 json.dump(state, f, indent=2)
                 
