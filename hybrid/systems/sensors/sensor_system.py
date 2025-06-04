@@ -92,12 +92,10 @@ class SensorSystem(BaseSystem):
             self.active["cooldown"] -= dt
             self.active["cooldown"] = max(0, self.active["cooldown"])
             
-        # Check for active ping processing
-        if self.active["last_ping_time"] and not self.active["processed"]:
-            # This would be handled in a separate function that has access to all ships
-            # For now, we'll just mark it as processed
-            self.active["processed"] = True
-            logger.debug(f"Active ping completed for {ship.id}")
+
+        # Active ping results are processed externally in
+        # ``process_active_ping``.  Do not mark them as processed here or the
+        # simulator will skip detection entirely.
             
         # Passive sensor updates would happen here
         # This requires access to all ships, so it's typically done externally
