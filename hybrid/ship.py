@@ -334,4 +334,3 @@ class Ship:
                 return {"status": "System found but state not available"}
         else:
             return {"error": f"System '{system_type}' not found"}
- main
