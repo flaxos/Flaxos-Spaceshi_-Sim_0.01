@@ -55,6 +55,25 @@ python cli/power_demo.py reroute --amount 5 --from_layer primary --to_layer seco
 For a graphical interface, run `python simple_gui.py` and use the "Power
 Management" panel to monitor reactors or issue power commands.
 
+Example scenarios now include a basic `power_management` block. When this
+system is present on a ship, the GUI panel becomes active and allows live
+control. A minimal configuration looks like:
+
+```json
+"systems": {
+  "propulsion": { ... },
+  "power_management": {
+    "primary": {"output": 100.0},
+    "secondary": {"output": 50.0},
+    "tertiary": {"output": 25.0},
+    "system_map": {
+      "propulsion": "primary",
+      "sensors": "secondary"
+    }
+  }
+}
+```
+
 Contributing
 
 Fork the repository
