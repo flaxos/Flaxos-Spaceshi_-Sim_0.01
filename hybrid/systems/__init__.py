@@ -25,7 +25,8 @@ def get_system_class(system_type):
         "sensors": SensorSystem,
         "navigation": NavigationSystem,
         "helm": HelmSystem,
-        "bio": BioMonitorSystem
+        "bio": BioMonitorSystem,
+        "power_management": PowerManagementSystem,
     }
     
     return system_map.get(system_type)
@@ -37,6 +38,7 @@ from hybrid.systems.sensor_system import SensorSystem
 from hybrid.systems.navigation_system import NavigationSystem
 from hybrid.systems.helm_system import HelmSystem
 from hybrid.systems.bio_monitor_system import BioMonitorSystem
+from hybrid.systems.power_management_system import PowerManagementSystem
 __all__ = [
     'PowerSystem',
     'SensorSystem',
@@ -44,4 +46,5 @@ __all__ = [
     'NavigationSystem',
     'BioMonitorSystem',
     'PropulsionSystem',
+    'PowerManagementSystem',
 ]
