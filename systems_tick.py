@@ -25,6 +25,8 @@ def face_target(ship, target):
 
 def tick_all_systems(ship, all_ships, dt):
     """Update all ship systems for the current time step"""
+    if hasattr(ship, "power_system"):
+        ship.power_system.tick(dt)
     if "bio_monitor" in ship.systems:
         tick_bio_monitor(ship, dt)
     if "power" in ship.systems:

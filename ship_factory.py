@@ -1,5 +1,9 @@
 # ship_factory.py
 from ship import Ship
+from power_management import (
+    PowerManagementSystem,
+    ShipSystem,
+)
 
 # Define default systems structure
 DEFAULT_SYSTEMS = {
@@ -44,12 +48,23 @@ def build_ship_from_config(cfg):
     user_systems = cfg.get("systems", {})
     systems = {**DEFAULT_SYSTEMS, **user_systems}
 
-    return Ship(
+    ship = Ship(
         ship_id=ship_id,
         position=position,
         velocity=velocity,
         orientation=orientation,
         angular_velocity=angular_velocity,
         mass=mass,
-        systems=systems
+        systems=systems,
     )
+
+    power_cfg = systems.get("power", {})
+    pm = PowerManagementSystem(power_cfg)
+
+    for bus in ["primary", "secondary", "tertiary"]:
+        for sys_name in power_cfg.get(bus, []):
+            draw = systems.get(sys_name, {}).get("power_draw", 0)
+            pm.add_system(bus, ShipSystem(sys_name, draw))
+
+    ship.power_system = pm
+    return ship
