@@ -82,21 +82,3 @@ class PowerManagementSystem(BaseSystem):
                       for lname, layer in self.layers.items()})
         return state
 
-    def command(self, action, params):
-        """Handle commands for the power manager."""
-        if action in ("status", "get_state"):
-            return self.get_state()
-        elif action == "request_power":
-            amount = float(params.get("amount", 0))
-            system = params.get("system", "")
-            layer = params.get("layer")
-            success = self.request_power(amount, system, layer)
-            return {"success": success, "state": self.get_state()}
-        elif action == "reroute_power":
-            amount = float(params.get("amount", 0))
-            from_layer = params.get("from_layer", "primary")
-            to_layer = params.get("to_layer", "secondary")
-            moved = self.reroute_power(amount, from_layer, to_layer)
-            return {"moved": moved, "state": self.get_state()}
-        return super().command(action, params)
-
