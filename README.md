@@ -1,22 +1,54 @@
-# Hybrid Ship Simulator
+README.md
 
-This project provides a simulation environment for spacecraft with a hybrid object-oriented and event-driven architecture.
+🚀 Flaxos Spaceship Simulator
 
-## Quick Start
+Overview
 
-1. Convert YAML ship definitions to JSON:
-   ```
-   python convert_yaml_to_json.py
-   ```
+The Flaxos Spaceship Simulator is a modular and extensible simulation framework designed to simulate realistic spaceship mechanics, navigation, and fleet operations. It provides a robust environment for simulating various spacecraft, propulsion systems, and sensor suites within a realistic physics environment.
 
-2. Convert JSON to hybrid format:
-   ```
-   python -m hybrid.converter fleet_json hybrid_fleet
-   ```
+Key Features
 
-3. Start the command server (required for GUI commands):
-   ```
-   python main.py
-   ```
-In a separate terminal, launch the GUI **via `run_hybrid_sim.py`** (do not
-   run `gui_control.py` directly):
+Modular Architecture: Easily extendable with separate modules for core systems, fleets, and utility functions.
+
+Hybrid Simulation: Supports both conventional and advanced propulsion methods.
+
+Scenario-based Testing: Predefined scenarios for testing, training, and demonstrations.
+
+Extensible Fleet Management: Easy integration and configuration of multiple spacecraft and states.
+
+Installation
+
+Clone the repository:
+
+git clone https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01.git
+
+Navigate to the project directory:
+
+cd Flaxos-Spaceshi_-Sim_0.01
+
+Install required dependencies:
+
+pip install -r requirements.txt
+
+Usage
+
+Start the simulation server:
+
+python core/command_server.py
+
+Run a scenario:
+
+python sim/run_scenario.py --scenario scenarios/sample_scenario.json
+
+Contributing
+
+Fork the repository
+
+Create a new branch for your feature or fix
+
+Submit a pull request with clear descriptions and documented code
+
+License
+
+This project is licensed under the MIT License - see the LICENSE.md file for details.
+
