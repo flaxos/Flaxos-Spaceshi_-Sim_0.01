@@ -1,88 +1,71 @@
-README.md
+# 🚀 Flaxos Spaceship Simulator
 
-🚀 Flaxos Spaceship Simulator
+## Project Overview
 
-Overview
+Flaxos Spaceship Simulator is a Python-based project for experimenting with hard science-fiction ship mechanics. It focuses on modular subsystem design, physics-driven propulsion and a layered power model for managing ship resources. Both a command line interface and a lightweight Tkinter GUI are provided for interacting with the simulation.
 
-The Flaxos Spaceship Simulator is a modular and extensible simulation framework designed to simulate realistic spaceship mechanics, navigation, and fleet operations. It provides a robust environment for simulating various spacecraft, propulsion systems, and sensor suites within a realistic physics environment.
+## Key Implementations
 
-Key Features
+- **Layered Power Management**
+  - **Primary Reactor** – powers main propulsion and primary weapons.
+  - **Secondary Reactor** – feeds sensors, reaction control thrusters and self‑defense systems.
+  - **Tertiary Reactor** – maintains life support and crew bio‑monitoring.
+- **CLI and Lightweight GUI** for issuing commands and visualising ship state.
+- **Realistic Physics** calculations of thrust and inertia along with basic sensor range modelling.
 
-Modular Architecture: Easily extendable with separate modules for core systems, fleets, and utility functions.
+## Codebase Structure
 
-Hybrid Simulation: Supports both conventional and advanced propulsion methods.
+- `ship_factory.py` – builds `Ship` objects from configuration dictionaries.
+- `hybrid/systems/power_management_system.py` – implements the three‑reactor power manager.
+- `simulation.py` – core loop updating position, orientation and running system ticks.
+- `hybrid/systems/navigation_system.py` – autopilot logic and course following.
+- `command_server.py` – central command routing for the CLI/GUI.
+- `simple_gui.py` – minimal Tkinter interface for monitoring a single ship.
 
-Scenario-based Testing: Predefined scenarios for testing, training, and demonstrations.
+File interdependencies are straightforward: `simulation.py` drives per‑tick updates and calls into systems defined under `hybrid/systems`. Ships are created via `ship_factory.py`, which attaches these systems to a `Ship` instance. The CLI and GUI front ends issue commands that flow through `command_server.py` to the relevant ship systems.
 
-Extensible Fleet Management: Easy integration and configuration of multiple spacecraft and states.
+## Installation
 
-Installation
+1. Install **Python 3.10+**.
+2. Clone the repository:
+   ```bash
+   git clone https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01.git
+   cd Flaxos-Spaceshi_-Sim_0.01
+   ```
+3. Install dependencies (numpy, pyyaml, tkinter is included with most Python distributions):
+   ```bash
+   pip install numpy pyyaml
+   ```
 
-Clone the repository:
+## Usage
 
-git clone https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01.git
-
-Navigate to the project directory:
-
-cd Flaxos-Spaceshi_-Sim_0.01
-
-Install required dependencies:
-
-pip install -r requirements.txt
-
-Usage
-
-Start the simulation server:
-
+Run the main simulation server:
+```bash
 python core/command_server.py
-
-Run a scenario:
-
-python sim/run_scenario.py --scenario scenarios/sample_scenario.json
-
-Power Management
-----------------
-
-The simulator includes a three-layer power management system. A command-line
-demo allows querying status, requesting power, and rerouting between layers:
-
 ```
+
+Start a simple GUI:
+```bash
+python simple_gui.py
+```
+
+To experiment with the power system via CLI:
+```bash
 python cli/power_demo.py status
 python cli/power_demo.py request --amount 10 --system propulsion
 python cli/power_demo.py reroute --amount 5 --from_layer primary --to_layer secondary
 ```
 
-For a graphical interface, run `python simple_gui.py` and use the "Power
-Management" panel to monitor reactors or issue power commands.
+## Deployment Details
 
-Example scenarios now include a basic `power_management` block. When this
-system is present on a ship, the GUI panel becomes active and allows live
-control. A minimal configuration looks like:
+Power management is integrated as a standard system. When a ship configuration includes a `power_management` block the GUI's power panel becomes active. The system resets reactor output every tick and raises events if a layer falls below the configured threshold. Status and rerouting commands can be issued from either the CLI or GUI, allowing live monitoring of available power during a run.
 
-```json
-"systems": {
-  "propulsion": { ... },
-  "power_management": {
-    "primary": {"output": 100.0},
-    "secondary": {"output": 50.0},
-    "tertiary": {"output": 25.0},
-    "system_map": {
-      "propulsion": "primary",
-      "sensors": "secondary"
-    }
-  }
-}
-```
+## Future Roadmap
 
-Contributing
+Planned improvements include:
+- Advanced sensor gameplay loops with active pings and contact tracking.
+- Multiplayer and fleet interactions across networked simulations.
+- Expanded GUI with richer status displays and command controls.
+- Additional modular subsystems such as launch bays and improved weapons.
 
-Fork the repository
-
-Create a new branch for your feature or fix
-
-Submit a pull request with clear descriptions and documented code
-
-License
-
-This project is licensed under the MIT License - see the LICENSE.md file for details.
-
+Contributions are welcome! Fork the repository, create a feature branch and open a pull request with your changes.

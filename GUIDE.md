@@ -1,31 +1,31 @@
-GUIDE.md
+# 🛰️ Developer Guide
 
-🛰️ Developer Guide
+This guide provides an overview of the project layout and explains how to extend or run the Flaxos Spaceship Simulator.
 
-Project Structure
+## Project Structure
 
-core/: Contains critical simulation modules including command processing, propulsion control, and simulation mechanics.
+- **`core/`** – foundational utilities such as `command.py` and math helpers used across the project.
+- **`cli/`** – small command line helpers (for example `power_demo.py`).
+- **`hybrid/`** – primary implementation of ship systems and the event‑driven simulator.
+  - `systems/` – contains modular subsystems including the power manager, navigation and sensors.
+  - `ship.py` – object representing a single ship composed of systems.
+  - `simulator.py` – runs the hybrid event loop and orchestrates ship updates.
+- **`scenarios/`** – JSON/YAML scenario files for loading predefined fleets.
+- **`fleet/`** – sample ship definitions.
+- **`gui_control.py` / `simple_gui.py`** – Tkinter interfaces for visual interaction.
 
-fleet/: Manages fleet configuration and state definitions.
+## Core Components
 
-hybrid/: Handles hybrid propulsion system logic.
+- **Command Server (`command_server.py`)** – routes CLI or GUI actions to individual ships.
+- **Power Management System** – layered reactors defined in `hybrid/systems/power_management_system.py`.
+- **Navigation System** – autopilot, waypoint handling and thrust limits (`hybrid/systems/navigation_system.py`).
+- **Simulation Loop (`simulation.py`)** – updates ship physics each tick.
+- **RCS Controller (`rcs_controller.py`)** – handles reaction control thrusters.
 
-scenarios/: Defines scenarios for simulation testing.
+## Scenario Format
 
-utils/: Provides utility functions supporting the core modules.
-
-Core Components
-
-Command Server (command_server.py): Central command routing and handling for simulation.
-
-RCS Controller (rcs_controller.py): Manages Reaction Control Systems for spacecraft maneuvering.
-
-Base Systems (base_system.py): Fundamental class structure and interfaces for various ship systems.
-
-Scenario Management
-
-Scenarios are defined in JSON format specifying initial conditions, targets, and objectives:
-
+Scenarios are JSON files specifying starting conditions and objectives. A minimal example:
+```json
 {
   "scenario_id": "example_001",
   "ships": [
@@ -39,31 +39,23 @@ Scenarios are defined in JSON format specifying initial conditions, targets, and
   ],
   "objectives": ["reach_waypoint", "engage_target"]
 }
+```
+Place scenario files in the `scenarios/` directory and load them using the CLI or GUI.
 
-Extending the Simulator
+## Extending the Simulator
 
-Adding New Modules:
+1. **Add a new subsystem** by creating a Python module in `hybrid/systems/` that subclasses `BaseSystem` and implements the `tick`, `command` and `get_state` methods.
+2. **Update ship configurations** in `fleet/` to include the new subsystem under the `systems` section.
+3. **Run tests** in `hybrid/tests/` or add new ones with `unittest`.
 
-Create new Python files within the appropriate directories (core, fleet, etc.).
+Unit tests can be executed with:
+```bash
+pytest
+```
 
-Ensure modules follow clear and consistent interfaces.
+## Design Philosophy
 
-Testing:
+- **Modularity** – each system is self contained and communicates via the event bus.
+- **Realistic but Playable Physics** – thrust, inertia and sensor ranges are simulated using simplified equations for ease of experimentation.
+- **Scalability** – multiple ships and scenarios can run in parallel using the simulator or the command server.
 
-Implement tests within a new or existing test directory.
-
-Write unit and integration tests to validate functionality.
-
-Pull Requests:
-
-Clearly document all changes in pull requests.
-
-Maintain consistent coding style and include comprehensive comments.
-
-Design Philosophy
-
-Modularity: Components should be independent and interchangeable.
-
-Realism with Flexibility: Realistic physics and logic balanced with gameplay-friendly adjustments.
-
-Scalability: Easy to extend and manage multiple ships and scenarios.
