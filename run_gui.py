@@ -1,4 +1,4 @@
-# simple_gui.py
+# run_gui.py - unified GUI
 import tkinter as tk
 from tkinter import ttk, scrolledtext
 import json
@@ -69,6 +69,9 @@ class HybridSimGUI:
 
         # Create power management panel
         self._create_power_panel(left_frame)
+
+        # Placeholder weapons panel
+        self._create_weapons_panel(left_frame)
         
         # Create custom command panel
         self._create_command_panel(left_frame)
@@ -202,6 +205,12 @@ class HybridSimGUI:
         self.to_layer = tk.StringVar(value="secondary")
         ttk.Combobox(rer, textvariable=self.to_layer, width=8, values=["primary","secondary","tertiary"]).grid(row=0,column=5,padx=2)
         ttk.Button(rer, text="Go", command=self._reroute_power).grid(row=0,column=6,padx=2)
+
+    def _create_weapons_panel(self, parent):
+        """Create placeholder weapons controls"""
+        frame = ttk.LabelFrame(parent, text="Weapons", padding="5")
+        frame.pack(fill=tk.X, pady=5)
+        ttk.Label(frame, text="Weapons controls coming soon").pack(padx=5, pady=5)
     
     def _create_command_panel(self, parent):
         """Create custom command entry panel"""
