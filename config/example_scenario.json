@@ -43,6 +43,21 @@
         "capacity": 1000,
         "current": 1000,
         "generation": 5
+      },
+      "power_management": {
+        "primary": {"output": 100.0},
+        "secondary": {"output": 50.0},
+        "tertiary": {"output": 25.0},
+        "alert_threshold": 0.1,
+        "system_map": {
+          "propulsion": "primary",
+          "weapons": "primary",
+          "sensors": "secondary",
+          "defense": "secondary",
+          "rcs": "secondary",
+          "life_support": "tertiary",
+          "bio_monitor": "tertiary"
+        }
       }
     }
   },
@@ -90,9 +105,24 @@
         "capacity": 1000,
         "current": 1000,
         "generation": 5
+      },
+      "power_management": {
+        "primary": {"output": 100.0},
+        "secondary": {"output": 50.0},
+        "tertiary": {"output": 25.0},
+        "alert_threshold": 0.1,
+        "system_map": {
+          "propulsion": "primary",
+          "weapons": "primary",
+          "sensors": "secondary",
+          "defense": "secondary",
+          "rcs": "secondary",
+          "life_support": "tertiary",
+          "bio_monitor": "tertiary"
+        }
       }
-    }
-  },
+      }
+    },
   {
     "id": "probe_passive_target",
     "position": { "x": 250, "y": 0, "z": 0 },
@@ -108,6 +138,21 @@
           "fov": 120.0,
           "signature_threshold": 0.00001,
           "contacts": []
+        }
+      },
+      "power_management": {
+        "primary": {"output": 100.0},
+        "secondary": {"output": 50.0},
+        "tertiary": {"output": 25.0},
+        "alert_threshold": 0.1,
+        "system_map": {
+          "propulsion": "primary",
+          "weapons": "primary",
+          "sensors": "secondary",
+          "defense": "secondary",
+          "rcs": "secondary",
+          "life_support": "tertiary",
+          "bio_monitor": "tertiary"
         }
       }
     }
@@ -135,6 +180,21 @@
           "last_ping_time": null,
           "processed": false,
           "contacts": []
+        }
+      },
+      "power_management": {
+        "primary": {"output": 100.0},
+        "secondary": {"output": 50.0},
+        "tertiary": {"output": 25.0},
+        "alert_threshold": 0.1,
+        "system_map": {
+          "propulsion": "primary",
+          "weapons": "primary",
+          "sensors": "secondary",
+          "defense": "secondary",
+          "rcs": "secondary",
+          "life_support": "tertiary",
+          "bio_monitor": "tertiary"
         }
       }
     }

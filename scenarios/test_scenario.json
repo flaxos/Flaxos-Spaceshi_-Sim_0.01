@@ -77,6 +77,21 @@
               "z": 0.0
             }
           }
+        },
+        "power_management": {
+          "primary": {"output": 100.0},
+          "secondary": {"output": 50.0},
+          "tertiary": {"output": 25.0},
+          "alert_threshold": 0.1,
+          "system_map": {
+            "propulsion": "primary",
+            "weapons": "primary",
+            "sensors": "secondary",
+            "defense": "secondary",
+            "rcs": "secondary",
+            "life_support": "tertiary",
+            "bio_monitor": "tertiary"
+          }
         }
       }
     },
@@ -142,6 +157,21 @@
           },
           "signature_base": 1.0,
           "contacts": []
+        },
+        "power_management": {
+          "primary": {"output": 100.0},
+          "secondary": {"output": 50.0},
+          "tertiary": {"output": 25.0},
+          "alert_threshold": 0.1,
+          "system_map": {
+            "propulsion": "primary",
+            "weapons": "primary",
+            "sensors": "secondary",
+            "defense": "secondary",
+            "rcs": "secondary",
+            "life_support": "tertiary",
+            "bio_monitor": "tertiary"
+          }
         }
       }
     },
@@ -203,6 +233,21 @@
             "contact_count": 0
           },
           "signature_base": 1.2
+        },
+        "power_management": {
+          "primary": {"output": 100.0},
+          "secondary": {"output": 50.0},
+          "tertiary": {"output": 25.0},
+          "alert_threshold": 0.1,
+          "system_map": {
+            "propulsion": "primary",
+            "weapons": "primary",
+            "sensors": "secondary",
+            "defense": "secondary",
+            "rcs": "secondary",
+            "life_support": "tertiary",
+            "bio_monitor": "tertiary"
+          }
         }
       }
     },
@@ -264,6 +309,21 @@
             "contact_count": 0
           },
           "signature_base": 1.5
+        },
+        "power_management": {
+          "primary": {"output": 100.0},
+          "secondary": {"output": 50.0},
+          "tertiary": {"output": 25.0},
+          "alert_threshold": 0.1,
+          "system_map": {
+            "propulsion": "primary",
+            "weapons": "primary",
+            "sensors": "secondary",
+            "defense": "secondary",
+            "rcs": "secondary",
+            "life_support": "tertiary",
+            "bio_monitor": "tertiary"
+          }
         }
       }
     }
