@@ -209,13 +209,29 @@ class HybridSimGUI:
         sensors_frame = ttk.LabelFrame(parent, text="Sensors & Bio", padding="5")
         sensors_frame.pack(fill=tk.X, pady=5)
         
-        self.cooldown_label = ttk.Label(sensors_frame, text="Cooldown: N/A", foreground="blue")
-        self.cooldown_label.pack(padx=5, pady=5)
-        
+        # Display current sensor mode
+        mode_frame = ttk.Frame(sensors_frame)
+        mode_frame.pack(fill=tk.X, padx=5, pady=5)
+
+        ttk.Label(mode_frame, text="Mode:").pack(side=tk.LEFT)
+        self.sensor_mode_var = tk.StringVar(value="Passive")
+        ttk.Label(mode_frame, textvariable=self.sensor_mode_var,
+                  foreground="blue").pack(side=tk.LEFT, padx=2)
+
+        self.cooldown_label = ttk.Label(mode_frame, text="Cooldown: N/A",
+                                        foreground="blue")
+        self.cooldown_label.pack(side=tk.RIGHT)
+
         buttons_frame = ttk.Frame(sensors_frame)
         buttons_frame.pack(fill=tk.X, padx=5, pady=5)
-        
-        ttk.Button(buttons_frame, text="Ping Sensors", 
+
+        # Toggle between passive and active sensor modes
+        self.active_mode = tk.BooleanVar(value=False)
+        ttk.Checkbutton(buttons_frame, text="Active Mode",
+                       variable=self.active_mode,
+                       command=self._toggle_sensor_mode).pack(side=tk.LEFT, padx=5)
+
+        ttk.Button(buttons_frame, text="Ping Sensors",
                   command=self._ping_sensors).pack(side=tk.LEFT, padx=5)
         ttk.Button(buttons_frame, text="Override Bio Monitor",
                   command=self._override_bio).pack(side=tk.LEFT, padx=5)
@@ -543,6 +559,14 @@ class HybridSimGUI:
                 status = systems[system].get('status', 'Unknown')
                 self.state_vars[f'system_{system}'].set(status)
 
+        if 'sensors' in systems:
+            sensor_state = systems['sensors']
+            mode = sensor_state.get('mode', 'passive')
+            cooldown_val = sensor_state.get('active', {}).get('cooldown')
+            self.sensor_mode_var.set(mode.capitalize())
+            if cooldown_val is not None:
+                self.cooldown_label.config(text=f"Cooldown: {cooldown_val}")
+
         if 'power_management' in systems and hasattr(self, 'power_vars'):
             pm = systems['power_management']
             for layer in ['primary', 'secondary', 'tertiary']:
@@ -788,11 +812,33 @@ class HybridSimGUI:
             if "result" in result and isinstance(result["result"], dict):
                 cooldown = result["result"].get("cooldown", "Unknown")
             self.cooldown_label.config(text=f"Cooldown: {cooldown}")
-            
+
             # Refresh to show contacts
             self._refresh_panels()
         else:
             self.status_var.set(f"Failed to ping sensors: {result.get('error', 'Unknown error')}")
+
+    def _toggle_sensor_mode(self):
+        """Switch between passive and active sensor modes"""
+        if not self.selected_ship:
+            self.status_var.set("No ship selected")
+            return
+
+        mode = "active" if self.active_mode.get() else "passive"
+        result = self.runner.send_command(
+            self.selected_ship,
+            "set_sensor_mode",
+            {"mode": mode},
+        )
+
+        if result.get("success"):
+            self.sensor_mode_var.set(mode.capitalize())
+            self.status_var.set(f"{mode.capitalize()} sensor mode enabled")
+            self._refresh_panels()
+        else:
+            self.status_var.set(
+                f"Failed to set sensor mode: {result.get('error', 'Unknown error')}"
+            )
     
     def _override_bio(self):
         """Override bio monitor safety"""
