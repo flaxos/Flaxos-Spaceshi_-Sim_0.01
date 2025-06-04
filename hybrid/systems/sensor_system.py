@@ -1,3 +1,9 @@
+from hybrid.base_system import BaseSystem
+from datetime import datetime, timedelta
+import math
+import logging
+
+
 class SensorSystem(BaseSystem):
     """
     Sensor system for ships. Handles active and passive detection.
