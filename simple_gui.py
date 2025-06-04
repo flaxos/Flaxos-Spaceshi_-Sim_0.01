@@ -684,9 +684,12 @@ class HybridSimGUI:
             target_id = contact.get('id', 'Unknown')
             distance = contact.get('distance', 'Unknown')
             method = contact.get('detection_method', 'Unknown')
-            
-            self.contacts_output.insert(tk.END, 
-                f"{target_id} @ {distance} km [{method}]\n")
+            last = contact.get('last_updated', contact.get('detected_at', ''))
+
+            line = f"{target_id} @ {distance} km [{method}]"
+            if last:
+                line += f" - last {last}"
+            self.contacts_output.insert(tk.END, line + "\n")
     
     def _toggle_auto_refresh(self):
         """Toggle automatic refresh"""

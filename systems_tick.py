@@ -101,9 +101,58 @@ def tick_sensors(ship, dt):
             sensors["cooldown"] = max(0, sensors["cooldown"])
 
 def tick_sensors_passive(ship, all_ships, dt):
-    """Update passive sensor detections"""
-    # Assumed already implemented elsewhere
-    pass
+    """Update passive sensor detections for the ship."""
+    sensors = ship.systems.get("sensors", {})
+    passive = sensors.get("passive")
+
+    # Exit early if ship has no passive sensors configured
+    if passive is None:
+        return
+
+    passive_range = passive.get("range", 3000.0)
+    fov = passive.get("fov", 120.0)
+    threshold = passive.get("signature_threshold", 0.1)
+
+    ship_yaw = ship.orientation.get("yaw", 0.0)
+    now = datetime.utcnow().isoformat()
+    contacts = []
+
+    for other in all_ships:
+        if other.id == ship.id:
+            continue
+
+        dx = other.position["x"] - ship.position["x"]
+        dy = other.position["y"] - ship.position["y"]
+        dz = other.position["z"] - ship.position["z"]
+
+        dist = math.sqrt(dx**2 + dy**2 + dz**2)
+        if dist > passive_range:
+            continue
+
+        angle_to_target = math.degrees(math.atan2(dx, dz)) % 360
+        delta = abs((angle_to_target - ship_yaw + 180) % 360 - 180)
+        if delta > fov / 2:
+            continue
+
+        target_signature = calc_signature(other)
+        strength = target_signature / (dist ** 2 if dist > 0 else 1)
+
+        if strength < threshold:
+            continue
+
+        contacts.append({
+            "id": other.id,
+            "distance": round(dist, 1),
+            "bearing": round(angle_to_target, 1),
+            "signature": round(target_signature, 2),
+            "detection_method": "passive",
+            "last_updated": now,
+        })
+
+    passive["contacts"] = contacts
+    # Merge active and passive contacts for convenience
+    active_contacts = sensors.get("active", {}).get("contacts", [])
+    sensors["contacts"] = contacts + active_contacts
 
 def tick_sensors_active(ship, all_ships):
     """Process active sensor ping results"""
