@@ -42,7 +42,7 @@ python -m hybrid.cli.run_cli --config path/to/ships.json
 
 Launch the GUI:
 ```bash
-python -m hybrid.gui.run_gui
+python run_gui.py
 ```
 
 The unified GUI loads scenarios, starts the simulation server and exposes
