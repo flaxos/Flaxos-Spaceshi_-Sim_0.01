@@ -48,7 +48,7 @@
   },
   {
     "id": "test_ship_002",
-    "position": { "x": 10000, "y": 0, "z": 0 },
+    "position": { "x": 2000, "y": 0, "z": 0 },
     "mass": 1000,
     "orientation": { "pitch": 0.0, "yaw": 180.0, "roll": 0.0 },
     "systems": {
