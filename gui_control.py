@@ -1177,7 +1177,7 @@ class ShipConsoleGUI:
             
             # Update cooldown
             cooldown_val = parsed.get("sensors", {}).get("active", {}).get("cooldown")
-            if cooldown_val is not None:
+            if cooldown_val is not None and self.cooldown_label is not None:
                 self.cooldown_label.config(text=f"Cooldown: {cooldown_val:.1f}s")
 
         # Get contacts
@@ -1541,43 +1541,20 @@ class ShipConsoleGUI:
 
 
 def create_gui():
-    """Create and run the main GUI"""
-    # Initialize the hybrid runner
-    from hybrid_runner import HybridRunner
-    import os
-    
-    # Get scenario from environment variable if set
-    scenario_name = os.environ.get('HYBRID_SCENARIO', 'test_scenario')
-    
-    # Create the runner and load the scenario
-    runner = HybridRunner()
-    
-    try:
-        # Load the specified scenario
-        ship_count = runner.load_scenario(scenario_name)
-        print(f"Loaded {ship_count} ships from scenario: {scenario_name}")
-        
-        if ship_count == 0:
-            print(f"Falling back to default test_scenario")
-            runner.load_scenario("test_scenario")
-    except Exception as e:
-        print(f"Error loading scenario {scenario_name}: {e}")
-        print("Falling back to default test_scenario")
-        try:
-            runner.load_scenario("test_scenario")
-        except:
-            # Last resort - try to load ships from fleet directory
-            runner.load_ships()
-    
-    # Start the simulation
-    runner.start()
-    
-    # Create the GUI
+    """Create and run the main GUI.
+
+    This version of ``create_gui`` does **not** start an internal simulation.
+    The GUI relies on ``send.py`` to communicate with an external command
+    server (e.g. started via ``main.py``).  It simply launches the Tkinter
+    interface so the user can connect to that running simulator.
+    """
+
+    # Create the GUI window
     root = tk.Tk()
     app = ShipConsoleGUI(root)
-    
-    # Set window title with scenario name
-    root.title(f"Spaceship Command Console - {scenario_name}")
+
+    # Set a sensible window title
+    root.title("Spaceship Command Console")
     
     # Initialize state variables if needed
     if not hasattr(app, 'state_vars'):
@@ -1611,28 +1588,20 @@ def create_gui():
     if not hasattr(app, 'spike_var'):
         app.spike_var = tk.StringVar(value="None")
     
-    # Set ship selector to player_ship if available
+    # Initialise ship selector with known ship IDs
     if hasattr(app, 'ship_var') and app.ship_var:
-        states = runner.get_all_ship_states()
-        ship_ids = list(states.keys())
-        
-        # Update the ship combo values
         if hasattr(app, 'ship_combo') and app.ship_combo:
-            app.ship_combo['values'] = ship_ids
-        
-        # Set to player_ship if available, otherwise first ship
-        if "player_ship" in states:
-            app.ship_var.set("player_ship")
-        elif ship_ids:
-            app.ship_var.set(ship_ids[0])
-            
-        # Force an immediate refresh
+            app.ship_combo['values'] = SHIP_IDS
+
+        # Default to the first ship in the list
+        if SHIP_IDS:
+            app.ship_var.set(SHIP_IDS[0])
+
         if hasattr(app, 'refresh_panels'):
             app.refresh_panels()
     
     # Define cleanup function for when window is closed
     def on_closing():
-        runner.stop()
         root.destroy()
         
     root.protocol("WM_DELETE_WINDOW", on_closing)
@@ -1641,8 +1610,7 @@ def create_gui():
     try:
         root.mainloop()
     finally:
-        # Ensure simulation is stopped when GUI exits
-        runner.stop()
+        pass
 
 
 if __name__ == "__main__":
