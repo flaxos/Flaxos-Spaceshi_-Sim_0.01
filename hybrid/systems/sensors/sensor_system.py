@@ -3,6 +3,8 @@ from datetime import datetime, timedelta
 import math
 import logging
 
+# Module level logger used for diagnostics during sensor operations
+logger = logging.getLogger(__name__)
 
 class SensorSystem(BaseSystem):
     """

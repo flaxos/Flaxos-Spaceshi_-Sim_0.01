@@ -38,7 +38,9 @@ from hybrid.systems.sensors.sensor_system import SensorSystem
 from hybrid.systems.navigation.navigation import NavigationSystem
 from hybrid.systems.helm_system import HelmSystem
 from hybrid.systems.bio_monitor_system import BioMonitorSystem
-from hybrid.systems.power.management import PowerManagementSystem
+# Use the newer power management implementation that handles layered reactors
+# and additional configuration like alert thresholds and system mapping.
+from hybrid.systems.power_management_system import PowerManagementSystem
 __all__ = [
     'PowerSystem',
     'SensorSystem',
