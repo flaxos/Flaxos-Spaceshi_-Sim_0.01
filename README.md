@@ -68,6 +68,11 @@ python -m hybrid.gui.run_gui
 ```
 Launches a Tkinter window. Edit hybrid/gui/run_gui.py to customize widgets.
 
+### Sample Data
+Minimal ship examples are provided in `fleet_json/sample_ship.json` and
+`fleet/sample_ship.yaml`. Large event log files were removed to keep the
+repository lightweight.
+
 ## Core Systems
 **PowerManagementSystem** (`hybrid/systems/power/management.py`)
 

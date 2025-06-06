@@ -1,0 +1,8 @@
+{
+  "acceleration": {"x": 0.0, "y": 0.0, "z": 0.0},
+  "event_log": [
+    {"event": "tick", "position": {"x": 0.0, "y": 0.0, "z": 0.0}, "velocity": {"x": 0.0, "y": 0.0, "z": 0.0}},
+    {"event": "tick", "position": {"x": 1.0, "y": 0.0, "z": 0.0}, "velocity": {"x": 0.1, "y": 0.0, "z": 0.0}}
+  ],
+  "visibility_state": []
+}
