@@ -6,13 +6,17 @@ import os
 import threading
 import tkinter as tk
 from tkinter import filedialog
-from hybrid.systems.simulation import Simulation
+# Use the newer Simulator class instead of the deprecated Simulation
+from hybrid.simulator import Simulator
 
 class SimulatorGUI(tk.Tk):
     def __init__(self, ship_configs):
         super().__init__()
         self.title("Spaceship Simulator")
-        self.sim = Simulation(ship_configs)
+        # Create the simulator and load ships from the provided config
+        self.sim = Simulator()
+        for ship_id, config in ship_configs.items():
+            self.sim.add_ship(ship_id, config)
         self._build_widgets()
         self._start_simulation_thread()
 
