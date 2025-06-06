@@ -55,9 +55,9 @@ pip install -r requirements.txt
 ## Usage
 ### CLI
 ```bash
-python -m hybrid.cli.run_cli --config path/to/ships.json --time 60
+python -m hybrid.cli.run_cli --config ships_config.json --time 60
 ```
-`--config` should be a JSON mapping each ship ID to its configuration (power, weapons, navigation, sensors).
+`--config` should be a JSON mapping each ship ID to its configuration (power, weapons, navigation, sensors). See `ships_config.json` for a minimal example.
 
 `--time` is total simulation duration in seconds.
 
