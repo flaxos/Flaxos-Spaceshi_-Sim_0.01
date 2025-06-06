@@ -5,6 +5,6 @@ class SensorSystem:
         # config: range, FOV, cooldown, passive/active settings
         self.config = config
 
-    def tick(self, dt):
+    def tick(self, dt, *_, **__):
         # Perform passive/active pings and publish detection events
         pass

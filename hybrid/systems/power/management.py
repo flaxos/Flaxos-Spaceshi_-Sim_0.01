@@ -18,7 +18,7 @@ class PowerManagementSystem:
             )
         self.event_bus = EventBus.get_instance()
 
-    def tick(self, dt):
+    def tick(self, dt, *_, **__):
         for reactor in self.reactors.values():
             reactor.tick(dt)
             if reactor.status == "overheated":

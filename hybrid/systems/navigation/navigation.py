@@ -5,6 +5,6 @@ class NavigationSystem:
         # config: navigation parameters (e.g., max_acceleration)
         self.config = config
 
-    def tick(self, dt):
+    def tick(self, dt, *_, **__):
         # Update ship position, velocity, orientation based on inputs or autopilot
         pass

@@ -13,7 +13,8 @@ class Reactor:
         self.temperature = 25.0  # ambient start
         self.status = "nominal"
 
-    def tick(self, dt):
+    def tick(self, dt, *_, **__):
+        """Update reactor state. Extra args are ignored for compatibility."""
         # Ramp available power toward capacity
         if self.available < self.capacity:
             self.available = min(self.capacity, self.available + self.output_rate * dt)

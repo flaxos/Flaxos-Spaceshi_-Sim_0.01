@@ -53,7 +53,7 @@ class WeaponSystem:
             self.weapons[wcfg["name"]] = weapon
         self.event_bus = EventBus.get_instance()
 
-    def tick(self, dt):
+    def tick(self, dt, *_, **__):
         for weapon in self.weapons.values():
             weapon.cool_down(dt)
 
