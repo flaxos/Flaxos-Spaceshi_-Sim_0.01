@@ -1,0 +1,8 @@
+{
+  "testship": {
+    "power": {"primary": {}, "secondary": {}, "tertiary": {}},
+    "weapons": {"weapons": []},
+    "navigation": {},
+    "sensors": {}
+  }
+}
