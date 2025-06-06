@@ -14,7 +14,7 @@ Our development philosophy:
 Current Code State
 ------------------
 - Ships are defined via JSON with systems such as propulsion, power, helm, navigation, sensors, etc.
- - A CLI (`hybrid/cli.py`) routes commands to individual ships.
+ - A CLI (`hybrid/cli/run_cli.py`) routes commands to individual ships.
 - GUI exists via Tkinter and displays limited controls/state.
 - Placeholder values for power_draw, mass, and slot_type are embedded in the schema.
 - We use a get_state command to fetch per-ship JSON state.
@@ -47,8 +47,8 @@ Actions:
 - On every tick:
   - Subtract power from power.current
   - If power is 0, disable affected systems (enabled: false)
-- Implement CLI command:
-  python -m hybrid.cli --ship <id> --command '{"command": "set_system_state", "system": "sensors", "enabled": 0}'
+  - Implement CLI command:
+  python hybrid/cli/run_cli.py --ship <id> --command '{"command": "set_system_state", "system": "sensors", "enabled": 0}'
 
 3. Active Sensor Pings + Contact Logic
 --------------------------------------
@@ -59,8 +59,8 @@ Actions:
   - Detect ships within range and fov
   - Add to contacts list with timestamp
   - Apply cooldown timer (cooldown_time)
-- CLI command:
-  python -m hybrid.cli --ship <id> --command '{"command": "ping_sensors"}'
+  - CLI command:
+  python hybrid/cli/run_cli.py --ship <id> --command '{"command": "ping_sensors"}'
 - GUI should reflect:
   - Sensor cooldown
   - Active/passive contacts
@@ -79,8 +79,8 @@ Actions:
   }
 
 - Add optional parent_ship_id field
-- CLI stub:
-  python -m hybrid.cli --ship <id> --command '{"command": "spawn_child", "type": "probe"}'
+  - CLI stub:
+  python hybrid/cli/run_cli.py --ship <id> --command '{"command": "spawn_child", "type": "probe"}'
 
 - Store child ship JSON in /fleet/ folder
 Note: No physical deployment logic needed yet — schema only.
@@ -111,7 +111,7 @@ Deliverables
 1. simulator.py — with tick() and tick_all_ships() logic
 2. sensors module — with ping_sensors() and contact processing
 3. Updated JSON ship schema with full scaffolding
-4. CLI commands via `hybrid.cli`:
+4. CLI commands via `hybrid/cli/run_cli.py`:
    - ping_sensors
    - set_system_state
    - spawn_child (stub only)

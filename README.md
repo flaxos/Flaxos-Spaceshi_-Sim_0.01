@@ -25,7 +25,8 @@ hybrid/
     sensors/
       sensor_system.py
   simulator.py
-  cli.py
+  cli/
+    run_cli.py
   gui/
     run_gui.py
 tests/
@@ -42,6 +43,8 @@ tests/
     test_ship_initialization.py
 ```
 
+Legacy scripts such as `tick.py` have been moved to the `archive/` folder.
+
 ## Installation
 1. Create a virtual environment (Python 3.8+ recommended):
    ```bash
@@ -56,7 +59,7 @@ pip install -r requirements.txt
 ## Usage
 ### CLI
 ```bash
-python -m hybrid.cli --fleet-dir hybrid_fleet --run 60
+python hybrid/cli/run_cli.py --fleet-dir hybrid_fleet --run 60
 ```
 `--fleet-dir` points to a directory of ship configuration files.
 

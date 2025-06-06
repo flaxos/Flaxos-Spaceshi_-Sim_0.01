@@ -56,7 +56,8 @@ hybrid/
       navigation.py
     sensors/
       sensor_system.py
-    simulation.py
+    # legacy tick.py archived under archive/
+    # main simulator entry is hybrid/simulator.py
   cli/
     run_cli.py
   gui/
@@ -76,3 +77,5 @@ tests/
 README.md
 GUIDE.md
 ```
+
+Legacy modules such as the old `tick.py` loop now live under the `archive/` directory.
