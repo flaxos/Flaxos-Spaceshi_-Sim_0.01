@@ -69,9 +69,10 @@ python hybrid/cli/run_cli.py --fleet-dir hybrid_fleet --run 60
 ```bash
 python -m hybrid.gui.run_gui --config path/to/ships.json
 ```
-Launches a Tkinter window. If no `--config` path is provided, the GUI will
-use `ships_config.json` when present or prompt for a file using a standard
-dialog. Edit `hybrid/gui/run_gui.py` to customize widgets.
+Launches a Tkinter window. The JSON file should contain a dictionary of ship
+IDs mapping to configuration objects. Provide multiple ship entries to enable
+the selector drop-down. If `--config` is omitted the GUI tries `ships_config.json`
+or prompts for a file. Edit `hybrid/gui/run_gui.py` to customize widgets.
 
 ### Sample Data
 Minimal ship examples are provided in `fleet_json/sample_ship.json` and

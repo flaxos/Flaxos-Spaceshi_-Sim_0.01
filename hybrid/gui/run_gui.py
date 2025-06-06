@@ -5,7 +5,7 @@ import json
 import os
 import threading
 import tkinter as tk
-from tkinter import filedialog, messagebox
+from tkinter import filedialog, messagebox, scrolledtext
 # Use the newer Simulator class instead of the deprecated Simulation
 from hybrid.simulator import Simulator
 
@@ -35,7 +35,7 @@ class SimulatorGUI(tk.Tk):
         tk.Label(selector_frame, text="Ship:").pack(side=tk.LEFT)
         self.ship_var = tk.StringVar(value=self.selected_ship_id)
         ship_ids = list(self.sim.ships.keys())
-        self.ship_menu = tk.OptionMenu(selector_frame, self.ship_var, *ship_ids, command=lambda _:_)
+        self.ship_menu = tk.OptionMenu(selector_frame, self.ship_var, *ship_ids, command=self._on_ship_select)
         self.ship_menu.pack(side=tk.LEFT, padx=5)
 
         # Navigation controls
@@ -82,6 +82,18 @@ class SimulatorGUI(tk.Tk):
         self.ori_var = tk.StringVar(value="0,0,0")
         tk.Label(status_frame, textvariable=self.ori_var).pack(anchor="w")
 
+        # Sensor controls
+        sensor_frame = tk.LabelFrame(self, text="Sensors")
+        sensor_frame.pack(padx=10, pady=5, fill="both", expand=True)
+
+        btn_frame = tk.Frame(sensor_frame)
+        btn_frame.pack(anchor="w")
+        tk.Button(btn_frame, text="Ping", command=self._ping_sensors).pack(side=tk.LEFT, padx=2, pady=2)
+        tk.Button(btn_frame, text="Refresh", command=self._refresh_contacts).pack(side=tk.LEFT, padx=2, pady=2)
+
+        self.contact_box = scrolledtext.ScrolledText(sensor_frame, height=5, width=40)
+        self.contact_box.pack(fill="both", expand=True, padx=5, pady=2)
+
         # Kick off periodic updates
         self.after(500, self._update_status)
 
@@ -94,6 +106,19 @@ class SimulatorGUI(tk.Tk):
     def _current_ship(self):
         ship_id = self.ship_var.get()
         return self.sim.get_ship(ship_id)
+
+    def _on_ship_select(self, ship_id):
+        """Callback when the user selects a different ship."""
+        self.selected_ship_id = ship_id
+        # Update autopilot checkbox based on ship state if available
+        ship = self._current_ship()
+        if ship and 'navigation' in ship.systems:
+            nav_state = ship.systems['navigation']
+            if isinstance(nav_state, dict):
+                enabled = nav_state.get('autopilot_enabled', False)
+            else:
+                enabled = getattr(nav_state, 'autopilot_enabled', False)
+            self.autopilot_var.set(enabled)
 
     def _toggle_autopilot(self):
         ship = self._current_ship()
@@ -129,6 +154,26 @@ class SimulatorGUI(tk.Tk):
             return
         ship.command("rotate", {"axis": axis, "value": amount})
 
+    def _ping_sensors(self):
+        """Trigger an active sensor ping on the selected ship."""
+        ship = self._current_ship()
+        if ship:
+            ship.command("ping_sensors", {})
+
+    def _refresh_contacts(self):
+        """Update the contact list from the ship's sensors."""
+        ship = self._current_ship()
+        self.contact_box.delete("1.0", tk.END)
+        if not ship:
+            return
+        result = ship.command("get_contacts", {})
+        contacts = result.get("contacts", []) if isinstance(result, dict) else []
+        for c in contacts:
+            cid = c.get("id", "unknown")
+            dist = c.get("distance", 0)
+            method = c.get("method", c.get("detection_method", "?"))
+            self.contact_box.insert(tk.END, f"{cid} @ {dist:.1f} [{method}]\n")
+
     def _update_status(self):
         ship = self._current_ship()
         if ship:
@@ -139,6 +184,7 @@ class SimulatorGUI(tk.Tk):
             self.pos_var.set(f"Pos: {pos.get('x',0):.1f}, {pos.get('y',0):.1f}, {pos.get('z',0):.1f}")
             self.vel_var.set(f"Vel: {vel.get('x',0):.1f}, {vel.get('y',0):.1f}, {vel.get('z',0):.1f}")
             self.ori_var.set(f"Ori: {ori.get('pitch',0):.1f}, {ori.get('yaw',0):.1f}, {ori.get('roll',0):.1f}")
+            self._refresh_contacts()
         self.after(500, self._update_status)
 
 def main():
