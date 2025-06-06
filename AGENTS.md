@@ -17,12 +17,11 @@ This document helps AI agents (e.g. Codex, ChatGPT) understand project structure
 
 | File | Purpose |
 |------|---------|
-| `tick.py` | Runs ship simulation tick per frame. Hook power system here. |
-| `send.py` | CLI entry point for ship commands (e.g., `reactor_start`, `toggle_system`) |
-| `ship_factory.py` | Instantiates ship objects and injects system logic from `systems_schema.py` |
-| `systems_schema.py` | Defines default system values, including power specs per ship |
-| `power_management.py` | New: Handles reactor warm-up, battery, bus distribution, and system toggles |
-| `gui.py` | Optional: Future GUI frontend (Tkinter); not yet integrated with power system |
+| `hybrid/simulator.py` | Main simulation loop ticking all ships |
+| `hybrid/cli.py` | Command line interface for sending ship commands |
+| `hybrid/ship_factory.py` | Instantiates ship systems from configuration |
+| `hybrid/systems/power/management.py` | Handles reactors, buses, and toggles |
+| `hybrid/gui/run_gui.py` | Optional Tkinter frontend |
 
 ---
 
@@ -47,21 +46,23 @@ This document helps AI agents (e.g. Codex, ChatGPT) understand project structure
   - Tracks draw/supply and toggled systems
 
 ### Tick Integration
-Call this in `tick.py`:
+Invoke each frame via the simulator:
 ```python
 ship.power_system.tick()
 ```
 
 ---
 
-🧪 CLI Commands (defined in send.py)
+🧪 CLI Commands (via `hybrid.cli`)
 
-python send.py reactor_start --ship test_ship_001
-python send.py get_power_status --ship test_ship_001
-python send.py toggle_system --ship test_ship_001 --system railgun --state 0
-python send.py set_power_allocation --ship test_ship_001 --primary 0.5 --secondary 0.3 --tertiary 0.2
+```bash
+python -m hybrid.cli --ship test_ship_001 --command '{"command": "reactor_start"}'
+python -m hybrid.cli --ship test_ship_001 --command '{"command": "get_power_status"}'
+python -m hybrid.cli --ship test_ship_001 --command '{"command": "toggle_system", "system": "railgun", "state": 0}'
+python -m hybrid.cli --ship test_ship_001 --command '{"command": "set_power_allocation", "primary": 0.5, "secondary": 0.3, "tertiary": 0.2}'
+```
 
-All commands modify the ship’s live state via ship.power_system.
+All commands update the live ship state through the power system.
 
 ---
 
@@ -89,7 +90,7 @@ Avoid hardcoding bus or system names; they come from systems_schema.py.
 
 [ ] Optional: Reactor fuel use or overheat modeling
 
-[ ] Extend send.py to include power profiles or presets
+[ ] Extend `hybrid.cli` to include power profiles or presets
 
 [ ] Add get_draw_profile command to summarize draw state by bus
 

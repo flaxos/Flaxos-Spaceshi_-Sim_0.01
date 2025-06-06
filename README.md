@@ -7,39 +7,40 @@ A Python-based spaceship simulator featuring:
 - Weapon and hardpoint systems with power checks, heat, and cooldown
 
 ## Folder Structure
+```
 hybrid/
-core/
-event_bus.py
-base_system.py
-constants.py
-systems/
-power/
-reactor.py
-management.py
-weapons/
-weapon_system.py
-hardpoint.py
-navigation/
-navigation.py
-sensors/
-sensor_system.py
-simulation.py
-cli/
-run_cli.py
-gui/
-run_gui.py
+  core/
+    base_system.py
+    event_bus.py
+    constants.py
+  systems/
+    power/
+      reactor.py
+      management.py
+    weapons/
+      weapon_system.py
+      hardpoint.py
+    navigation/
+      navigation.py
+    sensors/
+      sensor_system.py
+  simulator.py
+  cli.py
+  gui/
+    run_gui.py
 tests/
-core/
-test_event_bus.py
-systems/
-power/
-test_reactor.py
-test_management.py
-weapons/
-test_weapon_system.py
-test_hardpoint.py
-hybrid_tests/
-test_ship_initialization.py
+  core/
+    test_event_bus.py
+  systems/
+    power/
+      test_reactor.py
+      test_management.py
+    weapons/
+      test_weapon_system.py
+      test_hardpoint.py
+  hybrid_tests/
+    test_ship_initialization.py
+```
 
 ## Installation
 1. Create a virtual environment (Python 3.8+ recommended):
@@ -55,11 +56,11 @@ pip install -r requirements.txt
 ## Usage
 ### CLI
 ```bash
-python -m hybrid.cli.run_cli --config ships_config.json --time 60
+python -m hybrid.cli --fleet-dir hybrid_fleet --run 60
 ```
-`--config` should be a JSON mapping each ship ID to its configuration (power, weapons, navigation, sensors). See `ships_config.json` for a minimal example.
+`--fleet-dir` points to a directory of ship configuration files.
 
-`--time` is total simulation duration in seconds.
+`--run` sets the simulation duration in seconds.
 
 ### GUI
 ```bash
@@ -98,9 +99,9 @@ Placeholder: update ship movement logic here.
 
 Placeholder: passive/active detection logic.
 
-**Simulation** (`hybrid/systems/simulation.py`)
+**Simulator** (`hybrid/simulator.py`)
 
-Central loop that ticks sensors, navigation, weapons, and power each frame.
+Central loop that ticks all ships each frame.
 
 ## Development Roadmap
 Completed:
