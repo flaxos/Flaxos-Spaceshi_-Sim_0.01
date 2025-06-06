@@ -1,11 +1,16 @@
 # scenario_loader.py — Loads scenario JSON and builds ship instances
 
 import json
+import sys
 from ship_factory import build_ship_from_config
 
 def load_scenario(path, sector_manager=None):
-    with open(path) as f:
-        data = json.load(f)
+    try:
+        with open(path) as f:
+            data = json.load(f)
+    except FileNotFoundError:
+        print(f"Scenario file not found: {path}", file=sys.stderr)
+        sys.exit(1)
 
     # Support either top-level list OR { "ships": [...] }
     if isinstance(data, list):
