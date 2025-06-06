@@ -40,7 +40,7 @@ from hybrid.systems.helm_system import HelmSystem
 from hybrid.systems.bio_monitor_system import BioMonitorSystem
 # Use the newer power management implementation that handles layered reactors
 # and additional configuration like alert thresholds and system mapping.
-from hybrid.systems.power_management_system import PowerManagementSystem
+from hybrid.systems.power.management import PowerManagementSystem
 __all__ = [
     'PowerSystem',
     'SensorSystem',

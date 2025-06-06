@@ -14,7 +14,7 @@ Our development philosophy:
 Current Code State
 ------------------
 - Ships are defined via JSON with systems such as propulsion, power, helm, navigation, sensors, etc.
-- A CLI (send.py) routes commands to individual ships.
+ - A CLI (`hybrid/cli.py`) routes commands to individual ships.
 - GUI exists via Tkinter and displays limited controls/state.
 - Placeholder values for power_draw, mass, and slot_type are embedded in the schema.
 - We use a get_state command to fetch per-ship JSON state.
@@ -34,7 +34,7 @@ Each tick should:
 - Update sensor cooldowns and detection logic.
 
 Required Components:
-- tick(ship_state: dict) -> dict function in tick.py
+- tick(ship_state: dict) -> dict function in simulator
 - tick_all_ships() to run all ships from fleet/ or memory
 - Integrate with existing simulation loop
 
@@ -48,7 +48,7 @@ Actions:
   - Subtract power from power.current
   - If power is 0, disable affected systems (enabled: false)
 - Implement CLI command:
-  python send.py set_system_state --ship <id> --system sensors --enabled 0
+  python -m hybrid.cli --ship <id> --command '{"command": "set_system_state", "system": "sensors", "enabled": 0}'
 
 3. Active Sensor Pings + Contact Logic
 --------------------------------------
@@ -60,7 +60,7 @@ Actions:
   - Add to contacts list with timestamp
   - Apply cooldown timer (cooldown_time)
 - CLI command:
-  python send.py ping_sensors --ship <id>
+  python -m hybrid.cli --ship <id> --command '{"command": "ping_sensors"}'
 - GUI should reflect:
   - Sensor cooldown
   - Active/passive contacts
@@ -80,7 +80,7 @@ Actions:
 
 - Add optional parent_ship_id field
 - CLI stub:
-  python send.py spawn_child --parent <id> --type probe
+  python -m hybrid.cli --ship <id> --command '{"command": "spawn_child", "type": "probe"}'
 
 - Store child ship JSON in /fleet/ folder
 Note: No physical deployment logic needed yet — schema only.
@@ -101,17 +101,17 @@ All ship systems must support:
 Notes for LLM
 -------------
 - Maintain existing CLI and GUI compatibility unless enhancing.
-- Separate logic into modules: tick.py, sensors.py, etc.
+ - Separate logic into modules: simulator.py, sensors, etc.
 - Use Python 3.10+ (type hints, match/case if useful).
 - Ensure all JSON changes are backward-compatible or handled with defaults.
 - Comment all logic and include function docstrings.
 
 Deliverables
 ------------
-1. tick.py — with tick() and tick_all_ships() functions
-2. sensors.py — with ping_sensors() and contact processing
+1. simulator.py — with tick() and tick_all_ships() logic
+2. sensors module — with ping_sensors() and contact processing
 3. Updated JSON ship schema with full scaffolding
-4. CLI commands in send.py:
+4. CLI commands via `hybrid.cli`:
    - ping_sensors
    - set_system_state
    - spawn_child (stub only)
