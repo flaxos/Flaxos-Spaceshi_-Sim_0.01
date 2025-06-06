@@ -1,47 +1,31 @@
-import unittest
-from hybrid.systems.weapons.weapon_system import WeaponSystem
+# tests/systems/weapons/test_weapon_system.py
+
+import time
+import pytest
 from hybrid.systems.power.management import PowerManagementSystem
+from hybrid.systems.weapons.weapon_system import WeaponSystem
 
-class TestWeaponSystem(unittest.TestCase):
-    def setUp(self):
-        wcfg = {
-            'weapons': [
-                {'name': 'laser', 'power_cost': 5, 'max_heat': 20, 'ammo': None}
-            ]
-        }
-        self.weapons = WeaponSystem(wcfg)
-        self.power = PowerManagementSystem({'primary': {'capacity': 50}})
-        self.power.tick(1.0)
 
-    def test_fire_weapon(self):
-        fired = self.weapons.fire_weapon('laser', self.power, 'target1')
-        self.assertTrue(fired)
-        weapon = self.weapons.weapons['laser']
-        self.assertGreater(weapon.heat, 0)
+def test_weapon_firing_and_cooldown():
+    config = {"primary": {}, "secondary": {}, "tertiary": {}}
+    pm = PowerManagementSystem(config)
+    pm.reactors["primary"].available = 100.0
 
-    def test_cooldown(self):
-        weapon = self.weapons.weapons['laser']
-        weapon.fire(0, self.power, 't')
-        weapon.cool_down(1.0)
-        self.assertLess(weapon.heat, 5)
+    wcfg = {"name": "laser", "power_cost": 10.0, "max_heat": 50.0, "ammo": 3}
+    wep_sys = WeaponSystem({"weapons": [wcfg]})
+    weapon = wep_sys.weapons["laser"]
 
-if __name__ == '__main__':
-    unittest.main()
+    current_time = time.time()
+    # First shot should succeed
+    fired = weapon.fire(current_time, pm, "target_dummy")
+    assert fired
+    assert weapon.ammo == 2
+    assert weapon.heat == pytest.approx(5.0)
 
-from hybrid.systems.weapons.hardpoint import Hardpoint
+    # Immediately try to fire again: should fail due to cooldown
+    fired2 = weapon.fire(current_time, pm, "target_dummy")
+    assert not fired2
 
-class TestHardpoint(unittest.TestCase):
-    def test_mount_fire(self):
-        wcfg = {
-            'weapons': [
-                {'name': 'laser', 'power_cost': 5, 'max_heat': 20, 'ammo': 2}
-            ]
-        }
-        weapons = WeaponSystem(wcfg)
-        power = PowerManagementSystem({'primary': {'capacity': 50}})
-        power.tick(1.0)
-        hp = Hardpoint(id='hp1', mount_type='fixed')
-        hp.mount_weapon(weapons.weapons['laser'])
-        fired = hp.fire(power, 't')
-        self.assertTrue(fired)
-        self.assertEqual(weapons.weapons['laser'].ammo, 1)
+    # Advance time and cool down
+    weapon.cool_down(10.0)
+    assert weapon.heat < 5.0

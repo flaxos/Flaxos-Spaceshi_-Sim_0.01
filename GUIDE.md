@@ -1,27 +1,78 @@
-# 🛰️ Developer Guide
+# Developer Guide
 
-This guide explains the project layout and how to extend the simulator.
+## Adding a New Reactor Type
+1. Edit `hybrid/core/constants.py` to add default values if needed.
+2. In `hybrid/systems/power/reactor.py`, modify the `Reactor` class if you need specialized behavior (e.g., different thermal curves).
+3. Update ship JSON to include `"power": {"primary": {"capacity": X, "output_rate": Y, "thermal_limit": Z}, ...}`.
 
-## Structure
+## Adding a New Weapon Class
+1. In `hybrid/systems/weapons/weapon_system.py`, subclass `Weapon` or modify power/heat behavior.
+2. Update your ship’s JSON under:
+   ```json
+   "weapons": {
+     "weapons": [
+       {
+         "name": "plasma_cannon",
+         "power_cost": 20.0,
+         "max_heat": 75.0,
+         "ammo": 50
+       }
+     ]
+   }
+   ```
+Mount it via a hardpoint in:
+```json
+"hardpoints": [
+  {
+    "id": "hp1",
+    "type": "turret",
+    "weapon": "plasma_cannon"
+  }
+]
+```
 
-- **`hybrid/core/`** – shared modules: `base_system.py`, `event_bus.py` and `constants.py`.
-- **`hybrid/systems/`** – subsystem packages such as power, weapons, navigation and sensors.
-- **`hybrid/cli/`** & **`hybrid/gui/`** – entry points for text and graphical control.
-- **`tests/`** – unit tests mirroring the package layout.
+## Adding New Modules
+Fleet Logic → hybrid/systems/fleet/…
 
-Ships are created via helper functions in `hybrid/ship_factory.py` which assemble reactors, weapons and navigation components using definitions from JSON files.
+Launch Bay → hybrid/systems/launch/…
 
-## Adding Reactors or Weapons
+New GUI Components → hybrid/gui/widgets/…
 
-To introduce a new reactor type, subclass `Reactor` in `hybrid/systems/power/reactor.py` and supply any specialised behaviour. Register it in ship configuration when building `PowerManagementSystem`.
-
-New weapons can be created by subclassing `Weapon` in `hybrid/systems/weapons/weapon_system.py`. Mount them on `Hardpoint` objects in the ship config.
-
-## Extending the Simulator
-
-Future modules such as launch bays, ship hierarchy handling or fleet management should be placed under `hybrid/systems/` in a dedicated subpackage. The `Simulation` class in `hybrid/systems/simulation.py` can be expanded to manage multiple fleets or more complex event logic.
-
-Run unit tests with:
-```bash
-pytest
+## File Structure Reference
+```
+hybrid/
+  core/
+    event_bus.py
+    base_system.py
+    constants.py
+  systems/
+    power/
+      reactor.py
+      management.py
+    weapons/
+      weapon_system.py
+      hardpoint.py
+    navigation/
+      navigation.py
+    sensors/
+      sensor_system.py
+    simulation.py
+  cli/
+    run_cli.py
+  gui/
+    run_gui.py
+tests/
+  core/
+    test_event_bus.py
+  systems/
+    power/
+      test_reactor.py
+      test_management.py
+    weapons/
+      test_weapon_system.py
+      test_hardpoint.py
+  hybrid_tests/
+    test_ship_initialization.py
+README.md
+GUIDE.md
 ```

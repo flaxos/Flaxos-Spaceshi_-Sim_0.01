@@ -1,11 +1,28 @@
-import unittest
-from hybrid.ship import Ship
+# tests/hybrid_tests/test_ship_initialization.py
 
-class TestShipInitialization(unittest.TestCase):
-    def test_init_defaults(self):
-        ship = Ship('s1', {})
-        self.assertEqual(ship.id, 's1')
-        self.assertTrue('systems' in ship.get_state())
+import json
+from pathlib import Path
+import pytest
+from hybrid.ship_factory import create_ship
 
-if __name__ == '__main__':
-    unittest.main()
+
+def test_create_simple_ship(tmp_path):
+    cfg = {
+        "id": "testship",
+        "power": {"primary": {}, "secondary": {}, "tertiary": {}},
+        "weapons": {"weapons": []},
+        "navigation": {},
+        "sensors": {}
+    }
+    ship_config = {"testship": cfg}
+    # Write JSON to a temporary file
+    file_path = tmp_path / "ships.json"
+    file_path.write_text(json.dumps(ship_config))
+
+    # Load and create ship
+    ship_defs = json.loads(file_path.read_text())
+    ship = create_ship(ship_defs["testship"])
+    assert ship["power"] is not None
+    assert ship["weapons"] is not None
+    assert ship["navigation"] is not None
+    assert ship["sensors"] is not None

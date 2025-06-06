@@ -1,17 +1,18 @@
 # hybrid/systems/weapons/hardpoint.py
+
 from dataclasses import dataclass
 from typing import Optional
-import time
 from hybrid.systems.weapons.weapon_system import Weapon
+import time
 
 @dataclass
 class Hardpoint:
     id: str
-    mount_type: str  # "turret", "fixed", "missile_rack", etc.
+    mount_type: str  # e.g., "turret", "fixed", "missile_rack"
     weapon: Optional[Weapon] = None
 
     def mount_weapon(self, weapon):
-        if self.weapon is None and weapon:
+        if self.weapon is None:
             self.weapon = weapon
             return True
         return False
