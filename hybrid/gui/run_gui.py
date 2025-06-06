@@ -1,8 +1,11 @@
 # hybrid/gui/run_gui.py
 
-import threading
+import argparse
 import json
+import os
+import threading
 import tkinter as tk
+from tkinter import filedialog
 from hybrid.systems.simulation import Simulation
 
 class SimulatorGUI(tk.Tk):
@@ -22,8 +25,32 @@ class SimulatorGUI(tk.Tk):
         thread.start()
 
 def main():
-    with open("ships_config.json", "r") as f:
+    parser = argparse.ArgumentParser(description="Run the simulator GUI")
+    parser.add_argument(
+        "--config",
+        "-c",
+        help="Path to ship configuration JSON file",
+    )
+    args = parser.parse_args()
+
+    config_path = args.config
+    if not config_path:
+        if os.path.exists("ships_config.json"):
+            config_path = "ships_config.json"
+        else:
+            root = tk.Tk()
+            root.withdraw()
+            config_path = filedialog.askopenfilename(
+                title="Select ship configuration file",
+                filetypes=[("JSON files", "*.json"), ("All files", "*.*")],
+            )
+            if not config_path:
+                print("No configuration file selected")
+                return
+
+    with open(config_path, "r") as f:
         ship_configs = json.load(f)
+
     app = SimulatorGUI(ship_configs)
     app.mainloop()
 

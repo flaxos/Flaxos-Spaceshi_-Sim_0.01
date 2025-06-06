@@ -64,9 +64,11 @@ python -m hybrid.cli --fleet-dir hybrid_fleet --run 60
 
 ### GUI
 ```bash
-python -m hybrid.gui.run_gui
+python -m hybrid.gui.run_gui --config path/to/ships.json
 ```
-Launches a Tkinter window. Edit hybrid/gui/run_gui.py to customize widgets.
+Launches a Tkinter window. If no `--config` path is provided, the GUI will
+use `ships_config.json` when present or prompt for a file using a standard
+dialog. Edit `hybrid/gui/run_gui.py` to customize widgets.
 
 ### Sample Data
 Minimal ship examples are provided in `fleet_json/sample_ship.json` and
