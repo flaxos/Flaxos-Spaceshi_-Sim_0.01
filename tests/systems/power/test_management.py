@@ -1,17 +1,19 @@
-import unittest
+# tests/systems/power/test_management.py
+
+import pytest
 from hybrid.systems.power.management import PowerManagementSystem
 
-class TestPowerManagement(unittest.TestCase):
-    def test_request_power_priority(self):
-        cfg = {
-            'primary': {'capacity': 50},
-            'secondary': {'capacity': 30},
-        }
-        pm = PowerManagementSystem(cfg)
-        pm.tick(1.0)
-        success = pm.request_power(5, 'weapons')
-        self.assertTrue(success)
-        self.assertLess(pm.reactors['primary'].available, 50)
 
-if __name__ == '__main__':
-    unittest.main()
+def test_request_power_priority():
+    config = {
+        "primary": {"capacity": 20.0, "output_rate": 10.0, "thermal_limit": 100.0},
+        "secondary": {"capacity": 10.0, "output_rate": 5.0, "thermal_limit": 100.0}
+    }
+    pm = PowerManagementSystem(config)
+    pm.reactors["primary"].available = 5.0
+    pm.reactors["secondary"].available = 10.0
+
+    # Request 6 units → primary can’t fulfill (only 5), so secondary should supply
+    result = pm.request_power(6.0, "test_unit")
+    assert result
+    assert pm.reactors["secondary"].available == pytest.approx(4.0)

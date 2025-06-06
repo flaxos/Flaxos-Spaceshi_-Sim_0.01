@@ -1,7 +1,7 @@
 # hybrid/ship_factory.py
 """Factory helpers for creating ships with systems."""
 from hybrid.systems.weapons.hardpoint import Hardpoint
-from hybrid.systems.weapons.weapon_system import WeaponSystem, Weapon
+from hybrid.systems.weapons.weapon_system import WeaponSystem
 from hybrid.systems.power.management import PowerManagementSystem
 from hybrid.systems.navigation.navigation import NavigationSystem
 from hybrid.systems.sensors.sensor_system import SensorSystem
@@ -27,3 +27,8 @@ def build_ship_systems(config):
         "navigation": navigation,
         "sensors": sensors,
     }
+
+
+def create_ship(config):
+    """Create ship systems dict from configuration."""
+    return build_ship_systems(config)

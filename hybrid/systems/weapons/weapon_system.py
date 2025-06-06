@@ -1,4 +1,5 @@
 # hybrid/systems/weapons/weapon_system.py
+
 import time
 from hybrid.core.constants import DEFAULT_COOLDOWN_TIME, DEFAULT_WEAPON_HEAT_INCREMENT
 from hybrid.core.event_bus import EventBus
@@ -15,7 +16,11 @@ class Weapon:
         self.event_bus = EventBus.get_instance()
 
     def can_fire(self, current_time):
-        return (current_time - self.last_fired) >= self.cooldown_time and self.heat < self.max_heat and (self.ammo is None or self.ammo > 0)
+        return (
+            (current_time - self.last_fired) >= self.cooldown_time
+            and self.heat < self.max_heat
+            and (self.ammo is None or self.ammo > 0)
+        )
 
     def fire(self, current_time, power_manager, target):
         if not self.can_fire(current_time):
@@ -31,10 +36,12 @@ class Weapon:
         return True
 
     def cool_down(self, dt):
+        # Passive cooldown proportional to max_heat
         self.heat = max(0.0, self.heat - dt * (self.max_heat / 10))
 
 class WeaponSystem:
     def __init__(self, config):
+        # config is a dict with a “weapons” list of dicts
         self.weapons = {}
         for wcfg in config.get("weapons", []):
             weapon = Weapon(

@@ -1,18 +1,20 @@
 # hybrid/systems/power/management.py
+
 from hybrid.core.constants import POWER_LAYER_PRIORITIES
 from hybrid.systems.power.reactor import Reactor
 from hybrid.core.event_bus import EventBus
 
 class PowerManagementSystem:
     def __init__(self, config):
-        config = config or {}
+        # config is a dict mapping layer_name → {capacity, output_rate, thermal_limit}
         self.reactors = {}
         for layer_name, params in config.items():
+            base = Reactor(layer_name)
             self.reactors[layer_name] = Reactor(
                 name=layer_name,
-                capacity=params.get("capacity", Reactor(layer_name).capacity),
-                output_rate=params.get("output_rate", Reactor(layer_name).output_rate),
-                thermal_limit=params.get("thermal_limit", Reactor(layer_name).thermal_limit)
+                capacity=params.get("capacity", base.capacity),
+                output_rate=params.get("output_rate", base.output_rate),
+                thermal_limit=params.get("thermal_limit", base.thermal_limit)
             )
         self.event_bus = EventBus.get_instance()
 
