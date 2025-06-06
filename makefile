@@ -1,4 +1,4 @@
 .PHONY: test
 
 test:
-pytest --maxfail=1 -q
+	pytest --maxfail=1 -q
