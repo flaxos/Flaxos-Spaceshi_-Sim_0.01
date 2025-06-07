@@ -6,8 +6,9 @@ import os
 import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox
-# Use the newer Simulator class instead of the deprecated Simulation
+
 from hybrid.simulator import Simulator
+from hybrid.command_handler import handle_command_request
 
 class SimulatorGUI(tk.Tk):
     def __init__(self, ship_configs):
@@ -82,6 +83,16 @@ class SimulatorGUI(tk.Tk):
         self.ori_var = tk.StringVar(value="0,0,0")
         tk.Label(status_frame, textvariable=self.ori_var).pack(anchor="w")
 
+        # Custom command entry for CLI parity
+        cmd_frame = tk.LabelFrame(self, text="Command")
+        cmd_frame.pack(padx=10, pady=5, fill="x")
+
+        self.command_entry = tk.Entry(cmd_frame)
+        self.command_entry.pack(side=tk.LEFT, expand=True, fill="x", padx=5)
+        tk.Button(cmd_frame, text="Send", command=self._send_command).pack(side=tk.LEFT)
+        self.command_output = tk.Text(cmd_frame, height=4, state="disabled")
+        self.command_output.pack(padx=5, pady=5, fill="x")
+
         # Kick off periodic updates
         self.after(500, self._update_status)
 
@@ -128,6 +139,32 @@ class SimulatorGUI(tk.Tk):
         if not ship:
             return
         ship.command("rotate", {"axis": axis, "value": amount})
+
+    def _send_command(self):
+        """Send a raw command string to the current ship."""
+        ship = self._current_ship()
+        if not ship:
+            return
+
+        data = self.command_entry.get()
+        if not data:
+            return
+
+        try:
+            cmd = json.loads(data)
+            if "ship" not in cmd:
+                cmd["ship"] = ship.id
+            response = handle_command_request(cmd, ship)
+        except json.JSONDecodeError:
+            response = ship.command(data)
+
+        self.command_output.configure(state="normal")
+        self.command_output.delete("1.0", tk.END)
+        if isinstance(response, str):
+            self.command_output.insert(tk.END, response)
+        else:
+            self.command_output.insert(tk.END, json.dumps(response, indent=2))
+        self.command_output.configure(state="disabled")
 
     def _update_status(self):
         ship = self._current_ship()
