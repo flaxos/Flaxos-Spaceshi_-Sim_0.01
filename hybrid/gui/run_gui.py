@@ -10,16 +10,15 @@ from tkinter import filedialog, messagebox
 from hybrid.simulator import Simulator
 from hybrid.command_handler import handle_command_request
 
+
 class SimulatorGUI(tk.Tk):
     def __init__(self, ship_configs):
         super().__init__()
         self.title("Spaceship Simulator")
-        # Create the simulator and load ships from the provided config
         self.sim = Simulator()
         for ship_id, config in ship_configs.items():
             self.sim.add_ship(ship_id, config)
 
-        # Keep references to config and selection
         self.ship_configs = ship_configs
         self.selected_ship_id = next(iter(self.sim.ships)) if self.sim.ships else None
 
@@ -28,8 +27,6 @@ class SimulatorGUI(tk.Tk):
 
     def _build_widgets(self):
         """Create all main GUI widgets."""
-
-        # Ship selector
         selector_frame = tk.Frame(self)
         selector_frame.pack(padx=10, pady=5, fill="x")
 
@@ -39,13 +36,16 @@ class SimulatorGUI(tk.Tk):
         self.ship_menu = tk.OptionMenu(selector_frame, self.ship_var, *ship_ids, command=lambda _:_)
         self.ship_menu.pack(side=tk.LEFT, padx=5)
 
-        # Navigation controls
         nav_frame = tk.LabelFrame(self, text="Navigation")
         nav_frame.pack(padx=10, pady=5, fill="x")
 
         self.autopilot_var = tk.BooleanVar()
-        tk.Checkbutton(nav_frame, text="Autopilot", variable=self.autopilot_var,
-                       command=self._toggle_autopilot).grid(row=0, column=0, columnspan=2, sticky="w")
+        tk.Checkbutton(
+            nav_frame,
+            text="Autopilot",
+            variable=self.autopilot_var,
+            command=self._toggle_autopilot,
+        ).grid(row=0, column=0, columnspan=2, sticky="w")
 
         tk.Label(nav_frame, text="Target X:").grid(row=1, column=0, sticky="e")
         self.target_x = tk.Entry(nav_frame, width=8)
@@ -59,7 +59,6 @@ class SimulatorGUI(tk.Tk):
 
         tk.Button(nav_frame, text="Set Course", command=self._set_course).grid(row=4, column=0, columnspan=2, pady=4)
 
-        # Control buttons
         ctrl_frame = tk.LabelFrame(self, text="Controls")
         ctrl_frame.pack(padx=10, pady=5, fill="x")
 
@@ -72,7 +71,6 @@ class SimulatorGUI(tk.Tk):
         tk.Button(ctrl_frame, text="Roll +", command=lambda: self._rotate('roll', 5)).grid(row=3, column=0, padx=2, pady=2)
         tk.Button(ctrl_frame, text="Roll -", command=lambda: self._rotate('roll', -5)).grid(row=3, column=1, padx=2, pady=2)
 
-        # Status display
         status_frame = tk.LabelFrame(self, text="Status")
         status_frame.pack(padx=10, pady=5, fill="x")
 
@@ -83,7 +81,6 @@ class SimulatorGUI(tk.Tk):
         self.ori_var = tk.StringVar(value="0,0,0")
         tk.Label(status_frame, textvariable=self.ori_var).pack(anchor="w")
 
-        # Custom command entry for CLI parity
         cmd_frame = tk.LabelFrame(self, text="Command")
         cmd_frame.pack(padx=10, pady=5, fill="x")
 
@@ -93,14 +90,11 @@ class SimulatorGUI(tk.Tk):
         self.command_output = tk.Text(cmd_frame, height=4, state="disabled")
         self.command_output.pack(padx=5, pady=5, fill="x")
 
-        # Kick off periodic updates
         self.after(500, self._update_status)
 
     def _start_simulation_thread(self):
         thread = threading.Thread(target=self.sim.run, args=(60.0,), daemon=True)
         thread.start()
-
-    # --- Command callbacks -------------------------------------------------
 
     def _current_ship(self):
         ship_id = self.ship_var.get()
@@ -141,7 +135,6 @@ class SimulatorGUI(tk.Tk):
         ship.command("rotate", {"axis": axis, "value": amount})
 
     def _send_command(self):
-        """Send a raw command string to the current ship."""
         ship = self._current_ship()
         if not ship:
             return
@@ -149,7 +142,6 @@ class SimulatorGUI(tk.Tk):
         data = self.command_entry.get()
         if not data:
             return
-
         try:
             cmd = json.loads(data)
             if "ship" not in cmd:
@@ -173,10 +165,17 @@ class SimulatorGUI(tk.Tk):
             pos = state.get("position", {})
             vel = state.get("velocity", {})
             ori = state.get("orientation", {})
-            self.pos_var.set(f"Pos: {pos.get('x',0):.1f}, {pos.get('y',0):.1f}, {pos.get('z',0):.1f}")
-            self.vel_var.set(f"Vel: {vel.get('x',0):.1f}, {vel.get('y',0):.1f}, {vel.get('z',0):.1f}")
-            self.ori_var.set(f"Ori: {ori.get('pitch',0):.1f}, {ori.get('yaw',0):.1f}, {ori.get('roll',0):.1f}")
+            self.pos_var.set(
+                f"Pos: {pos.get('x',0):.1f}, {pos.get('y',0):.1f}, {pos.get('z',0):.1f}"
+            )
+            self.vel_var.set(
+                f"Vel: {vel.get('x',0):.1f}, {vel.get('y',0):.1f}, {vel.get('z',0):.1f}"
+            )
+            self.ori_var.set(
+                f"Ori: {ori.get('pitch',0):.1f}, {ori.get('yaw',0):.1f}, {ori.get('roll',0):.1f}"
+            )
         self.after(500, self._update_status)
+
 
 def main():
     parser = argparse.ArgumentParser(description="Run the simulator GUI")
@@ -185,28 +184,59 @@ def main():
         "-c",
         help="Path to ship configuration JSON file",
     )
+    parser.add_argument(
+        "--fleet-dir",
+        "-f",
+        help="Directory containing ship JSON files",
+    )
     args = parser.parse_args()
 
-    config_path = args.config
-    if not config_path:
-        if os.path.exists("ships_config.json"):
-            config_path = "ships_config.json"
-        else:
-            root = tk.Tk()
-            root.withdraw()
-            config_path = filedialog.askopenfilename(
-                title="Select ship configuration file",
-                filetypes=[("JSON files", "*.json"), ("All files", "*.*")],
-            )
-            if not config_path:
-                print("No configuration file selected")
-                return
+    ships = {}
+    if args.fleet_dir:
+        if not os.path.isdir(args.fleet_dir):
+            print(f"Fleet directory not found: {args.fleet_dir}")
+            return
+        for filename in os.listdir(args.fleet_dir):
+            if filename.endswith(".json"):
+                path = os.path.join(args.fleet_dir, filename)
+                try:
+                    with open(path, "r") as f:
+                        data = json.load(f)
+                    if isinstance(data, dict) and "id" in data:
+                        ships[data["id"]] = data
+                    elif isinstance(data, dict):
+                        ships.update(data)
+                except Exception as e:
+                    print(f"Failed to load {path}: {e}")
+    else:
+        config_path = args.config
+        if not config_path:
+            if os.path.exists("ships_config.json"):
+                config_path = "ships_config.json"
+            else:
+                root = tk.Tk()
+                root.withdraw()
+                config_path = filedialog.askopenfilename(
+                    title="Select ship configuration file",
+                    filetypes=[("JSON files", "*.json"), ("All files", "*.*")],
+                )
+                if not config_path:
+                    print("No configuration file selected")
+                    return
+        with open(config_path, "r") as f:
+            data = json.load(f)
+            if isinstance(data, dict) and "id" in data:
+                ships[data["id"]] = data
+            else:
+                ships.update(data)
 
-    with open(config_path, "r") as f:
-        ship_configs = json.load(f)
+    if not ships:
+        print("No ship configurations loaded")
+        return
 
-    app = SimulatorGUI(ship_configs)
+    app = SimulatorGUI(ships)
     app.mainloop()
+
 
 if __name__ == "__main__":
     main()
