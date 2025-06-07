@@ -1,13 +1,10 @@
 import json
-import threading
+import socket
+import sys
 import tkinter as tk
 from tkinter import ttk, scrolledtext, messagebox
-import socket
 
-
-# Placeholder: adapt as needed to import your send functionality
-# from hybrid.cli.send import send_command
-
+# Socket-based command sender (adjust to your send.py if needed)
 def send_command_to_server(host, port, command_type, payload):
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
@@ -19,54 +16,89 @@ def send_command_to_server(host, port, command_type, payload):
     except Exception as e:
         return f"Error: {e}"
 
-
 class ShipGUI(tk.Tk):
     def __init__(self, config_path, host='127.0.0.1', port=9999):
+        # Load config before initializing GUI root
+        self.ships = self.load_config(config_path)
+
+        # Initialize the main window
         super().__init__()
         self.title("Spaceship Simulator Control")
         self.geometry("800x600")
+
         self.host = host
         self.port = port
-        self.ships = self.load_config(config_path)
+
+        # State variables
         self.current_ship = tk.StringVar()
         self.command_type = tk.StringVar()
         self.payload_entry = tk.StringVar()
         self.power_mode = tk.BooleanVar()
         self.sensor_mode = tk.StringVar(value='passive')
 
+        # Build UI
         self.create_widgets()
 
     def load_config(self, path):
         try:
             with open(path) as f:
                 data = json.load(f)
-            return {ship['id']: ship for ship in data}
+
+            # Determine if the JSON is a dict of ships, has a 'ships' list, or is a list
+            if isinstance(data, dict):
+                if 'ships' in data and isinstance(data['ships'], list):
+                    entries = data['ships']
+                else:
+                    # assume top-level mapping of id->ship objects
+                    return data
+            elif isinstance(data, list):
+                entries = data
+            else:
+                raise ValueError("Config JSON must be an object or array of ships")
+
+            # Convert list of ship dicts to id->dict
+            return { ship['id']: ship for ship in entries }
+
         except Exception as e:
+            # Use a temporary root to show the error
+            temp = tk.Tk()
+            temp.withdraw()
             messagebox.showerror("Error", f"Failed to load config: {e}")
-            self.destroy()
+            temp.destroy()
+            sys.exit(1)
 
     def create_widgets(self):
-        # Ship selector
+        # Top controls frame
         frame_top = ttk.Frame(self)
         frame_top.pack(fill='x', padx=5, pady=5)
+
+        # Ship selector
         ttk.Label(frame_top, text="Select Ship:").pack(side='left')
-        ship_combo = ttk.Combobox(frame_top, values=list(self.ships.keys()), textvariable=self.current_ship)
+        ship_combo = ttk.Combobox(
+            frame_top, values=list(self.ships.keys()), textvariable=self.current_ship
+        )
         ship_combo.pack(side='left', padx=5)
         ship_combo.current(0)
 
         # Command dropdown
         ttk.Label(frame_top, text="Command:").pack(side='left', padx=(20, 0))
-        cmd_list = ['get_state', 'get_position', 'get_velocity', 'helm_override',
-                    'sensor_ping', 'power_toggle', 'weapon_fire']
-        cmd_combo = ttk.Combobox(frame_top, values=cmd_list, textvariable=self.command_type)
+        cmd_list = [
+            'get_state', 'get_position', 'get_velocity',
+            'helm_override', 'sensor_ping', 'power_toggle', 'weapon_fire'
+        ]
+        cmd_combo = ttk.Combobox(
+            frame_top, values=cmd_list, textvariable=self.command_type
+        )
         cmd_combo.pack(side='left', padx=5)
         cmd_combo.current(0)
 
+        # Payload entry
         ttk.Label(frame_top, text="Payload JSON:").pack(side='left', padx=(20, 0))
         ttk.Entry(frame_top, textvariable=self.payload_entry, width=30).pack(side='left', padx=5)
+
         ttk.Button(frame_top, text="Send", command=self.on_send).pack(side='left', padx=5)
 
-        # Tabs for control and debug
+        # Notebook for tabs
         tabs = ttk.Notebook(self)
         tabs.pack(expand=True, fill='both', padx=5, pady=5)
 
@@ -85,25 +117,34 @@ class ShipGUI(tk.Tk):
         # Sensor controls
         sensor_frame = ttk.LabelFrame(parent, text="Sensors")
         sensor_frame.pack(fill='x', padx=10, pady=10)
-        ttk.Radiobutton(sensor_frame, text='Passive', variable=self.sensor_mode, value='passive').pack(side='left',
-                                                                                                       padx=5)
-        ttk.Radiobutton(sensor_frame, text='Active', variable=self.sensor_mode, value='active').pack(side='left',
-                                                                                                     padx=5)
-        ttk.Button(sensor_frame, text='Ping', command=self.on_sensor_ping).pack(side='left', padx=10)
+        ttk.Radiobutton(
+            sensor_frame, text='Passive', variable=self.sensor_mode, value='passive'
+        ).pack(side='left', padx=5)
+        ttk.Radiobutton(
+            sensor_frame, text='Active', variable=self.sensor_mode, value='active'
+        ).pack(side='left', padx=5)
+        ttk.Button(
+            sensor_frame, text='Ping', command=self.on_sensor_ping
+        ).pack(side='left', padx=10)
 
         # Power management
         power_frame = ttk.LabelFrame(parent, text="Power Management")
         power_frame.pack(fill='x', padx=10, pady=10)
-        ttk.Checkbutton(power_frame, text='Enable Power Mode', variable=self.power_mode).pack(side='left', padx=5)
-        ttk.Button(power_frame, text='Refresh Power Status', command=self.on_power_status).pack(side='left', padx=10)
+        ttk.Checkbutton(
+            power_frame, text='Enable Power Mode', variable=self.power_mode
+        ).pack(side='left', padx=5)
+        ttk.Button(
+            power_frame, text='Refresh Power Status', command=self.on_power_status
+        ).pack(side='left', padx=10)
         self.power_status_label = ttk.Label(power_frame, text='Status: unknown')
         self.power_status_label.pack(side='left', padx=10)
 
         # Weapons placeholder
         weapon_frame = ttk.LabelFrame(parent, text="Weapons")
         weapon_frame.pack(fill='x', padx=10, pady=10)
-        ttk.Button(weapon_frame, text='Fire Weapon (placeholder)', command=self.on_weapon_fire).pack(side='left',
-                                                                                                     padx=5)
+        ttk.Button(
+            weapon_frame, text='Fire Weapon (placeholder)', command=self.on_weapon_fire
+        ).pack(side='left', padx=5)
 
     def log_debug(self, message):
         self.debug_text.configure(state='normal')
@@ -119,30 +160,31 @@ class ShipGUI(tk.Tk):
         except json.JSONDecodeError:
             messagebox.showerror("Error", "Invalid JSON payload")
             return
-        full_payload = payload
-        full_payload['ship'] = ship_id
-        response = send_command_to_server(self.host, self.port, cmd, full_payload)
-        self.log_debug(f">> Sent: {cmd} {full_payload}\n<< Received: {response}")
+        payload['ship'] = ship_id
+        response = send_command_to_server(self.host, self.port, cmd, payload)
+        self.log_debug(f">> Sent: {cmd} {payload}\n<< Received: {response}")
 
     def on_sensor_ping(self):
-        mode = self.sensor_mode.get()
-        self.log_debug(f"Sensor ping ({mode}) sent")
-        self.on_send()
+        # Send ping with selected mode
+        payload = {'mode': self.sensor_mode.get(), 'ship': self.current_ship.get()}
+        response = send_command_to_server(self.host, self.port, 'sensor_ping', payload)
+        self.log_debug(f">> Sensor ping ({payload['mode']})\n<< {response}")
 
     def on_power_status(self):
-        status = send_command_to_server(self.host, self.port, 'get_power_status', {'ship': self.current_ship.get()})
-        self.power_status_label.config(text=f"Status: {status}")
-        self.log_debug(f"Power status: {status}")
+        response = send_command_to_server(
+            self.host, self.port, 'get_power_status', {'ship': self.current_ship.get()}
+        )
+        self.power_status_label.config(text=f"Status: {response}")
+        self.log_debug(f"Power status: {response}")
 
     def on_weapon_fire(self):
-        self.log_debug("Weapon fire placeholder invoked")
-        # Future implementation: payload = {...}
-        # response = send_command_to_server(...)
-
+        # Placeholder for future weapon payloads
+        payload = {'ship': self.current_ship.get()}
+        response = send_command_to_server(self.host, self.port, 'weapon_fire', payload)
+        self.log_debug(f"Weapon fire placeholder\n<< {response}")
 
 if __name__ == '__main__':
     import argparse
-
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', required=True, help='Path to ships JSON config')
     parser.add_argument('--host', default='127.0.0.1', help='Simulator host')
