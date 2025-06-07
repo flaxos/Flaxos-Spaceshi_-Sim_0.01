@@ -1,31 +1,27 @@
-# main.py
+"""Legacy server entry point updated for the new hybrid runner."""
+
 import time
-from scenario_loader import load_scenario
-from simulation import simulation_loop
-from sector_manager import SectorManager
-from command_server import CommandServer
-from utils.logger import logger
+from sim.socket_listener import start_socket_listener
+from hybrid_runner import HybridRunner
 
-def main():
-    scenario_path = "config/example_scenario.json"
-    sector_manager = SectorManager(sector_size=1000)
-    ships = load_scenario(scenario_path, sector_manager=sector_manager)
-    logger.info(f"Loaded {len(ships)} ships.")
 
-    command_server = CommandServer(ships)
-    command_server.start()
+def main(host: str = "127.0.0.1", port: int = 9999):
+    """Start the simulation runner and socket server."""
+    runner = HybridRunner()
+    runner.load_ships()
+    runner.start()
 
-    sim = simulation_loop(sector_manager.sectors)
-
+    start_socket_listener(host, port, runner)
+    print(f"Server listening on {host}:{port}. Press Ctrl+C to exit.")
     try:
         while True:
-            next(sim)
-            time.sleep(0.1)
-    except StopIteration:
-        logger.warning("Simulation generator ended unexpectedly.")
+            time.sleep(1)
     except KeyboardInterrupt:
-        logger.info("Simulation loop stopped.")
+        pass
+    finally:
+        runner.stop()
 
 
 if __name__ == "__main__":
     main()
+

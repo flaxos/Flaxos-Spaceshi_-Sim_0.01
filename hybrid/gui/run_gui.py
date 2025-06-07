@@ -54,25 +54,32 @@ COMMANDS = [
 # --- SERVER COMMUNICATION ---
 
 def send_command_to_server(host, port, command_type, payload, timeout=SERVER_TIMEOUT):
+    """Send a command to the simulator server and return its response."""
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
             sock.settimeout(timeout)
             sock.connect((host, port))
             msg = json.dumps({'command_type': command_type, 'payload': payload})
             sock.sendall(msg.encode('utf-8'))
-            resp = sock.recv(16384)
-            return resp.decode('utf-8')
+            data = b""
+            while True:
+                chunk = sock.recv(4096)
+                if not chunk:
+                    break
+                data += chunk
+            return data.decode('utf-8')
     except Exception as e:
-        return f"Error: {e}"
+        return json.dumps({"error": str(e)})
 
 def test_server_connection(host, port):
+    """Return (connected, error) when testing server availability."""
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
             sock.settimeout(SERVER_TIMEOUT)
             sock.connect((host, port))
-            return True
-    except Exception:
-        return False
+            return True, None
+    except Exception as e:
+        return False, str(e)
 
 # --- GUI APPLICATION ---
 
@@ -115,12 +122,13 @@ class ShipGUI(tk.Tk):
             temp.destroy(); sys.exit(1)
 
     def test_server_connection(self):
-        ok = test_server_connection(self.host, self.port)
+        ok, err = test_server_connection(self.host, self.port)
         if ok:
             self.connection_state.set("Connected")
+            self.last_server_error = None
         else:
             self.connection_state.set("!! NOT CONNECTED !!")
-            self.last_server_error = "Could not connect to server"
+            self.last_server_error = err
         self.status_label.config(text=f"Server: {self.connection_state.get()}")
 
     def create_widgets(self):
@@ -158,6 +166,12 @@ class ShipGUI(tk.Tk):
         debug_tab = ttk.Frame(tabs); tabs.add(debug_tab, text="Debug")
         self.debug_text = scrolledtext.ScrolledText(debug_tab, state='disabled', height=16)
         self.debug_text.pack(expand=True, fill='both', padx=3, pady=3)
+
+    def _parse_response(self, resp):
+        try:
+            return json.loads(resp)
+        except Exception:
+            return {"raw": resp}
 
     ### TAB BUILDERS ###
 
@@ -253,7 +267,11 @@ class ShipGUI(tk.Tk):
         }
         resp = send_command_to_server(self.host, self.port, "helm_override", payload)
         self.log_debug(f">> helm_override {payload}\n<< {resp}")
-        messagebox.showinfo("Helm", f"Helm command sent!\n\nResponse: {resp}")
+        data = self._parse_response(resp)
+        if 'error' in data:
+            messagebox.showerror("Helm", data['error'])
+        else:
+            messagebox.showinfo("Helm", json.dumps(data))
 
     def on_sensor_ping(self):
         payload = {"ship": self.current_ship.get(), "mode": self.sensor_mode.get()}
@@ -265,19 +283,22 @@ class ShipGUI(tk.Tk):
         payload = {"ship": self.current_ship.get(), "state": "on" if self.power_mode_var.get() else "off"}
         resp = send_command_to_server(self.host, self.port, "power_toggle", payload)
         self.log_debug(f">> power_toggle {payload}\n<< {resp}")
-        self.power_state.set(f"Power toggled: {resp}")
+        data = self._parse_response(resp)
+        self.power_state.set(str(data))
 
     def on_get_power_status(self):
         payload = {"ship": self.current_ship.get()}
         resp = send_command_to_server(self.host, self.port, "get_power_status", payload)
         self.log_debug(f">> get_power_status {payload}\n<< {resp}")
-        self.power_state.set(f"Power state: {resp}")
+        data = self._parse_response(resp)
+        self.power_state.set(json.dumps(data))
 
     def on_weapon_fire(self):
         payload = {"ship": self.current_ship.get()}
         resp = send_command_to_server(self.host, self.port, "weapon_fire", payload)
         self.log_debug(f">> weapon_fire {payload}\n<< {resp}")
-        messagebox.showinfo("Weapon", f"Weapon fire command sent!\n\nResponse: {resp}")
+        data = self._parse_response(resp)
+        messagebox.showinfo("Weapon", json.dumps(data))
 
     def on_draw_map(self):
         # Get all ship positions and draw them
@@ -298,13 +319,21 @@ class ShipGUI(tk.Tk):
     def _display_state(self, msg):
         self.state_display.config(state='normal')
         self.state_display.delete("1.0", "end")
-        self.state_display.insert("end", msg)
+        if isinstance(msg, str):
+            data = self._parse_response(msg)
+        else:
+            data = msg
+        self.state_display.insert("end", json.dumps(data, indent=2))
         self.state_display.config(state='disabled')
 
     def _update_sensor_output(self, msg):
         self.sensor_output.config(state='normal')
         self.sensor_output.delete("1.0", "end")
-        self.sensor_output.insert("end", msg)
+        if isinstance(msg, str):
+            data = self._parse_response(msg)
+        else:
+            data = msg
+        self.sensor_output.insert("end", json.dumps(data, indent=2))
         self.sensor_output.config(state='disabled')
 
     def _draw_ships_on_canvas(self, positions):
@@ -331,8 +360,10 @@ class ShipGUI(tk.Tk):
 def run_headless(args, ships):
     print("Headless mode: 1:1 command mapping, no GUI")
     print(f"Connecting to {args.host}:{args.port}")
-    if not test_server_connection(args.host, args.port):
-        print("ERROR: Could not connect to server."); sys.exit(2)
+    ok, err = test_server_connection(args.host, args.port)
+    if not ok:
+        print(f"ERROR: Could not connect to server: {err}")
+        sys.exit(2)
     print("Available ships:", ", ".join(ships.keys()))
     print("Available commands:", ", ".join(COMMANDS))
     print("Sample usage: --cmd get_state --ship SHIPID")

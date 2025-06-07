@@ -58,7 +58,7 @@ def main_loop():
         print(f"[{datetime.utcnow().isoformat()}] Position: {ship.state.position}, Velocity: {ship.state.velocity}")
 
         time.sleep(TICK_RATE)
-start_socket_listener("127.0.0.1", 8765, command_queue)
+start_socket_listener("127.0.0.1", 8765, None, command_queue)
 
 if __name__ == "__main__":
     main_loop()
