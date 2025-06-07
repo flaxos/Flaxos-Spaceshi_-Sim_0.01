@@ -1,242 +1,153 @@
-# hybrid/gui/run_gui.py
-
-import argparse
 import json
-import os
 import threading
 import tkinter as tk
-from tkinter import filedialog, messagebox
-
-from hybrid.simulator import Simulator
-from hybrid.command_handler import handle_command_request
+from tkinter import ttk, scrolledtext, messagebox
+import socket
 
 
-class SimulatorGUI(tk.Tk):
-    def __init__(self, ship_configs):
+# Placeholder: adapt as needed to import your send functionality
+# from hybrid.cli.send import send_command
+
+def send_command_to_server(host, port, command_type, payload):
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.connect((host, port))
+            message = json.dumps({'command_type': command_type, 'payload': payload})
+            sock.sendall(message.encode('utf-8'))
+            response = sock.recv(4096)
+            return response.decode('utf-8')
+    except Exception as e:
+        return f"Error: {e}"
+
+
+class ShipGUI(tk.Tk):
+    def __init__(self, config_path, host='127.0.0.1', port=9999):
         super().__init__()
-        self.title("Spaceship Simulator")
-        self.sim = Simulator()
-        for ship_id, config in ship_configs.items():
-            self.sim.add_ship(ship_id, config)
+        self.title("Spaceship Simulator Control")
+        self.geometry("800x600")
+        self.host = host
+        self.port = port
+        self.ships = self.load_config(config_path)
+        self.current_ship = tk.StringVar()
+        self.command_type = tk.StringVar()
+        self.payload_entry = tk.StringVar()
+        self.power_mode = tk.BooleanVar()
+        self.sensor_mode = tk.StringVar(value='passive')
 
-        self.ship_configs = ship_configs
-        self.selected_ship_id = next(iter(self.sim.ships)) if self.sim.ships else None
+        self.create_widgets()
 
-        self._build_widgets()
-        self._start_simulation_thread()
-
-    def _build_widgets(self):
-        """Create all main GUI widgets."""
-        selector_frame = tk.Frame(self)
-        selector_frame.pack(padx=10, pady=5, fill="x")
-
-        tk.Label(selector_frame, text="Ship:").pack(side=tk.LEFT)
-        self.ship_var = tk.StringVar(value=self.selected_ship_id)
-        ship_ids = list(self.sim.ships.keys())
-        self.ship_menu = tk.OptionMenu(selector_frame, self.ship_var, *ship_ids, command=lambda _:_)
-        self.ship_menu.pack(side=tk.LEFT, padx=5)
-
-        nav_frame = tk.LabelFrame(self, text="Navigation")
-        nav_frame.pack(padx=10, pady=5, fill="x")
-
-        self.autopilot_var = tk.BooleanVar()
-        tk.Checkbutton(
-            nav_frame,
-            text="Autopilot",
-            variable=self.autopilot_var,
-            command=self._toggle_autopilot,
-        ).grid(row=0, column=0, columnspan=2, sticky="w")
-
-        tk.Label(nav_frame, text="Target X:").grid(row=1, column=0, sticky="e")
-        self.target_x = tk.Entry(nav_frame, width=8)
-        self.target_x.grid(row=1, column=1)
-        tk.Label(nav_frame, text="Target Y:").grid(row=2, column=0, sticky="e")
-        self.target_y = tk.Entry(nav_frame, width=8)
-        self.target_y.grid(row=2, column=1)
-        tk.Label(nav_frame, text="Target Z:").grid(row=3, column=0, sticky="e")
-        self.target_z = tk.Entry(nav_frame, width=8)
-        self.target_z.grid(row=3, column=1)
-
-        tk.Button(nav_frame, text="Set Course", command=self._set_course).grid(row=4, column=0, columnspan=2, pady=4)
-
-        ctrl_frame = tk.LabelFrame(self, text="Controls")
-        ctrl_frame.pack(padx=10, pady=5, fill="x")
-
-        tk.Button(ctrl_frame, text="Thrust +", command=lambda: self._adjust_thrust(1)).grid(row=0, column=0, padx=2, pady=2)
-        tk.Button(ctrl_frame, text="Thrust -", command=lambda: self._adjust_thrust(-1)).grid(row=0, column=1, padx=2, pady=2)
-        tk.Button(ctrl_frame, text="Pitch +", command=lambda: self._rotate('pitch', 5)).grid(row=1, column=0, padx=2, pady=2)
-        tk.Button(ctrl_frame, text="Pitch -", command=lambda: self._rotate('pitch', -5)).grid(row=1, column=1, padx=2, pady=2)
-        tk.Button(ctrl_frame, text="Yaw +", command=lambda: self._rotate('yaw', 5)).grid(row=2, column=0, padx=2, pady=2)
-        tk.Button(ctrl_frame, text="Yaw -", command=lambda: self._rotate('yaw', -5)).grid(row=2, column=1, padx=2, pady=2)
-        tk.Button(ctrl_frame, text="Roll +", command=lambda: self._rotate('roll', 5)).grid(row=3, column=0, padx=2, pady=2)
-        tk.Button(ctrl_frame, text="Roll -", command=lambda: self._rotate('roll', -5)).grid(row=3, column=1, padx=2, pady=2)
-
-        status_frame = tk.LabelFrame(self, text="Status")
-        status_frame.pack(padx=10, pady=5, fill="x")
-
-        self.pos_var = tk.StringVar(value="0,0,0")
-        tk.Label(status_frame, textvariable=self.pos_var).pack(anchor="w")
-        self.vel_var = tk.StringVar(value="0,0,0")
-        tk.Label(status_frame, textvariable=self.vel_var).pack(anchor="w")
-        self.ori_var = tk.StringVar(value="0,0,0")
-        tk.Label(status_frame, textvariable=self.ori_var).pack(anchor="w")
-
-        cmd_frame = tk.LabelFrame(self, text="Command")
-        cmd_frame.pack(padx=10, pady=5, fill="x")
-
-        self.command_entry = tk.Entry(cmd_frame)
-        self.command_entry.pack(side=tk.LEFT, expand=True, fill="x", padx=5)
-        tk.Button(cmd_frame, text="Send", command=self._send_command).pack(side=tk.LEFT)
-        self.command_output = tk.Text(cmd_frame, height=4, state="disabled")
-        self.command_output.pack(padx=5, pady=5, fill="x")
-
-        self.after(500, self._update_status)
-
-    def _start_simulation_thread(self):
-        thread = threading.Thread(target=self.sim.run, args=(60.0,), daemon=True)
-        thread.start()
-
-    def _current_ship(self):
-        ship_id = self.ship_var.get()
-        return self.sim.get_ship(ship_id)
-
-    def _toggle_autopilot(self):
-        ship = self._current_ship()
-        if not ship:
-            return
-        ship.command("autopilot", {"enabled": self.autopilot_var.get()})
-
-    def _set_course(self):
-        ship = self._current_ship()
-        if not ship:
-            return
+    def load_config(self, path):
         try:
-            coords = {
-                "x": float(self.target_x.get()),
-                "y": float(self.target_y.get()),
-                "z": float(self.target_z.get()),
-            }
-        except ValueError:
-            messagebox.showerror("Invalid Input", "Target coordinates must be numbers")
-            return
-        ship.command("set_course", coords)
+            with open(path) as f:
+                data = json.load(f)
+            return {ship['id']: ship for ship in data}
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to load config: {e}")
+            self.destroy()
 
-    def _adjust_thrust(self, delta):
-        ship = self._current_ship()
-        if not ship:
-            return
-        current = ship.thrust.get("z", 0)
-        ship.command("set_thrust", {"z": current + delta})
+    def create_widgets(self):
+        # Ship selector
+        frame_top = ttk.Frame(self)
+        frame_top.pack(fill='x', padx=5, pady=5)
+        ttk.Label(frame_top, text="Select Ship:").pack(side='left')
+        ship_combo = ttk.Combobox(frame_top, values=list(self.ships.keys()), textvariable=self.current_ship)
+        ship_combo.pack(side='left', padx=5)
+        ship_combo.current(0)
 
-    def _rotate(self, axis, amount):
-        ship = self._current_ship()
-        if not ship:
-            return
-        ship.command("rotate", {"axis": axis, "value": amount})
+        # Command dropdown
+        ttk.Label(frame_top, text="Command:").pack(side='left', padx=(20, 0))
+        cmd_list = ['get_state', 'get_position', 'get_velocity', 'helm_override',
+                    'sensor_ping', 'power_toggle', 'weapon_fire']
+        cmd_combo = ttk.Combobox(frame_top, values=cmd_list, textvariable=self.command_type)
+        cmd_combo.pack(side='left', padx=5)
+        cmd_combo.current(0)
 
-    def _send_command(self):
-        ship = self._current_ship()
-        if not ship:
-            return
+        ttk.Label(frame_top, text="Payload JSON:").pack(side='left', padx=(20, 0))
+        ttk.Entry(frame_top, textvariable=self.payload_entry, width=30).pack(side='left', padx=5)
+        ttk.Button(frame_top, text="Send", command=self.on_send).pack(side='left', padx=5)
 
-        data = self.command_entry.get()
-        if not data:
-            return
+        # Tabs for control and debug
+        tabs = ttk.Notebook(self)
+        tabs.pack(expand=True, fill='both', padx=5, pady=5)
+
+        # Control tab
+        control_frame = ttk.Frame(tabs)
+        tabs.add(control_frame, text='Control')
+        self.create_control_tab(control_frame)
+
+        # Debug tab
+        debug_frame = ttk.Frame(tabs)
+        tabs.add(debug_frame, text='Debug')
+        self.debug_text = scrolledtext.ScrolledText(debug_frame, state='disabled')
+        self.debug_text.pack(expand=True, fill='both', padx=5, pady=5)
+
+    def create_control_tab(self, parent):
+        # Sensor controls
+        sensor_frame = ttk.LabelFrame(parent, text="Sensors")
+        sensor_frame.pack(fill='x', padx=10, pady=10)
+        ttk.Radiobutton(sensor_frame, text='Passive', variable=self.sensor_mode, value='passive').pack(side='left',
+                                                                                                       padx=5)
+        ttk.Radiobutton(sensor_frame, text='Active', variable=self.sensor_mode, value='active').pack(side='left',
+                                                                                                     padx=5)
+        ttk.Button(sensor_frame, text='Ping', command=self.on_sensor_ping).pack(side='left', padx=10)
+
+        # Power management
+        power_frame = ttk.LabelFrame(parent, text="Power Management")
+        power_frame.pack(fill='x', padx=10, pady=10)
+        ttk.Checkbutton(power_frame, text='Enable Power Mode', variable=self.power_mode).pack(side='left', padx=5)
+        ttk.Button(power_frame, text='Refresh Power Status', command=self.on_power_status).pack(side='left', padx=10)
+        self.power_status_label = ttk.Label(power_frame, text='Status: unknown')
+        self.power_status_label.pack(side='left', padx=10)
+
+        # Weapons placeholder
+        weapon_frame = ttk.LabelFrame(parent, text="Weapons")
+        weapon_frame.pack(fill='x', padx=10, pady=10)
+        ttk.Button(weapon_frame, text='Fire Weapon (placeholder)', command=self.on_weapon_fire).pack(side='left',
+                                                                                                     padx=5)
+
+    def log_debug(self, message):
+        self.debug_text.configure(state='normal')
+        self.debug_text.insert('end', message + '\n')
+        self.debug_text.see('end')
+        self.debug_text.configure(state='disabled')
+
+    def on_send(self):
+        ship_id = self.current_ship.get()
+        cmd = self.command_type.get()
         try:
-            cmd = json.loads(data)
-            if "ship" not in cmd:
-                cmd["ship"] = ship.id
-            response = handle_command_request(cmd, ship)
+            payload = json.loads(self.payload_entry.get()) if self.payload_entry.get() else {}
         except json.JSONDecodeError:
-            response = ship.command(data)
+            messagebox.showerror("Error", "Invalid JSON payload")
+            return
+        full_payload = payload
+        full_payload['ship'] = ship_id
+        response = send_command_to_server(self.host, self.port, cmd, full_payload)
+        self.log_debug(f">> Sent: {cmd} {full_payload}\n<< Received: {response}")
 
-        self.command_output.configure(state="normal")
-        self.command_output.delete("1.0", tk.END)
-        if isinstance(response, str):
-            self.command_output.insert(tk.END, response)
-        else:
-            self.command_output.insert(tk.END, json.dumps(response, indent=2))
-        self.command_output.configure(state="disabled")
+    def on_sensor_ping(self):
+        mode = self.sensor_mode.get()
+        self.log_debug(f"Sensor ping ({mode}) sent")
+        self.on_send()
 
-    def _update_status(self):
-        ship = self._current_ship()
-        if ship:
-            state = ship.get_state()
-            pos = state.get("position", {})
-            vel = state.get("velocity", {})
-            ori = state.get("orientation", {})
-            self.pos_var.set(
-                f"Pos: {pos.get('x',0):.1f}, {pos.get('y',0):.1f}, {pos.get('z',0):.1f}"
-            )
-            self.vel_var.set(
-                f"Vel: {vel.get('x',0):.1f}, {vel.get('y',0):.1f}, {vel.get('z',0):.1f}"
-            )
-            self.ori_var.set(
-                f"Ori: {ori.get('pitch',0):.1f}, {ori.get('yaw',0):.1f}, {ori.get('roll',0):.1f}"
-            )
-        self.after(500, self._update_status)
+    def on_power_status(self):
+        status = send_command_to_server(self.host, self.port, 'get_power_status', {'ship': self.current_ship.get()})
+        self.power_status_label.config(text=f"Status: {status}")
+        self.log_debug(f"Power status: {status}")
+
+    def on_weapon_fire(self):
+        self.log_debug("Weapon fire placeholder invoked")
+        # Future implementation: payload = {...}
+        # response = send_command_to_server(...)
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Run the simulator GUI")
-    parser.add_argument(
-        "--config",
-        "-c",
-        help="Path to ship configuration JSON file",
-    )
-    parser.add_argument(
-        "--fleet-dir",
-        "-f",
-        help="Directory containing ship JSON files",
-    )
+if __name__ == '__main__':
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--config', required=True, help='Path to ships JSON config')
+    parser.add_argument('--host', default='127.0.0.1', help='Simulator host')
+    parser.add_argument('--port', type=int, default=9999, help='Simulator port')
     args = parser.parse_args()
 
-    ships = {}
-    if args.fleet_dir:
-        if not os.path.isdir(args.fleet_dir):
-            print(f"Fleet directory not found: {args.fleet_dir}")
-            return
-        for filename in os.listdir(args.fleet_dir):
-            if filename.endswith(".json"):
-                path = os.path.join(args.fleet_dir, filename)
-                try:
-                    with open(path, "r") as f:
-                        data = json.load(f)
-                    if isinstance(data, dict) and "id" in data:
-                        ships[data["id"]] = data
-                    elif isinstance(data, dict):
-                        ships.update(data)
-                except Exception as e:
-                    print(f"Failed to load {path}: {e}")
-    else:
-        config_path = args.config
-        if not config_path:
-            if os.path.exists("ships_config.json"):
-                config_path = "ships_config.json"
-            else:
-                root = tk.Tk()
-                root.withdraw()
-                config_path = filedialog.askopenfilename(
-                    title="Select ship configuration file",
-                    filetypes=[("JSON files", "*.json"), ("All files", "*.*")],
-                )
-                if not config_path:
-                    print("No configuration file selected")
-                    return
-        with open(config_path, "r") as f:
-            data = json.load(f)
-            if isinstance(data, dict) and "id" in data:
-                ships[data["id"]] = data
-            else:
-                ships.update(data)
-
-    if not ships:
-        print("No ship configurations loaded")
-        return
-
-    app = SimulatorGUI(ships)
+    app = ShipGUI(args.config, host=args.host, port=args.port)
     app.mainloop()
-
-
-if __name__ == "__main__":
-    main()
