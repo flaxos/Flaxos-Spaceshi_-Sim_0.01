@@ -10,6 +10,8 @@ import logging
 import os
 import sys
 from datetime import datetime
+import time
+from hybrid_runner import HybridRunner
 
 from hybrid.simulator import Simulator
 from hybrid.command_handler import handle_command_request
@@ -63,15 +65,6 @@ def save_ship_state(ship, output_dir="fleet_state"):
     except Exception as e:
         logger.error(f"Failed to save ship state: {e}")
         return None
-# hybrid/cli.py
-"""
-Command line interface for the hybrid architecture.
-"""
-import time
-import json
-import sys
-import os
-from hybrid_runner import HybridRunner
 
 def print_ship_state(state, detailed=False):
     """Print ship state in a readable format"""
@@ -266,9 +259,6 @@ def run_cli(fleet_dir="hybrid_fleet", dt=0.1):
         print("Simulation stopped")
     
     return 0
-
-if __name__ == "__main__":
-    sys.exit(run_cli())
 def main():
     """
     Main entry point for the CLI
@@ -293,18 +283,19 @@ def main():
     if args.debug:
         logging.getLogger().setLevel(logging.DEBUG)
         
-    # Create simulator
+    # If no command options provided, drop into interactive CLI
+    if not args.command and not args.run:
+        return run_cli(fleet_dir=args.fleet_dir, dt=args.dt)
+
     simulator = Simulator(dt=args.dt)
-    
-    # Load ships
+
     num_ships = simulator.load_ships_from_directory(args.fleet_dir)
     logger.info(f"Loaded {num_ships} ships")
-    
+
     if num_ships == 0:
         logger.error(f"No ships found in {args.fleet_dir}")
         return 1
-    
-    # Start simulator
+
     simulator.start()
     
     # Handle command if specified
