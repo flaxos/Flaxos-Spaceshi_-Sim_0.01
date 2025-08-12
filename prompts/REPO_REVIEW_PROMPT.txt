@@ -6,7 +6,7 @@ Repository path provided. Perform a deep technical review and return:
 - Any local changes you had to make; propose PRs if needed.
 
 2) Architecture
-- Modules and responsibilities (sim_core/*, server, HUD).
+- Modules and responsibilities (hybrid/*, server, HUD).
 - Data flow between Server and HUD; coupling risks.
 - Physics/integration: dt stability, guidance math, ECM/ECCM model.
 

@@ -7,7 +7,7 @@ python -m pip install pytest
 python -m pytest -q
 
 # Terminal 1: start server
-python server/run_server.py --config fleet/demo_ships.json --dt 0.1 --port 8765
+python -m server.run_server --fleet-dir hybrid_fleet --dt 0.1 --port 8765
 
 # Terminal 2: HUD
 python hybrid/gui/gui.py
