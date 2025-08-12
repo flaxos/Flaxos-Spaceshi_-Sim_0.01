@@ -44,12 +44,18 @@ class HUD(tk.Tk):
         r = self.req({"cmd":"get_debrief"})
         messagebox.showinfo("Debrief", json.dumps(r.get("debrief"), indent=2) if r.get("ok") else r.get("error"))
     def toggle_autopilot(self):
-        s = self.get_state(); 
-        if not s.get("ok") or not s.get("ships"): return
-        if not self.ship_focus: self.ship_focus = s['ships'][0]['name']
-        me = next((x for x in s.get("ships",[]) if x.get("name")==self.ship_focus), None)
-        ap = bool(me.get("autopilot", True))
-        self.req({"cmd":"helm_override","ship": self.ship_focus, "enabled": ap}); self.toast(f"Autopilot → {'ON' if not ap else 'OFF'}")
+        s = self.get_state()
+        ships = s.get("ships", [])
+        if isinstance(ships, dict):
+            ships = list(ships.values())
+        if not s.get("ok") or not ships:
+            return
+        if not self.ship_focus:
+            self.ship_focus = ships[0]["name"]
+        me = next((x for x in ships if x.get("name") == self.ship_focus), None)
+        ap = bool(me.get("autopilot", True)) if me else True
+        self.req({"cmd": "helm_override", "ship": self.ship_focus, "enabled": ap})
+        self.toast(f"Autopilot → {'ON' if not ap else 'OFF'}")
     def set_target(self, name):
         if not self.ship_focus: return
         self.req({"cmd":"set_target", "ship": self.ship_focus, "target": name}); self.target=name; self.toast(f"Target set: {name}")
