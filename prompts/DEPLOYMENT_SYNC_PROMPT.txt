@@ -1,0 +1,10 @@
+Act as a Release/Build Engineer.
+
+Given the repo, prepare a deployment plan for the demo:
+- Branching and version tags
+- Packaging commands and artifacts
+- Upgrade notes between S2 and S3 (API, HUD expectations)
+- Test matrix (OS/Python versions)
+- Rollback plan and known issues
+
+Output as a checklist suitable for a PR comment.

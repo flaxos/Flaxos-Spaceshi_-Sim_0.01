@@ -1,0 +1,26 @@
+{
+  "name": "Sprint2 Demo",
+  "config": "fleet/demo_ships.json",
+  "objectives": [
+    {
+      "type": "protect",
+      "target": "Interceptor"
+    },
+    {
+      "type": "time_limit",
+      "seconds": 60
+    }
+  ],
+  "triggers": [
+    {
+      "kind": "on_timer",
+      "seconds": 2.0
+    }
+  ],
+  "actions": [
+    {
+      "kind": "message",
+      "text": "missiles away."
+    }
+  ]
+}
