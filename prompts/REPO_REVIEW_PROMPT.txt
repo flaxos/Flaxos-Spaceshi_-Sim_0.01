@@ -1,0 +1,28 @@
+You are GPT-5 Thinking acting as a senior gameplay/physics engineer and producer.
+Repository path provided. Perform a deep technical review and return:
+
+1) Build & Test
+- Exact steps you executed (shell cmds) and test results.
+- Any local changes you had to make; propose PRs if needed.
+
+2) Architecture
+- Modules and responsibilities (sim_core/*, server, HUD).
+- Data flow between Server and HUD; coupling risks.
+- Physics/integration: dt stability, guidance math, ECM/ECCM model.
+
+3) Correctness & Risks
+- Enumerate P0/P1/P2 issues with evidence (file/line).
+- Provide minimal patches or diffs for each P0.
+
+4) Performance
+- Hot paths per tick; complexity commentary; obvious micro wins.
+
+5) Roadmap Fit
+- Alignment with hard‑sci‑fi scope.
+- Recommend next‑sprint goals with measurable tests.
+
+Context to apply
+- Maintain hard‑sci‑fi realism; deterministic logic with unit tests.
+
+Repository
+<insert repo path or ZIP contents>

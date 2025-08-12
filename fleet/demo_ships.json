@@ -1,0 +1,124 @@
+[
+  {
+    "name": "Interceptor",
+    "mass": 12000,
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "velocity": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "nav": {
+      "max_thrust": 120000,
+      "autopilot": true,
+      "target": "Target",
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0
+    },
+    "sensors": {
+      "range_m": 100000.0,
+      "fov_deg": 120.0,
+      "passive_threshold": 0.004,
+      "ping_cooldown": 10.0,
+      "health": 100.0
+    },
+    "reactors": [
+      {
+        "name": "P-PRI",
+        "max_output": 120.0,
+        "warmup_time": 5.0,
+        "heat_per_output": 0.02,
+        "cooldown_rate": 1.6,
+        "health": 100.0
+      }
+    ],
+    "weapon": {
+      "name": "Torp-Launcher",
+      "kind": "launcher",
+      "power_per_shot": 15.0,
+      "heat_per_shot": 15.0,
+      "cooldown": 4.0,
+      "max_range": 120000.0,
+      "damage": 0.0,
+      "muzzle_velocity": 300.0,
+      "fov_deg": 20.0,
+      "spread_deg": 0.6,
+      "burst_count": 1,
+      "burst_interval": 0.08,
+      "falloff_start": 0.5,
+      "falloff_end": 1.0,
+      "health": 100.0,
+      "arc_yaw_deg": 120.0,
+      "arc_pitch_deg": 60.0,
+      "missile_speed": 900.0,
+      "max_turn_deg_s": 60.0,
+      "seeker_fov_deg": 50.0,
+      "pn_gain": 3.0,
+      "warhead": "kinetic",
+      "missile_damage": 180.0,
+      "prox_radius": 35.0
+    },
+    "subsys": {
+      "engines": 100.0
+    },
+    "crew_repair_rate": 0.35
+  },
+  {
+    "name": "Target",
+    "mass": 15000,
+    "position": {
+      "x": 50000,
+      "y": 0,
+      "z": 0
+    },
+    "velocity": {
+      "x": 0,
+      "y": 150,
+      "z": 0
+    },
+    "nav": {
+      "max_thrust": 40000,
+      "autopilot": true,
+      "yaw": 3.14,
+      "pitch": 0.0,
+      "roll": 0.0
+    },
+    "sensors": {
+      "range_m": 100000.0,
+      "fov_deg": 120.0,
+      "passive_threshold": 0.004,
+      "ping_cooldown": 10.0,
+      "health": 100.0
+    },
+    "reactors": [
+      {
+        "name": "T-PRI",
+        "max_output": 120.0,
+        "warmup_time": 8.0,
+        "heat_per_output": 0.025,
+        "cooldown_rate": 1.5,
+        "health": 100.0
+      }
+    ],
+    "weapon": {
+      "name": "PDC-25mm",
+      "kind": "pdc",
+      "power_per_shot": 2.0,
+      "heat_per_shot": 1.0,
+      "cooldown": 0.05,
+      "max_range": 3500.0,
+      "damage": 2.0,
+      "muzzle_velocity": 1200.0,
+      "fov_deg": 30.0,
+      "arc_yaw_deg": 160.0,
+      "arc_pitch_deg": 85.0
+    },
+    "ecm_power": 0.4,
+    "ai_mode": "evade"
+  }
+]
