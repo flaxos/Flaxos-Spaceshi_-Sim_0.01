@@ -11,12 +11,6 @@ if ROOT_DIR not in sys.path:
     sys.path.append(ROOT_DIR)
 
 from hybrid_runner import HybridRunner
-
-
-def serve(host: str, port: int, dt: float, fleet_dir: str) -> None:
-    """Start a simple TCP server exposing hybrid simulator state."""
-    runner = HybridRunner(fleet_dir=fleet_dir, dt=dt)
-    runner.load_ships()
     runner.start()
     print(f"Server on {host}:{port} dt={dt}")
 
@@ -55,7 +49,7 @@ def serve(host: str, port: int, dt: float, fleet_dir: str) -> None:
 def dispatch(runner: HybridRunner, req: dict) -> dict:
     cmd = req.get("cmd")
     if cmd == "get_state":
-        return {"ok": True, "ships": runner.get_all_ship_states()}
+
     if cmd == "pause":
         on = bool(req.get("on", True))
         if on:
@@ -72,5 +66,3 @@ if __name__ == "__main__":
     ap.add_argument("--port", type=int, default=8765)
     ap.add_argument("--dt", type=float, default=0.1)
     ap.add_argument("--fleet-dir", default="hybrid_fleet")
-    args = ap.parse_args()
-    serve(args.host, args.port, args.dt, args.fleet_dir)
