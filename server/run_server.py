@@ -11,15 +11,6 @@ if ROOT_DIR not in sys.path:
     sys.path.append(ROOT_DIR)
 
 from hybrid_runner import HybridRunner
-
-
-def serve(host: str, port: int, dt: float, fleet_dir: str, scenario: str | None = None) -> None:
-    """Start a simple TCP server exposing hybrid simulator state."""
-    runner = HybridRunner(fleet_dir=fleet_dir, dt=dt)
-    if scenario:
-        runner.load_scenario(scenario)
-    else:
-        runner.load_ships()
     runner.start()
     print(f"Server on {host}:{port} dt={dt}")
 
@@ -58,13 +49,7 @@ def serve(host: str, port: int, dt: float, fleet_dir: str, scenario: str | None 
 def dispatch(runner: HybridRunner, req: dict) -> dict:
     cmd = req.get("cmd")
     if cmd == "get_state":
-        ships = list(runner.get_all_ship_states().values())
-        return {
-            "ok": True,
-            "ships": ships,
-            "t": getattr(runner.simulator, "time", 0.0),
-            "missiles": [],
-        }
+
     if cmd == "pause":
         on = bool(req.get("on", True))
         if on:
@@ -72,22 +57,6 @@ def dispatch(runner: HybridRunner, req: dict) -> dict:
         else:
             runner.start()
         return {"ok": True, "paused": on}
-    if cmd in {"helm_override", "set_target", "fire_weapon", "ping_sensors"}:
-        ship_id = req.get("ship")
-        ship = runner.simulator.ships.get(ship_id)
-        if not ship:
-            return {"ok": False, "error": "ship not found"}
-        params = {k: v for k, v in req.items() if k not in {"cmd", "ship"}}
-        res = ship.command(cmd, params)
-        if isinstance(res, dict) and "error" in res:
-            return {"ok": False, "error": res["error"]}
-        return {"ok": True, **({} if not isinstance(res, dict) else res)}
-    if cmd == "get_events":
-        return {"ok": True, "events": []}
-    if cmd == "get_mission":
-        return {"ok": True, "mission": {"status": "unknown", "objectives": []}}
-    if cmd == "get_debrief":
-        return {"ok": True, "debrief": {}}
     return {"ok": False, "error": "unknown cmd"}
 
 
@@ -97,6 +66,3 @@ if __name__ == "__main__":
     ap.add_argument("--port", type=int, default=8765)
     ap.add_argument("--dt", type=float, default=0.1)
     ap.add_argument("--fleet-dir", default="hybrid_fleet")
-    ap.add_argument("--scenario", help="scenario name to load", default=None)
-    args = ap.parse_args()
-    serve(args.host, args.port, args.dt, args.fleet_dir, args.scenario)
