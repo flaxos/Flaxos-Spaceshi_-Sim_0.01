@@ -5,7 +5,7 @@ Spaceship Simulator GUI & Headless Client
 QUICKSTART:
 
 1. Start the Simulator Server:
-   python socket_listener.py --host 127.0.0.1 --port 9999
+   python -m server.run_server --host 127.0.0.1 --port 9999
 
 2. Start the GUI (default, recommended):
    python run_gui.py --config ships.json
@@ -22,6 +22,11 @@ ARGUMENTS:
 The server must be running and listening on the specified host/port before starting the GUI or headless client.
 
 Config file format: see ships.json.example or your server docs.
+
+Protocol:
+  - newline-delimited JSON
+  - request: {"cmd": "<command>", ...payload}\n
+  - response: {"ok": true/false, ...}\n
 
 All simulator commands are mapped to explicit controls/tabs in GUI or CLI flags in headless mode.
 
@@ -40,14 +45,16 @@ SERVER_TIMEOUT = 3
 # --- SERVER COMMANDS ---
 
 COMMANDS = [
-    'get_state',
-    'get_position',
-    'get_velocity',
-    'helm_override',
-    'sensor_ping',
-    'power_toggle',
-    'get_power_status',
-    'weapon_fire'
+    "get_state",
+    "get_position",
+    "get_velocity",
+    "get_orientation",
+    "helm_override",
+    "ping_sensors",
+    "power_on",
+    "power_off",
+    "get_power_state",
+    "fire_weapon",
     # Add future commands here
 ]
 
@@ -59,15 +66,17 @@ def send_command_to_server(host, port, command_type, payload, timeout=SERVER_TIM
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
             sock.settimeout(timeout)
             sock.connect((host, port))
-            msg = json.dumps({'command_type': command_type, 'payload': payload})
-            sock.sendall(msg.encode('utf-8'))
+            msg = json.dumps({"cmd": command_type, **payload}) + "\n"
+            sock.sendall(msg.encode("utf-8"))
             data = b""
             while True:
                 chunk = sock.recv(4096)
                 if not chunk:
                     break
                 data += chunk
-            return data.decode('utf-8')
+                if b"\n" in data:
+                    break
+            return data.decode("utf-8").splitlines()[0] if data else ""
     except Exception as e:
         return json.dumps({"error": str(e)})
 
@@ -275,28 +284,29 @@ class ShipGUI(tk.Tk):
 
     def on_sensor_ping(self):
         payload = {"ship": self.current_ship.get(), "mode": self.sensor_mode.get()}
-        resp = send_command_to_server(self.host, self.port, "sensor_ping", payload)
-        self.log_debug(f">> sensor_ping {payload}\n<< {resp}")
+        resp = send_command_to_server(self.host, self.port, "ping_sensors", payload)
+        self.log_debug(f">> ping_sensors {payload}\n<< {resp}")
         self._update_sensor_output(resp)
 
     def on_power_toggle(self):
-        payload = {"ship": self.current_ship.get(), "state": "on" if self.power_mode_var.get() else "off"}
-        resp = send_command_to_server(self.host, self.port, "power_toggle", payload)
-        self.log_debug(f">> power_toggle {payload}\n<< {resp}")
+        payload = {"ship": self.current_ship.get(), "system": "power"}
+        cmd = "power_on" if self.power_mode_var.get() else "power_off"
+        resp = send_command_to_server(self.host, self.port, cmd, payload)
+        self.log_debug(f">> {cmd} {payload}\n<< {resp}")
         data = self._parse_response(resp)
         self.power_state.set(str(data))
 
     def on_get_power_status(self):
         payload = {"ship": self.current_ship.get()}
-        resp = send_command_to_server(self.host, self.port, "get_power_status", payload)
-        self.log_debug(f">> get_power_status {payload}\n<< {resp}")
+        resp = send_command_to_server(self.host, self.port, "get_power_state", payload)
+        self.log_debug(f">> get_power_state {payload}\n<< {resp}")
         data = self._parse_response(resp)
         self.power_state.set(json.dumps(data))
 
     def on_weapon_fire(self):
-        payload = {"ship": self.current_ship.get()}
-        resp = send_command_to_server(self.host, self.port, "weapon_fire", payload)
-        self.log_debug(f">> weapon_fire {payload}\n<< {resp}")
+        payload = {"ship": self.current_ship.get(), "target": self.target_ship_var.get()}
+        resp = send_command_to_server(self.host, self.port, "fire_weapon", payload)
+        self.log_debug(f">> fire_weapon {payload}\n<< {resp}")
         data = self._parse_response(resp)
         messagebox.showinfo("Weapon", json.dumps(data))
 
@@ -309,7 +319,12 @@ class ShipGUI(tk.Tk):
             resp = send_command_to_server(self.host, self.port, "get_position", payload)
             try:
                 data = json.loads(resp) if resp and not resp.startswith("Error:") else {}
-                positions[sid] = data.get('position', (0,0))
+                if "position" in data:
+                    positions[sid] = data.get("position", (0, 0))
+                elif "x" in data and "y" in data:
+                    positions[sid] = (data.get("x", 0), data.get("y", 0))
+                else:
+                    positions[sid] = (0, 0)
             except Exception:
                 positions[sid] = (0,0)
         self._draw_ships_on_canvas(positions)
@@ -388,6 +403,8 @@ def run_headless(args, ships):
         if cli.target: payload['target'] = cli.target
         if cli.mode: payload['mode'] = cli.mode
         if cli.state: payload['state'] = cli.state
+        if cli.cmd in {"power_on", "power_off"} and "system" not in payload:
+            payload["system"] = "power"
     resp = send_command_to_server(args.host, args.port, cli.cmd, payload)
     print(f">> {cli.cmd} {payload}\n<< {resp}")
 
