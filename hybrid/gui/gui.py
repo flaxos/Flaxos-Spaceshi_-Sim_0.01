@@ -12,9 +12,11 @@ class Client:
                 ch = s.recv(4096)
                 if not ch: break
                 data += ch
+                if b"\n" in data:
+                    break
             s.close()
         if not data: return {"ok": False, "error":"no response"}
-        return json.loads(data.decode('utf-8').splitlines()[-1])
+        return json.loads(data.decode('utf-8').splitlines()[0])
 class HUD(tk.Tk):
     def __init__(self, host='127.0.0.1', port=8765):
         super().__init__()
