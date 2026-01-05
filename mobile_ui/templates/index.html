@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Flaxos Mobile Station Console</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div>
+        <h1>Flaxos Mobile Station Console</h1>
+        <p>Socket protocol client for Nav, Tactical, and Power stations.</p>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="panel">
+        <h2>Connection</h2>
+        <div class="grid two">
+          <label>
+            Host
+            <input id="host" type="text" value="{{ default_host }}" />
+          </label>
+          <label>
+            Port
+            <input id="port" type="number" inputmode="numeric" value="{{ default_port }}" />
+          </label>
+        </div>
+        <label>
+          Ship ID
+          <input id="ship" type="text" value="test_ship_001" />
+        </label>
+        <div class="actions">
+          <button data-action="test-connection">Test Connection</button>
+          <button data-action="get-state">Get State</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Nav / Helm</h2>
+        <div class="grid three">
+          <label>
+            Thrust X
+            <input id="thrust-x" type="number" step="0.1" value="0" />
+          </label>
+          <label>
+            Thrust Y
+            <input id="thrust-y" type="number" step="0.1" value="0" />
+          </label>
+          <label>
+            Thrust Z
+            <input id="thrust-z" type="number" step="0.1" value="0" />
+          </label>
+        </div>
+        <button data-action="set-thrust">Send Thrust</button>
+
+        <div class="grid three">
+          <label>
+            Course X
+            <input id="course-x" type="number" step="0.1" value="0" />
+          </label>
+          <label>
+            Course Y
+            <input id="course-y" type="number" step="0.1" value="0" />
+          </label>
+          <label>
+            Course Z
+            <input id="course-z" type="number" step="0.1" value="0" />
+          </label>
+        </div>
+        <button data-action="set-course">Set Course</button>
+
+        <div class="grid two">
+          <label>
+            Autopilot
+            <select id="autopilot">
+              <option value="true">Engage</option>
+              <option value="false">Disengage</option>
+            </select>
+          </label>
+          <label>
+            Target ID
+            <input id="nav-target" type="text" placeholder="target id" />
+          </label>
+        </div>
+        <div class="actions">
+          <button data-action="set-autopilot">Set Autopilot</button>
+          <button data-action="set-target">Set Target</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Tactical</h2>
+        <label>
+          Target ID
+          <input id="tactical-target" type="text" placeholder="target id" />
+        </label>
+        <div class="grid two">
+          <label>
+            Sensor Mode
+            <select id="sensor-mode">
+              <option value="active">Active</option>
+              <option value="passive">Passive</option>
+            </select>
+          </label>
+          <label>
+            Ping Count
+            <input id="sensor-count" type="number" value="1" min="1" />
+          </label>
+        </div>
+        <div class="actions">
+          <button data-action="ping-sensors">Ping Sensors</button>
+          <button data-action="fire-weapon">Fire Weapon</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Power</h2>
+        <label>
+          System Name
+          <input id="power-system" type="text" value="railgun" />
+        </label>
+        <label class="inline">
+          <input id="power-state" type="checkbox" checked />
+          Enabled
+        </label>
+        <button data-action="toggle-system">Toggle System</button>
+
+        <div class="grid three">
+          <label>
+            Primary
+            <input id="power-primary" type="number" step="0.05" value="0.5" />
+          </label>
+          <label>
+            Secondary
+            <input id="power-secondary" type="number" step="0.05" value="0.3" />
+          </label>
+          <label>
+            Tertiary
+            <input id="power-tertiary" type="number" step="0.05" value="0.2" />
+          </label>
+        </div>
+        <button data-action="set-power-allocation">Set Allocation</button>
+      </section>
+
+      <section class="panel log">
+        <h2>Command Log</h2>
+        <div id="log"></div>
+      </section>
+    </main>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>
