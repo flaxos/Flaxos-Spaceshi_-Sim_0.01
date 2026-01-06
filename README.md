@@ -36,6 +36,13 @@ python mobile_ui/app.py
 ```
 Then open `http://<android-ip>:5000` in a mobile browser. Use the form to set the sim server host/port.
 
+#### Optional: all-in-one runtime (server + UI in one command)
+If you want a single Pydroid command that runs both the sim server and the mobile UI:
+```bash
+python pydroid_run.py --server-host 127.0.0.1 --server-port 8765 --ui-port 5000
+```
+Then open `http://<android-ip>:5000` and set the host/port to `127.0.0.1:8765`.
+
 ### 4) Port/host + LAN requirements
 - **Server host/port:** bind to `0.0.0.0:8765` on the desktop to accept LAN traffic.
 - **Client host/port:** in the UI, set host to the desktop's LAN IP (e.g. `192.168.1.20`) and port `8765`.
