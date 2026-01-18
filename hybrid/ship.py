@@ -4,9 +4,16 @@
 Ship implementation that manages systems and handles physics.
 """
 from hybrid.core.event_bus import EventBus
+from hybrid.utils.math_utils import (
+    sanitize_physics_state, is_valid_number, clamp,
+    normalize_angle as normalize_angle_util
+)
 import math
 import time
 import copy
+import logging
+
+logger = logging.getLogger(__name__)
 
 class Ship:
     """Class representing a ship with multiple systems"""
@@ -127,13 +134,25 @@ class Ship:
             force (dict, optional): Net force vector acting on the ship. If not
                 provided, the existing acceleration is used.
         """
+        # Guard against invalid dt
+        if not is_valid_number(dt) or dt <= 0:
+            logger.warning(f"Ship {self.id}: Invalid dt={dt}, skipping physics update")
+            return
+
+        # Guard against zero or invalid mass
+        if not is_valid_number(self.mass) or self.mass <= 0:
+            logger.error(f"Ship {self.id}: Invalid mass={self.mass}, resetting to default")
+            self.mass = 1000.0
+
         if force is not None:
+            # Calculate acceleration from force, with safe division
             self.acceleration = {
                 "x": force.get("x", 0.0) / self.mass,
                 "y": force.get("y", 0.0) / self.mass,
                 "z": force.get("z", 0.0) / self.mass,
             }
 
+            # Update velocity
             self.velocity["x"] += self.acceleration["x"] * dt
             self.velocity["y"] += self.acceleration["y"] * dt
             self.velocity["z"] += self.acceleration["z"] * dt
@@ -147,18 +166,34 @@ class Ship:
         self.position["x"] += self.velocity["x"] * dt
         self.position["y"] += self.velocity["y"] * dt
         self.position["z"] += self.velocity["z"] * dt
-        
+
+        # Sanitize physics state (check for NaN/Inf and clamp to reasonable bounds)
+        self.position, self.velocity, self.acceleration, recovered = sanitize_physics_state(
+            self.position, self.velocity, self.acceleration, self.id
+        )
+
+        if recovered:
+            logger.warning(f"Ship {self.id}: Physics state recovered from invalid values")
+            # Publish event for monitoring/debugging
+            self.event_bus.publish("physics_recovery", {
+                "ship_id": self.id,
+                "position": self.position,
+                "velocity": self.velocity,
+                "acceleration": self.acceleration
+            }, "ship")
+
         # Update orientation based on angular velocity
         self.orientation["pitch"] += self.angular_velocity["pitch"] * dt
         self.orientation["yaw"] += self.angular_velocity["yaw"] * dt
         self.orientation["roll"] += self.angular_velocity["roll"] * dt
-        
-        # Normalize orientation to [-180, 180)
+
+        # Normalize orientation to [-180, 180) and guard against NaN
         for key in self.orientation:
-            while self.orientation[key] >= 180:
-                self.orientation[key] -= 360
-            while self.orientation[key] < -180:
-                self.orientation[key] += 360
+            if not is_valid_number(self.orientation[key]):
+                logger.error(f"Ship {self.id}: Invalid orientation {key}={self.orientation[key]}, resetting")
+                self.orientation[key] = 0.0
+            else:
+                self.orientation[key] = normalize_angle_util(self.orientation[key])
     
     def command(self, command_type, params=None):
         """

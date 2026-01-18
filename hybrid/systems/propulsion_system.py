@@ -2,6 +2,7 @@
 """Propulsion system providing thrust and fuel management."""
 
 from hybrid.core.base_system import BaseSystem
+from hybrid.utils.math_utils import is_valid_number, clamp
 import math
 import logging
 
@@ -60,15 +61,35 @@ class PropulsionSystem(BaseSystem):
 
         thrust_mag = math.sqrt(ship.thrust["x"]**2 + ship.thrust["y"]**2 + ship.thrust["z"]**2)
         if thrust_mag > 0:
-            consumption = (thrust_mag / self.max_thrust) * self.fuel_consumption * dt
+            # Guard against invalid mass
+            if ship.mass <= 0:
+                logger.error(f"Ship {ship.id} has invalid mass {ship.mass}, cannot calculate acceleration")
+                ship.acceleration = {"x": 0.0, "y": 0.0, "z": 0.0}
+                self.status = "error"
+                return
+
+            consumption = (thrust_mag / max(self.max_thrust, 1e-10)) * self.fuel_consumption * dt
             if self.fuel_level >= consumption:
                 self.fuel_level -= consumption
-                ship.acceleration = {
-                    "x": ship.thrust["x"] / ship.mass,
-                    "y": ship.thrust["y"] / ship.mass,
-                    "z": ship.thrust["z"] / ship.mass,
-                }
-                self.status = "active"
+
+                # Calculate acceleration with guards
+                accel_x = ship.thrust["x"] / ship.mass
+                accel_y = ship.thrust["y"] / ship.mass
+                accel_z = ship.thrust["z"] / ship.mass
+
+                # Validate acceleration values
+                if all(is_valid_number(a) for a in [accel_x, accel_y, accel_z]):
+                    ship.acceleration = {
+                        "x": accel_x,
+                        "y": accel_y,
+                        "z": accel_z,
+                    }
+                    self.status = "active"
+                else:
+                    logger.error(f"Ship {ship.id}: Invalid acceleration calculated, zeroing thrust")
+                    ship.thrust = {"x": 0.0, "y": 0.0, "z": 0.0}
+                    ship.acceleration = {"x": 0.0, "y": 0.0, "z": 0.0}
+                    self.status = "error"
             else:
                 ship.thrust = {"x": 0.0, "y": 0.0, "z": 0.0}
                 ship.acceleration = {"x": 0.0, "y": 0.0, "z": 0.0}
@@ -101,18 +122,34 @@ class PropulsionSystem(BaseSystem):
     def set_thrust(self, params):
         if not self.enabled:
             return {"error": "Propulsion system is disabled"}
-        x = float(params.get("x", self.main_drive["thrust"]["x"]))
-        y = float(params.get("y", self.main_drive["thrust"]["y"]))
-        z = float(params.get("z", self.main_drive["thrust"]["z"]))
-        magnitude = math.sqrt(x**2 + y**2 + z**2)
-        if magnitude > self.max_thrust:
-            scale = self.max_thrust / magnitude
-            x *= scale
-            y *= scale
-            z *= scale
-        self.main_drive["thrust"] = {"x": x, "y": y, "z": z}
-        self.current_thrust = dict(self.main_drive["thrust"])
-        return {"status": "Thrust updated", "thrust": self.main_drive["thrust"]}
+
+        try:
+            x = float(params.get("x", self.main_drive["thrust"]["x"]))
+            y = float(params.get("y", self.main_drive["thrust"]["y"]))
+            z = float(params.get("z", self.main_drive["thrust"]["z"]))
+
+            # Validate thrust values
+            if not all(is_valid_number(v) for v in [x, y, z]):
+                return {"error": "Invalid thrust values (NaN or Inf detected)"}
+
+            magnitude = math.sqrt(x**2 + y**2 + z**2)
+
+            # Clamp to max thrust
+            if magnitude > self.max_thrust:
+                if magnitude > 0:
+                    scale = self.max_thrust / magnitude
+                    x *= scale
+                    y *= scale
+                    z *= scale
+                else:
+                    x = y = z = 0.0
+
+            self.main_drive["thrust"] = {"x": x, "y": y, "z": z}
+            self.current_thrust = dict(self.main_drive["thrust"])
+            return {"status": "Thrust updated", "thrust": self.main_drive["thrust"]}
+        except (ValueError, TypeError) as e:
+            logger.error(f"Error setting thrust: {e}")
+            return {"error": f"Invalid thrust parameters: {e}"}
 
     def refuel(self, params):
         amount = float(params.get("amount", self.max_fuel - self.fuel_level))
