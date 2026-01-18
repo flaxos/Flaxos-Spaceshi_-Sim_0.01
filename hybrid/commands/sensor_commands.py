@@ -8,17 +8,30 @@ from hybrid.utils.errors import success_dict, error_dict
 def cmd_ping(sensors, ship, params):
     """Active sensor ping."""
     if sensors and hasattr(sensors, "ping"):
-        return sensors.ping()
+        # Pass required parameters for ping
+        ping_params = {
+            "ship": ship,
+            "all_ships": getattr(sensors, "all_ships", []),
+            "event_bus": ship.event_bus if hasattr(ship, "event_bus") else None
+        }
+        return sensors.ping(ping_params)
 
     return error_dict("NOT_IMPLEMENTED", "Active ping not yet implemented")
 
 def cmd_contacts(sensors, ship, params):
     """List all sensor contacts."""
-    if sensors and hasattr(sensors, "get_contacts"):
+    if sensors and hasattr(sensors, "get_contacts_list"):
+        # Use the new API with proper parameters
+        list_params = {
+            "observer_position": ship.position,
+            "include_stale": params.get("include_stale", False)
+        }
+        return sensors.get_contacts_list(list_params)
+    elif sensors and hasattr(sensors, "get_contacts"):
         contacts = sensors.get_contacts()
         return success_dict(
             f"{len(contacts)} contacts detected",
-            contacts=contacts
+            contacts=list(contacts.values()) if isinstance(contacts, dict) else contacts
         )
 
     return error_dict("NOT_IMPLEMENTED", "Contact listing not yet implemented")

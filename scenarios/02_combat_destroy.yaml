@@ -1,0 +1,117 @@
+# Combat Mission: Destroy Enemy Ship
+# Engage and destroy a hostile target
+
+name: "Combat: Eliminate Threat"
+description: "Destroy the hostile pirate ship"
+
+dt: 0.1
+
+ships:
+  - id: "player"
+    name: "Rocinante"
+    class: "corvette"
+    player_controlled: true
+    position: {x: 0, y: 0, z: 0}
+    velocity: {x: 50, y: 0, z: 0}
+    mass: 5000
+    systems:
+      propulsion:
+        max_thrust: 50000
+        fuel_level: 10000
+        max_fuel: 10000
+      sensors:
+        passive:
+          range: 200000
+        active:
+          scan_range: 500000
+      weapons:
+        weapons:
+          - name: "torpedo"
+            power_cost: 10
+            max_heat: 100
+            ammo_count: 12
+          - name: "pdc"
+            power_cost: 5
+            max_heat: 50
+            ammo_count: 1000
+      navigation: {}
+      targeting: {}
+
+  - id: "pirate01"
+    name: "Black Pearl"
+    class: "frigate"
+    faction: "pirates"
+    position: {x: 80000, y: -30000, z: 5000}  # ~86km away
+    velocity: {x: -100, y: 50, z: 0}  # Moving
+    mass: 8000
+    systems:
+      propulsion:
+        max_thrust: 40000
+        fuel_level: 8000
+        max_fuel: 8000
+      sensors:
+        passive:
+          range: 150000
+        active:
+          scan_range: 400000
+      weapons:
+        weapons:
+          - name: "railgun"
+            power_cost: 15
+            max_heat: 80
+            ammo_count: 50
+
+mission:
+  name: "Pirate Threat"
+  description: "Eliminate the pirate ship threatening civilian traffic"
+
+  briefing: |
+    Intelligence reports a pirate vessel operating in this sector.
+    Your mission is to locate and destroy the threat.
+
+    The target is a frigate-class ship, lightly armed but maneuverable.
+    They're currently about 86km away and moving.
+
+    Tactical considerations:
+    - Use passive sensors first to avoid alerting them
+    - Active ping will give you precise targeting but reveals your position
+    - Engage intercept autopilot to close the distance
+    - Fire torpedoes when within range
+    - Use PDC for point defense if they return fire
+
+    Weapons available:
+    - 12x Torpedoes
+    - PDC (1000 rounds)
+
+    Good hunting!
+
+  objectives:
+    - id: "destroy_pirate"
+      type: "destroy_target"
+      description: "Destroy the pirate ship"
+      required: true
+      params:
+        target: "pirate01"
+
+  time_limit: 300  # 5 minutes
+
+  success_message: |
+    Target destroyed! Well done.
+
+    The sector is now safe for civilian traffic.
+    Return to base for debriefing.
+
+  failure_message: |
+    Mission failed.
+
+    Either the target escaped or you ran out of time.
+    A tactical review is recommended.
+
+  hints:
+    - trigger: "start"
+      message: "Use 'contacts' to locate the pirate ship"
+    - trigger: "range < 50000"
+      target: "pirate01"
+      message: "Target in range! Use 'target C001' then 'fire torpedo'"
+    - trigger: "time > 240"
+      message: "Time running out! Only 60 seconds remaining"

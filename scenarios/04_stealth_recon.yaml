@@ -1,0 +1,146 @@
+# Stealth Mission: Reconnaissance
+# Get close to enemy without being detected
+
+name: "Stealth: Silent Observer"
+description: "Perform reconnaissance without alerting the enemy"
+
+dt: 0.1
+
+ships:
+  - id: "player"
+    name: "Whisper"
+    class: "scout"
+    player_controlled: true
+    position: {x: -100000, y: -50000, z: -20000}  # ~116km away
+    velocity: {x: 0, y: 0, z: 0}
+    mass: 2000
+    systems:
+      propulsion:
+        max_thrust: 30000  # Low thrust to reduce signature
+        fuel_level: 8000
+        max_fuel: 8000
+      sensors:
+        passive:
+          range: 300000  # Excellent passive sensors
+        active:
+          scan_range: 600000
+      navigation: {}
+      targeting: {}
+
+  - id: "enemy_base"
+    name: "Mars Defense Station"
+    class: "station"
+    faction: "mars"
+    position: {x: 0, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+    mass: 500000
+    systems:
+      sensors:
+        passive:
+          range: 100000  # Standard detection range
+        active:
+          scan_range: 400000
+      weapons:
+        weapons:
+          - name: "defense_grid"
+            power_cost: 50
+            max_heat: 200
+            ammo_count: 10000
+
+  - id: "patrol01"
+    name: "Patrol Ship Alpha"
+    class: "corvette"
+    faction: "mars"
+    position: {x: 20000, y: -15000, z: 5000}
+    velocity: {x: -50, y: 30, z: 0}  # Patrolling
+    mass: 5000
+    systems:
+      propulsion:
+        max_thrust: 40000
+        fuel_level: 6000
+        max_fuel: 6000
+      sensors:
+        passive:
+          range: 150000
+        active:
+          scan_range: 350000
+
+mission:
+  name: "Operation: Dark Eye"
+  description: "Gather intelligence on the Mars Defense Station"
+
+  briefing: |
+    This is a high-risk reconnaissance mission.
+
+    Earth needs intelligence on the Mars Defense Station's capabilities.
+    Your job is to get close enough to perform an active scan without
+    being detected.
+
+    Mission parameters:
+    - Approach to within 50km of the station
+    - Perform an active sensor ping to gather detailed data
+    - Avoid detection by station or patrol ships
+    - Exfiltrate safely
+
+    CRITICAL NOTES:
+    - Passive sensors have excellent range - use them!
+    - Keep thrust LOW to minimize your signature
+    - Active ping will reveal your position - time it carefully
+    - If detected, mission is FAILED (you'll be destroyed)
+    - Detection range is approximately 50km when using low thrust
+
+    This is a silent operation. No heroics. Get in, scan, get out.
+
+    Good luck. Earth is counting on you.
+
+  objectives:
+    - id: "avoid_detection"
+      type: "avoid_detection"
+      description: "Avoid being detected for 2 minutes"
+      required: true
+      params:
+        time: 120
+        start_time: 0
+        detection_range: 50000
+
+    - id: "close_approach"
+      type: "reach_range"
+      description: "Close to within 50km of the station"
+      required: true
+      params:
+        target: "enemy_base"
+        range: 50000
+        initial_range: 116000
+
+    - id: "scan_station"
+      type: "scan_target"
+      description: "Perform active scan of the station"
+      required: true
+      params:
+        target: "enemy_base"
+
+  time_limit: 180  # 3 minutes total
+
+  success_message: |
+    Mission accomplished! Intelligence gathered successfully.
+
+    You've proven that stealth operations are viable against Mars defenses.
+    The data you gathered will be crucial for Earth's strategic planning.
+
+    Excellent work, agent.
+
+  failure_message: |
+    Mission failed.
+
+    You were detected and eliminated by Mars defense forces.
+    The mission is compromised and Earth has lost a valuable asset.
+
+  hints:
+    - trigger: "start"
+      message: "Keep thrust MINIMAL to reduce your detection signature. Use 'thrust 0.2' or less"
+    - trigger: "range < 80000"
+      target: "enemy_base"
+      message: "Approaching detection range. Reduce thrust to minimum"
+    - trigger: "range < 55000"
+      target: "enemy_base"
+      message: "Almost in position. Ready to ping when within 50km"
