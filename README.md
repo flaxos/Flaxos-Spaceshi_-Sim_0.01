@@ -190,6 +190,131 @@ refuel              # Refuel to maximum
 emergency_stop      # Emergency stop all thrust
 ```
 
+## 🎮 Demo Scenarios
+
+The simulator includes 5 playable scenarios with objectives and win/loss conditions:
+
+### 1. **Tutorial: Intercept and Approach** (`scenarios/01_tutorial_intercept.yaml`)
+**Difficulty:** ⭐ Easy
+**Objective:** Learn basic navigation and autopilot systems
+**Description:** Intercept Tycho Station (54km away) and close to within 1km. Perfect for learning the controls.
+
+**Win Condition:** Close to within 1km of the station
+**Time Limit:** None (training mission)
+
+**Key Skills:**
+- Using passive sensors to detect contacts
+- Locking targets with the targeting system
+- Engaging intercept autopilot
+- Understanding autopilot phase transitions
+
+---
+
+### 2. **Combat: Eliminate Threat** (`scenarios/02_combat_destroy.yaml`)
+**Difficulty:** ⭐⭐ Medium
+**Objective:** Destroy a hostile pirate ship
+**Description:** Hunt down and eliminate a pirate frigate threatening civilian traffic.
+
+**Win Condition:** Destroy the pirate ship
+**Lose Condition:** Time runs out (5 minutes)
+
+**Key Skills:**
+- Combat engagement with moving targets
+- Weapon systems (torpedoes, PDC)
+- Intercept course on moving target
+- Time management
+
+**Weapons:**
+- 12x Torpedoes
+- 1000x PDC rounds
+
+---
+
+### 3. **Escort: Protect the Convoy** (`scenarios/03_escort_protect.yaml`)
+**Difficulty:** ⭐⭐⭐ Hard
+**Objective:** Escort a civilian freighter through hostile space
+**Description:** Protect the Canterbury from 2 pirate fighters for 3 minutes while staying within 10km.
+
+**Win Condition:** Keep the freighter intact for 3 minutes
+**Lose Condition:** Freighter is destroyed
+
+**Key Skills:**
+- Match velocity with escort target
+- Multi-target engagement
+- Defensive positioning
+- Threat prioritization
+
+**Tactical Notes:**
+- Freighter moves at constant 50 m/s
+- Two fast-moving fighters will approach
+- Must balance protection and interception
+- Optional objective: Stay within 10km
+
+---
+
+### 4. **Stealth: Silent Observer** (`scenarios/04_stealth_recon.yaml`)
+**Difficulty:** ⭐⭐⭐⭐ Very Hard
+**Objective:** Perform reconnaissance on enemy base without detection
+**Description:** Approach Mars Defense Station to 50km, perform active scan, avoid detection.
+
+**Win Condition:** Scan the station without being detected
+**Lose Condition:** Detection by station or patrol ships
+
+**Key Skills:**
+- Stealth navigation (minimal thrust signature)
+- Passive sensor utilization
+- Timing active ping carefully
+- Threat avoidance
+
+**Critical Rules:**
+- Keep thrust LOW (<0.2) to minimize signature
+- Detection range ~50km with low thrust
+- Active ping reveals your position!
+- Patrol ships are actively searching
+
+---
+
+### 5. **Race: Belt Runner** (`scenarios/05_race_checkpoint.yaml`)
+**Difficulty:** ⭐⭐ Medium
+**Objective:** Complete checkpoint course in under 4 minutes
+**Description:** Navigate through 4 checkpoints in the asteroid belt. Total distance ~256km.
+
+**Win Condition:** Pass all checkpoints within time limit
+**Lose Condition:** Miss checkpoint or time runs out
+
+**Key Skills:**
+- High-speed navigation
+- Manual override of autopilot
+- Fuel management
+- Course optimization
+
+**Course Layout:**
+- Start → Alpha: 59km
+- Alpha → Bravo: 55km
+- Bravo → Charlie: 83km
+- Charlie → Finish: 59km
+
+**Record Time:** 3:45 (can you beat it?)
+
+---
+
+## Running Scenarios
+
+To load a scenario (once integrated with simulator):
+```python
+from hybrid.scenarios.loader import ScenarioLoader
+
+# Load scenario
+scenario = ScenarioLoader.load("scenarios/01_tutorial_intercept.yaml")
+
+# Access mission objectives
+mission = scenario["mission"]
+print(mission.briefing)
+
+# Check objective status
+status = mission.get_status()
+```
+
 ## What's in Sprint 2 (Previous Release)
 - **Missiles/Torps/Nukes**: PN-like guidance; seeker FOV; ECM/ECCM (wider FOV + turn authority); proximity fusing; nuke AoE.
 - **Point Defense**: Automatic engagement inside arc/range/FOV.

@@ -1,0 +1,168 @@
+# Escort Mission: Protect Civilian Ship
+# Keep a civilian vessel safe from threats
+
+name: "Escort: Protect the Convoy"
+description: "Escort a civilian freighter through hostile space"
+
+dt: 0.1
+
+ships:
+  - id: "player"
+    name: "Guardian"
+    class: "corvette"
+    player_controlled: true
+    position: {x: -1000, y: 0, z: 0}
+    velocity: {x: 50, y: 0, z: 0}
+    mass: 5000
+    systems:
+      propulsion:
+        max_thrust: 60000
+        fuel_level: 10000
+        max_fuel: 10000
+      sensors:
+        passive:
+          range: 250000
+        active:
+          scan_range: 500000
+      weapons:
+        weapons:
+          - name: "pdc"
+            power_cost: 5
+            max_heat: 50
+            ammo_count: 2000
+          - name: "missile"
+            power_cost: 8
+            max_heat: 60
+            ammo_count: 24
+      navigation: {}
+      targeting: {}
+
+  - id: "freighter01"
+    name: "Canterbury"
+    class: "freighter"
+    faction: "civilian"
+    position: {x: 0, y: 0, z: 0}
+    velocity: {x: 50, y: 0, z: 0}  # Moving at constant speed
+    mass: 50000
+    systems:
+      propulsion:
+        max_thrust: 80000
+        fuel_level: 20000
+        max_fuel: 20000
+      sensors:
+        passive:
+          range: 100000
+
+  - id: "hostile01"
+    name: "Marauder Alpha"
+    class: "fighter"
+    faction: "pirates"
+    position: {x: 120000, y: -40000, z: 10000}  # ~127km away
+    velocity: {x: -200, y: 100, z: 0}  # Approaching fast
+    mass: 2000
+    systems:
+      propulsion:
+        max_thrust: 40000
+        fuel_level: 5000
+        max_fuel: 5000
+      sensors:
+        passive:
+          range: 150000
+      weapons:
+        weapons:
+          - name: "autocannon"
+            power_cost: 4
+            max_heat: 40
+            ammo_count: 500
+
+  - id: "hostile02"
+    name: "Marauder Beta"
+    class: "fighter"
+    faction: "pirates"
+    position: {x: 115000, y: -45000, z: -8000}  # ~125km away
+    velocity: {x: -180, y: 90, z: 0}  # Approaching fast
+    mass: 2000
+    systems:
+      propulsion:
+        max_thrust: 40000
+        fuel_level: 5000
+        max_fuel: 5000
+      sensors:
+        passive:
+          range: 150000
+      weapons:
+        weapons:
+          - name: "autocannon"
+            power_cost: 4
+            max_heat: 40
+            ammo_count: 500
+
+mission:
+  name: "Convoy Protection"
+  description: "Protect the Canterbury from pirate attack"
+
+  briefing: |
+    The civilian freighter Canterbury is transporting critical supplies
+    through a region known for pirate activity.
+
+    Your mission is to escort the freighter and protect it from any threats.
+
+    Intelligence suggests 2-3 pirate fighters may be in the area. They're
+    fast and lightly armed, but the Canterbury is defenseless.
+
+    Objectives:
+    - Stay close to the Canterbury (within 10km)
+    - Engage any threats before they can reach the freighter
+    - Keep the Canterbury intact for 3 minutes
+
+    Tactics:
+    - Match velocity with the freighter using autopilot
+    - Use passive sensors to detect threats early
+    - Intercept any hostile contacts before they close range
+    - PDC is effective against fighters at close range
+    - Missiles have longer range but limited ammo
+
+    The freighter will continue on its course - don't let it out of your sight!
+
+  objectives:
+    - id: "protect_freighter"
+      type: "protect_ship"
+      description: "Keep the Canterbury intact"
+      required: true
+      params:
+        target: "freighter01"
+        time: 180  # 3 minutes
+        start_time: 0
+
+    - id: "stay_close"
+      type: "reach_range"
+      description: "Stay within 10km of the Canterbury"
+      required: false  # Optional objective
+      params:
+        target: "freighter01"
+        range: 10000
+
+  success_message: |
+    Escort mission successful!
+
+    The Canterbury has safely reached its destination thanks to your protection.
+    The captain sends their gratitude.
+
+    Bonus: All threats were neutralized with no damage to the cargo.
+
+  failure_message: |
+    Mission failed.
+
+    The Canterbury was destroyed. Critical supplies have been lost.
+    Families are waiting for those supplies...
+
+  hints:
+    - trigger: "start"
+      message: "Match velocity with the freighter: 'autopilot match freighter01'"
+    - trigger: "range < 100000"
+      target: "hostile01"
+      message: "CONTACT ALERT: Hostile ship detected! Engaging intercept recommended"
+    - trigger: "time > 60"
+      message: "Halfway there. Keep scanning for threats"
+    - trigger: "time > 150"
+      message: "30 seconds remaining! Almost safe"

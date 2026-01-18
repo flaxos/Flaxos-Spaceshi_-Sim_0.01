@@ -1,0 +1,162 @@
+# Race Mission: Checkpoint Run
+# Navigate through checkpoints against the clock
+
+name: "Race: Belt Runner"
+description: "Navigate through asteroid belt checkpoints in record time"
+
+dt: 0.1
+
+ships:
+  - id: "player"
+    name: "Lightning"
+    class: "racer"
+    player_controlled: true
+    position: {x: 0, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+    mass: 1500
+    systems:
+      propulsion:
+        max_thrust: 50000  # High thrust-to-weight ratio
+        fuel_level: 5000
+        max_fuel: 5000
+      sensors:
+        passive:
+          range: 150000
+        active:
+          scan_range: 300000
+      navigation: {}
+
+  - id: "checkpoint01"
+    name: "Checkpoint Alpha"
+    class: "beacon"
+    position: {x: 50000, y: 30000, z: 10000}  # ~59km
+    velocity: {x: 0, y: 0, z: 0}
+    mass: 100
+    systems:
+      sensors:
+        passive:
+          range: 10000
+
+  - id: "checkpoint02"
+    name: "Checkpoint Bravo"
+    class: "beacon"
+    position: {x: 90000, y: -20000, z: -15000}  # From Alpha: ~55km
+    velocity: {x: 0, y: 0, z: 0}
+    mass: 100
+    systems:
+      sensors:
+        passive:
+          range: 10000
+
+  - id: "checkpoint03"
+    name: "Checkpoint Charlie"
+    class: "beacon"
+    position: {x: 140000, y: 40000, z: 25000}  # From Bravo: ~83km
+    velocity: {x: 0, y: 0, z: 0}
+    mass: 100
+    systems:
+      sensors:
+        passive:
+          range: 10000
+
+  - id: "finish_line"
+    name: "Finish Line"
+    class: "beacon"
+    position: {x: 180000, y: 10000, z: -5000}  # From Charlie: ~59km
+    velocity: {x: 0, y: 0, z: 0}
+    mass: 100
+    systems:
+      sensors:
+        passive:
+          range: 10000
+
+mission:
+  name: "Belt Runner Championship"
+  description: "Complete the checkpoint course in under 4 minutes"
+
+  briefing: |
+    Welcome to the Belt Runner Championship!
+
+    You'll be racing through a course marked by four checkpoints in the
+    asteroid belt. Your ship is light and fast - use that to your advantage.
+
+    Course layout:
+    - Start → Checkpoint Alpha: 59km
+    - Checkpoint Alpha → Bravo: 55km
+    - Checkpoint Bravo → Charlie: 83km
+    - Checkpoint Charlie → Finish: 59km
+    Total distance: ~256km
+
+    Time to beat: 4 minutes (240 seconds)
+    Current record: 3 minutes 45 seconds
+
+    Tips:
+    - Use 'autopilot intercept' to navigate between checkpoints
+    - Manually override autopilot if you can plot a better course
+    - Watch your fuel - running out means DNF
+    - Get within 2km of each checkpoint to trigger it
+
+    Race starts on your command. Good luck!
+
+  objectives:
+    - id: "checkpoint_alpha"
+      type: "reach_range"
+      description: "Pass through Checkpoint Alpha"
+      required: true
+      params:
+        target: "checkpoint01"
+        range: 2000
+        initial_range: 59000
+
+    - id: "checkpoint_bravo"
+      type: "reach_range"
+      description: "Pass through Checkpoint Bravo"
+      required: true
+      params:
+        target: "checkpoint02"
+        range: 2000
+
+    - id: "checkpoint_charlie"
+      type: "reach_range"
+      description: "Pass through Checkpoint Charlie"
+      required: true
+      params:
+        target: "checkpoint03"
+        range: 2000
+
+    - id: "reach_finish"
+      type: "reach_range"
+      description: "Cross the finish line"
+      required: true
+      params:
+        target: "finish_line"
+        range: 2000
+
+  time_limit: 240  # 4 minutes to complete
+
+  success_message: |
+    RACE COMPLETE!
+
+    Congratulations! You've finished the Belt Runner course.
+
+    Check your time - did you beat the 3:45 record?
+
+    Your piloting skills are exceptional. The belt runners' guild
+    would be proud.
+
+  failure_message: |
+    Race incomplete.
+
+    You either missed a checkpoint or ran out of time.
+    The belt is unforgiving - better luck next time, pilot.
+
+  hints:
+    - trigger: "start"
+      message: "Target Checkpoint Alpha and engage intercept autopilot!"
+    - trigger: "range < 5000"
+      target: "checkpoint01"
+      message: "Checkpoint Alpha reached! Now target Bravo"
+    - trigger: "time > 180"
+      message: "60 seconds remaining! Push those engines!"
+    - trigger: "time > 210"
+      message: "Final sprint! 30 seconds to finish!"

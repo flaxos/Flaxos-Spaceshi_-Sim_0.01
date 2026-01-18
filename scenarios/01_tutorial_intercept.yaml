@@ -1,0 +1,99 @@
+# Tutorial Mission: Basic Intercept
+# Learn the basics of navigation and autopilot
+
+name: "Tutorial: Intercept and Approach"
+description: "Learn to use sensors and autopilot to intercept a target"
+
+dt: 0.1
+
+ships:
+  - id: "player"
+    name: "Rocinante"
+    class: "corvette"
+    player_controlled: true
+    position: {x: 0, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+    mass: 5000
+    systems:
+      propulsion:
+        max_thrust: 50000
+        fuel_level: 10000
+        max_fuel: 10000
+      sensors:
+        passive:
+          range: 200000
+        active:
+          scan_range: 500000
+      navigation: {}
+      targeting: {}
+
+  - id: "target_station"
+    name: "Tycho Station"
+    class: "station"
+    position: {x: 50000, y: 20000, z: 0}  # ~54km away
+    velocity: {x: 0, y: 0, z: 0}  # Stationary
+    mass: 100000
+    systems:
+      sensors:
+        passive:
+          range: 100000
+
+mission:
+  name: "First Contact"
+  description: "Intercept Tycho Station and close to docking range"
+
+  briefing: |
+    Welcome, pilot. This is a training mission to familiarize you with
+    the basic systems of your ship.
+
+    Your objective is to intercept Tycho Station, currently 54km away.
+    The station is stationary, so this should be straightforward.
+
+    Steps:
+    1. Use 'contacts' to detect the station
+    2. Use 'target C001' to lock it as your target
+    3. Use 'autopilot intercept C001' to engage automatic pursuit
+    4. Monitor your progress with 'status'
+    5. The autopilot will bring you within 1km automatically
+
+    Good luck!
+
+  objectives:
+    - id: "detect_station"
+      type: "scan_target"
+      description: "Detect the station with sensors"
+      required: true
+      params:
+        target: "target_station"
+
+    - id: "close_to_1km"
+      type: "reach_range"
+      description: "Close to within 1km of the station"
+      required: true
+      params:
+        target: "target_station"
+        range: 1000
+        initial_range: 54000
+
+  success_message: |
+    Excellent work! You've successfully intercepted Tycho Station.
+
+    You've learned:
+    - How to use passive sensors to detect contacts
+    - How to lock a target
+    - How to engage the intercept autopilot
+    - How the autopilot automatically transitions between phases
+
+    Ready for the next mission?
+
+  failure_message: "Training failed. Review the briefing and try again."
+
+  hints:
+    - trigger: "start"
+      message: "Use the 'contacts' command to see detected ships"
+    - trigger: "range < 30000"
+      target: "target_station"
+      message: "You're getting close! The autopilot will automatically slow down as you approach"
+    - trigger: "range < 5000"
+      target: "target_station"
+      message: "Almost there! The autopilot is now in match velocity phase"
