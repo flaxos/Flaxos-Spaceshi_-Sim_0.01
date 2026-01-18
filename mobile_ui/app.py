@@ -56,6 +56,15 @@ def api_send():
     except OSError as exc:
         return jsonify({"ok": False, "error": str(exc)})
 
+    if isinstance(response, dict) and response.get("ok") is False:
+        return jsonify(
+            {
+                "ok": False,
+                "error": response.get("error", "server error"),
+                "response": response,
+            }
+        )
+
     return jsonify({"ok": True, "response": response})
 
 
