@@ -38,7 +38,7 @@ def _format_ship_state(state: dict) -> dict:
 
 
 def dispatch(runner: HybridRunner, req: dict) -> dict:
-    cmd = req.get("cmd")
+    cmd = req.get("cmd") or req.get("command")
     if not cmd:
         return {"ok": False, "error": "missing cmd"}
 

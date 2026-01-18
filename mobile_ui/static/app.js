@@ -21,19 +21,23 @@ async function sendCommand(command, extra = {}) {
 
   appendLog(`>> ${JSON.stringify(payload)}`, "request");
 
-  const response = await fetch("/api/send", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ host, port, payload }),
-  });
+  try {
+    const response = await fetch("/api/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ host, port, payload }),
+    });
 
-  const data = await response.json();
-  if (!data.ok) {
-    appendLog(`!! ${data.error}`, "error");
-    return;
+    const data = await response.json();
+    if (!data.ok) {
+      appendLog(`!! ${data.error}`, "error");
+      return;
+    }
+
+    appendLog(`<< ${JSON.stringify(data.response)}`, "response");
+  } catch (error) {
+    appendLog(`!! ${error}`, "error");
   }
-
-  appendLog(`<< ${JSON.stringify(data.response)}`, "response");
 }
 
 function setUpActions() {
