@@ -1,0 +1,82 @@
+{
+  "id": "test_ship_001",
+  "position": {
+    "x": -2000.0,
+    "y": 500.0,
+    "z": -1500.0
+  },
+  "velocity": {
+    "x": 5.0,
+    "y": 0.0,
+    "z": 0.0
+  },
+  "orientation": {
+    "pitch": 0.0,
+    "yaw": 90.0,
+    "roll": 0.0
+  },
+  "angular_velocity": {
+    "pitch": 0.0,
+    "yaw": 0.0,
+    "roll": 0.0
+  },
+  "mass": 800.0,
+  "systems": {
+    "propulsion": {
+      "enabled": true,
+      "power_draw": 30,
+      "mass": 150,
+      "slot_type": "propulsion",
+      "tech_level": 1,
+      "main_drive": {
+        "thrust": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "max_thrust": 150.0
+      },
+      "power_status": true
+    },
+    "sensors": {
+      "enabled": true,
+      "power_draw": 8,
+      "mass": 40,
+      "slot_type": "sensor",
+      "tech_level": 1,
+      "passive": {
+        "range": 800.0,
+        "contacts": []
+      },
+      "active": {
+        "scan_range": 6000.0,
+        "scan_fov": 150.0,
+        "cooldown": 0,
+        "cooldown_time": 8.0,
+        "contact_count": 0
+      },
+      "signature_base": 1.2
+    },
+    "power_management": {
+      "primary": {
+        "output": 100.0
+      },
+      "secondary": {
+        "output": 50.0
+      },
+      "tertiary": {
+        "output": 25.0
+      },
+      "alert_threshold": 0.1,
+      "system_map": {
+        "propulsion": "primary",
+        "weapons": "primary",
+        "sensors": "secondary",
+        "defense": "secondary",
+        "rcs": "secondary",
+        "life_support": "tertiary",
+        "bio_monitor": "tertiary"
+      }
+    }
+  }
+}
