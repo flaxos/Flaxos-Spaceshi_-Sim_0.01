@@ -17,6 +17,7 @@ class StationType(Enum):
     OPS = "ops"              # Sensors, contacts, electronic warfare
     ENGINEERING = "engineering"  # Power, damage control, repairs
     COMMS = "comms"          # Fleet coordination, hailing, jamming
+    FLEET_COMMANDER = "fleet_commander"  # Multi-ship coordination, fleet tactics
 
 
 class PermissionLevel(Enum):
@@ -50,7 +51,7 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
         },
         displays={"all_displays"},
         can_override={StationType.HELM, StationType.TACTICAL, StationType.OPS,
-                      StationType.ENGINEERING, StationType.COMMS},
+                      StationType.ENGINEERING, StationType.COMMS, StationType.FLEET_COMMANDER},
     ),
 
     StationType.HELM: StationDefinition(
@@ -174,6 +175,47 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             "message_queue", "encryption_status",
             "iff_contacts", "jamming_status",
         },
+        required_systems={"comms"},
+    ),
+
+    StationType.FLEET_COMMANDER: StationDefinition(
+        station_type=StationType.FLEET_COMMANDER,
+        commands={
+            # Fleet formation
+            "fleet_create", "fleet_disband", "fleet_add_ship", "fleet_remove_ship",
+            "fleet_form", "fleet_break_formation", "fleet_set_formation",
+            "fleet_set_spacing", "fleet_reposition",
+            # Fleet coordination
+            "fleet_target", "fleet_clear_target", "fleet_priority_target",
+            "fleet_fire", "fleet_cease_fire", "fleet_fire_volley",
+            "fleet_maneuver", "fleet_intercept", "fleet_hold_position",
+            # Fleet assignments
+            "assign_squadron", "reassign_ship", "set_flagship",
+            "assign_sector", "assign_role",
+            # Tactical data link
+            "share_contact", "share_target", "broadcast_tactical",
+            "request_status", "fleet_sitrep",
+            # Fleet status
+            "fleet_status", "fleet_tactical", "fleet_roster",
+            "squadron_status", "threat_assessment",
+            # Can also issue COMMS and TACTICAL commands
+            "hail", "broadcast", "target", "untarget",
+        },
+        displays={
+            # Fleet overview
+            "fleet_tactical_display", "fleet_formation_view",
+            "fleet_status_board", "squadron_roster", "ship_positions",
+            # Shared data
+            "shared_contacts", "tactical_data_link", "threat_board",
+            "engagement_summary", "fleet_firepower",
+            # Communications
+            "fleet_comms", "command_channel", "message_queue",
+            # Target coordination
+            "fleet_targets", "target_assignments", "firing_coordination",
+            # Also sees COMMS and TACTICAL displays
+            "comm_log", "weapons_status", "target_info",
+        },
+        can_override={StationType.TACTICAL, StationType.COMMS},
         required_systems={"comms"},
     ),
 }
