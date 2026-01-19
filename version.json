@@ -1,0 +1,11 @@
+{
+  "version": "0.1.0",
+  "build": 1,
+  "release_date": "2026-01-19",
+  "update_url": "https://api.github.com/repos/flaxos/Flaxos-Spaceshi_-Sim_0.01/releases/latest",
+  "changelog": [
+    "Initial Android auto-update support",
+    "Pydroid standalone client/server combo",
+    "APK build system support"
+  ]
+}

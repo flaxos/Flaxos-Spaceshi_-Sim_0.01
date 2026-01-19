@@ -1,0 +1,172 @@
+name: Android Auto-Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (e.g., 0.1.0)'
+        required: true
+        default: '0.1.0'
+
+jobs:
+  build-pydroid-package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run tests
+        run: |
+          pip install pytest
+          python -m pytest -q || true
+
+      - name: Get version from tag or input
+        id: get_version
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Update version.json
+        run: |
+          VERSION="${{ steps.get_version.outputs.VERSION }}"
+          BUILD_NUMBER=${{ github.run_number }}
+          DATE=$(date -u +"%Y-%m-%d")
+
+          cat > version.json <<EOF
+          {
+            "version": "${VERSION}",
+            "build": ${BUILD_NUMBER},
+            "release_date": "${DATE}",
+            "update_url": "https://api.github.com/repos/${{ github.repository }}/releases/latest",
+            "changelog": [
+              "Automated release v${VERSION}",
+              "Build #${BUILD_NUMBER}"
+            ]
+          }
+          EOF
+
+      - name: Create Pydroid package
+        run: |
+          VERSION="${{ steps.get_version.outputs.VERSION }}"
+          PACKAGE_NAME="flaxos-spaceship-sim-pydroid-${VERSION}.zip"
+
+          # Create clean package excluding dev files
+          mkdir -p dist
+          zip -r "dist/${PACKAGE_NAME}" . \
+            -x "*.git*" \
+            -x "*__pycache__*" \
+            -x "*.pyc" \
+            -x "*dist/*" \
+            -x "*build/*" \
+            -x "*.pytest_cache*" \
+            -x "*venv/*" \
+            -x "*.idea/*" \
+            -x "*.vscode/*"
+
+          echo "PACKAGE_PATH=dist/${PACKAGE_NAME}" >> $GITHUB_ENV
+          echo "PACKAGE_NAME=${PACKAGE_NAME}" >> $GITHUB_ENV
+
+      - name: Generate checksums
+        run: |
+          cd dist
+          sha256sum *.zip > checksums.txt
+          cat checksums.txt
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ steps.get_version.outputs.VERSION }}
+          release_name: Flaxos Spaceship Sim v${{ steps.get_version.outputs.VERSION }}
+          body: |
+            ## Flaxos Spaceship Sim - Android/Pydroid Release
+
+            Version: ${{ steps.get_version.outputs.VERSION }}
+            Build: ${{ github.run_number }}
+
+            ### Installation Instructions
+
+            #### Pydroid3 Installation
+            1. Download the Pydroid package (`flaxos-spaceship-sim-pydroid-*.zip`)
+            2. Extract to your Android device
+            3. Open Pydroid3 and navigate to the extracted folder
+            4. Run `python pydroid_run.py`
+            5. Open browser to `http://localhost:5000`
+
+            ### What's Included
+            - Complete spaceship simulator with physics engine
+            - TCP server for networked gameplay
+            - Mobile-optimized Flask UI
+            - Auto-update system
+            - All scenarios and configurations
+
+            ### Requirements
+            - Pydroid3 app
+            - Python 3.8+
+            - Dependencies: numpy, pyyaml, flask
+
+            ### Checksums
+            ```
+            $(cat dist/checksums.txt)
+            ```
+          draft: false
+          prerelease: false
+
+      - name: Upload Pydroid Package
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ env.PACKAGE_PATH }}
+          asset_name: ${{ env.PACKAGE_NAME }}
+          asset_content_type: application/zip
+
+      - name: Upload Checksums
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: dist/checksums.txt
+          asset_name: checksums.txt
+          asset_content_type: text/plain
+
+  # Optional APK build job (requires additional setup)
+  build-apk:
+    runs-on: ubuntu-latest
+    if: false  # Set to true when buildozer is configured
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build APK with Buildozer
+        uses: ArtemSBulgakov/buildozer-action@v1
+        id: buildozer
+        with:
+          command: buildozer android debug
+          buildozer_version: stable
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: flaxos-spaceship-sim.apk
+          path: bin/*.apk

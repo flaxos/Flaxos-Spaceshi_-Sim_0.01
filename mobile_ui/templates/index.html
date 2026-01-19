@@ -144,6 +144,21 @@
         <button data-action="set-power-allocation">Set Allocation</button>
       </section>
 
+      <section class="panel">
+        <h2>System Updates</h2>
+        <div id="version-info" class="version-display">
+          <p>Current Version: <strong id="current-version">Loading...</strong></p>
+          <p>Build: <strong id="current-build">-</strong></p>
+          <p>Release Date: <strong id="release-date">-</strong></p>
+        </div>
+        <div id="update-status" class="update-status"></div>
+        <div class="actions">
+          <button data-action="check-update">Check for Updates</button>
+          <button data-action="apply-update" id="apply-update-btn" style="display:none;">Apply Update</button>
+        </div>
+        <div id="update-changelog" class="changelog" style="display:none;"></div>
+      </section>
+
       <section class="panel log">
         <h2>Command Log</h2>
         <div id="log"></div>

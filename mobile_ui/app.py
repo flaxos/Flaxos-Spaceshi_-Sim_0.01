@@ -1,14 +1,28 @@
 import json
 import socket
+import sys
+from pathlib import Path
 from typing import Any
 
 from flask import Flask, jsonify, render_template, request
+
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from android_update.pydroid_manager import (
+    PydroidUpdateManager,
+    create_update_api_routes,
+)
 
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8765
 SOCKET_TIMEOUT = 3
 
 app = Flask(__name__)
+
+# Initialize update manager and add API routes
+update_manager = PydroidUpdateManager(str(Path(__file__).parent.parent))
+create_update_api_routes(app, update_manager)
 
 
 def send_socket_command(host: str, port: int, payload: dict[str, Any]) -> Any:
