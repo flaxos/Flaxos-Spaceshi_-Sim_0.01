@@ -41,8 +41,13 @@ See [`docs/ANDROID_AUTO_UPDATE.md`](docs/ANDROID_AUTO_UPDATE.md) for complete do
 
 ### 1) Install dependencies in Pydroid
 ```bash
-pip install numpy pyyaml flask
+pip install pyyaml flask
+
+# Optional: numpy (required for fleet formations)
+pip install numpy
 ```
+
+**Note**: NumPy is optional. Core functionality works without it, but fleet formation features require NumPy.
 
 ### 2) Start the server (desktop recommended)
 Run the sim server from your desktop/laptop so it can host the simulation loop:
@@ -347,6 +352,71 @@ status = mission.get_status()
 - **Documentation**: New sprint recommendations and implementation guide
 
 See [`docs/SPRINT_RECOMMENDATIONS.md`](docs/SPRINT_RECOMMENDATIONS.md) for complete details.
+
+## Phase 2: Multi-Crew Station Architecture
+
+### 🎮 Multi-Station System
+Play cooperatively with multiple crew members on different stations, each with specialized roles and permissions:
+
+**Station Types:**
+- **CAPTAIN**: Full ship control, can override any station
+- **HELM**: Navigation, autopilot, thrust control
+- **TACTICAL**: Weapons, targeting, firing control
+- **OPS**: Sensors, contacts, ECM/ECCM
+- **ENGINEERING**: Power management, damage control, repairs
+- **COMMS**: Fleet communications, IFF, hailing
+- **FLEET_COMMANDER**: Fleet-level tactical control, formation management
+
+**Permission Levels:**
+- **CAPTAIN**: All commands, sees all events
+- **OFFICER**: Station commands + cross-station visibility
+- **CREW**: Station-specific commands only
+
+**Features:**
+- Role-based command authorization
+- Station-specific event filtering
+- Session management with automatic cleanup
+- Client registration and ship assignment
+- Concurrent multi-client support
+
+### 🤖 Fleet Management & AI
+- **Fleet Manager**: Coordinate multiple ships in formations
+  - Line, wedge, column, and sphere formations
+  - Automatic position calculation and maintenance
+  - Fleet-wide command propagation
+
+- **AI Controller**: Autonomous ship behavior
+  - IDLE, PATROL, INTERCEPT, ESCORT, ATTACK modes
+  - Behavior-based decision making
+  - Integration with ship systems
+  - Enable/disable AI per ship
+
+### 👥 Crew Efficiency System
+Realistic crew skill and fatigue simulation:
+
+**Crew Skills:**
+- PILOTING, GUNNERY, SENSORS, ENGINEERING, COMMUNICATIONS, TACTICAL
+- Skill levels: Novice (40%), Skilled (70%), Expert (90%), Master (100%)
+- Progressive skill improvement through experience
+- Performance tracking with success rate calculation
+
+**Fatigue System:**
+- Gradual fatigue accumulation during duty (8hr full fatigue)
+- Rest recovery (8hr for full recovery)
+- Efficiency penalties when fatigued
+- Command execution affected by crew state
+
+**Crew Management:**
+- Create and assign crew to ships
+- Track performance metrics
+- Station assignment with skill matching
+- Real-time efficiency calculations
+
+### 📡 Enhanced Event System
+- **Station-Based Filtering**: Clients only receive relevant events for their station
+- **Event Categories**: HELM, TACTICAL, OPS, ENGINEERING, COMMS, FLEET_COMMANDER
+- **Universal Events**: Critical alerts, hints, and mission updates visible to all
+- **Bandwidth Optimization**: Reduced network traffic through smart filtering
 
 ## What's in Sprint 2 (Previous Release)
 - **Missiles/Torps/Nukes**: PN-like guidance; seeker FOV; ECM/ECCM (wider FOV + turn authority); proximity fusing; nuke AoE.
