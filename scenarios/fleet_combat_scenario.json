@@ -1,0 +1,621 @@
+{
+  "name": "Fleet Combat Test Scenario",
+  "description": "Two fleets engaging in combat - tests fleet formations, AI controllers, and multi-ship coordination",
+  "metadata": {
+    "author": "Phase 2 Integration",
+    "version": "1.0",
+    "tags": ["combat", "fleet", "multi-ship", "phase2"],
+    "difficulty": "hard"
+  },
+  "fleets": [
+    {
+      "fleet_id": "alpha",
+      "name": "Alpha Fleet",
+      "faction": "unsa",
+      "flagship": "alpha_flagship",
+      "formation": "wedge",
+      "ships": ["alpha_flagship", "alpha_frigate_1", "alpha_frigate_2"]
+    },
+    {
+      "fleet_id": "bravo",
+      "name": "Bravo Fleet",
+      "faction": "mcrn",
+      "flagship": "bravo_flagship",
+      "formation": "line",
+      "ships": ["bravo_flagship", "bravo_destroyer_1", "bravo_destroyer_2"]
+    }
+  ],
+  "ships": [
+    {
+      "id": "alpha_flagship",
+      "name": "UNS Donnager",
+      "class": "cruiser",
+      "faction": "unsa",
+      "mass": 5000.0,
+      "ai_enabled": false,
+      "position": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "velocity": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "orientation": {
+        "pitch": 0.0,
+        "yaw": 0.0,
+        "roll": 0.0
+      },
+      "systems": {
+        "propulsion": {
+          "enabled": true,
+          "power_draw": 100,
+          "mass": 500,
+          "slot_type": "propulsion",
+          "tech_level": 3,
+          "main_drive": {
+            "thrust": {"x": 0.0, "y": 0.0, "z": 0.0},
+            "max_thrust": 500.0
+          },
+          "power_status": true
+        },
+        "sensors": {
+          "enabled": true,
+          "power_draw": 30,
+          "mass": 100,
+          "slot_type": "sensor",
+          "tech_level": 3,
+          "passive": {
+            "range": 50000.0,
+            "contacts": []
+          },
+          "active": {
+            "scan_range": 100000.0,
+            "scan_fov": 180.0,
+            "cooldown": 0,
+            "cooldown_time": 3.0,
+            "contact_count": 0
+          },
+          "signature_base": 1.8,
+          "contacts": []
+        },
+        "navigation": {
+          "enabled": true,
+          "power_draw": 10,
+          "mass": 30,
+          "slot_type": "navigation",
+          "tech_level": 3,
+          "autopilot": {
+            "enabled": false,
+            "target": {"x": 0.0, "y": 0.0, "z": 0.0}
+          }
+        },
+        "weapons": {
+          "enabled": true,
+          "power_draw": 50,
+          "mass": 200,
+          "slot_type": "weapons",
+          "tech_level": 3,
+          "railgun_mounts": 4,
+          "torpedo_tubes": 6,
+          "pdc_turrets": 8
+        },
+        "power_management": {
+          "primary": {"output": 200.0},
+          "secondary": {"output": 100.0},
+          "tertiary": {"output": 50.0},
+          "alert_threshold": 0.1,
+          "system_map": {
+            "propulsion": "primary",
+            "weapons": "primary",
+            "sensors": "secondary",
+            "defense": "secondary",
+            "rcs": "secondary",
+            "life_support": "tertiary"
+          }
+        }
+      }
+    },
+    {
+      "id": "alpha_frigate_1",
+      "name": "UNS Defender",
+      "class": "frigate",
+      "faction": "unsa",
+      "mass": 2000.0,
+      "ai_enabled": true,
+      "position": {
+        "x": -500.0,
+        "y": 0.0,
+        "z": 300.0
+      },
+      "velocity": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "orientation": {
+        "pitch": 0.0,
+        "yaw": 0.0,
+        "roll": 0.0
+      },
+      "systems": {
+        "propulsion": {
+          "enabled": true,
+          "power_draw": 60,
+          "mass": 300,
+          "slot_type": "propulsion",
+          "tech_level": 2,
+          "main_drive": {
+            "thrust": {"x": 0.0, "y": 0.0, "z": 0.0},
+            "max_thrust": 300.0
+          },
+          "power_status": true
+        },
+        "sensors": {
+          "enabled": true,
+          "power_draw": 20,
+          "mass": 60,
+          "slot_type": "sensor",
+          "tech_level": 2,
+          "passive": {
+            "range": 30000.0,
+            "contacts": []
+          },
+          "active": {
+            "scan_range": 60000.0,
+            "scan_fov": 160.0,
+            "cooldown": 0,
+            "cooldown_time": 5.0,
+            "contact_count": 0
+          },
+          "signature_base": 1.2,
+          "contacts": []
+        },
+        "navigation": {
+          "enabled": true,
+          "power_draw": 8,
+          "mass": 25,
+          "slot_type": "navigation",
+          "tech_level": 2,
+          "autopilot": {
+            "enabled": false,
+            "target": {"x": 0.0, "y": 0.0, "z": 0.0}
+          }
+        },
+        "weapons": {
+          "enabled": true,
+          "power_draw": 30,
+          "mass": 120,
+          "slot_type": "weapons",
+          "tech_level": 2,
+          "railgun_mounts": 2,
+          "torpedo_tubes": 4,
+          "pdc_turrets": 4
+        },
+        "power_management": {
+          "primary": {"output": 120.0},
+          "secondary": {"output": 60.0},
+          "tertiary": {"output": 30.0},
+          "alert_threshold": 0.1,
+          "system_map": {
+            "propulsion": "primary",
+            "weapons": "primary",
+            "sensors": "secondary",
+            "defense": "secondary",
+            "rcs": "secondary",
+            "life_support": "tertiary"
+          }
+        }
+      }
+    },
+    {
+      "id": "alpha_frigate_2",
+      "name": "UNS Guardian",
+      "class": "frigate",
+      "faction": "unsa",
+      "mass": 2000.0,
+      "ai_enabled": true,
+      "position": {
+        "x": 500.0,
+        "y": 0.0,
+        "z": 300.0
+      },
+      "velocity": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "orientation": {
+        "pitch": 0.0,
+        "yaw": 0.0,
+        "roll": 0.0
+      },
+      "systems": {
+        "propulsion": {
+          "enabled": true,
+          "power_draw": 60,
+          "mass": 300,
+          "slot_type": "propulsion",
+          "tech_level": 2,
+          "main_drive": {
+            "thrust": {"x": 0.0, "y": 0.0, "z": 0.0},
+            "max_thrust": 300.0
+          },
+          "power_status": true
+        },
+        "sensors": {
+          "enabled": true,
+          "power_draw": 20,
+          "mass": 60,
+          "slot_type": "sensor",
+          "tech_level": 2,
+          "passive": {
+            "range": 30000.0,
+            "contacts": []
+          },
+          "active": {
+            "scan_range": 60000.0,
+            "scan_fov": 160.0,
+            "cooldown": 0,
+            "cooldown_time": 5.0,
+            "contact_count": 0
+          },
+          "signature_base": 1.2,
+          "contacts": []
+        },
+        "navigation": {
+          "enabled": true,
+          "power_draw": 8,
+          "mass": 25,
+          "slot_type": "navigation",
+          "tech_level": 2,
+          "autopilot": {
+            "enabled": false,
+            "target": {"x": 0.0, "y": 0.0, "z": 0.0}
+          }
+        },
+        "weapons": {
+          "enabled": true,
+          "power_draw": 30,
+          "mass": 120,
+          "slot_type": "weapons",
+          "tech_level": 2,
+          "railgun_mounts": 2,
+          "torpedo_tubes": 4,
+          "pdc_turrets": 4
+        },
+        "power_management": {
+          "primary": {"output": 120.0},
+          "secondary": {"output": 60.0},
+          "tertiary": {"output": 30.0},
+          "alert_threshold": 0.1,
+          "system_map": {
+            "propulsion": "primary",
+            "weapons": "primary",
+            "sensors": "secondary",
+            "defense": "secondary",
+            "rcs": "secondary",
+            "life_support": "tertiary"
+          }
+        }
+      }
+    },
+    {
+      "id": "bravo_flagship",
+      "name": "MCRN Scirocco",
+      "class": "destroyer",
+      "faction": "mcrn",
+      "mass": 4000.0,
+      "ai_enabled": true,
+      "position": {
+        "x": 20000.0,
+        "y": 0.0,
+        "z": 10000.0
+      },
+      "velocity": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "orientation": {
+        "pitch": 0.0,
+        "yaw": 180.0,
+        "roll": 0.0
+      },
+      "systems": {
+        "propulsion": {
+          "enabled": true,
+          "power_draw": 90,
+          "mass": 450,
+          "slot_type": "propulsion",
+          "tech_level": 3,
+          "main_drive": {
+            "thrust": {"x": 0.0, "y": 0.0, "z": 0.0},
+            "max_thrust": 450.0
+          },
+          "power_status": true
+        },
+        "sensors": {
+          "enabled": true,
+          "power_draw": 28,
+          "mass": 90,
+          "slot_type": "sensor",
+          "tech_level": 3,
+          "passive": {
+            "range": 45000.0,
+            "contacts": []
+          },
+          "active": {
+            "scan_range": 90000.0,
+            "scan_fov": 180.0,
+            "cooldown": 0,
+            "cooldown_time": 3.5,
+            "contact_count": 0
+          },
+          "signature_base": 1.6,
+          "contacts": []
+        },
+        "navigation": {
+          "enabled": true,
+          "power_draw": 10,
+          "mass": 30,
+          "slot_type": "navigation",
+          "tech_level": 3,
+          "autopilot": {
+            "enabled": false,
+            "target": {"x": 0.0, "y": 0.0, "z": 0.0}
+          }
+        },
+        "weapons": {
+          "enabled": true,
+          "power_draw": 45,
+          "mass": 180,
+          "slot_type": "weapons",
+          "tech_level": 3,
+          "railgun_mounts": 3,
+          "torpedo_tubes": 5,
+          "pdc_turrets": 6
+        },
+        "power_management": {
+          "primary": {"output": 180.0},
+          "secondary": {"output": 90.0},
+          "tertiary": {"output": 45.0},
+          "alert_threshold": 0.1,
+          "system_map": {
+            "propulsion": "primary",
+            "weapons": "primary",
+            "sensors": "secondary",
+            "defense": "secondary",
+            "rcs": "secondary",
+            "life_support": "tertiary"
+          }
+        }
+      }
+    },
+    {
+      "id": "bravo_destroyer_1",
+      "name": "MCRN Typhoon",
+      "class": "corvette",
+      "faction": "mcrn",
+      "mass": 1500.0,
+      "ai_enabled": true,
+      "position": {
+        "x": 19500.0,
+        "y": 0.0,
+        "z": 10000.0
+      },
+      "velocity": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "orientation": {
+        "pitch": 0.0,
+        "yaw": 180.0,
+        "roll": 0.0
+      },
+      "systems": {
+        "propulsion": {
+          "enabled": true,
+          "power_draw": 50,
+          "mass": 250,
+          "slot_type": "propulsion",
+          "tech_level": 2,
+          "main_drive": {
+            "thrust": {"x": 0.0, "y": 0.0, "z": 0.0},
+            "max_thrust": 280.0
+          },
+          "power_status": true
+        },
+        "sensors": {
+          "enabled": true,
+          "power_draw": 18,
+          "mass": 50,
+          "slot_type": "sensor",
+          "tech_level": 2,
+          "passive": {
+            "range": 25000.0,
+            "contacts": []
+          },
+          "active": {
+            "scan_range": 50000.0,
+            "scan_fov": 150.0,
+            "cooldown": 0,
+            "cooldown_time": 6.0,
+            "contact_count": 0
+          },
+          "signature_base": 1.0,
+          "contacts": []
+        },
+        "navigation": {
+          "enabled": true,
+          "power_draw": 7,
+          "mass": 20,
+          "slot_type": "navigation",
+          "tech_level": 2,
+          "autopilot": {
+            "enabled": false,
+            "target": {"x": 0.0, "y": 0.0, "z": 0.0}
+          }
+        },
+        "weapons": {
+          "enabled": true,
+          "power_draw": 28,
+          "mass": 100,
+          "slot_type": "weapons",
+          "tech_level": 2,
+          "railgun_mounts": 2,
+          "torpedo_tubes": 3,
+          "pdc_turrets": 3
+        },
+        "power_management": {
+          "primary": {"output": 100.0},
+          "secondary": {"output": 50.0},
+          "tertiary": {"output": 25.0},
+          "alert_threshold": 0.1,
+          "system_map": {
+            "propulsion": "primary",
+            "weapons": "primary",
+            "sensors": "secondary",
+            "defense": "secondary",
+            "rcs": "secondary",
+            "life_support": "tertiary"
+          }
+        }
+      }
+    },
+    {
+      "id": "bravo_destroyer_2",
+      "name": "MCRN Monsoon",
+      "class": "corvette",
+      "faction": "mcrn",
+      "mass": 1500.0,
+      "ai_enabled": true,
+      "position": {
+        "x": 20500.0,
+        "y": 0.0,
+        "z": 10000.0
+      },
+      "velocity": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "orientation": {
+        "pitch": 0.0,
+        "yaw": 180.0,
+        "roll": 0.0
+      },
+      "systems": {
+        "propulsion": {
+          "enabled": true,
+          "power_draw": 50,
+          "mass": 250,
+          "slot_type": "propulsion",
+          "tech_level": 2,
+          "main_drive": {
+            "thrust": {"x": 0.0, "y": 0.0, "z": 0.0},
+            "max_thrust": 280.0
+          },
+          "power_status": true
+        },
+        "sensors": {
+          "enabled": true,
+          "power_draw": 18,
+          "mass": 50,
+          "slot_type": "sensor",
+          "tech_level": 2,
+          "passive": {
+            "range": 25000.0,
+            "contacts": []
+          },
+          "active": {
+            "scan_range": 50000.0,
+            "scan_fov": 150.0,
+            "cooldown": 0,
+            "cooldown_time": 6.0,
+            "contact_count": 0
+          },
+          "signature_base": 1.0,
+          "contacts": []
+        },
+        "navigation": {
+          "enabled": true,
+          "power_draw": 7,
+          "mass": 20,
+          "slot_type": "navigation",
+          "tech_level": 2,
+          "autopilot": {
+            "enabled": false,
+            "target": {"x": 0.0, "y": 0.0, "z": 0.0}
+          }
+        },
+        "weapons": {
+          "enabled": true,
+          "power_draw": 28,
+          "mass": 100,
+          "slot_type": "weapons",
+          "tech_level": 2,
+          "railgun_mounts": 2,
+          "torpedo_tubes": 3,
+          "pdc_turrets": 3
+        },
+        "power_management": {
+          "primary": {"output": 100.0},
+          "secondary": {"output": 50.0},
+          "tertiary": {"output": 25.0},
+          "alert_threshold": 0.1,
+          "system_map": {
+            "propulsion": "primary",
+            "weapons": "primary",
+            "sensors": "secondary",
+            "defense": "secondary",
+            "rcs": "secondary",
+            "life_support": "tertiary"
+          }
+        }
+      }
+    }
+  ],
+  "objectives": [
+    {
+      "id": "obj_1",
+      "type": "destroy",
+      "description": "Destroy all enemy fleet ships",
+      "targets": ["bravo_flagship", "bravo_destroyer_1", "bravo_destroyer_2"],
+      "required": true
+    },
+    {
+      "id": "obj_2",
+      "type": "survive",
+      "description": "Keep flagship alive",
+      "targets": ["alpha_flagship"],
+      "required": true
+    },
+    {
+      "id": "obj_3",
+      "type": "formation",
+      "description": "Maintain fleet formation during engagement",
+      "bonus_points": 500
+    }
+  ],
+  "events": [
+    {
+      "time": 10.0,
+      "type": "message",
+      "content": "Enemy fleet detected at bearing 045, range 22km"
+    },
+    {
+      "time": 30.0,
+      "type": "message",
+      "content": "All ships, form up on flagship. Weapons free."
+    },
+    {
+      "time": 60.0,
+      "type": "message",
+      "content": "Entering engagement range. Commence firing!"
+    }
+  ]
+}

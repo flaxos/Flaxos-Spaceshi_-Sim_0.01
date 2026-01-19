@@ -356,8 +356,15 @@ class StationManager:
             return True, "OK"
 
         # Check if another station owns this command
-        from .station_types import get_station_for_command
+        from .station_types import get_station_for_command, STATION_DEFINITIONS
         owning_station = get_station_for_command(command)
+
+        # Check if client's station can override the owning station
+        if owning_station and session.station:
+            station_def = STATION_DEFINITIONS.get(session.station)
+            if station_def and owning_station in station_def.can_override:
+                logger.info(f"{session.station.value} overriding {owning_station.value} command: {command}")
+                return True, f"Override: {session.station.value} executing {owning_station.value} command"
 
         if owning_station:
             return False, f"Command '{command}' requires {owning_station.value} station"

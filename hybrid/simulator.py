@@ -6,6 +6,7 @@ from datetime import datetime
 import math
 import random
 from hybrid.ship import Ship
+from hybrid.fleet.fleet_manager import FleetManager
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +18,7 @@ class Simulator:
     def __init__(self, dt=0.1):
         """
         Initialize the simulator
-        
+
         Args:
             dt (float): Simulation time step in seconds
         """
@@ -25,6 +26,9 @@ class Simulator:
         self.dt = dt
         self.running = False
         self.time = 0.0
+
+        # Initialize fleet manager
+        self.fleet_manager = FleetManager(simulator=self)
         
     def load_ships_from_directory(self, directory):
         """
@@ -128,25 +132,28 @@ class Simulator:
     def tick(self):
         """
         Run a single simulation tick
-        
+
         Returns:
             float: Time elapsed in simulation
         """
         if not self.running:
             return self.time
-            
+
         # Update all ships
         all_ships = list(self.ships.values())
-        
+
         for ship in all_ships:
-            ship.tick(self.dt, all_ships)
-            
+            ship.tick(self.dt, all_ships, self.time)
+
         # Process sensor interactions
         self._process_sensor_interactions(all_ships)
-            
+
+        # Update fleet manager
+        self.fleet_manager.update(self.dt)
+
         # Update simulation time
         self.time += self.dt
-        
+
         return self.time
         
     def run(self, duration=None):
