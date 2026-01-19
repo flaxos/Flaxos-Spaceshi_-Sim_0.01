@@ -338,6 +338,16 @@ print(mission.briefing)
 status = mission.get_status()
 ```
 
+## Latest Updates (2026-01-19)
+
+### Quality Improvements & Technical Debt Resolution
+- **Event Filtering System**: Station-based event filtering with role-specific event delivery
+- **Fleet Status Reporting**: Real-time ship health assessment (online/damaged/critical/destroyed)
+- **Player Hint System**: Tutorial hints integrated with event bus for better onboarding
+- **Documentation**: New sprint recommendations and implementation guide
+
+See [`docs/SPRINT_RECOMMENDATIONS.md`](docs/SPRINT_RECOMMENDATIONS.md) for complete details.
+
 ## What's in Sprint 2 (Previous Release)
 - **Missiles/Torps/Nukes**: PN-like guidance; seeker FOV; ECM/ECCM (wider FOV + turn authority); proximity fusing; nuke AoE.
 - **Point Defense**: Automatic engagement inside arc/range/FOV.

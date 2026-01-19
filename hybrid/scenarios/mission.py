@@ -33,6 +33,7 @@ class Mission:
         self.tracker = ObjectiveTracker(objectives)
         self.start_time = None
         self.shown_hints = set()
+        self.hint_queue = []  # Queue of hints to be displayed to player
 
     def start(self, sim_time: float):
         """Start the mission.
@@ -110,8 +111,30 @@ class Mission:
 
             if triggered:
                 self.shown_hints.add(hint_id)
-                # TODO: Display hint to player (would need UI integration)
-                print(f"HINT: {message}")
+                # Add hint to queue for retrieval
+                hint_data = {
+                    "id": hint_id,
+                    "message": message,
+                    "time": sim.time,
+                    "trigger": trigger
+                }
+                self.hint_queue.append(hint_data)
+
+                # Publish hint event to player ship's event bus
+                if player_ship and hasattr(player_ship, "event_bus"):
+                    player_ship.event_bus.publish("hint", {
+                        "type": "hint",
+                        "ship_id": player_ship.id,
+                        "hint_id": hint_id,
+                        "message": message,
+                        "sim_time": sim.time,
+                        "trigger": trigger
+                    })
+
+                # Also log to console for debugging
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.info(f"Mission hint triggered: {message}")
 
     def get_status(self) -> Dict:
         """Get mission status.
@@ -163,3 +186,35 @@ class Mission:
             return self.success_message
         else:
             return self.failure_message
+
+    def get_hints(self, clear: bool = False) -> List[Dict]:
+        """Get all hints that have been triggered.
+
+        Args:
+            clear: If True, clear the hint queue after retrieving
+
+        Returns:
+            List of hint dictionaries with id, message, time, trigger
+        """
+        hints = self.hint_queue.copy()
+        if clear:
+            self.hint_queue.clear()
+        return hints
+
+    def get_pending_hints(self) -> List[Dict]:
+        """Get hints that haven't been shown yet.
+
+        This is useful for UI integration - call this to get new hints,
+        then they can be displayed and cleared.
+
+        Returns:
+            List of hint dictionaries
+        """
+        return self.hint_queue.copy()
+
+    def clear_hint_queue(self):
+        """Clear all hints from the queue.
+
+        Call this after hints have been displayed to the user.
+        """
+        self.hint_queue.clear()
