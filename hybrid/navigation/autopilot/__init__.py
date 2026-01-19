@@ -5,6 +5,7 @@ from .base import BaseAutopilot
 from .match_velocity import MatchVelocityAutopilot
 from .intercept import InterceptAutopilot
 from .hold import HoldPositionAutopilot
+from .formation import FormationAutopilot, EchelonFormationAutopilot
 from .factory import AutopilotFactory
 
 __all__ = [
@@ -12,5 +13,7 @@ __all__ = [
     'MatchVelocityAutopilot',
     'InterceptAutopilot',
     'HoldPositionAutopilot',
+    'FormationAutopilot',
+    'EchelonFormationAutopilot',
     'AutopilotFactory'
 ]
