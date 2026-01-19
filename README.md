@@ -16,6 +16,29 @@ python hybrid/gui/gui.py
 ## Android/Pydroid UAT (TCP JSON)
 The sim server speaks **newline-delimited JSON over TCP** (one JSON object per line). The Android UI can run in Pydroid and connect over your LAN.
 
+### Auto-Update System
+This project includes a **built-in auto-update system** that keeps your Android/Pydroid installation synchronized with the latest GitHub releases. Updates can be applied with one click from the mobile UI!
+
+**Features:**
+- Automatic update checking from GitHub releases
+- One-click updates via mobile web interface
+- Version management with changelog display
+- Pydroid3 and APK support
+- Preserves your configuration during updates
+
+**Quick Update:**
+```bash
+# Check for updates (CLI)
+python check_update.py --check
+
+# Apply updates (CLI)
+python check_update.py --apply
+
+# Or use the mobile UI "System Updates" panel
+```
+
+See [`docs/ANDROID_AUTO_UPDATE.md`](docs/ANDROID_AUTO_UPDATE.md) for complete documentation.
+
 ### 1) Install dependencies in Pydroid
 ```bash
 pip install numpy pyyaml flask

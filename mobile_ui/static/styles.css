@@ -132,3 +132,71 @@ button:hover {
 .log-item.error {
   border-color: #ff5a5a;
 }
+
+/* Update panel styles */
+.version-display {
+  background: #0d121b;
+  border: 1px solid #1f2a35;
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.version-display p {
+  margin: 0.4rem 0;
+  font-size: 0.9rem;
+}
+
+.version-display strong {
+  color: #2d80ff;
+}
+
+.update-status {
+  padding: 0.75rem;
+  border-radius: 8px;
+  margin-bottom: 0.75rem;
+  font-weight: 500;
+}
+
+.update-status.info {
+  background: #1a2332;
+  border: 1px solid #2d80ff;
+  color: #6fb4ff;
+}
+
+.update-status.success {
+  background: #1a2b23;
+  border: 1px solid #4fd18b;
+  color: #7fecb1;
+}
+
+.update-status.error {
+  background: #2b1a1a;
+  border: 1px solid #ff5a5a;
+  color: #ff8a8a;
+}
+
+.changelog {
+  background: #0d121b;
+  border: 1px solid #1f2a35;
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin-top: 0.75rem;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.changelog h3 {
+  margin-top: 0;
+  font-size: 1rem;
+  color: #2d80ff;
+}
+
+.changelog pre {
+  margin: 0;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  color: #c9d7e6;
+}

@@ -20,3 +20,14 @@ ENV/
 
 # Misc
 .DS_Store
+
+# Android/Buildozer artifacts
+.buildozer/
+bin/
+build/
+dist/
+*.apk
+*.aab
+
+# Update system temp files
+update_temp/
