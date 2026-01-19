@@ -21,20 +21,20 @@ class Ship:
     def __init__(self, ship_id, config=None):
         """
         Initialize a ship with the given configuration
-        
+
         Args:
             ship_id (str): Unique identifier for the ship
             config (dict): Configuration dictionary for the ship
         """
         self.id = ship_id
         config = config or {}
-        
+
         # Initialize ship properties with defaults
         self.name = config.get("name", ship_id)
         self.mass = config.get("mass", 1000.0)  # kg
         self.class_type = config.get("class", "shuttle")
         self.faction = config.get("faction", "neutral")
-        
+
         # Initialize physical state
         self.position = self._get_vector3_config(config.get("position", {}))
         self.velocity = self._get_vector3_config(config.get("velocity", {}))
@@ -42,13 +42,18 @@ class Ship:
         self.orientation = self._get_vector3_config(config.get("orientation", {}), "pitch", "yaw", "roll")
         self.angular_velocity = {"pitch": 0.0, "yaw": 0.0, "roll": 0.0}
         self.thrust = {"x": 0.0, "y": 0.0, "z": 0.0}
-        
+
         # Create the event bus for system communication
         self.event_bus = EventBus()
-        
+
         # Initialize systems
         self.systems = {}
         self._load_systems(config.get("systems", {}))
+
+        # Fleet and AI control
+        self.fleet_id = None  # Fleet this ship belongs to
+        self.ai_controller = None  # AI controller (if AI-controlled)
+        self.ai_enabled = config.get("ai_enabled", False)
         
         # Initialize command handler
         self.command_handlers = {
@@ -107,14 +112,22 @@ class Ship:
                     "error": str(e)
                 }
     
-    def tick(self, dt, all_ships=None):
+    def tick(self, dt, all_ships=None, sim_time=0.0):
         """
         Update ship state for the current time step
 
         Args:
             dt (float): Time delta in seconds
-            all_ships (list, optional): Unused but accepted for compatibility
+            all_ships (list, optional): List of all ships in simulation
+            sim_time (float): Current simulation time
         """
+        # Update AI controller if enabled
+        if self.ai_enabled and self.ai_controller:
+            try:
+                self.ai_controller.update(dt, sim_time)
+            except Exception as e:
+                logger.error(f"Error in AI controller for {self.id}: {e}")
+
         # First pass: update all systems
         for system_type, system in self.systems.items():
             if hasattr(system, "tick") and callable(system.tick):
@@ -122,7 +135,7 @@ class Ship:
                     system.tick(dt, self, self.event_bus)
                 except Exception as e:
                     print(f"Error in system {system_type} tick: {e}")
-        
+
         # Update physics after systems have updated
         self._update_physics(dt)
     
@@ -401,3 +414,65 @@ class Ship:
         if not pm:
             return {"error": "Power management system not available"}
         return pm.get_state()
+
+    def enable_ai(self, behavior=None, params=None):
+        """
+        Enable AI control for this ship.
+
+        Args:
+            behavior (AIBehavior, optional): Initial AI behavior
+            params (dict, optional): Behavior parameters
+
+        Returns:
+            bool: True if AI was enabled successfully
+        """
+        try:
+            from hybrid.fleet.ai_controller import AIController, AIBehavior
+
+            # Create AI controller if it doesn't exist
+            if not self.ai_controller:
+                self.ai_controller = AIController(self)
+
+            # Set behavior if specified
+            if behavior:
+                self.ai_controller.set_behavior(behavior, params)
+
+            self.ai_enabled = True
+            logger.info(f"AI enabled for {self.id}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to enable AI for {self.id}: {e}")
+            return False
+
+    def disable_ai(self):
+        """
+        Disable AI control for this ship.
+
+        Returns:
+            bool: True if AI was disabled successfully
+        """
+        self.ai_enabled = False
+        logger.info(f"AI disabled for {self.id}")
+        return True
+
+    def set_ai_behavior(self, behavior, params=None):
+        """
+        Set AI behavior (AI must be enabled first).
+
+        Args:
+            behavior (AIBehavior): Behavior to set
+            params (dict, optional): Behavior parameters
+
+        Returns:
+            bool: True if behavior was set successfully
+        """
+        if not self.ai_controller:
+            logger.warning(f"Cannot set AI behavior for {self.id}: AI not initialized")
+            return False
+
+        try:
+            self.ai_controller.set_behavior(behavior, params)
+            return True
+        except Exception as e:
+            logger.error(f"Failed to set AI behavior for {self.id}: {e}")
+            return False

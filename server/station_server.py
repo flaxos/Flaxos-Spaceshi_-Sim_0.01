@@ -25,7 +25,9 @@ from hybrid.telemetry import get_ship_telemetry, get_telemetry_snapshot
 from server.stations import StationManager
 from server.stations.station_dispatch import StationAwareDispatcher, CommandResult, register_legacy_commands
 from server.stations.station_commands import register_station_commands
+from server.stations.fleet_commands import register_fleet_commands
 from server.stations.station_telemetry import StationTelemetryFilter
+from server.stations.crew_system import CrewManager
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -47,6 +49,7 @@ class StationServer:
 
         # Initialize station system
         self.station_manager = StationManager()
+        self.crew_manager = CrewManager()
         self.dispatcher = StationAwareDispatcher(self.station_manager)
         self.telemetry_filter = StationTelemetryFilter(self.station_manager)
 
@@ -68,10 +71,11 @@ class StationServer:
         logger.info(f"Loaded {len(self.runner.simulator.ships)} ships")
 
         # Register commands
-        register_station_commands(self.dispatcher, self.station_manager)
+        register_station_commands(self.dispatcher, self.station_manager, self.crew_manager)
         register_legacy_commands(self.dispatcher, self.runner)
+        register_fleet_commands(self.dispatcher, self.station_manager, self.runner.simulator.fleet_manager)
 
-        logger.info("Station server initialized")
+        logger.info("Station server initialized with fleet support")
 
     def dispatch(self, client_id: str, req: dict) -> dict:
         """
