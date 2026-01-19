@@ -108,17 +108,19 @@ class ContactTracker:
             if not contact.is_stale(current_time, self.stale_threshold)
         }
 
-    def get_sorted_contacts(self, observer_position: Dict[str, float], current_time: float) -> list:
+    def get_sorted_contacts(self, observer_position: Dict[str, float], current_time: float, observer_velocity: Optional[Dict[str, float]] = None) -> list:
         """Get contacts sorted by distance.
 
         Args:
             observer_position: Observer's position
             current_time: Current simulation time
+            observer_velocity: Observer's velocity (optional, for closing speed calculation)
 
         Returns:
-            list: Sorted contact data with distance/bearing
+            list: Sorted contact data with distance/bearing/closing_speed
         """
-        from hybrid.utils.math_utils import calculate_distance, calculate_bearing
+        from hybrid.utils.math_utils import calculate_distance, calculate_bearing, subtract_vectors, magnitude, normalize_vector, dot_product
+        import math
 
         result = []
         active_contacts = self.get_all_contacts(current_time, include_stale=False)
@@ -127,8 +129,20 @@ class ContactTracker:
             distance = calculate_distance(observer_position, contact.position)
             bearing = calculate_bearing(observer_position, contact.position)
 
-            # Calculate closing speed (requires velocity)
-            closing_speed = 0.0  # TODO: Calculate from relative velocity
+            # Calculate closing speed from relative velocity
+            closing_speed = 0.0
+            if observer_velocity and contact.velocity:
+                # Relative velocity (contact velocity - observer velocity)
+                rel_velocity = subtract_vectors(contact.velocity, observer_velocity)
+
+                # Direction from observer to contact
+                direction = subtract_vectors(contact.position, observer_position)
+
+                # Closing speed is the component of relative velocity along the line between them
+                # Negative if closing (contact moving toward observer), positive if opening
+                if distance > 0:
+                    direction_normalized = normalize_vector(direction)
+                    closing_speed = -dot_product(rel_velocity, direction_normalized)
 
             # Calculate confidence decay based on age
             age = contact.get_age(current_time)

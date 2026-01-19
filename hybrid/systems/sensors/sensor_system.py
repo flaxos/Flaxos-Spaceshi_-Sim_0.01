@@ -147,6 +147,7 @@ class SensorSystem(BaseSystem):
         Args:
             params: Optional parameters with:
                 - observer_position: Position to calculate distance/bearing from
+                - observer_velocity: Velocity to calculate closing speed (optional)
                 - include_stale: Include stale contacts
 
         Returns:
@@ -156,13 +157,14 @@ class SensorSystem(BaseSystem):
             params = {}
 
         observer_position = params.get("observer_position", {"x": 0, "y": 0, "z": 0})
+        observer_velocity = params.get("observer_velocity", None)
         include_stale = params.get("include_stale", False)
 
         if include_stale:
             contacts = self.contact_tracker.get_all_contacts(self.sim_time, include_stale=True)
             contacts_list = list(contacts.values())
         else:
-            contacts_list = self.contact_tracker.get_sorted_contacts(observer_position, self.sim_time)
+            contacts_list = self.contact_tracker.get_sorted_contacts(observer_position, self.sim_time, observer_velocity)
 
         return success_dict(
             f"{len(contacts_list)} contacts",

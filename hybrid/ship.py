@@ -35,12 +35,19 @@ class Ship:
         self.class_type = config.get("class", "shuttle")
         self.faction = config.get("faction", "neutral")
 
+        # Rotational inertia (kg⋅m²)
+        # For S3: moment of inertia for rotational dynamics (torque = I * angular_acceleration)
+        # Currently scalar (spherical approximation), can be extended to 3x3 tensor for complex shapes
+        # Default: I ≈ (1/6) * m * L² where L ≈ ∛(m) (rough estimate for spacecraft)
+        self.moment_of_inertia = config.get("moment_of_inertia", self.mass * (self.mass ** (1.0/3.0)) / 6.0)
+
         # Initialize physical state
         self.position = self._get_vector3_config(config.get("position", {}))
         self.velocity = self._get_vector3_config(config.get("velocity", {}))
         self.acceleration = {"x": 0.0, "y": 0.0, "z": 0.0}
         self.orientation = self._get_vector3_config(config.get("orientation", {}), "pitch", "yaw", "roll")
         self.angular_velocity = {"pitch": 0.0, "yaw": 0.0, "roll": 0.0}
+        self.angular_acceleration = {"pitch": 0.0, "yaw": 0.0, "roll": 0.0}  # For S3: RCS torque integration
         self.thrust = {"x": 0.0, "y": 0.0, "z": 0.0}
 
         # Create the event bus for system communication
@@ -193,7 +200,7 @@ class Ship:
                 "position": self.position,
                 "velocity": self.velocity,
                 "acceleration": self.acceleration
-            }, "ship")
+            })
 
         # Update orientation based on angular velocity
         self.orientation["pitch"] += self.angular_velocity["pitch"] * dt
@@ -207,7 +214,22 @@ class Ship:
                 self.orientation[key] = 0.0
             else:
                 self.orientation[key] = normalize_angle_util(self.orientation[key])
-    
+
+        # S3 Prep: Detect and warn about gimbal lock conditions
+        # Gimbal lock occurs when pitch approaches ±90°, causing loss of yaw/roll independence
+        pitch = abs(self.orientation.get("pitch", 0.0))
+        if pitch > 85.0:  # Approaching gimbal lock
+            severity = "CRITICAL" if pitch > 89.0 else "WARNING"
+            if pitch > 89.0 or (not hasattr(self, "_last_gimbal_warning_time") or time.time() - self._last_gimbal_warning_time > 5.0):
+                logger.warning(f"Ship {self.id}: {severity} - Gimbal lock approaching at pitch={pitch:.1f}° "
+                              f"(Euler angles degrade >85°, consider quaternion attitude for S3)")
+                self._last_gimbal_warning_time = time.time()
+                self.event_bus.publish("gimbal_lock_warning", {
+                    "ship_id": self.id,
+                    "pitch": pitch,
+                    "severity": severity
+                })
+
     def command(self, command_type, params=None):
         """
         Process a command

@@ -287,6 +287,12 @@ def calculate_bearing(from_pos, to_pos, from_orientation=None):
 
     Returns:
         dict: Bearing with {yaw, pitch} in degrees
+
+    Note:
+        LIMITATION (Pre-S3): When from_orientation is provided, this function performs
+        a simple angular subtraction which doesn't account for roll or proper 3D rotation.
+        This causes inaccurate bearings during high-rotation maneuvers or non-zero roll.
+        S3 will replace this with quaternion-based bearing calculations for proper aim fidelity.
     """
     diff = subtract_vectors(to_pos, from_pos)
 
@@ -298,6 +304,7 @@ def calculate_bearing(from_pos, to_pos, from_orientation=None):
     pitch = math.degrees(math.atan2(diff.get('z', 0), horizontal_distance))
 
     # If observer orientation is provided, make bearing relative to it
+    # WARNING: This is a simplified approximation that ignores roll and 3D rotation matrix
     if from_orientation:
         yaw = normalize_angle(yaw - from_orientation.get('yaw', 0))
         pitch = normalize_angle(pitch - from_orientation.get('pitch', 0))
