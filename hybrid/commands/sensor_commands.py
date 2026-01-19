@@ -24,6 +24,7 @@ def cmd_contacts(sensors, ship, params):
         # Use the new API with proper parameters
         list_params = {
             "observer_position": ship.position,
+            "observer_velocity": ship.velocity,
             "include_stale": params.get("include_stale", False)
         }
         return sensors.get_contacts_list(list_params)

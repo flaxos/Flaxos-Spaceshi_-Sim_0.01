@@ -49,7 +49,8 @@ class AIThreatAssessment:
         # Distance factor (closer = more threatening)
         pos = contact.get("position", {})
         contact_pos = np.array([pos.get("x", 0), pos.get("y", 0), pos.get("z", 0)])
-        own_pos = np.array([own_ship.x, own_ship.y, own_ship.z])
+        own_pos_dict = own_ship.position if hasattr(own_ship, 'position') else {}
+        own_pos = np.array([own_pos_dict.get("x", 0), own_pos_dict.get("y", 0), own_pos_dict.get("z", 0)])
         distance = np.linalg.norm(contact_pos - own_pos)
 
         if distance < 10000:  # Within 10km - critical
@@ -62,7 +63,8 @@ class AIThreatAssessment:
         # Closing velocity (approaching = more threatening)
         vel = contact.get("velocity", {})
         contact_vel = np.array([vel.get("x", 0), vel.get("y", 0), vel.get("z", 0)])
-        own_vel = np.array([own_ship.vx, own_ship.vy, own_ship.vz])
+        own_vel_dict = own_ship.velocity if hasattr(own_ship, 'velocity') else {}
+        own_vel = np.array([own_vel_dict.get("x", 0), own_vel_dict.get("y", 0), own_vel_dict.get("z", 0)])
         relative_vel = contact_vel - own_vel
 
         # Check if approaching
@@ -220,7 +222,7 @@ class AIController:
 
         # Check if reached waypoint
         wp_pos = np.array(waypoint)
-        own_pos = np.array([self.ship.x, self.ship.y, self.ship.z])
+        own_pos = self._get_position(self.ship)
         distance = np.linalg.norm(wp_pos - own_pos)
 
         if distance < 1000:  # Within 1km
@@ -285,7 +287,7 @@ class AIController:
 
         # Get distance to target
         target_pos = self._get_position(target)
-        own_pos = np.array([self.ship.x, self.ship.y, self.ship.z])
+        own_pos = self._get_position(self.ship)
         distance = np.linalg.norm(target_pos - own_pos)
 
         # Decide on maneuver based on range
@@ -315,7 +317,7 @@ class AIController:
         target = self._get_ship_or_contact(intercept_target)
         if target:
             target_pos = self._get_position(target)
-            own_pos = np.array([self.ship.x, self.ship.y, self.ship.z])
+            own_pos = self._get_position(self.ship)
             distance = np.linalg.norm(target_pos - own_pos)
 
             if distance < self.engagement_range:
@@ -333,7 +335,7 @@ class AIController:
             return
 
         # Calculate evasion vector (away from threats)
-        own_pos = np.array([self.ship.x, self.ship.y, self.ship.z])
+        own_pos = self._get_position(self.ship)
         evasion_vector = np.array([0.0, 0.0, 0.0])
 
         for threat in threats:
@@ -363,7 +365,7 @@ class AIController:
             return
 
         # Check if in defend area
-        own_pos = np.array([self.ship.x, self.ship.y, self.ship.z])
+        own_pos = self._get_position(self.ship)
         defend_pos = np.array(defend_position)
         distance_from_center = np.linalg.norm(own_pos - defend_pos)
 
@@ -412,7 +414,7 @@ class AIController:
 
         # Fire weapons if in range
         target_pos = self._get_position(target)
-        own_pos = np.array([self.ship.x, self.ship.y, self.ship.z])
+        own_pos = self._get_position(self.ship)
         distance = np.linalg.norm(target_pos - own_pos)
 
         if distance < self.weapon_range:
@@ -470,7 +472,19 @@ class AIController:
             pos = obj.get("position", {})
             return np.array([pos.get("x", 0), pos.get("y", 0), pos.get("z", 0)])
         else:
-            return np.array([obj.x, obj.y, obj.z])
+            # Ship object with position dict
+            pos = obj.position if hasattr(obj, 'position') else {}
+            return np.array([pos.get("x", 0), pos.get("y", 0), pos.get("z", 0)])
+
+    def _get_velocity(self, obj) -> np.ndarray:
+        """Get velocity from ship or contact."""
+        if isinstance(obj, dict):
+            vel = obj.get("velocity", {})
+            return np.array([vel.get("x", 0), vel.get("y", 0), vel.get("z", 0)])
+        else:
+            # Ship object with velocity dict
+            vel = obj.velocity if hasattr(obj, 'velocity') else {}
+            return np.array([vel.get("x", 0), vel.get("y", 0), vel.get("z", 0)])
 
     def get_state(self) -> Dict:
         """Get AI controller state."""
