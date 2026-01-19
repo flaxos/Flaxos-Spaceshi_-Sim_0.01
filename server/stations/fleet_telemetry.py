@@ -142,7 +142,7 @@ class FleetTelemetryFilter:
                     "position": [ship.x, ship.y, ship.z],
                     "relative_position": [rel_x, rel_y, rel_z],
                     "velocity": [ship.vx, ship.vy, ship.vz],
-                    "status": "online"  # TODO: Get actual status
+                    "status": self._get_ship_status(ship)
                 })
 
         # Get formation info
@@ -391,6 +391,76 @@ class FleetTelemetryFilter:
         if hasattr(self.fleet_manager, "simulator") and self.fleet_manager.simulator:
             return self.fleet_manager.simulator.ships.get(ship_id)
         return None
+
+    def _get_ship_status(self, ship) -> str:
+        """
+        Determine the operational status of a ship.
+
+        Args:
+            ship: Ship object
+
+        Returns:
+            Status string: "online", "damaged", "critical", "destroyed", "offline"
+        """
+        if not ship:
+            return "offline"
+
+        # Check if ship is destroyed (health <= 0 or explicitly marked)
+        if hasattr(ship, "destroyed") and ship.destroyed:
+            return "destroyed"
+
+        if hasattr(ship, "health"):
+            health = ship.health
+            if health <= 0:
+                return "destroyed"
+            elif health < 25:
+                return "critical"
+            elif health < 60:
+                return "damaged"
+
+        # Check systems status - count how many are offline
+        systems_total = 0
+        systems_offline = 0
+
+        if hasattr(ship, "systems"):
+            for sys_name, system in ship.systems.items():
+                systems_total += 1
+                is_online = getattr(system, "is_online", True)
+                if not is_online:
+                    systems_offline += 1
+
+        # If more than 50% of systems are offline, ship is critical
+        if systems_total > 0:
+            offline_ratio = systems_offline / systems_total
+            if offline_ratio >= 0.75:
+                return "critical"
+            elif offline_ratio >= 0.40:
+                return "damaged"
+
+        # Check power system - if reactor is offline, ship is in trouble
+        if hasattr(ship, "systems") and "power" in ship.systems:
+            power_sys = ship.systems["power"]
+            if hasattr(power_sys, "reactor"):
+                reactor = power_sys.reactor
+                reactor_state = getattr(reactor, "state", "READY")
+                # If reactor is cold and no backup power, ship is offline
+                if reactor_state == "COLD":
+                    # Check if batteries have power
+                    if hasattr(power_sys, "batteries"):
+                        total_charge = sum(b.charge for b in power_sys.batteries.values())
+                        if total_charge < 100:  # Less than 100 kW remaining
+                            return "critical"
+
+        # Check propulsion - if can't move, might be damaged
+        if hasattr(ship, "systems") and "propulsion" in ship.systems:
+            propulsion = ship.systems["propulsion"]
+            if hasattr(propulsion, "is_online") and not propulsion.is_online:
+                # Can't maneuver, but not critical if other systems work
+                if systems_offline > 0:
+                    return "damaged"
+
+        # Default: ship is operational
+        return "online"
 
 
 def filter_fleet_telemetry(telemetry: Dict[str, Any], displays: set, fleet_manager, ship_id: str) -> Dict[str, Any]:
