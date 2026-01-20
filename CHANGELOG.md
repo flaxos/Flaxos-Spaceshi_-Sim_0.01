@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Captain station claims now auto-elevate permissions for override actions.
 - Phase 2 integration tests no longer return values (removes pytest warnings).
 - Station meta-commands can now run without requiring a ship assignment.
+- Station transfer command now correctly enforces officer-or-higher permission checks.
 
 ### Planned
 - Quaternion-based attitude system (Sprint S3)

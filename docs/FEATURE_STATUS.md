@@ -1,6 +1,6 @@
 # Feature Status Report
 
-**Last Updated**: 2026-01-23
+**Last Updated**: 2026-01-24
 **Project**: Flaxos Spaceship Simulator
 **Version**: 0.2.0 (Phase 2 Complete)
 
@@ -67,6 +67,7 @@ This document tracks the implementation status of all major features in the Flax
 | Station types | ✅ Complete | 28/28 passing | 7 stations: Captain, Helm, Tactical, Ops, Engineering, Comms, Fleet Commander |
 | Permission system | ✅ Complete | ✅ | 4 levels: Observer, Crew, Officer, Captain |
 | Station manager | ✅ Complete | ✅ | Claim/release, session tracking, captain escalation |
+| Station transfers | ✅ Complete | ✅ | Transfer station command enforces officer+ permissions |
 | Command dispatcher | ✅ Complete | ✅ | Permission-based routing |
 | Telemetry filtering | ✅ Complete | ✅ | Station-specific data views |
 | Event filtering | ✅ Complete | ✅ | Role-based event delivery |
