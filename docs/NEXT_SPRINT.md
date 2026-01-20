@@ -571,7 +571,7 @@ class InterceptAutopilot:
 
 ### Documentation
 - [x] Quaternion API documentation
-- [ ] RCS configuration guide
+- [x] RCS configuration guide
 - [ ] Physics update documentation
 - [ ] Migration guide (Euler → Quaternion)
 

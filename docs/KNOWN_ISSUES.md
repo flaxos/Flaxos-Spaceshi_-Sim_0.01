@@ -2,7 +2,7 @@
 
 **Project**: Flaxos Spaceship Simulator
 **Version**: 0.2.0
-**Last Updated**: 2026-01-25
+**Last Updated**: 2026-01-26
 
 ---
 

@@ -1,19 +1,19 @@
 # Handoff Notes
 
-**Last Updated**: 2026-01-25
+**Last Updated**: 2026-01-26
 **Sprint**: S3 (Quaternion Attitude)
 
 ---
 
 ## Session Goal
-- Deliverable: Quaternion API documentation ✅
+- Deliverable: RCS configuration guide ✅
 
 ---
 
 ## Summary of Changes
-- Added a dedicated quaternion API reference in `docs/QUATERNION_API.md`.
-- Linked the quaternion API documentation in sprint planning and architecture notes.
-- Refreshed documentation metadata (feature status, known issues, changelog, README).
+- Added the RCS configuration guide to document thruster YAML schema and best practices.
+- Linked the new RCS documentation in sprint planning, architecture notes, and README.
+- Refreshed documentation metadata (feature status, known issues, changelog).
 
 ---
 
@@ -26,7 +26,7 @@
 
 ## Notes for Next Agent
 - Quaternion math implementation already lives in `hybrid/utils/quaternion.py`; remaining Sprint S3 work centers on ship integration + RCS torque.
-- Update docs/FEATURE_STATUS.md test counts if/when new quaternion/RCS tests land.
+- Next documentation deliverables: physics update documentation and Euler → quaternion migration guide.
 
 ---
 
@@ -35,4 +35,3 @@ If you are taking over this work, start by reviewing:
 - `docs/QUATERNION_API.md`
 - `docs/NEXT_SPRINT.md`
 - `docs/FEATURE_STATUS.md`
-
