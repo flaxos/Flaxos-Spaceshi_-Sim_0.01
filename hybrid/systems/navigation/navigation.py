@@ -62,7 +62,7 @@ class NavigationSystem(BaseSystem):
             "ship_id": ship.id,
             "mode": self.controller.mode,
             "autopilot": self.controller.autopilot_program_name
-        }, "navigation")
+        })
 
     def _apply_autopilot_command(self, ship, command: dict):
         """Apply autopilot command to ship.
