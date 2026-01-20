@@ -1,6 +1,6 @@
 # Feature Status Report
 
-**Last Updated**: 2026-01-20
+**Last Updated**: 2026-01-21
 **Project**: Flaxos Spaceship Simulator
 **Version**: 0.2.0 (Phase 2 Complete)
 
@@ -78,6 +78,7 @@ This document tracks the implementation status of all major features in the Flax
 - `server/stations/station_manager.py` - Claim management and sessions
 - `server/stations/station_dispatch.py` - Command routing with permissions
 - `server/stations/station_telemetry.py` - Data filtering per station
+- `server/telemetry/station_filter.py` - Station telemetry filter import path
 - `server/stations/station_commands.py` - Station-specific commands
 - `server/station_server.py` - TCP server with station support
 
@@ -195,29 +196,33 @@ This document tracks the implementation status of all major features in the Flax
 | TUTORIAL.md | ✅ Complete | 2026-01-19 |
 | SPRINT_RECOMMENDATIONS.md | ✅ Complete | 2026-01-19 |
 | PROJECT_PLAN.md | ✅ Complete | 2026-01-19 |
-| FEATURE_STATUS.md | ✅ Complete | 2026-01-20 |
-| ARCHITECTURE.md | 📋 Pending | - |
-| KNOWN_ISSUES.md | 📋 Pending | - |
-| NEXT_SPRINT.md | 📋 Pending | - |
-| CHANGELOG.md | 📋 Pending | - |
+| FEATURE_STATUS.md | ✅ Complete | 2026-01-21 |
+| ARCHITECTURE.md | ✅ Complete | 2026-01-21 |
+| KNOWN_ISSUES.md | ✅ Complete | 2026-01-21 |
+| NEXT_SPRINT.md | ✅ Complete | 2026-01-21 |
+| CHANGELOG.md | ✅ Complete | 2026-01-21 |
 
 ---
 
 ## Testing Summary
 
 ### Test Coverage
-- **Total Tests**: 72
-- **Passing**: 72 (100%)
+- **Total Tests**: 129
+- **Passing**: 129 (100%)
 - **Failed**: 0
 - **Skipped**: 0
 
 ### Test Suites
-- Core physics tests: ✅ 12 passing
-- Navigation tests: ✅ 8 passing
-- Weapon tests: ✅ 10 passing
-- Sensor tests: ✅ 6 passing
-- Station tests: ✅ 28 passing
-- Hybrid integration tests: ✅ 8 passing
+- Core event bus tests: ✅ 1 passing
+- Core physics tests: ✅ 27 passing
+- Navigation tests: ✅ 1 passing
+- Power system tests: ✅ 2 passing
+- Weapon tests: ✅ 2 passing
+- Sensor tests: ✅ 1 passing
+- Station tests: ✅ 30 passing
+- Utility math tests: ✅ 55 passing
+- Integration tests: ✅ 9 passing
+- Smoke tests: ✅ 1 passing
 
 ### CI/CD
 - GitHub Actions: 📋 Planned (Sprint S6)

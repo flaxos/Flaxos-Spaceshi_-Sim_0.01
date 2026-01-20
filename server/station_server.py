@@ -26,7 +26,7 @@ from server.stations import StationManager
 from server.stations.station_dispatch import StationAwareDispatcher, CommandResult, register_legacy_commands
 from server.stations.station_commands import register_station_commands
 from server.stations.fleet_commands import register_fleet_commands
-from server.stations.station_telemetry import StationTelemetryFilter
+from server.telemetry.station_filter import StationTelemetryFilter
 from server.stations.crew_system import CrewManager
 
 logging.basicConfig(level=logging.INFO)
