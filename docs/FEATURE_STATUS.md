@@ -1,6 +1,6 @@
 # Feature Status Report
 
-**Last Updated**: 2026-01-26
+**Last Updated**: 2026-01-20
 **Project**: Flaxos Spaceship Simulator
 **Version**: 0.2.0 (Phase 2 Complete)
 
@@ -205,6 +205,7 @@ This document tracks the implementation status of all major features in the Flax
 | CHANGELOG.md | ✅ Complete | 2026-01-21 |
 | QUATERNION_API.md | ✅ Complete | 2026-01-25 |
 | RCS_CONFIGURATION_GUIDE.md | ✅ Complete | 2026-01-26 |
+| PHYSICS_UPDATE.md | ✅ Complete | 2026-01-20 |
 
 ---
 

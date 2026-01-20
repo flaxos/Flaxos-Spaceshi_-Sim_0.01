@@ -1,7 +1,7 @@
 # Flaxos Spaceship Simulator - Architecture Documentation
 
 **Version**: 0.2.0
-**Last Updated**: 2026-01-26
+**Last Updated**: 2026-01-20
 
 ---
 
@@ -15,6 +15,7 @@
 6. [Station System](#station-system)
 7. [Fleet System](#fleet-system)
 8. [Extension Points](#extension-points)
+9. [Physics Update Notes (S3)](#physics-update-notes-s3)
 
 ---
 
@@ -550,6 +551,14 @@ dispatcher.register_command(
     station=StationType.NEW_STATION
 )
 ```
+
+---
+
+## Physics Update Notes (S3)
+
+Sprint S3 introduces quaternion-based attitude representation and torque-driven angular dynamics. The new physics flow keeps Euler angles for telemetry and commands but stores the authoritative attitude state as a normalized quaternion. RCS thrusters will generate torque that feeds angular acceleration, replacing direct Euler velocity updates.
+
+For implementation details, integration sketches, and rollout checklists, see `docs/PHYSICS_UPDATE.md`.
 
 ---
 

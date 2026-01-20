@@ -2,7 +2,7 @@
 
 **Project**: Flaxos Spaceship Simulator
 **Version**: 0.2.0
-**Last Updated**: 2026-01-26
+**Last Updated**: 2026-01-20
 
 ---
 
@@ -404,6 +404,9 @@ Documentation is text-based only. No video tutorials or gameplay demonstrations.
 - Documented 13 known issues
 - Categorized by priority
 - Added resolution plans
+
+**2026-01-20**: Documentation update
+- Added physics update documentation reference for Sprint S3 planning
 
 **2026-01-25**: Documentation refresh
 - Linked quaternion API documentation into sprint planning updates

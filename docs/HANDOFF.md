@@ -1,18 +1,18 @@
 # Handoff Notes
 
-**Last Updated**: 2026-01-26
+**Last Updated**: 2026-01-20
 **Sprint**: S3 (Quaternion Attitude)
 
 ---
 
 ## Session Goal
-- Deliverable: RCS configuration guide ✅
+- Deliverable: Physics update documentation ✅
 
 ---
 
 ## Summary of Changes
-- Added the RCS configuration guide to document thruster YAML schema and best practices.
-- Linked the new RCS documentation in sprint planning, architecture notes, and README.
+- Added physics update documentation for Sprint S3 quaternion + torque integration.
+- Linked the new physics update documentation in sprint planning, architecture notes, and README.
 - Refreshed documentation metadata (feature status, known issues, changelog).
 
 ---
@@ -26,12 +26,13 @@
 
 ## Notes for Next Agent
 - Quaternion math implementation already lives in `hybrid/utils/quaternion.py`; remaining Sprint S3 work centers on ship integration + RCS torque.
-- Next documentation deliverables: physics update documentation and Euler → quaternion migration guide.
+- Next documentation deliverable: Euler → quaternion migration guide.
 
 ---
 
 ## Model Switch Anchor
 If you are taking over this work, start by reviewing:
 - `docs/QUATERNION_API.md`
+- `docs/PHYSICS_UPDATE.md`
 - `docs/NEXT_SPRINT.md`
 - `docs/FEATURE_STATUS.md`
