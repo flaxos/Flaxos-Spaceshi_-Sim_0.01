@@ -271,6 +271,21 @@ Running the simulation server on Android devices may have reduced performance co
 
 ---
 
+### 11. Android/Pydroid Parity Pending On-Device Verification
+**Status**: 🔴 Demo Requirement Pending
+**Severity**: High (Demo parity)
+
+**Description:**
+The repository now includes a minimal Android-safe smoke test script, but it has not yet been executed on a real Android/Pydroid device in this environment.
+
+**Impact:**
+- Demo parity for Android remains unconfirmed until the smoke test is run on-device.
+
+**Next Step:**
+- Run `python tools/android_smoke.py` on-device and capture output for verification.
+
+---
+
 ## Testing Gaps
 
 ### 11. No Network Stress Testing
