@@ -50,9 +50,17 @@ class Weapon:
         if target_ship and hasattr(target_ship, 'take_damage'):
             damage_result = target_ship.take_damage(self.damage, source=self.name)
 
+        # Extract target ID (handle both Ship objects and string IDs)
+        target_id = None
+        if target_ship:
+            if hasattr(target_ship, 'id'):
+                target_id = target_ship.id
+            else:
+                target_id = target_ship  # Assume it's already a string ID
+
         self.event_bus.publish("weapon_fired", {
             "weapon": self.name,
-            "target": target_ship.id if target_ship else None,
+            "target": target_id,
             "damage": self.damage,
             "damage_result": damage_result
         })
@@ -60,7 +68,7 @@ class Weapon:
         return {
             "ok": True,
             "damage": self.damage,
-            "target": target_ship.id if target_ship else None,
+            "target": target_id,
             "damage_result": damage_result
         }
 

@@ -15,7 +15,7 @@ Platform parity: Desktop ✅, Android ✅ (smoke tests verified)
 ## What Works (exact commands)
 
 ### Testing & Validation
-- `python -m pytest -q` — Tests (pytest not installed, but systems functional)
+- `python -m pytest -q` — All 134 tests PASS (pytest + numpy now installed)
 - `python tools/desktop_demo_smoke.py` — Server starts, client connects, 2 ships loaded
 - `python tools/android_smoke.py` — Core sim import + tick works
 - `python tools/android_socket_smoke.py` — Loopback server + client works
@@ -34,36 +34,23 @@ Platform parity: Desktop ✅, Android ✅ (smoke tests verified)
 - Station-filtered telemetry working (helm sees navigation, engineering sees systems)
 
 ## What's Broken (max 3)
-- None currently blocking demo slice D1-D6
-- Dependency: numpy must be installed (`pip install numpy`) for quaternion attitude system
+- None currently blocking demo slice D1-D8
+- All dependencies installed (pytest, numpy)
 
-## D6 Implementation Completed This Session
-- **Combat Resolution and Mission Success** - Full damage model and mission objectives operational
-  - Added hull_integrity tracking to Ship class (hybrid/ship.py)
-    - max_hull_integrity and hull_integrity fields (defaults to mass/10)
-    - take_damage(amount, source) method to apply damage
-    - is_destroyed() method to check if ship hull <= 0
-    - Hull status included in ship telemetry
-  - Implemented weapon damage system (hybrid/systems/weapons/weapon_system.py)
-    - Added damage parameter to Weapon class (default 10.0)
-    - Weapon.fire() now applies damage to target ship
-    - Updated command() method to resolve target ID to ship object
-    - Returns damage_result with hull status after hit
-  - Updated weapon configurations (hybrid_fleet/test_ship_001.json)
-    - pulse_laser: 5.0 damage
-    - railgun: 15.0 damage
-  - Implemented ship destruction in Simulator (hybrid/simulator.py)
-    - Destroyed ships (hull <= 0) removed from simulation each tick
-    - Destruction events published via event bus
-  - Fixed PowerManagementSystem config parsing (hybrid/systems/power/management.py)
-    - Support "output" as alias for "capacity" in reactor config
-  - Updated command routing (hybrid/command_handler.py)
-    - Pass all_ships as dict (not list) for efficient target lookup
-    - Updated SensorSystem to handle both dict and list formats
-  - Mission objectives system already supported DESTROY_TARGET (hybrid/scenarios/objectives.py)
-    - Checks if target ship exists in simulator
-    - Marks objective complete when target destroyed
-  - Created tools/validate_d6_combat.py validation script (100% pass rate)
+## Post-D6 Bug Fixes Completed This Session
+- **Test Suite Restoration** - Fixed D6 API breaking changes that caused test failures
+  - Installed missing dependencies (pytest, numpy) to enable test execution
+  - Fixed weapon.fire() backward compatibility in hybrid/systems/weapons/weapon_system.py
+    - D6 changed weapon.fire() to accept Ship objects for damage application
+    - Legacy tests passed string target IDs, causing AttributeError: 'str' object has no attribute 'id'
+    - Added type checking to handle both Ship objects and string IDs
+    - Extracts target_id properly: uses ship.id for Ship objects, passes through string IDs unchanged
+  - Updated test_weapon_firing_and_cooldown in tests/systems/weapons/test_weapon_system.py
+    - Changed from boolean API (True/False) to dict-based API ({"ok": True/False, ...})
+    - Updated assertions to check result.get("ok") instead of truthiness
+  - All 134 tests now PASS
+  - All smoke tests verified (desktop, android, android_socket)
+  - All validation scripts verified (D5 targeting, D6 combat)
 
 ## Next 1–3 Actions
 1) Run `python tools/android_smoke.py` on real Android/Pydroid device and capture output
@@ -71,14 +58,8 @@ Platform parity: Desktop ✅, Android ✅ (smoke tests verified)
 3) Consider adding damage visualization/effects (optional enhancement)
 
 ## Files Modified This Session
-- `hybrid/ship.py` — Added hull_integrity, take_damage(), is_destroyed() methods
-- `hybrid/systems/weapons/weapon_system.py` — Added damage to Weapon class, apply damage on fire
-- `hybrid/systems/power/management.py` — Support "output" as alias for "capacity" in config
-- `hybrid/systems/sensors/sensor_system.py` — Handle both dict and list formats for all_ships
-- `hybrid/command_handler.py` — Pass all_ships as dict instead of list for target lookup
-- `hybrid/simulator.py` — Remove destroyed ships from simulation each tick
-- `hybrid_fleet/test_ship_001.json` — Added damage values to weapon configurations
-- `tools/validate_d6_combat.py` — NEW: D6 validation script for combat resolution + mission success
+- `hybrid/systems/weapons/weapon_system.py` — Fixed weapon.fire() backward compatibility with string target IDs
+- `tests/systems/weapons/test_weapon_system.py` — Updated test to use D6 dict-based API ({"ok": True/False})
 
 ## Guardrails (Do Not Touch)
 - Avoid UI dependencies (tkinter/pygame/PyQt) in core sim/server modules to preserve Android parity
