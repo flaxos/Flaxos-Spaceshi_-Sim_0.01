@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Stable station telemetry filter import path in `server/telemetry/station_filter.py`.
 - Station telemetry filtering tests for helm/captain behavior.
 - Station `list_ships` command now surfaces live ship metadata from the simulator.
+- Quaternion API documentation in `docs/QUATERNION_API.md`.
 
 ### Fixed
 - Captain station claims now auto-elevate permissions for override actions.

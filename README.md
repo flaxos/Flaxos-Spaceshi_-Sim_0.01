@@ -13,6 +13,13 @@ python -m server.run_server --fleet-dir hybrid_fleet --dt 0.1 --port 8765
 python hybrid/gui/gui.py
 ```
 
+## Documentation
+- [Architecture overview](docs/ARCHITECTURE.md)
+- [Feature status](docs/FEATURE_STATUS.md)
+- [Known issues](docs/KNOWN_ISSUES.md)
+- [Sprint plan](docs/NEXT_SPRINT.md)
+- [Quaternion API](docs/QUATERNION_API.md)
+
 ## Android/Pydroid UAT (TCP JSON)
 The sim server speaks **newline-delimited JSON over TCP** (one JSON object per line). The Android UI can run in Pydroid and connect over your LAN.
 

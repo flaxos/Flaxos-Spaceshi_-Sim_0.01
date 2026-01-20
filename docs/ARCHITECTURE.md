@@ -638,6 +638,7 @@ Flaxos-Spaceshi_-Sim_0.01/
 - Add `hybrid/utils/quaternion.py`
 - Replace `Ship.orientation` dict with `Ship.quaternion`
 - Update physics integration to use quaternion derivatives
+- Document quaternion usage in `docs/QUATERNION_API.md`
 
 ### Sprint S4: Damage Model
 - Add `hybrid/systems/damage/` module
