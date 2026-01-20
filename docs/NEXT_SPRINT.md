@@ -26,7 +26,8 @@ Sprint S3 focuses on replacing the Euler angle orientation system with quaternio
 
 **Demo Slice Short-Term Actions (next 1-3)**
 1. Run `python tools/android_smoke.py` on a real Android/Pydroid device and record output for parity.
-2. Attempt optional loopback server smoke (`python -m server.run_server --host 127.0.0.1 --port 8765`) on-device if feasible.
+2. Run `python tools/android_socket_smoke.py` on-device to confirm loopback socket connectivity.
+3. Attempt optional loopback server smoke (`python -m server.run_server --host 127.0.0.1 --port 8765`) on-device if feasible.
 
 ---
 

@@ -64,16 +64,14 @@ Expected output (example):
 If your device supports local TCP loopback in Pydroid, you can also run:
 
 ```bash
-python -m server.run_server --host 127.0.0.1 --port 8765
+python tools/android_socket_smoke.py
 ```
 
-And in another Pydroid terminal/session:
+This script starts a single-shot server, connects a client, and prints the
+response payload so you can verify end-to-end socket connectivity.
+
+If you want to run the full server instead, use:
 
 ```bash
-python - <<'PY'
-import socket, json
-s = socket.create_connection(("127.0.0.1", 8765), 5)
-s.sendall((json.dumps({"cmd":"get_state"}) + "\n").encode("utf-8"))
-print(s.recv(4096).decode("utf-8", "replace"))
-PY
+python -m server.run_server --host 127.0.0.1 --port 8765
 ```
