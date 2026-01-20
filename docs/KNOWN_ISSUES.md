@@ -44,23 +44,19 @@ Sprint S3 will implement quaternion-based attitude representation, completely el
 ---
 
 ### 2. Telemetry snapshot errors in `server.run_server`
-**Status**: 🔴 Known Issue
+**Status**: ✅ RESOLVED (2026-01-20)
 **Severity**: High (Server telemetry)
 **Affected Components**: `hybrid/systems/power/management.py`, ship configs
 
 **Description:**
-Running `python -m server.run_server` logs repeated telemetry errors:
+Running `python -m server.run_server` previously logged repeated telemetry errors:
 - `Error loading system power_management: 'float' object has no attribute 'get'`
 
-**Impact:**
-- `get_state` responses can fail or be incomplete
-- Server logs are spammed with errors during telemetry collection
-
-**Workaround:**
-Use the station-aware server (`python -m server.station_server`) for multi-crew workflows and avoid telemetry polling when running the legacy server.
-
-**Resolution Plan:**
-- Validate power management config structure in ship definitions before load
+**Resolution:**
+Fixed in hybrid/systems/power/management.py:
+- PowerManagementSystem.__init__() now filters out non-dict config values (e.g., alert_threshold)
+- PowerManagementSystem.tick() signature updated to match other systems (dt, ship, event_bus)
+- All smoke tests and 134 unit tests now pass cleanly
 
 ---
 

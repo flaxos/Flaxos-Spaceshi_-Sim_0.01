@@ -7,8 +7,15 @@ from hybrid.core.event_bus import EventBus
 class PowerManagementSystem:
     def __init__(self, config):
         # config is a dict mapping layer_name → {capacity, output_rate, thermal_limit}
+        # May also contain other keys like alert_threshold, system_map (ignored for now)
         self.reactors = {}
         for layer_name, params in config.items():
+            # Skip non-reactor configuration items (must be dicts)
+            if not isinstance(params, dict):
+                continue
+            # Skip configuration metadata that isn't reactor params
+            if layer_name in ('system_map',):
+                continue
             base = Reactor(layer_name)
             self.reactors[layer_name] = Reactor(
                 name=layer_name,
@@ -18,7 +25,7 @@ class PowerManagementSystem:
             )
         self.event_bus = EventBus.get_instance()
 
-    def tick(self, dt):
+    def tick(self, dt, ship=None, event_bus=None):
         for reactor in self.reactors.values():
             reactor.tick(dt)
             if reactor.status == "overheated":
