@@ -1,7 +1,7 @@
 # Flaxos Spaceship Simulator - Architecture Documentation
 
 **Version**: 0.2.0
-**Last Updated**: 2026-01-24
+**Last Updated**: 2026-01-26
 
 ---
 
@@ -639,6 +639,7 @@ Flaxos-Spaceshi_-Sim_0.01/
 - Replace `Ship.orientation` dict with `Ship.quaternion`
 - Update physics integration to use quaternion derivatives
 - Document quaternion usage in `docs/QUATERNION_API.md`
+- Define RCS configuration format in `docs/RCS_CONFIGURATION_GUIDE.md`
 
 ### Sprint S4: Damage Model
 - Add `hybrid/systems/damage/` module

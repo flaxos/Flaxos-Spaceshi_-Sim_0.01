@@ -19,6 +19,7 @@ python hybrid/gui/gui.py
 - [Known issues](docs/KNOWN_ISSUES.md)
 - [Sprint plan](docs/NEXT_SPRINT.md)
 - [Quaternion API](docs/QUATERNION_API.md)
+- [RCS configuration guide](docs/RCS_CONFIGURATION_GUIDE.md)
 
 ## Android/Pydroid UAT (TCP JSON)
 The sim server speaks **newline-delimited JSON over TCP** (one JSON object per line). The Android UI can run in Pydroid and connect over your LAN.
