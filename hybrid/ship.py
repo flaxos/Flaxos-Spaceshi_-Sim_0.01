@@ -8,6 +8,7 @@ from hybrid.utils.math_utils import (
     sanitize_physics_state, is_valid_number, clamp,
     normalize_angle as normalize_angle_util
 )
+from hybrid.utils.quaternion import Quaternion, integrate_angular_velocity
 import math
 import time
 import copy
@@ -49,6 +50,14 @@ class Ship:
         self.angular_velocity = {"pitch": 0.0, "yaw": 0.0, "roll": 0.0}
         self.angular_acceleration = {"pitch": 0.0, "yaw": 0.0, "roll": 0.0}  # For S3: RCS torque integration
         self.thrust = {"x": 0.0, "y": 0.0, "z": 0.0}
+
+        # S3a: Quaternion attitude representation (solves gimbal lock)
+        # Initialize quaternion from Euler angles for backward compatibility
+        self.quaternion = Quaternion.from_euler(
+            self.orientation["pitch"],
+            self.orientation["yaw"],
+            self.orientation["roll"]
+        )
 
         # Create the event bus for system communication
         self.event_bus = EventBus()
@@ -202,32 +211,50 @@ class Ship:
                 "acceleration": self.acceleration
             })
 
-        # Update orientation based on angular velocity
-        self.orientation["pitch"] += self.angular_velocity["pitch"] * dt
-        self.orientation["yaw"] += self.angular_velocity["yaw"] * dt
-        self.orientation["roll"] += self.angular_velocity["roll"] * dt
+        # S3a: Update orientation using quaternion integration (solves gimbal lock)
+        # Convert angular velocity from degrees/sec to radians/sec
+        angular_velocity_rad = (
+            math.radians(self.angular_velocity.get("pitch", 0.0)),
+            math.radians(self.angular_velocity.get("yaw", 0.0)),
+            math.radians(self.angular_velocity.get("roll", 0.0))
+        )
 
-        # Normalize orientation to [-180, 180) and guard against NaN
+        # Integrate angular velocity to update quaternion
+        # Note: Angular velocity is in body frame (pitch=Y, yaw=Z, roll=X)
+        self.quaternion = integrate_angular_velocity(
+            self.quaternion,
+            angular_velocity_rad,
+            dt
+        )
+
+        # Sync Euler angles from quaternion for backward compatibility
+        # This ensures all existing code that reads self.orientation continues to work
+        pitch, yaw, roll = self.quaternion.to_euler()
+        self.orientation["pitch"] = pitch
+        self.orientation["yaw"] = yaw
+        self.orientation["roll"] = roll
+
+        # Guard against NaN in orientation (should not occur with quaternions, but safety check)
         for key in self.orientation:
             if not is_valid_number(self.orientation[key]):
                 logger.error(f"Ship {self.id}: Invalid orientation {key}={self.orientation[key]}, resetting")
                 self.orientation[key] = 0.0
-            else:
-                self.orientation[key] = normalize_angle_util(self.orientation[key])
+                # Reset quaternion to identity
+                self.quaternion = Quaternion.identity()
 
-        # S3 Prep: Detect and warn about gimbal lock conditions
-        # Gimbal lock occurs when pitch approaches ±90°, causing loss of yaw/roll independence
-        pitch = abs(self.orientation.get("pitch", 0.0))
-        if pitch > 85.0:  # Approaching gimbal lock
-            severity = "CRITICAL" if pitch > 89.0 else "WARNING"
-            if pitch > 89.0 or (not hasattr(self, "_last_gimbal_warning_time") or time.time() - self._last_gimbal_warning_time > 5.0):
-                logger.warning(f"Ship {self.id}: {severity} - Gimbal lock approaching at pitch={pitch:.1f}° "
-                              f"(Euler angles degrade >85°, consider quaternion attitude for S3)")
-                self._last_gimbal_warning_time = time.time()
-                self.event_bus.publish("gimbal_lock_warning", {
+        # S3a: Gimbal lock is now solved with quaternions!
+        # Keep warning for high pitch angles to inform users, but note it's no longer a problem
+        pitch_abs = abs(self.orientation.get("pitch", 0.0))
+        if pitch_abs > 85.0:
+            # Log for informational purposes, but gimbal lock no longer occurs
+            if pitch_abs > 89.0 or (not hasattr(self, "_last_gimbal_info_time") or time.time() - self._last_gimbal_info_time > 5.0):
+                logger.info(f"Ship {self.id}: High pitch angle {pitch_abs:.1f}° - "
+                           f"Previously would cause gimbal lock, now handled correctly by quaternions (S3a)")
+                self._last_gimbal_info_time = time.time()
+                self.event_bus.publish("high_pitch_angle", {
                     "ship_id": self.id,
-                    "pitch": pitch,
-                    "severity": severity
+                    "pitch": self.orientation["pitch"],
+                    "quaternion_active": True
                 })
 
     def command(self, command_type, params=None):
