@@ -22,6 +22,7 @@ Sprint S3 focuses on replacing the Euler angle orientation system with quaternio
 - Station management `list_ships` now returns live ship metadata via the station server.
 - Station transfer now enforces officer-or-higher permissions.
 - Published quaternion API documentation (`docs/QUATERNION_API.md`).
+- Added physics update documentation (`docs/PHYSICS_UPDATE.md`).
 
 ---
 
@@ -572,7 +573,7 @@ class InterceptAutopilot:
 ### Documentation
 - [x] Quaternion API documentation
 - [x] RCS configuration guide
-- [ ] Physics update documentation
+- [x] Physics update documentation
 - [ ] Migration guide (Euler → Quaternion)
 
 ---

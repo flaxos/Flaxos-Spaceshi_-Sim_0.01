@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Station `list_ships` command now surfaces live ship metadata from the simulator.
 - Quaternion API documentation in `docs/QUATERNION_API.md`.
 - RCS configuration guide for ship thruster YAML in `docs/RCS_CONFIGURATION_GUIDE.md`.
+- Physics update documentation for Sprint S3 in `docs/PHYSICS_UPDATE.md`.
 
 ### Fixed
 - Captain station claims now auto-elevate permissions for override actions.
