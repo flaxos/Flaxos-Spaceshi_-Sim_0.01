@@ -174,6 +174,28 @@ def test_captain_can_issue_any_command(manager):
     assert allowed3 is True
 
 
+def test_captain_claim_sets_permission_and_allows_release(manager):
+    """Test captain claims are elevated and can release other stations"""
+    captain_id = manager.generate_client_id()
+    helm_id = manager.generate_client_id()
+
+    manager.register_client(captain_id, "captain_player")
+    manager.register_client(helm_id, "helm_player")
+
+    manager.assign_to_ship(captain_id, "test_ship_001")
+    manager.assign_to_ship(helm_id, "test_ship_001")
+
+    # Claim with default crew permission to mimic command path
+    manager.claim_station(captain_id, "test_ship_001", StationType.CAPTAIN, PermissionLevel.CREW)
+    manager.claim_station(helm_id, "test_ship_001", StationType.HELM, PermissionLevel.CREW)
+
+    session = manager.sessions[captain_id]
+    assert session.permission_level == PermissionLevel.CAPTAIN
+
+    success, message = manager.release_station(captain_id, "test_ship_001", StationType.HELM)
+    assert success is True
+
+
 def test_update_heartbeat(manager):
     """Test heartbeat updates session activity"""
     client_id = manager.generate_client_id()

@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Stable station telemetry filter import path in `server/telemetry/station_filter.py`.
 - Station telemetry filtering tests for helm/captain behavior.
 
+### Fixed
+- Captain station claims now auto-elevate permissions for override actions.
+- Phase 2 integration tests no longer return values (removes pytest warnings).
+
 ### Planned
 - Quaternion-based attitude system (Sprint S3)
 - RCS thruster torque calculations (Sprint S3)
