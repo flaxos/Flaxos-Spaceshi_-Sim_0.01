@@ -1,6 +1,6 @@
 # Feature Status Report
 
-**Last Updated**: 2026-01-22
+**Last Updated**: 2026-01-23
 **Project**: Flaxos Spaceship Simulator
 **Version**: 0.2.0 (Phase 2 Complete)
 
@@ -72,6 +72,7 @@ This document tracks the implementation status of all major features in the Flax
 | Event filtering | ✅ Complete | ✅ | Role-based event delivery |
 | Client registration | ✅ Complete | ✅ | Multi-client session management |
 | Heartbeat system | ✅ Complete | ✅ | Stale claim cleanup |
+| Ship listing command | ✅ Complete | ✅ | `list_ships` now returns live ship metadata |
 
 **Files:**
 - `server/stations/station_types.py` - Station definitions and permissions

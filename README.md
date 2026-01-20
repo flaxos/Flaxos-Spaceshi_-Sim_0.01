@@ -349,6 +349,7 @@ status = mission.get_status()
 - **Event Filtering System**: Station-based event filtering with role-specific event delivery
 - **Fleet Status Reporting**: Real-time ship health assessment (online/damaged/critical/destroyed)
 - **Player Hint System**: Tutorial hints integrated with event bus for better onboarding
+- **Station Ship Listing**: `list_ships` command now returns live ship metadata for clients
 - **Documentation**: New sprint recommendations and implementation guide
 
 See [`docs/SPRINT_RECOMMENDATIONS.md`](docs/SPRINT_RECOMMENDATIONS.md) for complete details.

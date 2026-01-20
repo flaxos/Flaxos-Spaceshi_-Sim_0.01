@@ -71,7 +71,12 @@ class StationServer:
         logger.info(f"Loaded {len(self.runner.simulator.ships)} ships")
 
         # Register commands
-        register_station_commands(self.dispatcher, self.station_manager, self.crew_manager)
+        register_station_commands(
+            self.dispatcher,
+            self.station_manager,
+            self.crew_manager,
+            ship_provider=lambda: self.runner.simulator.ships,
+        )
         register_legacy_commands(self.dispatcher, self.runner)
         register_fleet_commands(self.dispatcher, self.station_manager, self.runner.simulator.fleet_manager)
 
@@ -119,17 +124,21 @@ class StationServer:
 
         # Get ship_id from session or request
         ship_id = req.get("ship")
+        metadata = self.dispatcher.command_metadata.get(cmd, {})
+        requires_ship = metadata.get("requires_ship", True)
+
         if not ship_id and session and session.ship_id:
             ship_id = session.ship_id
 
-        if not ship_id:
+        if requires_ship and not ship_id:
             return {"ok": False, "error": "missing ship"}
 
         # Route through station-aware dispatcher
         args = {k: v for k, v in req.items() if k not in ["cmd", "command"]}
-        args["ship"] = ship_id
+        if ship_id:
+            args["ship"] = ship_id
 
-        result = self.dispatcher.dispatch(client_id, ship_id, cmd, args)
+        result = self.dispatcher.dispatch(client_id, ship_id or "", cmd, args)
         return result.to_dict()
 
     def _handle_get_state(self, client_id: str, req: dict) -> dict:
