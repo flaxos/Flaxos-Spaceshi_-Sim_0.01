@@ -1,7 +1,7 @@
 # Flaxos Spaceship Simulator - Architecture Documentation
 
 **Version**: 0.2.0
-**Last Updated**: 2026-01-20
+**Last Updated**: 2026-01-21
 
 ---
 
@@ -167,6 +167,12 @@ class StationTelemetryFilter:
 
     filter_ship_telemetry(ship_data, station) -> filtered_data
     filter_telemetry_for_client(client_id, full_snapshot) -> filtered_snapshot
+```
+
+**telemetry/station_filter.py**
+```python
+# Stable import path for station telemetry filtering
+from server.stations.station_telemetry import StationTelemetryFilter
 ```
 
 **fleet_commands.py**

@@ -16,6 +16,9 @@ Sprint S3 focuses on replacing the Euler angle orientation system with quaternio
 3. **Improved aim fidelity** - Weapon pointing accuracy
 4. **Foundation for Sprint S4** - Advanced combat mechanics
 
+**Recent Updates**
+- Added a stable telemetry filter import path (`server/telemetry/station_filter.py`) and tests to validate station-scoped filtering. Keep this module updated if telemetry logic changes.
+
 ---
 
 ## Sprint Goals
