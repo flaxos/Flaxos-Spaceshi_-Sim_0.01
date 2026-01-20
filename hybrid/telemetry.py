@@ -148,19 +148,27 @@ def get_sensor_contacts(ship) -> Dict[str, Any]:
 
     contacts_list = []
 
+    def contact_value(contact: Any, key: str, default: Any = None) -> Any:
+        if isinstance(contact, dict):
+            if key == "last_update":
+                return contact.get("last_update", contact.get("last_updated", default))
+            return contact.get(key, default)
+        return getattr(contact, key, default)
+
     # Get passive contacts
     if hasattr(sensors, "passive") and hasattr(sensors.passive, "contacts"):
         for contact_id, contact in sensors.passive.contacts.items():
-            distance = calculate_distance(ship.position, contact.get("position", ship.position))
-            bearing = calculate_bearing(ship.position, contact.get("position", ship.position))
+            position = contact_value(contact, "position", ship.position)
+            distance = calculate_distance(ship.position, position)
+            bearing = calculate_bearing(ship.position, position)
 
             contacts_list.append({
                 "id": contact_id,
                 "distance": distance,
                 "bearing": bearing,
-                "confidence": contact.get("confidence", 0.5),
-                "last_update": contact.get("last_updated", 0),
-                "detection_method": contact.get("detection_method", "passive")
+                "confidence": contact_value(contact, "confidence", 0.5),
+                "last_update": contact_value(contact, "last_update", 0),
+                "detection_method": contact_value(contact, "detection_method", "passive")
             })
 
     # Get active contacts
@@ -170,16 +178,17 @@ def get_sensor_contacts(ship) -> Dict[str, Any]:
             if any(c["id"] == contact_id for c in contacts_list):
                 continue
 
-            distance = calculate_distance(ship.position, contact.get("position", ship.position))
-            bearing = calculate_bearing(ship.position, contact.get("position", ship.position))
+            position = contact_value(contact, "position", ship.position)
+            distance = calculate_distance(ship.position, position)
+            bearing = calculate_bearing(ship.position, position)
 
             contacts_list.append({
                 "id": contact_id,
                 "distance": distance,
                 "bearing": bearing,
-                "confidence": contact.get("confidence", 0.9),
-                "last_update": contact.get("last_updated", 0),
-                "detection_method": contact.get("detection_method", "active")
+                "confidence": contact_value(contact, "confidence", 0.9),
+                "last_update": contact_value(contact, "last_update", 0),
+                "detection_method": contact_value(contact, "detection_method", "active")
             })
 
     # Sort by distance

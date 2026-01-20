@@ -139,8 +139,11 @@ class HybridRunner:
                             sensor_system.config = {}
                             
                         # Check active sensor fields
-                        if not hasattr(sensor_system.active, "last_ping_time") or sensor_system.active["last_ping_time"] is None:
-                            sensor_system.active["last_ping_time"] = 0
+                        if (
+                            not hasattr(sensor_system.active, "last_ping_time")
+                            or sensor_system.active.last_ping_time is None
+                        ):
+                            sensor_system.active.last_ping_time = 0
                             
                         # Ensure contacts list exists
                         if "contacts" not in sensor_system.config:
