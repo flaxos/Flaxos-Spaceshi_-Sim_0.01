@@ -57,6 +57,30 @@
       },
       "signature_base": 1.2
     },
+    "targeting": {
+      "enabled": true,
+      "power_draw": 5,
+      "mass": 20,
+      "slot_type": "tactical",
+      "tech_level": 1
+    },
+    "weapons": {
+      "enabled": true,
+      "weapons": [
+        {
+          "name": "pulse_laser",
+          "power_cost": 20,
+          "max_heat": 100,
+          "ammo": null
+        },
+        {
+          "name": "railgun",
+          "power_cost": 50,
+          "max_heat": 200,
+          "ammo": 20
+        }
+      ]
+    },
     "power_management": {
       "primary": {
         "output": 100.0
@@ -71,6 +95,7 @@
       "system_map": {
         "propulsion": "primary",
         "weapons": "primary",
+        "targeting": "primary",
         "sensors": "secondary",
         "defense": "secondary",
         "rcs": "secondary",

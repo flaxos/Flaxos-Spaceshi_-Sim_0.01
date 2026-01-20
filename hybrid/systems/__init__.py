@@ -27,6 +27,8 @@ def get_system_class(system_type):
         "helm": HelmSystem,
         "bio": BioMonitorSystem,
         "power_management": PowerManagementSystem,
+        "targeting": TargetingSystem,
+        "weapons": WeaponSystem,
     }
     
     return system_map.get(system_type)
@@ -41,6 +43,8 @@ from hybrid.systems.bio_monitor_system import BioMonitorSystem
 # Use the newer power management implementation that handles layered reactors
 # and additional configuration like alert thresholds and system mapping.
 from hybrid.systems.power.management import PowerManagementSystem
+from hybrid.systems.targeting.targeting_system import TargetingSystem
+from hybrid.systems.weapons.weapon_system import WeaponSystem
 __all__ = [
     'PowerSystem',
     'SensorSystem',
@@ -49,4 +53,6 @@ __all__ = [
     'BioMonitorSystem',
     'PropulsionSystem',
     'PowerManagementSystem',
+    'TargetingSystem',
+    'WeaponSystem',
 ]

@@ -142,7 +142,7 @@ class ActiveSensor:
                 "position": observer_ship.position,
                 "range": self.range,
                 "timestamp": sim_time
-            }, "sensors")
+            })
 
         logger.info(f"Active ping from {observer_ship.id}: {len(detected)} contacts detected")
 

@@ -82,7 +82,7 @@ def dispatch(runner: HybridRunner, req: dict) -> dict:
 
     command_data = {"command": cmd, "ship": ship_id, **req}
     command_data.pop("cmd", None)
-    result = route_command(ship, command_data)
+    result = route_command(ship, command_data, runner.simulator.ships)
     if isinstance(result, dict) and "error" in result:
         return {"ok": False, "error": result["error"], "response": result}
     return {"ok": True, "response": result}

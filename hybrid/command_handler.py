@@ -21,7 +21,11 @@ system_commands = {
     "autopilot": ("navigation", "set_autopilot"),
     "helm_override": ("helm", "set_mode"),
     "ping_sensors": ("sensors", "ping"),
-    "override_bio_monitor": ("bio_monitor", "override")
+    "override_bio_monitor": ("bio_monitor", "override"),
+    "lock_target": ("targeting", "lock"),
+    "unlock_target": ("targeting", "unlock"),
+    "get_target_solution": ("targeting", "get_solution"),
+    "fire_weapon": ("weapons", "fire")
 }
 
 def parse_command(data):
@@ -42,14 +46,15 @@ def parse_command(data):
             return {"error": "Invalid JSON command"}
     return data
 
-def route_command(ship, command_data):
+def route_command(ship, command_data, all_ships=None):
     """
     Route a command to the appropriate ship or system
-    
+
     Args:
         ship (Ship): The ship to execute the command on
         command_data (dict): The command data
-        
+        all_ships (dict, optional): Dictionary of all ships (for sensor commands)
+
     Returns:
         dict: Command response
     """
@@ -57,17 +62,17 @@ def route_command(ship, command_data):
         # Extract command details
         cmd = command_data.get("command")
         ship_id = command_data.get("ship")
-        
+
         # Validate command
         if not cmd:
             return {"error": "Missing command parameter"}
-            
+
         # Validate ship
         if ship_id != ship.id:
             return {"error": f"Command sent to wrong ship. Expected {ship.id}, got {ship_id}"}
-            
+
         # Execute command
-        response = execute_command(ship, cmd, command_data)
+        response = execute_command(ship, cmd, command_data, all_ships)
         
         # Add timestamp to response
         if isinstance(response, dict):
@@ -89,7 +94,7 @@ def route_command(ship, command_data):
             "timestamp": datetime.utcnow().isoformat()
         }
 
-def execute_command(ship, command_type, command_data):
+def execute_command(ship, command_type, command_data, all_ships=None):
     """
     Execute a command on a ship
 
@@ -97,6 +102,7 @@ def execute_command(ship, command_type, command_data):
         ship (Ship): The ship to execute the command on
         command_type (str): The type of command to execute
         command_data (dict): The command data
+        all_ships (dict, optional): Dictionary of all ships
 
     Returns:
         dict: Command response
@@ -104,13 +110,20 @@ def execute_command(ship, command_type, command_data):
     # Check if this is a system-specific command (uses module-level system_commands)
     if command_type in system_commands:
         system_name, action = system_commands[command_type]
-        
+
         # Make sure the system exists
         if system_name not in ship.systems:
             return {"error": f"System {system_name} not found on ship {ship.id}"}
-            
+
+        # Inject ship object, event bus, and all_ships into command_data for systems that need it
+        command_data_with_ship = command_data.copy()
+        command_data_with_ship["ship"] = ship
+        command_data_with_ship["event_bus"] = ship.event_bus
+        if all_ships is not None:
+            command_data_with_ship["all_ships"] = list(all_ships.values())
+
         # Execute the command on the system
-        return ship.systems[system_name].command(action, command_data)
+        return ship.systems[system_name].command(action, command_data_with_ship)
         
     # Handle direct ship commands
     return ship.command(command_type, command_data)
