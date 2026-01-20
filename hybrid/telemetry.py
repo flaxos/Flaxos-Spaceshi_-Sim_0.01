@@ -41,7 +41,7 @@ def get_ship_telemetry(ship, sim_time: float = None) -> Dict[str, Any]:
 
         # Calculate delta-v if we have ISP data
         if hasattr(propulsion, "efficiency") and ship.mass > 0:
-            dry_mass = ship.mass - fuel_level
+            dry_mass = max(0.0, ship.mass - fuel_level)  # Ensure non-negative
             isp = getattr(propulsion, "isp", 3000)  # Default ISP
             delta_v_remaining = calculate_delta_v(dry_mass, fuel_level, isp)
 
