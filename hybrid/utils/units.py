@@ -211,8 +211,14 @@ def calculate_delta_v(dry_mass_kg, fuel_mass_kg, isp_seconds):
     if fuel_mass_kg <= 0:
         return 0.0
 
+    if dry_mass_kg <= 0:
+        return 0.0
+
     total_mass = dry_mass_kg + fuel_mass_kg
     mass_ratio = total_mass / dry_mass_kg
+
+    if mass_ratio <= 0:
+        return 0.0
 
     # Tsiolkovsky: Δv = Isp * g₀ * ln(m₀/m_f)
     g0 = 9.81  # Standard gravity
