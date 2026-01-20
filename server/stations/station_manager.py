@@ -207,6 +207,10 @@ class StationManager:
                 other_name = other_session.player_name if other_session else "Unknown"
                 return False, f"Station {station.value} is controlled by {other_name}"
 
+        # Ensure captains always receive captain-level permissions
+        if station == StationType.CAPTAIN:
+            permission_level = PermissionLevel.CAPTAIN
+
         # Claim the station
         now = datetime.now()
         claim = StationClaim(
@@ -256,7 +260,10 @@ class StationManager:
         if claim.client_id != client_id:
             # Check if requester is Captain (can force release)
             requester_session = self.sessions.get(client_id)
-            if not requester_session or requester_session.permission_level < PermissionLevel.CAPTAIN:
+            if (
+                not requester_session
+                or requester_session.permission_level.value < PermissionLevel.CAPTAIN.value
+            ):
                 return False, "You don't control this station"
 
         # Release the claim

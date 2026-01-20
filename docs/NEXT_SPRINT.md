@@ -18,6 +18,7 @@ Sprint S3 focuses on replacing the Euler angle orientation system with quaternio
 
 **Recent Updates**
 - Added a stable telemetry filter import path (`server/telemetry/station_filter.py`) and tests to validate station-scoped filtering. Keep this module updated if telemetry logic changes.
+- Captain station claims now auto-elevate permissions for cross-station overrides.
 
 ---
 

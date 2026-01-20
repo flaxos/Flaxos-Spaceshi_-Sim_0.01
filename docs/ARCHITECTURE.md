@@ -1,7 +1,7 @@
 # Flaxos Spaceship Simulator - Architecture Documentation
 
 **Version**: 0.2.0
-**Last Updated**: 2026-01-21
+**Last Updated**: 2026-01-22
 
 ---
 
@@ -142,6 +142,8 @@ class StationManager:
     assign_to_ship(client_id, ship_id)
     claim_station(client_id, ship_id, station)
     release_station(client_id, ship_id, station)
+
+    # Claims auto-upgrade CAPTAIN station permissions
 
     # Permission checking
     can_issue_command(client_id, ship_id, command) -> (bool, str)
