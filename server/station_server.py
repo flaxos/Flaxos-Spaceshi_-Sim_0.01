@@ -386,7 +386,7 @@ class StationServer:
         }
         try:
             conn.sendall((json.dumps(welcome) + "\n").encode("utf-8"))
-        except:
+        except (OSError, BrokenPipeError):
             pass
 
         # Handle commands
@@ -472,7 +472,7 @@ class StationServer:
             for client_id, conn in list(self.clients.items()):
                 try:
                     conn.close()
-                except:
+                except OSError:
                     pass
             self.clients.clear()
 

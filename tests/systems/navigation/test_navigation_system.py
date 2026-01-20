@@ -13,4 +13,4 @@ def test_navigation_tick_publishes_event():
     dummy_ship = types.SimpleNamespace(id="ship1")
     nav.tick(0.5, dummy_ship, eb)
 
-    assert events == [{"dt": 0.5, "ship_id": "ship1"}]
+    assert events == [{"dt": 0.5, "ship_id": "ship1", "mode": "manual", "autopilot": None}]

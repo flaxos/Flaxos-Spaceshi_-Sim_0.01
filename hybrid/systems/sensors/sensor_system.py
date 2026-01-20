@@ -87,7 +87,7 @@ class SensorSystem(BaseSystem):
             "dt": dt,
             "ship_id": ship.id,
             "contacts": len(self.contact_tracker.get_all_contacts(self.sim_time))
-        }, "sensors")
+        })
 
     def command(self, action: str, params: dict):
         """Handle sensor commands.

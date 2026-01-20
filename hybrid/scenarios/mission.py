@@ -98,7 +98,7 @@ class Mission:
                         distance = calculate_distance(player_ship.position, sim.ships[target_id].position)
                         if distance < target_range:
                             triggered = True
-                except:
+                except (KeyError, AttributeError, ValueError, TypeError, IndexError):
                     pass
             elif trigger.startswith("time >"):
                 # Time-based trigger
@@ -106,7 +106,7 @@ class Mission:
                     trigger_time = float(trigger.split(">")[1].strip())
                     if self.start_time and (sim.time - self.start_time) > trigger_time:
                         triggered = True
-                except:
+                except (ValueError, IndexError, AttributeError):
                     pass
 
             if triggered:

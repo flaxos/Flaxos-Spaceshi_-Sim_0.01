@@ -13,4 +13,4 @@ def test_sensor_tick_publishes_event():
     dummy_ship = types.SimpleNamespace(id="ship1")
     sensors.tick(0.25, dummy_ship, eb)
 
-    assert events == [{"dt": 0.25, "ship_id": "ship1"}]
+    assert events == [{"dt": 0.25, "ship_id": "ship1", "contacts": 0}]
