@@ -449,7 +449,7 @@ def register_station_commands(
         session = station_manager.get_session(client_id)
 
         # Only OFFICER or CAPTAIN can transfer
-        if not session or session.permission_level < PermissionLevel.OFFICER:
+        if not session or session.permission_level.value < PermissionLevel.OFFICER.value:
             return CommandResult(
                 success=False,
                 message="Only OFFICER or CAPTAIN can transfer station control"

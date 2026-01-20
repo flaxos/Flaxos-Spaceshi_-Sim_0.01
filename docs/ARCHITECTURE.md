@@ -1,7 +1,7 @@
 # Flaxos Spaceship Simulator - Architecture Documentation
 
 **Version**: 0.2.0
-**Last Updated**: 2026-01-23
+**Last Updated**: 2026-01-24
 
 ---
 
@@ -169,6 +169,7 @@ class StationAwareDispatcher:
 register_station_commands(dispatcher, station_manager, crew_manager, ship_provider)
 
 # list_ships returns live ship IDs + metadata from ship_provider
+# transfer_station requires OFFICER or CAPTAIN permissions
 ```
 
 **station_telemetry.py**
