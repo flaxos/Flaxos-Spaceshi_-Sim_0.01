@@ -28,6 +28,12 @@ print(s.recv(4096).decode("utf-8", "replace"))
 PY
    ```
 
+4. Or run the scripted desktop smoke test (starts server + connects client):
+
+   ```bash
+   python tools/desktop_demo_smoke.py
+   ```
+
 ## Android / Pydroid Demo (Parity Smoke Test)
 
 > Goal: verify core imports + sim tick work on Android (no GUI deps).
