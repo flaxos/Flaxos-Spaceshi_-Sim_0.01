@@ -148,6 +148,12 @@ class Simulator:
         # Process sensor interactions
         self._process_sensor_interactions(all_ships)
 
+        # D6: Remove destroyed ships
+        destroyed_ships = [ship.id for ship in all_ships if ship.is_destroyed()]
+        for ship_id in destroyed_ships:
+            logger.info(f"Removing destroyed ship: {ship_id}")
+            self.remove_ship(ship_id)
+
         # Update fleet manager
         self.fleet_manager.update(self.dt)
 

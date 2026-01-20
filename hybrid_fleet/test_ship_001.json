@@ -71,13 +71,15 @@
           "name": "pulse_laser",
           "power_cost": 20,
           "max_heat": 100,
-          "ammo": null
+          "ammo": null,
+          "damage": 5.0
         },
         {
           "name": "railgun",
           "power_cost": 50,
           "max_heat": 200,
-          "ammo": 20
+          "ammo": 20,
+          "damage": 15.0
         }
       ]
     },
