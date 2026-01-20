@@ -1,7 +1,7 @@
 # Flaxos Spaceship Simulator - Architecture Documentation
 
 **Version**: 0.2.0
-**Last Updated**: 2026-01-22
+**Last Updated**: 2026-01-23
 
 ---
 
@@ -115,6 +115,7 @@ Flaxos Spaceship Simulator is a **hard sci-fi multiplayer space combat simulator
 - `dispatch()` - Command routing
 - `_handle_get_state()` - Telemetry delivery with filtering
 - `_handle_get_events()` - Event delivery with filtering
+- `list_ships` command exposes live ship metadata from the simulator
 
 #### `stations/` - Station Management System
 
@@ -160,6 +161,14 @@ class StationAwareDispatcher:
     register_command(command, handler, ...)
     dispatch(client_id, ship_id, command, args) -> CommandResult
     get_available_commands(client_id) -> Dict
+```
+
+**station_commands.py**
+```python
+# Station management commands
+register_station_commands(dispatcher, station_manager, crew_manager, ship_provider)
+
+# list_ships returns live ship IDs + metadata from ship_provider
 ```
 
 **station_telemetry.py**

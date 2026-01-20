@@ -56,6 +56,7 @@ class StationAwareDispatcher:
         station: Optional[StationType] = None,
         requires_target: bool = False,
         requires_power: Optional[str] = None,
+        requires_ship: bool = True,
         bypass_permission_check: bool = False,
     ):
         """
@@ -74,6 +75,7 @@ class StationAwareDispatcher:
             "station": station or get_station_for_command(command),
             "requires_target": requires_target,
             "requires_power": requires_power,
+            "requires_ship": requires_ship,
             "bypass_permission_check": bypass_permission_check,
         }
         logger.debug(f"Registered command: {command} -> {station}")

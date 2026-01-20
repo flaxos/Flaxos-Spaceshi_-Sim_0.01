@@ -5,7 +5,7 @@ Provides commands for clients to claim/release stations, check status,
 and manage their session.
 """
 
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Callable, Iterable, Mapping, List
 import logging
 
 from .station_manager import StationManager
@@ -16,14 +16,50 @@ from .crew_system import CrewManager, StationSkill
 logger = logging.getLogger(__name__)
 
 
-def register_station_commands(dispatcher, station_manager: StationManager, crew_manager: Optional[CrewManager] = None):
+def register_station_commands(
+    dispatcher,
+    station_manager: StationManager,
+    crew_manager: Optional[CrewManager] = None,
+    ship_provider: Optional[Callable[[], Iterable[Any]]] = None,
+):
     """
     Register station management commands with the dispatcher.
 
     Args:
         dispatcher: StationAwareDispatcher instance
         station_manager: StationManager instance
+        ship_provider: Callable returning iterable of ships or ship registry
     """
+
+    def _format_ship_list(ships: Iterable[Any]) -> List[Dict[str, Any]]:
+        ship_entries: List[Dict[str, Any]] = []
+        if isinstance(ships, Mapping):
+            items = ships.items()
+        else:
+            items = ((None, ship) for ship in ships)
+
+        for ship_id, ship in items:
+            if isinstance(ship, str):
+                ship_entries.append({"id": ship})
+                continue
+
+            resolved_id = ship_id or getattr(ship, "id", None)
+            if not resolved_id:
+                continue
+
+            entry = {"id": resolved_id}
+            name = getattr(ship, "name", None)
+            if name:
+                entry["name"] = name
+            class_type = getattr(ship, "class_type", None)
+            if class_type:
+                entry["class"] = class_type
+            faction = getattr(ship, "faction", None)
+            if faction:
+                entry["faction"] = faction
+            ship_entries.append(entry)
+
+        return ship_entries
 
     def cmd_register_client(client_id: str, ship_id: str, args: Dict[str, Any]) -> CommandResult:
         """
@@ -225,14 +261,14 @@ def register_station_commands(dispatcher, station_manager: StationManager, crew_
         """
         List all ships in the simulation.
         """
-        # This would need access to the simulator
-        # For now, return a placeholder
+        ships = ship_provider() if ship_provider else []
+        ship_entries = _format_ship_list(ships)
+
         return CommandResult(
             success=True,
             message="Ships list",
             data={
-                "message": "Ship listing not yet implemented",
-                "ships": []
+                "ships": ship_entries
             }
         )
 
@@ -577,54 +613,63 @@ def register_station_commands(dispatcher, station_manager: StationManager, crew_
     dispatcher.register_command(
         "register_client",
         cmd_register_client,
+        requires_ship=False,
         bypass_permission_check=True
     )
 
     dispatcher.register_command(
         "assign_ship",
         cmd_assign_ship,
+        requires_ship=False,
         bypass_permission_check=True
     )
 
     dispatcher.register_command(
         "claim_station",
         cmd_claim_station,
+        requires_ship=False,
         bypass_permission_check=True
     )
 
     dispatcher.register_command(
         "release_station",
         cmd_release_station,
+        requires_ship=False,
         bypass_permission_check=True
     )
 
     dispatcher.register_command(
         "station_status",
         cmd_station_status,
+        requires_ship=False,
         bypass_permission_check=True
     )
 
     dispatcher.register_command(
         "my_status",
         cmd_my_status,
+        requires_ship=False,
         bypass_permission_check=True
     )
 
     dispatcher.register_command(
         "list_ships",
         cmd_list_ships,
+        requires_ship=False,
         bypass_permission_check=True
     )
 
     dispatcher.register_command(
         "heartbeat",
         cmd_heartbeat,
+        requires_ship=False,
         bypass_permission_check=True
     )
 
     dispatcher.register_command(
         "fleet_status",
         cmd_fleet_status,
+        requires_ship=False,
         bypass_permission_check=True
     )
 
@@ -632,18 +677,21 @@ def register_station_commands(dispatcher, station_manager: StationManager, crew_
     dispatcher.register_command(
         "promote_to_officer",
         cmd_promote_to_officer,
-        station=StationType.CAPTAIN
+        station=StationType.CAPTAIN,
+        requires_ship=False
     )
 
     dispatcher.register_command(
         "demote_from_officer",
         cmd_demote_from_officer,
-        station=StationType.CAPTAIN
+        station=StationType.CAPTAIN,
+        requires_ship=False
     )
 
     dispatcher.register_command(
         "transfer_station",
         cmd_transfer_station,
+        requires_ship=False,
         bypass_permission_check=True  # Has internal permission check
     )
 
@@ -652,18 +700,21 @@ def register_station_commands(dispatcher, station_manager: StationManager, crew_
         dispatcher.register_command(
             "crew_status",
             cmd_crew_status,
+            requires_ship=False,
             bypass_permission_check=True
         )
 
         dispatcher.register_command(
             "my_crew_status",
             cmd_my_crew_status,
+            requires_ship=False,
             bypass_permission_check=True
         )
 
         dispatcher.register_command(
             "crew_rest",
             cmd_crew_rest,
+            requires_ship=False,
             bypass_permission_check=True
         )
 

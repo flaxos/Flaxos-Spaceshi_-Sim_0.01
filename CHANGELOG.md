@@ -12,10 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Stable station telemetry filter import path in `server/telemetry/station_filter.py`.
 - Station telemetry filtering tests for helm/captain behavior.
+- Station `list_ships` command now surfaces live ship metadata from the simulator.
 
 ### Fixed
 - Captain station claims now auto-elevate permissions for override actions.
 - Phase 2 integration tests no longer return values (removes pytest warnings).
+- Station meta-commands can now run without requiring a ship assignment.
 
 ### Planned
 - Quaternion-based attitude system (Sprint S3)
