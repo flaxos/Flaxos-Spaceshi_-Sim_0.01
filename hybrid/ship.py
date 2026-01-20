@@ -42,6 +42,11 @@ class Ship:
         # Default: I ≈ (1/6) * m * L² where L ≈ ∛(m) (rough estimate for spacecraft)
         self.moment_of_inertia = config.get("moment_of_inertia", self.mass * (self.mass ** (1.0/3.0)) / 6.0)
 
+        # D6: Hull integrity for damage model
+        # Base hull on mass: roughly 1 hull point per 10 kg of mass
+        self.max_hull_integrity = config.get("max_hull_integrity", self.mass / 10.0)
+        self.hull_integrity = config.get("hull_integrity", self.max_hull_integrity)
+
         # Initialize physical state
         self.position = self._get_vector3_config(config.get("position", {}))
         self.velocity = self._get_vector3_config(config.get("velocity", {}))
@@ -315,6 +320,9 @@ class Ship:
             "class": self.class_type,
             "faction": self.faction,
             "mass": self.mass,
+            "hull_integrity": self.hull_integrity,
+            "max_hull_integrity": self.max_hull_integrity,
+            "hull_percent": (self.hull_integrity / self.max_hull_integrity * 100) if self.max_hull_integrity > 0 else 0,
             "position": self.position,
             "velocity": self.velocity,
             "acceleration": self.acceleration,
@@ -339,7 +347,59 @@ class Ship:
                 state["systems"][system_type] = copy.deepcopy(system)
         
         return state
-    
+
+    def take_damage(self, amount, source=None):
+        """
+        Apply damage to the ship's hull.
+
+        Args:
+            amount (float): Amount of damage to apply
+            source (str, optional): ID of ship/weapon that caused damage
+
+        Returns:
+            dict: Damage result with current hull status
+        """
+        if amount <= 0:
+            return {"ok": False, "error": "Invalid damage amount"}
+
+        previous_hull = self.hull_integrity
+        self.hull_integrity = max(0.0, self.hull_integrity - amount)
+
+        # Publish damage event
+        self.event_bus.publish("ship_damaged", {
+            "ship_id": self.id,
+            "damage": amount,
+            "hull_before": previous_hull,
+            "hull_after": self.hull_integrity,
+            "source": source,
+            "destroyed": self.is_destroyed()
+        })
+
+        if self.is_destroyed():
+            logger.warning(f"Ship {self.id} destroyed! Hull integrity: {self.hull_integrity:.1f}")
+            self.event_bus.publish("ship_destroyed", {
+                "ship_id": self.id,
+                "source": source
+            })
+
+        return {
+            "ok": True,
+            "damage_applied": amount,
+            "hull_integrity": self.hull_integrity,
+            "max_hull_integrity": self.max_hull_integrity,
+            "hull_percent": (self.hull_integrity / self.max_hull_integrity * 100) if self.max_hull_integrity > 0 else 0,
+            "destroyed": self.is_destroyed()
+        }
+
+    def is_destroyed(self):
+        """
+        Check if the ship is destroyed (hull integrity <= 0).
+
+        Returns:
+            bool: True if ship is destroyed
+        """
+        return self.hull_integrity <= 0
+
     def _cmd_get_state(self, params):
         """Command handler for get_state"""
         return self.get_state()

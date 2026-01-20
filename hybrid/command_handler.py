@@ -120,7 +120,8 @@ def execute_command(ship, command_type, command_data, all_ships=None):
         command_data_with_ship["ship"] = ship
         command_data_with_ship["event_bus"] = ship.event_bus
         if all_ships is not None:
-            command_data_with_ship["all_ships"] = list(all_ships.values())
+            # D6: Keep all_ships as dict for target resolution in weapon system
+            command_data_with_ship["all_ships"] = all_ships
 
         # Execute the command on the system
         return ship.systems[system_name].command(action, command_data_with_ship)

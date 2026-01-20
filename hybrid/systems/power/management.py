@@ -17,9 +17,11 @@ class PowerManagementSystem:
             if layer_name in ('system_map',):
                 continue
             base = Reactor(layer_name)
+            # D6: Support "output" as alias for "capacity" for backward compatibility
+            capacity = params.get("capacity") or params.get("output", base.capacity)
             self.reactors[layer_name] = Reactor(
                 name=layer_name,
-                capacity=params.get("capacity", base.capacity),
+                capacity=capacity,
                 output_rate=params.get("output_rate", base.output_rate),
                 thermal_limit=params.get("thermal_limit", base.thermal_limit)
             )

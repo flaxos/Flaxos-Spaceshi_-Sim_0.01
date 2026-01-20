@@ -125,8 +125,13 @@ class SensorSystem(BaseSystem):
         if not ship:
             return error_dict("NO_SHIP_REFERENCE", "Ship reference required for ping")
 
-        # Need all_ships list
-        all_ships = self.all_ships or params.get("all_ships", [])
+        # Need all_ships list (convert from dict if necessary)
+        all_ships_param = self.all_ships or params.get("all_ships", [])
+        # D6: Handle both dict and list formats for all_ships
+        if isinstance(all_ships_param, dict):
+            all_ships = list(all_ships_param.values())
+        else:
+            all_ships = all_ships_param
 
         # Need event bus
         event_bus = params.get("event_bus") or EventBus.get_instance()
