@@ -1,38 +1,16 @@
-# Handoff Notes
-
-**Last Updated**: 2026-01-20
-**Sprint**: S3 (Quaternion Attitude)
-
----
-
-## Session Goal
-- Deliverable: Physics update documentation ✅
-
----
-
-## Summary of Changes
-- Added physics update documentation for Sprint S3 quaternion + torque integration.
-- Linked the new physics update documentation in sprint planning, architecture notes, and README.
-- Refreshed documentation metadata (feature status, known issues, changelog).
-
----
-
-## Tests & Validation
+# HANDOFF
+## Demo Slice Status
+- D1–D6: Not validated this session.
+- Platform parity: Desktop ✅ (tests + smoke script), Android ⚠️ (on-device run pending).
+## What Works (exact commands)
 - `python -m pytest -q`
-- `python -m server.run_server --port 8765` smoke test + TCP probe
-- Android core import check for GUI deps
-
----
-
-## Notes for Next Agent
-- Quaternion math implementation already lives in `hybrid/utils/quaternion.py`; remaining Sprint S3 work centers on ship integration + RCS torque.
-- Next documentation deliverable: Euler → quaternion migration guide.
-
----
-
-## Model Switch Anchor
-If you are taking over this work, start by reviewing:
-- `docs/QUATERNION_API.md`
-- `docs/PHYSICS_UPDATE.md`
-- `docs/NEXT_SPRINT.md`
-- `docs/FEATURE_STATUS.md`
+- `python tools/android_smoke.py`
+## What’s Broken (max 3)
+- `server.run_server` telemetry still logs `ActiveSensor` serialization errors (known issue in `docs/KNOWN_ISSUES.md`).
+- Inline socket probe in validation script reported `/bin/bash: line 4: python: command not found` when run in a multi-line command block.
+## Next 1–3 Actions
+1) Run `python tools/android_smoke.py` on a real Android/Pydroid device and capture output.
+2) If feasible, run `python -m server.run_server --host 127.0.0.1 --port 8765` and a loopback socket probe on-device.
+3) Investigate why inline `python - <<'PY'` failed in the validation block despite `python` being available.
+## Guardrails (Do Not Touch)
+- Avoid UI dependencies in core sim/server modules to preserve Android parity.
