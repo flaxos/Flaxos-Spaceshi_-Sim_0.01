@@ -10,6 +10,20 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
+# System command mappings (system_name, action)
+# This dict maps command names to (system, action) tuples for routing
+system_commands = {
+    "set_thrust": ("propulsion", "set_thrust"),
+    "set_orientation": ("helm", "set_orientation"),
+    "set_angular_velocity": ("helm", "set_angular_velocity"),
+    "rotate": ("helm", "rotate"),
+    "set_course": ("navigation", "set_course"),
+    "autopilot": ("navigation", "set_autopilot"),
+    "helm_override": ("helm", "set_mode"),
+    "ping_sensors": ("sensors", "ping"),
+    "override_bio_monitor": ("bio_monitor", "override")
+}
+
 def parse_command(data):
     """
     Parse a command string or dictionary
@@ -78,29 +92,16 @@ def route_command(ship, command_data):
 def execute_command(ship, command_type, command_data):
     """
     Execute a command on a ship
-    
+
     Args:
         ship (Ship): The ship to execute the command on
         command_type (str): The type of command to execute
         command_data (dict): The command data
-        
+
     Returns:
         dict: Command response
     """
-    # Special handling for system-specific commands
-    system_commands = {
-        "set_thrust": ("propulsion", "set_thrust"),
-        "set_orientation": ("helm", "set_orientation"),
-        "set_angular_velocity": ("helm", "set_angular_velocity"),
-        "rotate": ("helm", "rotate"),
-        "set_course": ("navigation", "set_course"),
-        "autopilot": ("navigation", "set_autopilot"),
-        "helm_override": ("helm", "set_mode"),
-        "ping_sensors": ("sensors", "ping"),
-        "override_bio_monitor": ("bio_monitor", "override")
-    }
-    
-    # Check if this is a system-specific command
+    # Check if this is a system-specific command (uses module-level system_commands)
     if command_type in system_commands:
         system_name, action = system_commands[command_type]
         

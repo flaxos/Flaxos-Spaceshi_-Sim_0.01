@@ -107,7 +107,7 @@ def test_release_station(manager):
     manager.assign_to_ship(client_id, "test_ship_001")
     manager.claim_station(client_id, "test_ship_001", StationType.HELM)
 
-    success, message = manager.release_station(client_id)
+    success, message = manager.release_station(client_id, "test_ship_001", StationType.HELM)
 
     assert success is True
 
@@ -115,8 +115,8 @@ def test_release_station(manager):
     assert session.station is None
 
     # Station should be available again
-    claim = manager.get_claim("test_ship_001", StationType.HELM)
-    assert claim is None
+    owner = manager.get_station_owner("test_ship_001", StationType.HELM)
+    assert owner is None
 
 
 def test_get_station_status(manager):
@@ -136,10 +136,10 @@ def test_get_station_status(manager):
     status = manager.get_ship_stations("test_ship_001")
 
     # Check that helm and tactical stations are claimed
-    assert len(status) >= 2
-    station_types = [s["station"] for s in status]
-    assert "helm" in station_types
-    assert "tactical" in station_types
+    # status is a Dict[StationType, Optional[str]]
+    assert isinstance(status, dict)
+    assert status[StationType.HELM] == "player1"
+    assert status[StationType.TACTICAL] == "player2"
 
 
 def test_can_issue_command(manager):
@@ -150,10 +150,12 @@ def test_can_issue_command(manager):
     manager.claim_station(client_id, "test_ship_001", StationType.HELM)
 
     # HELM should be able to issue helm commands
-    assert manager.can_execute_command(client_id, "set_thrust")
+    allowed, reason = manager.can_issue_command(client_id, "test_ship_001", "set_thrust")
+    assert allowed is True
 
     # HELM should NOT be able to fire weapons
-    assert not manager.can_execute_command(client_id, "fire")
+    allowed, reason = manager.can_issue_command(client_id, "test_ship_001", "fire")
+    assert allowed is False
 
 
 def test_captain_can_issue_any_command(manager):
@@ -164,9 +166,12 @@ def test_captain_can_issue_any_command(manager):
     manager.claim_station(client_id, "test_ship_001", StationType.CAPTAIN)
 
     # CAPTAIN should be able to issue any command
-    assert manager.can_execute_command(client_id, "set_thrust")
-    assert manager.can_execute_command(client_id, "fire")
-    assert manager.can_execute_command(client_id, "ping_sensors")
+    allowed1, _ = manager.can_issue_command(client_id, "test_ship_001", "set_thrust")
+    allowed2, _ = manager.can_issue_command(client_id, "test_ship_001", "fire")
+    allowed3, _ = manager.can_issue_command(client_id, "test_ship_001", "ping_sensors")
+    assert allowed1 is True
+    assert allowed2 is True
+    assert allowed3 is True
 
 
 def test_update_heartbeat(manager):
@@ -178,7 +183,7 @@ def test_update_heartbeat(manager):
     initial_time = session.last_heartbeat
 
     time.sleep(0.01)  # Small delay
-    manager.heartbeat(client_id)
+    manager.update_activity(client_id)
 
     session = manager.sessions[client_id]
     assert session.last_heartbeat > initial_time
@@ -195,16 +200,16 @@ def test_cleanup_stale_claims(manager):
     session = manager.sessions[client_id]
     session.last_heartbeat = datetime.now() - timedelta(seconds=400)  # 400 seconds ago
 
-    # Run cleanup
-    removed = manager.cleanup_stale_sessions(timeout_seconds=300)
+    # Run cleanup (uses default timeout of 300 seconds from manager.claim_timeout_seconds)
+    removed = manager.cleanup_stale_claims()
 
     # Session should be removed
     assert client_id in removed
     assert client_id not in manager.sessions
 
     # Station should be released
-    claim = manager.get_claim("test_ship_001", StationType.HELM)
-    assert claim is None
+    owner = manager.get_station_owner("test_ship_001", StationType.HELM)
+    assert owner is None
 
 
 def test_disconnect_client(manager):
@@ -214,11 +219,11 @@ def test_disconnect_client(manager):
     manager.assign_to_ship(client_id, "test_ship_001")
     manager.claim_station(client_id, "test_ship_001", StationType.HELM)
 
-    manager.disconnect(client_id)
+    manager.unregister_client(client_id)
 
     # Session should be removed
     assert client_id not in manager.sessions
 
     # Station should be released
-    claim = manager.get_claim("test_ship_001", StationType.HELM)
-    assert claim is None
+    owner = manager.get_station_owner("test_ship_001", StationType.HELM)
+    assert owner is None
