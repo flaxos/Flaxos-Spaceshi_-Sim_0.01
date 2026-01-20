@@ -18,13 +18,13 @@ def test_weapon_firing_and_cooldown():
     current_time = time.time()
     # First shot should succeed
     fired = weapon.fire(current_time, pm, "target_dummy")
-    assert fired
+    assert fired.get("ok") is True  # D6: New dict-based API
     assert weapon.ammo == 2
     assert weapon.heat == pytest.approx(5.0)
 
     # Immediately try to fire again: should fail due to cooldown
     fired2 = weapon.fire(current_time, pm, "target_dummy")
-    assert not fired2
+    assert fired2.get("ok") is False  # D6: Check dict result
 
     # Advance time and cool down
     weapon.cool_down(10.0)
