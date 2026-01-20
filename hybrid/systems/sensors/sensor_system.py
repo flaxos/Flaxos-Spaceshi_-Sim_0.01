@@ -191,14 +191,32 @@ class SensorSystem(BaseSystem):
         """
         state = super().get_state()
 
-        active_contacts = len(self.contact_tracker.get_all_contacts(self.sim_time))
+        all_contacts = self.contact_tracker.get_all_contacts(self.sim_time)
         can_ping = self.active.can_ping(self.sim_time)
         ping_cooldown = self.active.get_cooldown_remaining(self.sim_time)
+
+        # Convert contacts to serializable format
+        contacts_list = [
+            {
+                "id": contact_id,
+                "position": contact.position,
+                "velocity": contact.velocity,
+                "confidence": contact.confidence,
+                "last_update": contact.last_update,
+                "detection_method": contact.detection_method,
+                "bearing": contact.bearing,
+                "distance": contact.distance,
+                "signature": contact.signature,
+                "classification": contact.classification
+            }
+            for contact_id, contact in all_contacts.items()
+        ]
 
         state.update({
             "passive_range": self.passive.range,
             "active_range": self.active.range,
-            "contacts": active_contacts,
+            "contacts": contacts_list,
+            "contact_count": len(contacts_list),
             "can_ping": can_ping,
             "ping_cooldown_remaining": ping_cooldown,
             "ping_cooldown_total": self.active.cooldown
