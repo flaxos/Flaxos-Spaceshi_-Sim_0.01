@@ -66,6 +66,14 @@ select {
   color: #f2f6ff;
 }
 
+input:focus-visible,
+select:focus-visible,
+button:focus-visible,
+.contact-row:focus-visible {
+  outline: 2px solid #6fb4ff;
+  outline-offset: 2px;
+}
+
 button {
   border: none;
   border-radius: 999px;
@@ -100,6 +108,15 @@ button:hover {
   gap: 0.6rem;
 }
 
+.actions.compact {
+  gap: 0.4rem;
+}
+
+.actions.compact button {
+  padding: 0.4rem 0.7rem;
+  font-size: 0.85rem;
+}
+
 .log {
   min-height: 180px;
 }
@@ -112,6 +129,49 @@ button:hover {
   overflow-y: auto;
   font-family: "JetBrains Mono", "Fira Code", monospace;
   font-size: 0.8rem;
+}
+
+.raw-log {
+  margin-top: 0.75rem;
+}
+
+.raw-log summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: #9fb5cc;
+}
+
+.structured-log {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.structured-item {
+  border-radius: 10px;
+  border: 1px solid #1f2a35;
+  background: #0d121b;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.85rem;
+}
+
+.structured-item .meta {
+  display: flex;
+  justify-content: space-between;
+  color: #9fb5cc;
+  font-size: 0.75rem;
+  margin-bottom: 0.35rem;
+}
+
+.structured-item.request {
+  border-color: #2d80ff;
+}
+
+.structured-item.response {
+  border-color: #4fd18b;
+}
+
+.structured-item.error {
+  border-color: #ff5a5a;
 }
 
 .log-item {
@@ -131,6 +191,135 @@ button:hover {
 
 .log-item.error {
   border-color: #ff5a5a;
+}
+
+.status-grid {
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  margin-bottom: 0.75rem;
+}
+
+.status-grid.compact {
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+}
+
+.status-item {
+  position: relative;
+  padding: 0.5rem 0.6rem;
+  border-radius: 10px;
+  background: #0d121b;
+  border: 1px solid #1f2a35;
+}
+
+.status-label {
+  font-size: 0.75rem;
+  color: #9fb5cc;
+  margin-bottom: 0.3rem;
+}
+
+.status-value {
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-size: 0.85rem;
+  color: #e6eef6;
+}
+
+.led {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.55rem;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #2a3644;
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.4);
+}
+
+.led.ok {
+  background: #4fd18b;
+  box-shadow: 0 0 10px rgba(79, 209, 139, 0.6);
+}
+
+.led.warn {
+  background: #ffc857;
+  box-shadow: 0 0 10px rgba(255, 200, 87, 0.5);
+}
+
+.led.critical {
+  background: #ff5a5a;
+  box-shadow: 0 0 10px rgba(255, 90, 90, 0.55);
+}
+
+.led.offline {
+  background: #7f8b99;
+}
+
+.action-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.button-led {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.4);
+}
+
+.action-button.action-active .button-led {
+  background: #2d80ff;
+  box-shadow: 0 0 10px rgba(45, 128, 255, 0.7);
+}
+
+.action-button.action-success .button-led {
+  background: #4fd18b;
+  box-shadow: 0 0 10px rgba(79, 209, 139, 0.7);
+}
+
+.action-button.action-error .button-led {
+  background: #ff5a5a;
+  box-shadow: 0 0 10px rgba(255, 90, 90, 0.7);
+}
+
+.action-button.action-cooldown {
+  opacity: 0.7;
+  background: #2a3644;
+}
+
+.contact-list {
+  display: grid;
+  gap: 0.6rem;
+  margin-top: 0.75rem;
+}
+
+.contact-row {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: 1fr auto;
+  border-radius: 10px;
+  border: 1px solid #1f2a35;
+  background: #0d121b;
+  padding: 0.6rem 0.75rem;
+}
+
+.contact-meta {
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-size: 0.8rem;
+  color: #c9d7e6;
+}
+
+.contact-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.contact-actions button {
+  padding: 0.35rem 0.6rem;
+  font-size: 0.75rem;
+  border-radius: 8px;
 }
 
 /* Update panel styles */

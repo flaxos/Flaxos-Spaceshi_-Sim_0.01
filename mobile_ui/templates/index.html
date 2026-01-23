@@ -38,7 +38,53 @@
       </section>
 
       <section class="panel">
+        <h2>Ship Status</h2>
+        <div class="status-grid">
+          <div class="status-item">
+            <div class="status-label">Ship</div>
+            <div class="status-value" id="ship-name">--</div>
+          </div>
+          <div class="status-item">
+            <div class="status-label">Class</div>
+            <div class="status-value" id="ship-class">--</div>
+          </div>
+          <div class="status-item">
+            <div class="status-label">Hull</div>
+            <div class="status-value" id="ship-hull">--</div>
+            <span class="led" id="ship-hull-led"></span>
+          </div>
+          <div class="status-item">
+            <div class="status-label">Velocity</div>
+            <div class="status-value" id="ship-velocity">--</div>
+          </div>
+          <div class="status-item">
+            <div class="status-label">Position</div>
+            <div class="status-value" id="ship-position">--</div>
+          </div>
+          <div class="status-item">
+            <div class="status-label">Nav Mode</div>
+            <div class="status-value" id="ship-nav-mode">--</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
         <h2>Nav / Helm</h2>
+        <div class="status-grid compact">
+          <div class="status-item">
+            <div class="status-label">Autopilot</div>
+            <div class="status-value" id="nav-autopilot">--</div>
+            <span class="led" id="nav-autopilot-led"></span>
+          </div>
+          <div class="status-item">
+            <div class="status-label">Target</div>
+            <div class="status-value" id="nav-target-status">--</div>
+          </div>
+          <div class="status-item">
+            <div class="status-label">Thrust</div>
+            <div class="status-value" id="nav-thrust-status">--</div>
+          </div>
+        </div>
         <div class="grid three">
           <label>
             Thrust X
@@ -52,6 +98,14 @@
             Thrust Z
             <input id="thrust-z" type="number" step="0.1" value="0" />
           </label>
+        </div>
+        <div class="actions compact">
+          <button data-adjust="thrust-x" data-step="0.1">+X</button>
+          <button data-adjust="thrust-x" data-step="-0.1">-X</button>
+          <button data-adjust="thrust-y" data-step="0.1">+Y</button>
+          <button data-adjust="thrust-y" data-step="-0.1">-Y</button>
+          <button data-adjust="thrust-z" data-step="0.1">+Z</button>
+          <button data-adjust="thrust-z" data-step="-0.1">-Z</button>
         </div>
         <button data-action="set-thrust">Send Thrust</button>
 
@@ -92,6 +146,17 @@
 
       <section class="panel">
         <h2>Tactical</h2>
+        <div class="status-grid compact">
+          <div class="status-item">
+            <div class="status-label">Weapons</div>
+            <div class="status-value" id="tactical-weapons-status">--</div>
+            <span class="led" id="tactical-weapons-led"></span>
+          </div>
+          <div class="status-item">
+            <div class="status-label">Locked Target</div>
+            <div class="status-value" id="tactical-locked-target">--</div>
+          </div>
+        </div>
         <label>
           Target ID
           <input id="tactical-target" type="text" placeholder="target id" />
@@ -113,10 +178,29 @@
           <button data-action="ping-sensors">Ping Sensors</button>
           <button data-action="fire-weapon">Fire Weapon</button>
         </div>
+        <div class="actions compact">
+          <button data-adjust="sensor-count" data-step="1">+Ping</button>
+          <button data-adjust="sensor-count" data-step="-1">-Ping</button>
+        </div>
       </section>
 
       <section class="panel">
         <h2>Power</h2>
+        <div class="status-grid compact">
+          <div class="status-item">
+            <div class="status-label">Power Status</div>
+            <div class="status-value" id="power-status">--</div>
+            <span class="led" id="power-status-led"></span>
+          </div>
+          <div class="status-item">
+            <div class="status-label">Stored</div>
+            <div class="status-value" id="power-stored">--</div>
+          </div>
+          <div class="status-item">
+            <div class="status-label">Draw</div>
+            <div class="status-value" id="power-draw">--</div>
+          </div>
+        </div>
         <label>
           System Name
           <input id="power-system" type="text" value="railgun" />
@@ -159,9 +243,33 @@
         <div id="update-changelog" class="changelog" style="display:none;"></div>
       </section>
 
+      <section class="panel">
+        <h2>Sensors</h2>
+        <div class="status-grid compact">
+          <div class="status-item">
+            <div class="status-label">Ping Ready</div>
+            <div class="status-value" id="sensor-ping-ready">--</div>
+            <span class="led" id="sensor-ping-led"></span>
+          </div>
+          <div class="status-item">
+            <div class="status-label">Cooldown</div>
+            <div class="status-value" id="sensor-ping-cooldown">--</div>
+          </div>
+          <div class="status-item">
+            <div class="status-label">Contacts</div>
+            <div class="status-value" id="sensor-contact-count">--</div>
+          </div>
+        </div>
+        <div id="sensor-contacts" class="contact-list"></div>
+      </section>
+
       <section class="panel log">
         <h2>Command Log</h2>
-        <div id="log"></div>
+        <div id="structured-log" class="structured-log"></div>
+        <details class="raw-log">
+          <summary>Raw Log</summary>
+          <div id="log"></div>
+        </details>
       </section>
     </main>
 
