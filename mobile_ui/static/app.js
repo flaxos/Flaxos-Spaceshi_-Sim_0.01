@@ -1,5 +1,6 @@
 const logPanel = document.getElementById("log");
 const structuredLogPanel = document.getElementById("structured-log");
+const scenarioSelect = document.getElementById("scenario-select");
 let latestUpdateInfo = null;
 
 const actionButtons = new Map();
@@ -8,6 +9,7 @@ const cooldownState = {
   total: 0,
   updatedAt: 0,
 };
+let scenariosCache = [];
 
 function appendLog(message, type = "info") {
   if (!logPanel) {
@@ -57,6 +59,163 @@ async function loadVersionInfo() {
   }
 }
 
+function updateScenarioDetails(selectedId) {
+  const scenario = scenariosCache.find((item) => item.id === selectedId);
+  if (!scenario) {
+    setText("scenario-name", "--");
+    setText("scenario-description", "--");
+    return;
+  }
+  setText("scenario-name", scenario.name || scenario.id);
+  setText("scenario-description", scenario.description || "--");
+}
+
+function renderScenarioOptions(scenarios) {
+  if (!scenarioSelect) {
+    return;
+  }
+  scenarioSelect.innerHTML = "";
+  scenarios.forEach((scenario) => {
+    const option = document.createElement("option");
+    option.value = scenario.id;
+    option.textContent = scenario.name || scenario.id;
+    if (scenario.error) {
+      option.textContent = `${option.textContent} (error)`;
+    }
+    scenarioSelect.appendChild(option);
+  });
+  if (scenarios.length === 0) {
+    const option = document.createElement("option");
+    option.value = "";
+    option.textContent = "No scenarios found";
+    scenarioSelect.appendChild(option);
+  }
+  updateScenarioDetails(scenarioSelect.value);
+}
+
+async function loadScenarioList(silent = false) {
+  const result = await sendCommand("list_scenarios", {}, { silent });
+  if (result?.ok && Array.isArray(result.response?.scenarios)) {
+    scenariosCache = result.response.scenarios;
+    renderScenarioOptions(scenariosCache);
+    return true;
+  }
+  return false;
+}
+
+function renderMissionObjectives(objectives) {
+  const container = document.getElementById("mission-objectives");
+  if (!container) {
+    return;
+  }
+  container.innerHTML = "";
+  const objectiveList = objectives ? Object.values(objectives) : [];
+  if (objectiveList.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "objective-row";
+    empty.textContent = "No objectives loaded.";
+    container.appendChild(empty);
+    return;
+  }
+  objectiveList.forEach((objective) => {
+    const row = document.createElement("div");
+    row.className = `objective-row ${objective.status || ""}`;
+    if (objective.required) {
+      row.classList.add("required");
+    }
+
+    const title = document.createElement("div");
+    title.className = "objective-title";
+    title.textContent = objective.description || objective.id;
+
+    const meta = document.createElement("div");
+    meta.className = "objective-meta";
+    const status = objective.status || "unknown";
+    const required = objective.required ? "required" : "optional";
+    meta.textContent = `${objective.type || "objective"} • ${status} • ${required}`;
+
+    row.append(title, meta);
+    container.appendChild(row);
+  });
+}
+
+function renderMissionHints(hints) {
+  const container = document.getElementById("mission-hints");
+  if (!container) {
+    return;
+  }
+  container.innerHTML = "";
+  if (!Array.isArray(hints) || hints.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "mission-hint";
+    empty.textContent = "No hints yet.";
+    container.appendChild(empty);
+    return;
+  }
+  hints.forEach((hint) => {
+    const item = document.createElement("div");
+    item.className = "mission-hint";
+    item.textContent = hint.message || hint.id || "Hint";
+    container.appendChild(item);
+  });
+}
+
+function updateMissionStatus(mission) {
+  if (!mission || mission.available === false) {
+    setText("mission-status", "No mission");
+    setLed("mission-status-led", "offline");
+    setText("mission-progress", "--");
+    setText("mission-time", "--");
+    setText("mission-name", "--");
+    setText("mission-description", "--");
+    setText("mission-briefing", "--");
+    renderMissionObjectives({});
+    renderMissionHints([]);
+    return;
+  }
+
+  const status = mission.mission_status || mission.status || "in_progress";
+  setText("mission-status", status.replace("_", " "));
+  if (status === "success") {
+    setLed("mission-status-led", "ok");
+  } else if (status === "failure") {
+    setLed("mission-status-led", "critical");
+  } else {
+    setLed("mission-status-led", "warn");
+  }
+
+  setText("mission-progress", mission.progress || "--");
+  const timeRemaining = Number(mission.time_remaining);
+  if (Number.isFinite(timeRemaining)) {
+    setText("mission-time", `${formatNumber(timeRemaining, 0)}s`);
+  } else {
+    setText("mission-time", "--");
+  }
+
+  setText("mission-name", mission.name || "--");
+  setText("mission-description", mission.description || "--");
+  setText("mission-briefing", mission.briefing || "--");
+  renderMissionObjectives(mission.objectives || {});
+  if (Array.isArray(mission.hints)) {
+    renderMissionHints(mission.hints);
+  }
+}
+
+async function refreshMissionStatus(silent = true) {
+  const result = await sendCommand("get_mission", {}, { silent });
+  if (result?.ok) {
+    updateMissionStatus(result.response?.mission || result.response);
+  }
+  return result;
+}
+
+async function refreshMissionHints(silent = true) {
+  const result = await sendCommand("get_mission_hints", { clear: true }, { silent });
+  if (result?.ok) {
+    renderMissionHints(result.response?.hints || []);
+  }
+  return result;
+}
 function setText(id, value) {
   const el = document.getElementById(id);
   if (!el) {
@@ -572,6 +731,11 @@ function setUpAdjustButtons() {
 function setUpActions() {
   ensureButtonIndicators();
   setUpAdjustButtons();
+  if (scenarioSelect) {
+    scenarioSelect.addEventListener("change", () => {
+      updateScenarioDetails(scenarioSelect.value);
+    });
+  }
   document.querySelectorAll("button[data-action]").forEach((button) => {
     button.addEventListener("click", async () => {
       const action = button.dataset.action;
@@ -664,6 +828,33 @@ function setUpActions() {
         return;
       }
 
+      if (action === "refresh-scenarios") {
+        const ok = await loadScenarioList();
+        showButtonResult(button, ok);
+        return;
+      }
+
+      if (action === "load-scenario") {
+        const scenarioId = scenarioSelect?.value;
+        if (!scenarioId) {
+          appendLog("No scenario selected", "error");
+          showButtonResult(button, false);
+          return;
+        }
+        const result = await sendCommand("load_scenario", { scenario: scenarioId });
+        if (result?.ok) {
+          const playerShip = result.response?.player_ship_id;
+          if (playerShip) {
+            setInputValue("ship", playerShip);
+          }
+          await refreshState(true);
+          await refreshMissionStatus(true);
+          await refreshMissionHints(true);
+        }
+        showButtonResult(button, result?.ok);
+        return;
+      }
+
       if (action === "check-update") {
         await checkForUpdates();
         showButtonResult(button, true);
@@ -686,7 +877,14 @@ function setUpActions() {
 setUpActions();
 loadVersionInfo();
 refreshState(true);
+loadScenarioList(true);
+refreshMissionStatus(true);
+refreshMissionHints(true);
 setInterval(updateCooldownDisplay, 500);
+setInterval(() => {
+  refreshMissionStatus(true);
+  refreshMissionHints(true);
+}, 3000);
 
 // Auto-check for updates on page load (optional, after 5 seconds)
 setTimeout(() => {

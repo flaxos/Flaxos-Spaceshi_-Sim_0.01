@@ -38,6 +38,57 @@
       </section>
 
       <section class="panel">
+        <h2>Scenario Control</h2>
+        <label>
+          Scenario
+          <select id="scenario-select"></select>
+        </label>
+        <div class="actions">
+          <button data-action="refresh-scenarios">Refresh List</button>
+          <button data-action="load-scenario">Load Scenario</button>
+        </div>
+        <div class="status-grid compact">
+          <div class="status-item">
+            <div class="status-label">Name</div>
+            <div class="status-value" id="scenario-name">--</div>
+          </div>
+          <div class="status-item">
+            <div class="status-label">Description</div>
+            <div class="status-value" id="scenario-description">--</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Mission</h2>
+        <div class="status-grid compact">
+          <div class="status-item">
+            <div class="status-label">Status</div>
+            <div class="status-value" id="mission-status">--</div>
+            <span class="led" id="mission-status-led"></span>
+          </div>
+          <div class="status-item">
+            <div class="status-label">Progress</div>
+            <div class="status-value" id="mission-progress">--</div>
+          </div>
+          <div class="status-item">
+            <div class="status-label">Time Remaining</div>
+            <div class="status-value" id="mission-time">--</div>
+          </div>
+        </div>
+        <div class="mission-copy">
+          <div class="mission-title" id="mission-name">--</div>
+          <div class="mission-desc" id="mission-description">--</div>
+          <div class="mission-briefing" id="mission-briefing">--</div>
+        </div>
+        <div id="mission-objectives" class="mission-objectives"></div>
+        <div class="mission-hints">
+          <h3>Hints</h3>
+          <div id="mission-hints" class="mission-hint-list"></div>
+        </div>
+      </section>
+
+      <section class="panel">
         <h2>Ship Status</h2>
         <div class="status-grid">
           <div class="status-item">

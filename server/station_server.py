@@ -28,6 +28,7 @@ from server.stations.station_commands import register_station_commands
 from server.stations.fleet_commands import register_fleet_commands
 from server.telemetry.station_filter import StationTelemetryFilter
 from server.stations.crew_system import CrewManager
+from server.stations.station_types import PermissionLevel
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -108,8 +109,32 @@ class StationServer:
             # Filter events based on station
             return self._handle_get_events(client_id, req)
 
+        if cmd == "list_scenarios":
+            return {"ok": True, "scenarios": self.runner.list_scenarios()}
+
+        if cmd == "load_scenario":
+            if not session or session.permission_level.value < PermissionLevel.CAPTAIN.value:
+                return {"ok": False, "error": "Only captain can load scenarios"}
+            scenario_name = req.get("scenario") or req.get("name") or req.get("file")
+            if not scenario_name:
+                return {"ok": False, "error": "missing scenario"}
+            loaded = self.runner.load_scenario(scenario_name)
+            if loaded <= 0:
+                return {"ok": False, "error": f"Failed to load scenario {scenario_name}"}
+            return {
+                "ok": True,
+                "scenario": scenario_name,
+                "ships_loaded": loaded,
+                "player_ship_id": self.runner.player_ship_id,
+                "mission": self.runner.get_mission_status(),
+            }
+
         if cmd == "get_mission":
-            return {"ok": True, "mission": {"status": "unknown", "objectives": []}}
+            return {"ok": True, "mission": self.runner.get_mission_status()}
+
+        if cmd == "get_mission_hints":
+            clear = bool(req.get("clear", False))
+            return {"ok": True, "hints": self.runner.get_mission_hints(clear=clear)}
 
         if cmd == "pause":
             # Only captain can pause

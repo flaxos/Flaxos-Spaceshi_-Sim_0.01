@@ -62,8 +62,30 @@ def dispatch(runner: HybridRunner, req: dict) -> dict:
     if cmd == "get_events":
         return {"ok": True, "events": []}
 
+    if cmd == "list_scenarios":
+        return {"ok": True, "scenarios": runner.list_scenarios()}
+
+    if cmd == "load_scenario":
+        scenario_name = req.get("scenario") or req.get("name") or req.get("file")
+        if not scenario_name:
+            return {"ok": False, "error": "missing scenario"}
+        loaded = runner.load_scenario(scenario_name)
+        if loaded <= 0:
+            return {"ok": False, "error": f"Failed to load scenario {scenario_name}"}
+        return {
+            "ok": True,
+            "scenario": scenario_name,
+            "ships_loaded": loaded,
+            "player_ship_id": runner.player_ship_id,
+            "mission": runner.get_mission_status(),
+        }
+
     if cmd == "get_mission":
-        return {"ok": True, "mission": {"status": "unknown", "objectives": []}}
+        return {"ok": True, "mission": runner.get_mission_status()}
+
+    if cmd == "get_mission_hints":
+        clear = bool(req.get("clear", False))
+        return {"ok": True, "hints": runner.get_mission_hints(clear=clear)}
 
     if cmd == "pause":
         on = bool(req.get("on", True))
