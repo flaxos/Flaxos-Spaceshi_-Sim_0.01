@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0a0a0f">
+  <meta name="description" content="Flaxos Spaceship Simulation - Command Interface">
+  <title>Flaxos Spaceship Sim</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="styles/main.css">
+
+  <style>
+    /* System messages container */
+    #system-messages {
+      position: fixed;
+      top: 60px;
+      right: 16px;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-width: 400px;
+    }
+
+    .system-message {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      background: var(--bg-panel);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-md);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      animation: slideIn 0.2s ease;
+    }
+
+    .system-message.info {
+      border-color: var(--status-info);
+    }
+
+    .system-message.success {
+      border-color: var(--status-nominal);
+    }
+
+    .system-message.warning {
+      border-color: var(--status-warning);
+    }
+
+    .system-message.error,
+    .system-message.critical {
+      border-color: var(--status-critical);
+    }
+
+    .message-icon {
+      font-size: 1.1rem;
+    }
+
+    .message-text {
+      flex: 1;
+      font-size: 0.85rem;
+    }
+
+    .message-dismiss {
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      padding: 4px;
+      min-height: auto;
+      font-size: 0.9rem;
+    }
+
+    .message-dismiss:hover {
+      color: var(--text-primary);
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateX(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    /* Phase 5 panels */
+    .scenario-panel {
+      grid-column: span 3;
+      min-height: 300px;
+    }
+
+    .mission-panel {
+      grid-column: span 3;
+      min-height: 300px;
+    }
+
+    /* Phase 2 panels */
+    .event-log-panel {
+      grid-column: span 4;
+      grid-row: span 2;
+      min-height: 300px;
+      height: clamp(300px, 45vh, 520px);
+      max-height: 520px;
+      overflow: hidden;
+    }
+
+    .command-panel {
+      grid-column: span 4;
+      min-height: 120px;
+    }
+
+    /* Phase 3 panels */
+    .status-panel {
+      grid-column: span 3;
+      min-height: 280px;
+    }
+
+    .nav-panel {
+      grid-column: span 3;
+      min-height: 280px;
+    }
+
+    .sensors-panel {
+      grid-column: span 3;
+      min-height: 280px;
+    }
+
+    .targeting-panel {
+      grid-column: span 3;
+      min-height: 250px;
+    }
+
+    .weapons-panel {
+      grid-column: span 3;
+      min-height: 250px;
+    }
+
+    /* Phase 4 panels */
+    .throttle-panel {
+      grid-column: span 2;
+      min-height: 380px;
+    }
+
+    .heading-panel {
+      grid-column: span 2;
+      min-height: 300px;
+    }
+
+    .autopilot-panel {
+      grid-column: span 2;
+      min-height: 280px;
+    }
+
+    .weapon-ctrl-panel {
+      grid-column: span 3;
+      min-height: 320px;
+    }
+
+    .systems-panel {
+      grid-column: span 3;
+      min-height: 250px;
+    }
+
+    /* Placeholder panels */
+    .placeholder-panel {
+      grid-column: span 3;
+      min-height: 200px;
+    }
+
+    .placeholder-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--text-dim);
+      text-align: center;
+      gap: 8px;
+    }
+
+    .placeholder-content .phase {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      opacity: 0.6;
+    }
+
+    /* Tablet breakpoint */
+    @media (max-width: 1200px) {
+      .scenario-panel,
+      .mission-panel,
+      .event-log-panel,
+      .command-panel,
+      .status-panel,
+      .nav-panel,
+      .sensors-panel,
+      .targeting-panel,
+      .weapons-panel,
+      .throttle-panel,
+      .heading-panel,
+      .autopilot-panel,
+      .weapon-ctrl-panel,
+      .systems-panel,
+      .placeholder-panel {
+        grid-column: span 6;
+      }
+    }
+
+    /* Mobile breakpoint */
+    @media (max-width: 768px) {
+      .scenario-panel,
+      .mission-panel,
+      .event-log-panel,
+      .command-panel,
+      .status-panel,
+      .nav-panel,
+      .sensors-panel,
+      .targeting-panel,
+      .weapons-panel,
+      .throttle-panel,
+      .heading-panel,
+      .autopilot-panel,
+      .weapon-ctrl-panel,
+      .systems-panel,
+      .placeholder-panel {
+        grid-column: span 12;
+      }
+
+      .event-log-panel {
+        grid-row: span 1;
+        min-height: 200px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <!-- Connection Bar -->
+    <header id="connection-bar">
+      <connection-status></connection-status>
+    </header>
+
+    <!-- System Messages (Toast Notifications) -->
+    <system-messages id="system-messages"></system-messages>
+
+    <!-- Main Interface Grid -->
+    <main id="interface-grid">
+      <!-- Phase 5: Scenarios & Mission -->
+      <flaxos-panel title="Scenarios" collapsible class="scenario-panel">
+        <scenario-loader></scenario-loader>
+      </flaxos-panel>
+
+      <flaxos-panel title="Mission" collapsible class="mission-panel">
+        <mission-objectives></mission-objectives>
+      </flaxos-panel>
+
+      <!-- Phase 2: Event Log -->
+      <flaxos-panel title="Event Log" collapsible class="event-log-panel">
+        <event-log id="event-log"></event-log>
+      </flaxos-panel>
+
+      <!-- Phase 2: Command Prompt -->
+      <flaxos-panel title="Command" class="command-panel">
+        <command-prompt id="command-prompt"></command-prompt>
+      </flaxos-panel>
+
+      <!-- Phase 3: Status Displays -->
+      <flaxos-panel title="Ship Status" collapsible class="status-panel">
+        <ship-status></ship-status>
+      </flaxos-panel>
+
+      <flaxos-panel title="Navigation" collapsible class="nav-panel">
+        <navigation-display></navigation-display>
+      </flaxos-panel>
+
+      <flaxos-panel title="Sensors" collapsible class="sensors-panel">
+        <sensor-contacts id="sensor-contacts"></sensor-contacts>
+      </flaxos-panel>
+
+      <flaxos-panel title="Targeting" collapsible class="targeting-panel">
+        <targeting-display></targeting-display>
+      </flaxos-panel>
+
+      <flaxos-panel title="Weapons" collapsible class="weapons-panel">
+        <weapons-status></weapons-status>
+      </flaxos-panel>
+
+      <!-- Phase 4: Visual Controls -->
+      <flaxos-panel title="Throttle" collapsible class="throttle-panel">
+        <throttle-control></throttle-control>
+      </flaxos-panel>
+
+      <flaxos-panel title="Heading" collapsible class="heading-panel">
+        <heading-control></heading-control>
+      </flaxos-panel>
+
+      <flaxos-panel title="Autopilot" collapsible class="autopilot-panel">
+        <autopilot-control></autopilot-control>
+      </flaxos-panel>
+
+      <flaxos-panel title="Fire Control" collapsible class="weapon-ctrl-panel">
+        <weapon-controls></weapon-controls>
+      </flaxos-panel>
+
+      <flaxos-panel title="Systems" collapsible class="systems-panel">
+        <system-toggles></system-toggles>
+      </flaxos-panel>
+    </main>
+
+    <!-- Quick Actions Bar -->
+    <quick-actions id="quick-actions"></quick-actions>
+  </div>
+
+  <!-- Main Script -->
+  <script type="module" src="js/main.js"></script>
+
+  <!-- Event Logging Script -->
+  <script type="module">
+    import { wsClient } from "./js/ws-client.js";
+
+    const eventLog = document.getElementById("event-log");
+    const systemMessages = document.getElementById("system-messages");
+
+    // Log command prompt commands to event log
+    document.getElementById("command-prompt")?.addEventListener("command", (e) => {
+      eventLog?.addEntry("CMD", `>> ${e.detail.cmd}`);
+    });
+
+    // System messages for connection changes
+    wsClient.addEventListener("status_change", (e) => {
+      if (e.detail.status === "connected") {
+        systemMessages?.success("Connected to simulation server", "Connection");
+      } else if (e.detail.status === "disconnected" && e.detail.oldStatus === "connected") {
+        systemMessages?.warning("Connection lost. Reconnecting...", "Connection");
+      }
+    }, { once: false });
+  </script>
+</body>
+</html>

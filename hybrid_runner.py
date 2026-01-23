@@ -5,6 +5,8 @@ import json
 import os
 from datetime import datetime
 from hybrid.simulator import Simulator
+from hybrid.scenarios.loader import ScenarioLoader
+from hybrid.fleet.fleet_manager import FleetManager
 
 class HybridRunner:
     def __init__(self, fleet_dir="hybrid_fleet", dt=0.1):
@@ -26,6 +28,8 @@ class HybridRunner:
         self.tick_count = 0
         self.state_cache = {}
         self.last_update_time = 0
+        self.mission = None
+        self.player_ship_id = None
         
         # Create fleet_state directory if it doesn't exist
         os.makedirs(os.path.join(self.root_dir, "fleet_state"), exist_ok=True)
@@ -49,33 +53,138 @@ class HybridRunner:
         Returns:
             int: Number of ships loaded
         """
-        scenario_path = os.path.join(self.scenarios_dir, f"{scenario_name}.json")
-        if not os.path.exists(scenario_path):
-            print(f"Scenario file not found: {scenario_path}")
+        scenario_path = self._resolve_scenario_path(scenario_name)
+        if not scenario_path:
+            print(f"Scenario file not found: {scenario_name}")
             return 0
-            
+
+        return self._load_scenario_file(scenario_path)
+
+    def list_scenarios(self):
+        """List available scenarios with metadata."""
+        scenarios = []
+        for path in ScenarioLoader.list_scenarios(self.scenarios_dir):
+            scenario_id = os.path.splitext(os.path.basename(path))[0]
+            summary = {
+                "id": scenario_id,
+                "file": os.path.basename(path),
+            }
+            try:
+                data = ScenarioLoader.load(path)
+                summary["name"] = data.get("name", scenario_id)
+                summary["description"] = data.get("description", "")
+                mission = data.get("mission")
+                if mission:
+                    summary["mission_name"] = mission.name
+                    summary["mission_description"] = mission.description
+            except Exception as exc:
+                summary["error"] = str(exc)
+            scenarios.append(summary)
+        return scenarios
+
+    def get_mission_status(self, include_hints=False, clear_hints=False):
+        """Return current mission status and metadata."""
+        if not self.mission:
+            return {"available": False}
+        status = self.mission.get_status()
+        status.update({
+            "available": True,
+            "briefing": self.mission.briefing,
+            "success_message": self.mission.success_message,
+            "failure_message": self.mission.failure_message,
+        })
+        if include_hints:
+            status["hints"] = self.mission.get_hints(clear=clear_hints)
+        return status
+
+    def get_mission_hints(self, clear=False):
+        """Return queued mission hints."""
+        if not self.mission:
+            return []
+        return self.mission.get_hints(clear=clear)
+
+    def _resolve_scenario_path(self, scenario_name):
+        if not scenario_name:
+            return None
+        if os.path.isabs(scenario_name) and os.path.exists(scenario_name):
+            return scenario_name
+        if os.path.sep in scenario_name or "/" in scenario_name:
+            candidate = os.path.join(self.root_dir, scenario_name)
+            if os.path.exists(candidate):
+                return candidate
+        base = os.path.join(self.scenarios_dir, scenario_name)
+        if os.path.splitext(base)[1]:
+            return base if os.path.exists(base) else None
+        for ext in (".json", ".yaml", ".yml"):
+            candidate = base + ext
+            if os.path.exists(candidate):
+                return candidate
+        return None
+
+    def _reset_simulation(self):
+        self.simulator.ships.clear()
+        self.simulator.time = 0.0
+        self.tick_count = 0
+        self.state_cache = {}
+        self.last_update_time = 0
+        self.simulator.fleet_manager = FleetManager(simulator=self.simulator)
+
+    def _select_player_ship(self, ships_data):
+        for ship in ships_data:
+            if ship.get("player_controlled"):
+                return ship.get("id")
+        return ships_data[0].get("id") if ships_data else None
+
+    def _load_scenario_file(self, scenario_path):
         try:
-            with open(scenario_path, 'r') as f:
-                scenario_data = json.load(f)
-                
-            # Clear existing ships
-            self.simulator.ships.clear()
-            
-            # Load ships from scenario
-            ship_count = 0
+            was_running = self.running
+            if was_running:
+                self.stop()
+
+            scenario_data = ScenarioLoader.load(scenario_path)
             ships_data = scenario_data.get("ships", [])
-            
+            if not ships_data:
+                print(f"Scenario has no ships: {scenario_path}")
+                return 0
+
+            if scenario_data.get("dt"):
+                self.dt = scenario_data["dt"]
+                self.simulator.dt = self.dt
+
+            self._reset_simulation()
+
+            ship_count = 0
             for ship_data in ships_data:
                 ship_id = ship_data.get("id")
                 if not ship_id:
                     continue
-                    
                 self.simulator.add_ship(ship_id, ship_data)
                 ship_count += 1
-                
-            print(f"Loaded {ship_count} ships from scenario: {scenario_name}")
+
+            fleets = scenario_data.get("config", {}).get("fleets") if isinstance(scenario_data.get("config"), dict) else scenario_data.get("fleets")
+            if fleets:
+                for fleet in fleets:
+                    self.simulator.fleet_manager.create_fleet(
+                        fleet_id=fleet.get("fleet_id", fleet.get("id")),
+                        name=fleet.get("name", fleet.get("fleet_id", "Fleet")),
+                        flagship_id=fleet.get("flagship", fleet.get("flagship_id")),
+                        ship_ids=fleet.get("ships", []),
+                    )
+
+            self.mission = scenario_data.get("mission")
+            self.player_ship_id = None
+            if isinstance(scenario_data.get("config"), dict):
+                self.player_ship_id = scenario_data["config"].get("player_ship_id")
+            if not self.player_ship_id:
+                self.player_ship_id = self._select_player_ship(ships_data)
+            if self.mission:
+                self.mission.start(self.simulator.time)
+
+            if was_running:
+                self.start()
+
+            print(f"Loaded {ship_count} ships from scenario: {scenario_path}")
             return ship_count
-            
         except Exception as e:
             print(f"Error loading scenario: {e}")
             return 0
@@ -108,6 +217,7 @@ class HybridRunner:
                 # Run a single simulation step (using tick method)
                 self.simulator.tick()
                 self.tick_count += 1
+                self._update_mission()
                 
                 # Update the state cache every 10 ticks (or as needed)
                 if self.tick_count % 10 == 0:
@@ -120,6 +230,17 @@ class HybridRunner:
                 time.sleep(0.1)  # Sleep longer on error
         
         self.simulator.stop()
+
+    def _update_mission(self):
+        if not self.mission:
+            return
+        player_ship = None
+        if self.player_ship_id:
+            player_ship = self.simulator.ships.get(self.player_ship_id)
+        if not player_ship and self.simulator.ships:
+            player_ship = next(iter(self.simulator.ships.values()))
+        if player_ship:
+            self.mission.update(self.simulator, player_ship)
     
     def _update_state_cache(self):
         """Update the internal state cache"""

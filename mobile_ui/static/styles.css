@@ -224,6 +224,87 @@ button:hover {
   color: #e6eef6;
 }
 
+.mission-copy {
+  margin-top: 0.75rem;
+  background: #0d121b;
+  border: 1px solid #1f2a35;
+  border-radius: 10px;
+  padding: 0.75rem;
+}
+
+.mission-title {
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+}
+
+.mission-desc,
+.mission-briefing {
+  font-size: 0.85rem;
+  color: #c9d7e6;
+  margin-bottom: 0.35rem;
+}
+
+.mission-objectives {
+  display: grid;
+  gap: 0.6rem;
+  margin-top: 0.75rem;
+}
+
+.objective-row {
+  border-radius: 10px;
+  border: 1px solid #1f2a35;
+  background: #0d121b;
+  padding: 0.6rem 0.75rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.objective-title {
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.objective-meta {
+  font-size: 0.75rem;
+  color: #9fb5cc;
+}
+
+.objective-row.required {
+  border-color: #2d80ff;
+}
+
+.objective-row.completed {
+  border-color: #4fd18b;
+}
+
+.objective-row.failed {
+  border-color: #ff5a5a;
+}
+
+.mission-hints {
+  margin-top: 0.75rem;
+}
+
+.mission-hints h3 {
+  margin: 0 0 0.4rem;
+  font-size: 0.95rem;
+  color: #9fb5cc;
+}
+
+.mission-hint-list {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.mission-hint {
+  padding: 0.5rem 0.6rem;
+  border-radius: 8px;
+  border: 1px solid #1f2a35;
+  background: #0d121b;
+  font-size: 0.8rem;
+  color: #c9d7e6;
+}
+
 .led {
   position: absolute;
   top: 0.55rem;
