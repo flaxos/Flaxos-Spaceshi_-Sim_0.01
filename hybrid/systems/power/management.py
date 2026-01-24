@@ -49,3 +49,61 @@ class PowerManagementSystem:
             target.available = min(target.capacity, target.available + amount)
             return True
         return False
+
+    def reroute_power(self, amount, from_layer, to_layer):
+        """
+        Reroute power between layers.
+        
+        Args:
+            amount (float): Amount of power to transfer
+            from_layer (str): Source layer name
+            to_layer (str): Destination layer name
+            
+        Returns:
+            float: Amount of power actually transferred
+        """
+        source = self.reactors.get(from_layer)
+        target = self.reactors.get(to_layer)
+        
+        if not source or not target:
+            return 0.0
+        
+        # Calculate how much we can actually transfer
+        available = getattr(source, 'available', source.capacity)
+        transferable = min(amount, available)
+        
+        if transferable <= 0:
+            return 0.0
+        
+        # Perform the transfer
+        if self.transfer_output(from_layer, to_layer, transferable):
+            return transferable
+        return 0.0
+
+    def get_state(self):
+        """
+        Get the current state of the power management system.
+        
+        Returns:
+            dict: Power system state including all reactors
+        """
+        state = {
+            "reactors": {},
+            "total_capacity": 0.0,
+            "total_available": 0.0,
+        }
+        
+        for name, reactor in self.reactors.items():
+            reactor_state = {
+                "name": name,
+                "capacity": reactor.capacity,
+                "available": getattr(reactor, 'available', reactor.capacity),
+                "output_rate": reactor.output_rate,
+                "thermal_limit": reactor.thermal_limit,
+                "status": getattr(reactor, 'status', 'nominal'),
+            }
+            state["reactors"][name] = reactor_state
+            state["total_capacity"] += reactor.capacity
+            state["total_available"] += reactor_state["available"]
+        
+        return state
