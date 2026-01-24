@@ -143,7 +143,11 @@ class Simulator:
         all_ships = list(self.ships.values())
 
         for ship in all_ships:
-            ship.tick(self.dt, all_ships, self.time)
+            try:
+                ship.tick(self.dt, all_ships, self.time)
+            except Exception as e:
+                logger.error(f"Error in ship {ship.id} tick: {e}")
+                # Continue with other ships - don't let one ship crash the simulation
 
         # Process sensor interactions
         self._process_sensor_interactions(all_ships)

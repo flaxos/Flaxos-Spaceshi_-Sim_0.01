@@ -260,17 +260,67 @@ class TestClosingSpeed:
 
     def test_closing_speed_approaching(self):
         """Test closing speed when objects are approaching."""
-        # This will be tested through the sensor system
-        # once closing speed calculation is integrated
-        pass
+        # Ship A at origin, Ship B approaching from +X direction
+        ship_a = Ship("ship_a", {"position": {"x": 0, "y": 0, "z": 0}, "velocity": {"x": 0, "y": 0, "z": 0}})
+        ship_b = Ship("ship_b", {"position": {"x": 1000, "y": 0, "z": 0}, "velocity": {"x": -100, "y": 0, "z": 0}})
+        
+        # Calculate relative velocity (closing speed is negative when approaching)
+        rel_vx = ship_b.velocity["x"] - ship_a.velocity["x"]
+        rel_vy = ship_b.velocity["y"] - ship_a.velocity["y"]
+        rel_vz = ship_b.velocity["z"] - ship_a.velocity["z"]
+        
+        # Direction from A to B
+        dx = ship_b.position["x"] - ship_a.position["x"]
+        dy = ship_b.position["y"] - ship_a.position["y"]
+        dz = ship_b.position["z"] - ship_a.position["z"]
+        distance = math.sqrt(dx**2 + dy**2 + dz**2)
+        
+        # Closing speed = dot product of relative velocity and unit direction vector
+        closing_speed = (rel_vx * dx + rel_vy * dy + rel_vz * dz) / distance
+        
+        # Negative closing speed means objects are approaching
+        assert closing_speed < 0
+        assert abs(closing_speed - (-100)) < 0.1  # Should be -100 m/s
 
     def test_closing_speed_receding(self):
         """Test closing speed when objects are separating."""
-        pass
+        # Ship A at origin, Ship B moving away in +X direction
+        ship_a = Ship("ship_a", {"position": {"x": 0, "y": 0, "z": 0}, "velocity": {"x": 0, "y": 0, "z": 0}})
+        ship_b = Ship("ship_b", {"position": {"x": 1000, "y": 0, "z": 0}, "velocity": {"x": 50, "y": 0, "z": 0}})
+        
+        # Calculate relative velocity
+        rel_vx = ship_b.velocity["x"] - ship_a.velocity["x"]
+        
+        # Direction from A to B (normalized)
+        dx = ship_b.position["x"] - ship_a.position["x"]
+        distance = abs(dx)
+        
+        # Closing speed = dot product of relative velocity and unit direction
+        closing_speed = (rel_vx * dx) / distance
+        
+        # Positive closing speed means objects are separating
+        assert closing_speed > 0
+        assert abs(closing_speed - 50) < 0.1  # Should be +50 m/s
 
     def test_closing_speed_parallel(self):
         """Test closing speed when objects move parallel."""
-        pass
+        # Both ships moving in same direction at same speed
+        ship_a = Ship("ship_a", {"position": {"x": 0, "y": 0, "z": 0}, "velocity": {"x": 100, "y": 0, "z": 0}})
+        ship_b = Ship("ship_b", {"position": {"x": 1000, "y": 0, "z": 0}, "velocity": {"x": 100, "y": 0, "z": 0}})
+        
+        # Calculate relative velocity
+        rel_vx = ship_b.velocity["x"] - ship_a.velocity["x"]
+        rel_vy = ship_b.velocity["y"] - ship_a.velocity["y"]
+        rel_vz = ship_b.velocity["z"] - ship_a.velocity["z"]
+        
+        # Direction from A to B
+        dx = ship_b.position["x"] - ship_a.position["x"]
+        distance = abs(dx)
+        
+        # Closing speed when moving parallel at same speed should be ~0
+        closing_speed = (rel_vx * dx) / distance
+        
+        assert abs(closing_speed) < 0.1  # Should be ~0 m/s
 
 
 if __name__ == "__main__":

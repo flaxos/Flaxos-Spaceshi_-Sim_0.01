@@ -135,11 +135,11 @@ class Ship:
                 if system_class:
                     system = system_class(config)
                     self.systems[system_type] = system
-                    print(f"Loaded system: {system_type}")
+                    logger.debug(f"Loaded system: {system_type}")
                 else:
-                    print(f"Unknown system type: {system_type}")
+                    logger.warning(f"Unknown system type: {system_type}")
             except Exception as e:
-                print(f"Error loading system {system_type}: {e}")
+                logger.error(f"Error loading system {system_type}: {e}")
                 # Create a basic dictionary for failed systems
                 self.systems[system_type] = {
                     "status": "error",
@@ -168,7 +168,7 @@ class Ship:
                 try:
                     system.tick(dt, self, self.event_bus)
                 except Exception as e:
-                    print(f"Error in system {system_type} tick: {e}")
+                    logger.error(f"Error in system {system_type} tick: {e}")
 
         # Update physics after systems have updated
         self._update_physics(dt)
@@ -507,8 +507,8 @@ class Ship:
             return {"error": "Power management system not available"}
         amount = float(params.get("amount", 0))
         system = params.get("system", "")
-        layer = params.get("layer")
-        success = pm.request_power(amount, system, layer)
+        # Note: layer parameter is accepted but not used - request_power uses priority-based allocation
+        success = pm.request_power(amount, system)
         return {"success": success, "state": pm.get_state()}
 
     def _cmd_reroute_power(self, params):
