@@ -27,7 +27,7 @@ class PowerSystem(BaseSystem):
     def tick(self, dt, ship, event_bus):
         if not self.enabled:
             self.status = "offline"
-            event_bus.publish("power_offline", None, "power")
+            event_bus.publish("power_offline", {"source": "power"})
             return
 
         generated = self.generation_rate * dt * self.efficiency
@@ -36,14 +36,14 @@ class PowerSystem(BaseSystem):
         self.current = min(self.capacity, self.current + self.generation * dt)
         self.total_draw = 0.0
         self.drawing_systems = {}
-        event_bus.publish("power_available", {"available": self.current, "capacity": self.capacity}, "power")
+        event_bus.publish("power_available", {"available": self.current, "capacity": self.capacity, "source": "power"})
 
         if self.stored_power <= 0:
             self.status = "critical"
             event_bus.publish("power_critical", {"system": "power"})
         elif self.stored_power < (self.capacity * 0.2):
             self.status = "low"
-            event_bus.publish("power_low", {"system": "power", "level": self.stored_power / self.capacity})
+            event_bus.publish("power_low", {"system": "power", "level": self.stored_power / self.capacity, "source": "power"})
         else:
             self.status = "online"
 
