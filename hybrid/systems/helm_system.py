@@ -84,7 +84,7 @@ class HelmSystem(BaseSystem):
         if not self.enabled:
             return {"error": "Helm system is disabled"}
         
-        ship = params.get("ship")
+        ship = params.get("_ship")
         if not ship:
             return {"error": "Ship reference required for orientation"}
         
