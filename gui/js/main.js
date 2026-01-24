@@ -31,6 +31,11 @@ import "../components/tactical-map.js";
 // Phase 5: Integration
 import "../components/scenario-loader.js";
 import "../components/mission-objectives.js";
+// Phase 6: Mobile
+import "../components/touch-throttle.js";
+import "../components/touch-joystick.js";
+import { mobileLayout } from "../layouts/mobile-layout.js";
+import { initMobileGestures } from "./gestures.js";
 
 // App state
 const app = {
@@ -72,6 +77,10 @@ async function init() {
 
   // Initialize state manager
   stateManager.init();
+
+  // Initialize mobile layout (Phase 6)
+  mobileLayout.init();
+  initMobileGestures();
 
   // Debug mode logging
   if (app.config.debugMode) {
@@ -217,6 +226,7 @@ window._flaxosModules = {
 window.flaxosApp = {
   wsClient,
   stateManager,
+  mobileLayout,
   sendCommand,
   showSystemMessage,
   config: app.config
