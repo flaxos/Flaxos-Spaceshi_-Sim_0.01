@@ -25,6 +25,7 @@ import "../components/autopilot-control.js";
 import "../components/weapon-controls.js";
 import "../components/system-toggles.js";
 import "../components/quick-actions.js";
+import "../components/manual-thrust.js";
 // Phase 5: Integration
 import "../components/scenario-loader.js";
 import "../components/mission-objectives.js";
