@@ -13,6 +13,12 @@ python -m server.run_server --fleet-dir hybrid_fleet --dt 0.1 --port 8765
 python hybrid/gui/gui.py
 ```
 
+## Web GUI Quickstart
+```bash
+python tools/start_gui_stack.py
+```
+This starts the TCP sim server, WebSocket bridge, and GUI HTTP server, then opens the GUI.
+
 ## Documentation
 - [Architecture overview](docs/ARCHITECTURE.md)
 - [Feature status](docs/FEATURE_STATUS.md)
