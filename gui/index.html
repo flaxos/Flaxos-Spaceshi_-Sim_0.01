@@ -164,6 +164,11 @@
       min-height: 300px;
     }
 
+    .rcs-panel {
+      grid-column: span 3;
+      min-height: 400px;
+    }
+
     .autopilot-panel {
       grid-column: span 2;
       min-height: 280px;
@@ -218,6 +223,7 @@
       .thrust-input-panel,
       .throttle-panel,
       .heading-panel,
+      .rcs-panel,
       .autopilot-panel,
       .weapon-ctrl-panel,
       .systems-panel,
@@ -241,6 +247,7 @@
       .thrust-input-panel,
       .throttle-panel,
       .heading-panel,
+      .rcs-panel,
       .autopilot-panel,
       .weapon-ctrl-panel,
       .systems-panel,
@@ -312,12 +319,12 @@
       </flaxos-panel>
 
       <!-- Phase 4: Visual Controls -->
-      <flaxos-panel title="Manual Thrust" collapsible class="thrust-input-panel">
-        <manual-thrust></manual-thrust>
-      </flaxos-panel>
-
       <flaxos-panel title="Throttle" collapsible class="throttle-panel">
         <throttle-control></throttle-control>
+      </flaxos-panel>
+
+      <flaxos-panel title="RCS / Attitude" collapsible class="rcs-panel">
+        <rcs-controls></rcs-controls>
       </flaxos-panel>
 
       <flaxos-panel title="Heading" collapsible class="heading-panel">
@@ -326,6 +333,10 @@
 
       <flaxos-panel title="Autopilot" collapsible class="autopilot-panel">
         <autopilot-control></autopilot-control>
+      </flaxos-panel>
+
+      <flaxos-panel title="Debug: Vector Thrust" collapsible class="thrust-input-panel">
+        <manual-thrust></manual-thrust>
       </flaxos-panel>
 
       <flaxos-panel title="Fire Control" collapsible class="weapon-ctrl-panel">

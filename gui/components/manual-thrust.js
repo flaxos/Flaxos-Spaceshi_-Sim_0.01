@@ -48,6 +48,23 @@ class ManualThrust extends HTMLElement {
           font-family: var(--font-sans, "Inter", sans-serif);
         }
 
+        .debug-banner {
+          background: rgba(255, 170, 0, 0.2);
+          border: 1px solid var(--status-warning, #ffaa00);
+          border-radius: 4px;
+          padding: 8px 12px;
+          margin-bottom: 12px;
+          font-size: 0.7rem;
+          color: var(--status-warning, #ffaa00);
+          text-align: center;
+        }
+
+        .debug-banner strong {
+          display: block;
+          font-size: 0.8rem;
+          margin-bottom: 2px;
+        }
+
         .thrust-grid {
           display: grid;
           gap: 12px;
@@ -219,6 +236,11 @@ class ManualThrust extends HTMLElement {
           color: var(--status-info, #00aaff);
         }
       </style>
+
+      <div class="debug-banner">
+        <strong>⚠️ DEBUG MODE</strong>
+        Bypasses ship-frame physics. Use Throttle Control for realistic gameplay.
+      </div>
 
       <div class="thrust-grid">
         <div class="axis-row">

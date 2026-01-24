@@ -111,8 +111,18 @@ class Ship:
         """
         from hybrid.systems import get_system_class
         
+        # Ensure essential systems are always present with defaults
+        # These systems are required for Expanse-style flight model
+        essential_systems = {
+            "helm": {},      # Helm for manual control interface
+            "rcs": {},       # RCS for attitude control (torque-based rotation)
+        }
+        
+        # Merge config with defaults (config takes precedence)
+        merged_config = {**essential_systems, **systems_config}
+        
         # Load each system type
-        for system_type, config in systems_config.items():
+        for system_type, config in merged_config.items():
             # Skip systems with None config
             if config is None:
                 continue
