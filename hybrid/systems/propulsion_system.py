@@ -59,6 +59,13 @@ class PropulsionSystem(BaseSystem):
             self.power_status = True
             event_bus.publish("propulsion_power_restored", {"source": "propulsion"})
 
+        # Copy commanded thrust to ship for physics calculation
+        ship.thrust = {
+            "x": self.main_drive["thrust"]["x"],
+            "y": self.main_drive["thrust"]["y"],
+            "z": self.main_drive["thrust"]["z"]
+        }
+
         thrust_mag = math.sqrt(ship.thrust["x"]**2 + ship.thrust["y"]**2 + ship.thrust["z"]**2)
         if thrust_mag > 0:
             # Guard against invalid mass
