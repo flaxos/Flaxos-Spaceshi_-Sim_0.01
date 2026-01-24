@@ -21,6 +21,7 @@ import "../components/weapons-status.js";
 // Phase 4: Visual Controls
 import "../components/throttle-control.js";
 import "../components/heading-control.js";
+import "../components/rcs-controls.js";
 import "../components/autopilot-control.js";
 import "../components/weapon-controls.js";
 import "../components/system-toggles.js";
