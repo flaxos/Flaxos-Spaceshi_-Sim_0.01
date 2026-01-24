@@ -112,8 +112,8 @@ class RCSSystem(BaseSystem):
         # Simple 6-thruster setup for basic 3-axis control
         default_thrusters = [
             # Pitch control (nose up/down) - bow/stern vertical
-            {"id": "pitch_up", "position": [5, 0, 0], "direction": [0, 0, 1], "max_thrust": 500},
-            {"id": "pitch_down", "position": [5, 0, 0], "direction": [0, 0, -1], "max_thrust": 500},
+            {"id": "pitch_up", "position": [5, 0, 0], "direction": [0, 0, -1], "max_thrust": 500},
+            {"id": "pitch_down", "position": [5, 0, 0], "direction": [0, 0, 1], "max_thrust": 500},
             {"id": "pitch_up_aft", "position": [-5, 0, 0], "direction": [0, 0, -1], "max_thrust": 500},
             {"id": "pitch_down_aft", "position": [-5, 0, 0], "direction": [0, 0, 1], "max_thrust": 500},
             # Yaw control (nose left/right) - bow/stern lateral
