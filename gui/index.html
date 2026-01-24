@@ -144,6 +144,11 @@
     }
 
     /* Phase 4 panels */
+    .thrust-input-panel {
+      grid-column: span 3;
+      min-height: 380px;
+    }
+
     .throttle-panel {
       grid-column: span 2;
       min-height: 380px;
@@ -204,6 +209,7 @@
       .sensors-panel,
       .targeting-panel,
       .weapons-panel,
+      .thrust-input-panel,
       .throttle-panel,
       .heading-panel,
       .autopilot-panel,
@@ -225,6 +231,7 @@
       .sensors-panel,
       .targeting-panel,
       .weapons-panel,
+      .thrust-input-panel,
       .throttle-panel,
       .heading-panel,
       .autopilot-panel,
@@ -294,6 +301,10 @@
       </flaxos-panel>
 
       <!-- Phase 4: Visual Controls -->
+      <flaxos-panel title="Manual Thrust" collapsible class="thrust-input-panel">
+        <manual-thrust></manual-thrust>
+      </flaxos-panel>
+
       <flaxos-panel title="Throttle" collapsible class="throttle-panel">
         <throttle-control></throttle-control>
       </flaxos-panel>

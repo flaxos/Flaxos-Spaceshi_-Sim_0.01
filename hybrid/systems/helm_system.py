@@ -56,6 +56,8 @@ class HelmSystem(BaseSystem):
             return self._cmd_helm_override(params)
         if action == "set_thrust":
             return self._cmd_set_thrust(params, params.get("_ship"))
+        if action == "set_orientation":
+            return self._cmd_set_orientation(params)
         if action == "set_dampening":
             return self._cmd_set_dampening(params)
         if action == "set_mode":
@@ -69,6 +71,46 @@ class HelmSystem(BaseSystem):
         if action == "power_off":
             return self.power_off()
         return super().command(action, params)
+
+    def _cmd_set_orientation(self, params):
+        """Set ship orientation (pitch, yaw, roll).
+        
+        Args:
+            params: Dictionary with pitch, yaw, roll values (degrees)
+            
+        Returns:
+            dict: Result status
+        """
+        if not self.enabled:
+            return {"error": "Helm system is disabled"}
+        
+        ship = params.get("ship")
+        if not ship:
+            return {"error": "Ship reference required for orientation"}
+        
+        try:
+            pitch = float(params.get("pitch", ship.orientation.get("pitch", 0)))
+            yaw = float(params.get("yaw", ship.orientation.get("yaw", 0)))
+            roll = float(params.get("roll", ship.orientation.get("roll", 0)))
+            
+            # Normalize angles
+            pitch = max(-90, min(90, pitch))  # Pitch limited to -90 to 90
+            yaw = yaw % 360  # Yaw wraps around
+            roll = max(-180, min(180, roll))  # Roll limited to -180 to 180
+            
+            ship.orientation = {
+                "pitch": pitch,
+                "yaw": yaw,
+                "roll": roll
+            }
+            
+            return {
+                "status": "Orientation updated",
+                "orientation": ship.orientation
+            }
+        except (ValueError, TypeError) as e:
+            logger.error(f"Error setting orientation: {e}")
+            return {"error": f"Invalid orientation parameters: {e}"}
 
     # --- Commands from first implementation ---
     def _cmd_helm_override(self, params):
