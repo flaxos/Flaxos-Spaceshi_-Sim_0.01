@@ -123,6 +123,16 @@ function setupGlobalEvents() {
 
   // Keyboard shortcuts
   document.addEventListener("keydown", handleKeyboardShortcut);
+
+  // Listen for scenario load to set player ship ID
+  document.addEventListener("scenario-loaded", (e) => {
+    const { playerShipId, scenario, shipsLoaded, mission } = e.detail;
+    if (playerShipId) {
+      stateManager.setPlayerShipId(playerShipId);
+      console.log(`Scenario "${scenario}" loaded with ${shipsLoaded} ships, player: ${playerShipId}`);
+    }
+    showSystemMessage("success", `Scenario "${scenario}" loaded`, "Mission Ready");
+  });
 }
 
 /**
@@ -193,6 +203,12 @@ async function sendCommand(cmd, args = {}) {
     return null;
   }
 }
+
+// Register modules globally for cross-module access (e.g., ws-client needs stateManager)
+window._flaxosModules = {
+  wsClient,
+  stateManager
+};
 
 // Export for global access
 window.flaxosApp = {
