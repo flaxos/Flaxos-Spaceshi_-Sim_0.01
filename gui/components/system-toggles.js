@@ -348,8 +348,12 @@ class SystemToggles extends HTMLElement {
     }
 
     try {
-      const cmd = newState ? "power_on" : "power_off";
-      await wsClient.send(cmd, { system: systemId });
+      // Use toggle_system command with the system name and state
+      // This routes to the power management system
+      await wsClient.sendShipCommand("toggle_system", { 
+        system: systemId, 
+        state: newState ? 1 : 0 
+      });
     } catch (error) {
       console.error(`System toggle failed for ${systemId}:`, error);
     } finally {

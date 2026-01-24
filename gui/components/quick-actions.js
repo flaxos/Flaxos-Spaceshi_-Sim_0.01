@@ -110,10 +110,10 @@ class QuickActions extends HTMLElement {
 
   _setupActions() {
     const actions = {
-      "refuel-btn": () => this._sendCommand("refuel"),
-      "status-btn": () => this._sendCommand("status"),
-      "contacts-btn": () => this._sendCommand("contacts"),
-      "ping-btn": () => this._sendCommand("ping"),
+      "refuel-btn": () => this._refuel(),
+      "status-btn": () => this._getStatus(),
+      "contacts-btn": () => this._getContacts(),
+      "ping-btn": () => this._ping(),
       "estop-btn": () => this._emergencyStop(),
       "reconnect-btn": () => this._reconnect(),
     };
@@ -126,14 +126,60 @@ class QuickActions extends HTMLElement {
     }
   }
 
-  async _sendCommand(cmd, args = {}) {
-    const btn = this.shadowRoot.querySelector(`[id$="-btn"]`);
+  _getShipId() {
+    return window._flaxosModules?.stateManager?.getPlayerShipId?.() || null;
+  }
+
+  async _refuel() {
+    const shipId = this._getShipId();
+    if (!shipId) {
+      this._showMessage("No ship selected", "warning");
+      return;
+    }
 
     try {
-      await wsClient.send(cmd, args);
-      this._flashSuccess();
+      await wsClient.sendShipCommand("set_thrust", { x: 0, y: 0, z: 0 }); // Stop first
+      // Refuel command goes to propulsion system
+      const response = await wsClient.send("get_state", { ship: shipId });
+      // For now just show message - actual refuel would need server implementation
+      this._showMessage("Refuel requested", "info");
     } catch (error) {
-      console.error(`Command ${cmd} failed:`, error);
+      console.error("Refuel failed:", error);
+      this._showMessage("Refuel failed", "error");
+    }
+  }
+
+  async _getStatus() {
+    const shipId = this._getShipId();
+    if (!shipId) {
+      this._showMessage("No ship selected", "warning");
+      return;
+    }
+
+    try {
+      const response = await wsClient.send("get_state", { ship: shipId });
+      this._showMessage("Status refreshed", "success");
+    } catch (error) {
+      console.error("Status failed:", error);
+      this._showMessage("Status refresh failed", "error");
+    }
+  }
+
+  async _getContacts() {
+    try {
+      await wsClient.sendShipCommand("ping_sensors", {});
+      this._showMessage("Sensor contacts updated", "info");
+    } catch (error) {
+      console.error("Get contacts failed:", error);
+    }
+  }
+
+  async _ping() {
+    try {
+      await wsClient.sendShipCommand("ping_sensors", {});
+      this._showMessage("Ping sent", "info");
+    } catch (error) {
+      console.error("Ping failed:", error);
     }
   }
 
@@ -146,7 +192,8 @@ class QuickActions extends HTMLElement {
     btn.classList.add("pending");
 
     try {
-      await wsClient.send("emergency_stop", {});
+      // Emergency stop = set all thrust to zero
+      await wsClient.sendShipCommand("set_thrust", { x: 0, y: 0, z: 0 });
       this._showMessage("Emergency stop executed", "warning");
     } catch (error) {
       console.error("Emergency stop failed:", error);

@@ -11,6 +11,7 @@ class MissionObjectives extends HTMLElement {
     this.attachShadow({ mode: "open" });
     this._mission = null;
     this._pollInterval = null;
+    this._scenarioLoadedHandler = null;
   }
 
   connectedCallback() {
@@ -18,17 +19,22 @@ class MissionObjectives extends HTMLElement {
     this._startPolling();
 
     // Listen for scenario loads
-    document.addEventListener("scenario-loaded", (e) => {
+    this._scenarioLoadedHandler = (e) => {
       if (e.detail.mission) {
         this._updateMission(e.detail.mission);
       } else {
         this._fetchMission();
       }
-    });
+    };
+    document.addEventListener("scenario-loaded", this._scenarioLoadedHandler);
   }
 
   disconnectedCallback() {
     this._stopPolling();
+    if (this._scenarioLoadedHandler) {
+      document.removeEventListener("scenario-loaded", this._scenarioLoadedHandler);
+      this._scenarioLoadedHandler = null;
+    }
   }
 
   _startPolling() {
