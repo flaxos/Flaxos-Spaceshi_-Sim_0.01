@@ -3,7 +3,9 @@
 **Sprint**: S3 (Attitude System Overhaul)
 **Duration**: 4-6 weeks
 **Priority**: HIGH
-**Status**: 📋 Planning Phase
+**Status**: ✅ Largely implemented (doc retained as original plan)
+
+> Update (2026-01): Quaternion attitude integration and an RCS torque system now exist in the codebase (see `hybrid/ship.py` and `hybrid/systems/rcs_system.py`). Remaining tasks in this document should be treated as follow-ups/polish items rather than a greenfield sprint.
 
 ---
 

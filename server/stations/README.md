@@ -64,8 +64,12 @@ Response:
 Now you can issue commands appropriate to your station:
 
 ```json
-{"cmd": "set_thrust", "x": 100, "y": 0, "z": 0}
+{"cmd": "set_thrust", "thrust": 0.5}
 ```
+
+Notes:
+- `set_thrust` is the **primary gameplay** throttle command (scalar `0.0..1.0`) and is applied along the ship’s forward axis, rotated into world-frame by the ship’s quaternion.
+- For debug/testing only, the legacy `set_thrust_vector` command accepts `{"x": ..., "y": ..., "z": ...}` (world-frame thrust).
 
 ### 5. Get Status
 
@@ -104,9 +108,12 @@ The station system enforces command permissions:
 1. **Station-specific commands**: Only available if you control the appropriate station
 2. **Permission denied**: Attempting unauthorized commands returns an error:
    ```json
-   {"ok": false, "message": "Permission denied: Command 'fire' requires tactical station"}
+   {"ok": false, "message": "Permission denied: Command 'fire_weapon' requires tactical station"}
    ```
 3. **Captain override**: Captain station can issue any command
+
+Implementation note:
+- Station definitions include some *planned/legacy* command names. The server will return `Unknown command` if a command is allowed by a station definition but not registered with the dispatcher.
 
 ## Telemetry Filtering
 
@@ -148,15 +155,15 @@ python -m server.station_server
 nc localhost 8765
 {"cmd": "assign_ship", "ship": "test_ship_001"}
 {"cmd": "claim_station", "station": "helm"}
-{"cmd": "set_thrust", "x": 100, "y": 0, "z": 0}
+{"cmd": "set_thrust", "thrust": 0.5}
 {"cmd": "autopilot", "program": "hold_velocity"}
 
 # Terminal 3: Tactical station
 nc localhost 8765
 {"cmd": "assign_ship", "ship": "test_ship_001"}
 {"cmd": "claim_station", "station": "tactical"}
-{"cmd": "target", "target_id": "enemy_probe"}
-{"cmd": "fire"}
+{"cmd": "lock_target", "target_id": "C001"}
+{"cmd": "fire_weapon", "weapon_type": "torpedo"}
 ```
 
 ## Architecture

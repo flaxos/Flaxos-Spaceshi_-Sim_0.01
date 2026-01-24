@@ -146,7 +146,11 @@ To connect mobile device to desktop server:
 
 1. **Start server on desktop**:
    ```bash
-   python -m server.run_server --host 0.0.0.0 --port 8765
+   # Recommended: station-aware server (multi-crew / permissions)
+   python -m server.station_server --host 0.0.0.0 --port 8765
+
+   # Minimal server (no stations)
+   # python -m server.run_server --host 0.0.0.0 --port 8765
    ```
 
 2. **Find desktop IP address**:
@@ -162,15 +166,14 @@ To connect mobile device to desktop server:
 
 ## Features Available on Android
 
-All features work on Android:
+Core features work on Android:
 - ✅ Full spaceship simulation
 - ✅ Navigation and autopilot
 - ✅ Sensors (passive/active)
 - ✅ Weapons systems
-- ✅ Power management
 - ✅ Scenario missions
 - ✅ Auto-updates
-- ✅ Networked multiplayer
+- ✅ TCP client connectivity over LAN
 
 ## Performance Benchmarks
 

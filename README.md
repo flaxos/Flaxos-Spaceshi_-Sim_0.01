@@ -6,12 +6,21 @@ Hard sci‑fi sim (Expanse‑inspired) with comprehensive navigation, autopilot,
 python -m pip install pytest
 python -m pytest -q
 
-# Terminal 1: start server
-python -m server.run_server --fleet-dir hybrid_fleet --dt 0.1 --port 8765
+# Terminal 1: start server (recommended: station-aware / multi-crew)
+python -m server.station_server --fleet-dir hybrid_fleet --dt 0.1 --port 8765
+
+# Minimal server (no stations / simplest behavior)
+# python -m server.run_server --fleet-dir hybrid_fleet --dt 0.1 --port 8765
 
 # Terminal 2: HUD
 python hybrid/gui/gui.py
 ```
+
+## Web GUI Quickstart
+```bash
+python tools/start_gui_stack.py --server station
+```
+This starts the TCP sim server, WebSocket bridge, and GUI HTTP server, then opens the GUI.
 
 ## Documentation
 - [Architecture overview](docs/ARCHITECTURE.md)
@@ -61,7 +70,10 @@ pip install numpy
 ### 2) Start the server (desktop recommended)
 Run the sim server from your desktop/laptop so it can host the simulation loop:
 ```bash
-python -m server.run_server --fleet-dir hybrid_fleet --dt 0.1 --host 0.0.0.0 --port 8765
+python -m server.station_server --fleet-dir hybrid_fleet --dt 0.1 --host 0.0.0.0 --port 8765
+
+# Minimal server (no stations)
+# python -m server.run_server --fleet-dir hybrid_fleet --dt 0.1 --host 0.0.0.0 --port 8765
 ```
 
 > If you must run the server on Android, use the same entrypoint/flags in Pydroid; just be mindful of device performance.
@@ -178,54 +190,38 @@ PY
 
 ### Basic Flight
 ```bash
-status              # Show comprehensive ship status
-thrust 0.5          # Set thrust to 50%
-heading 45 0        # Set heading (pitch, yaw)
-position            # Get current position
-velocity            # Get current velocity
+# In the web GUI command prompt (space-separated):
+get_state
+set_thrust 0.5
+set_orientation 0 45 0
 ```
 
 ### Sensors & Targeting
 ```bash
-contacts            # List all sensor contacts
-ping                # Active sensor ping (high accuracy, reveals position!)
-target C001         # Lock target C001
-untarget            # Unlock current target
+ping_sensors
+lock_target C001
+unlock_target
 ```
 
 ### Autopilot
 ```bash
-# Match velocity with a target
 autopilot match C001
-
-# Intercept a moving target
 autopilot intercept C001
-
-# Hold current position (station-keeping)
 autopilot hold
-
-# Hold current velocity (cruise control)
 autopilot hold_velocity
-
-# Disengage autopilot
 autopilot off
 ```
 
 ### Combat
 ```bash
-target C001         # Lock target
-fire torpedo        # Fire torpedo at locked target
-fire pdc            # Enable point defense
-cease_fire          # Stop all weapons
+lock_target C001
+fire_weapon torpedo
+fire_weapon pdc
 ```
 
-### System Control
-```bash
-power_on sensors    # Power on a system
-power_off propulsion # Power off a system
-refuel              # Refuel to maximum
-emergency_stop      # Emergency stop all thrust
-```
+### Notes
+- These examples reflect the **currently implemented TCP command surface** used by the web GUI (`gui/components/command-prompt.js`).
+- `get_events` is present, but event streaming/logging is not currently wired in the core simulator, so clients may see an empty event list.
 
 ## 🎮 Demo Scenarios
 

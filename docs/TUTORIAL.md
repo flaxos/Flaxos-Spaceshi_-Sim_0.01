@@ -34,8 +34,8 @@ Welcome to the Flaxos Spaceship Sim! This tutorial will guide you through the ba
 From your project directory:
 
 ```bash
-# Terminal 1: Start the server
-python -m server.run_server --fleet-dir hybrid_fleet --dt 0.1 --port 8765 --host 0.0.0.0
+# Terminal 1: Start the server (recommended: station-aware / multi-crew)
+python -m server.station_server --fleet-dir hybrid_fleet --dt 0.1 --port 8765 --host 0.0.0.0
 ```
 
 The server will:
@@ -65,13 +65,20 @@ import socket
 import json
 
 sock = socket.create_connection(('localhost', 8765))
+f = sock.makefile("rwb")  # line-based framing (\n-delimited JSON)
+
+# station_server sends a welcome message immediately on connect:
+welcome = json.loads(f.readline().decode().strip())
+print("WELCOME:", welcome)
 
 def cmd(command_dict):
-    sock.sendall((json.dumps(command_dict) + "\n").encode())
-    return json.loads(sock.recv(4096).decode().strip())
+    f.write((json.dumps(command_dict) + "\n").encode())
+    f.flush()
+    return json.loads(f.readline().decode().strip())
 
 # Now you can issue commands:
-cmd({"cmd": "register_client", "player_name": "Alice"})
+cmd({"cmd": "assign_ship", "ship": "test_ship_001"})
+cmd({"cmd": "claim_station", "station": "helm"})
 ```
 
 ---
@@ -101,17 +108,14 @@ The simulator uses a **bridge station system** inspired by submarine and spacesh
 ### Claiming a Station
 
 ```python
-# Step 1: Register with server
-cmd({"cmd": "register_client", "player_name": "Alice"})
-
-# Step 2: Assign to a ship
+# Step 1: Assign to a ship
 cmd({"cmd": "assign_ship", "ship": "player_ship"})
 
-# Step 3: Claim a station
+# Step 2: Claim a station
 result = cmd({"cmd": "claim_station", "station": "helm"})
 
 # Check available commands
-print("I can use:", result['data']['available_commands'])
+print("I can use:", result['response']['available_commands'])
 ```
 
 **Output:**
@@ -135,8 +139,7 @@ Let's complete the **Tutorial: Intercept and Approach** scenario.
 
 #### 1. Connect and Set Up
 ```python
-# Register and claim HELM station
-cmd({"cmd": "register_client", "player_name": "You"})
+# Assign ship and claim HELM station
 cmd({"cmd": "assign_ship", "ship": "player_ship"})
 cmd({"cmd": "claim_station", "station": "helm"})
 ```
@@ -159,12 +162,13 @@ cmd({"cmd": "release_station"})
 # Claim OPS
 cmd({"cmd": "claim_station", "station": "ops"})
 
-# Check contacts
-events = cmd({"cmd": "get_events", "ship": "player_ship"})
-# Look for sensor_contact_detected events
-
 # Optional: Active ping for immediate detection
 cmd({"cmd": "ping_sensors", "ship": "player_ship"})
+
+# Check contacts via telemetry (get_state)
+state = cmd({"cmd": "get_state", "ship": "player_ship"})
+contacts = state["state"]["systems"]["sensors"].get("contacts", [])
+print("Contacts:", [c.get("id") for c in contacts])
 ```
 
 The station should appear as contact **C001** or similar.
@@ -181,7 +185,7 @@ cmd({"cmd": "claim_station", "station": "helm"})
 cmd({
     "cmd": "autopilot",
     "ship": "player_ship",
-    "mode": "intercept",
+    "program": "intercept",
     "target": "C001"  # Use actual contact ID
 })
 ```
@@ -197,13 +201,12 @@ cmd({
 
 #### 5. Monitor Progress
 ```python
-# Watch events for autopilot updates
-events = cmd({"cmd": "get_events", "ship": "player_ship"})
-
-# Check for autopilot_phase_change events
-for event in events['events']:
-    if event['type'] == 'autopilot_phase_change':
-        print(f"Autopilot: {event['phase']}")
+# Poll telemetry for autopilot status
+state = cmd({"cmd": "get_state", "ship": "player_ship"})
+nav = state["state"]["systems"].get("navigation", {})
+print("Autopilot enabled:", nav.get("autopilot_enabled"))
+print("Program:", nav.get("current_program"))
+print("Phase:", nav.get("phase"))
 ```
 
 #### 6. Final Approach
@@ -226,7 +229,7 @@ state = cmd({"cmd": "get_state", "ship": "player_ship"})
 ✓ Using passive sensors to detect contacts
 ✓ Engaging autopilot intercept mode
 ✓ Understanding autopilot phases
-✓ Monitoring events for updates
+✓ Monitoring telemetry for updates
 
 ---
 
@@ -255,13 +258,7 @@ cmd({
 **Applying Angular Velocity:**
 ```python
 # Rates in degrees per second
-cmd({
-    "cmd": "rotate",
-    "ship": "player_ship",
-    "pitch_rate": 5.0,
-    "yaw_rate": 0.0,
-    "roll_rate": 0.0
-})
+cmd({"cmd": "set_angular_velocity", "ship": "player_ship", "pitch": 5.0, "yaw": 0.0, "roll": 0.0})
 ```
 
 ### Autopilot Programs
@@ -273,7 +270,7 @@ Maintain current position (station-keeping).
 cmd({
     "cmd": "autopilot",
     "ship": "player_ship",
-    "mode": "hold"
+    "program": "hold"
 })
 ```
 
@@ -286,7 +283,7 @@ Maintain current velocity vector (cruise control).
 cmd({
     "cmd": "autopilot",
     "ship": "player_ship",
-    "mode": "hold_velocity"
+    "program": "hold_velocity"
 })
 ```
 
@@ -299,7 +296,7 @@ Match velocity with a moving target.
 cmd({
     "cmd": "autopilot",
     "ship": "player_ship",
-    "mode": "match",
+    "program": "match",
     "target": "C001"
 })
 ```
@@ -313,7 +310,7 @@ Three-phase intercept of moving target.
 cmd({
     "cmd": "autopilot",
     "ship": "player_ship",
-    "mode": "intercept",
+    "program": "intercept",
     "target": "C001"
 })
 ```
@@ -330,7 +327,7 @@ cmd({
 cmd({
     "cmd": "autopilot",
     "ship": "player_ship",
-    "mode": "off"
+    "program": "off"
 })
 ```
 
@@ -357,14 +354,10 @@ Passive sensors run continuously in the background, detecting ships based on the
 
 **Checking Contacts:**
 ```python
-events = cmd({"cmd": "get_events", "ship": "player_ship"})
-
-for event in events['events']:
-    if event['type'] == 'sensor_contact_detected':
-        print(f"New contact: {event['contact_id']}")
-        print(f"  Range: {event['range']} m")
-        print(f"  Bearing: {event['bearing']}°")
-        print(f"  Classification: {event['classification']}")
+state = cmd({"cmd": "get_state", "ship": "player_ship"})
+contacts = state["state"]["systems"]["sensors"].get("contacts", [])
+for c in contacts:
+    print(f"Contact: {c.get('id')}  range={c.get('distance')}  bearing={c.get('bearing')}  class={c.get('classification')}")
 ```
 
 ### Active Sensors (Ping)
@@ -375,8 +368,9 @@ Active ping provides high-accuracy detection but **reveals your position**.
 result = cmd({"cmd": "ping_sensors", "ship": "player_ship"})
 
 # Cooldown: 30 seconds default
-print(f"Contacts detected: {result['data']['contacts_detected']}")
-print(f"Next ping in: {result['data']['cooldown_remaining']}s")
+payload = result.get("response", result)
+print(f"Contacts detected: {payload.get('contacts_detected')}")
+print(f"Cooldown: {payload.get('cooldown')}s")
 ```
 
 **Active Ping Characteristics:**
@@ -431,8 +425,9 @@ cmd({"cmd": "claim_station", "station": "ops"})
 cmd({"cmd": "ping_sensors", "ship": "player_ship"})
 
 # Verify contact
-events = cmd({"cmd": "get_events", "ship": "player_ship"})
-# Look for sensor_contact_detected
+state = cmd({"cmd": "get_state", "ship": "player_ship"})
+contacts = state["state"]["systems"]["sensors"].get("contacts", [])
+print("Contacts:", [c.get("id") for c in contacts])
 ```
 
 #### 2. Intercept (HELM)
@@ -445,7 +440,7 @@ cmd({"cmd": "claim_station", "station": "helm"})
 cmd({
     "cmd": "autopilot",
     "ship": "player_ship",
-    "mode": "intercept",
+    "program": "intercept",
     "target": "C001"
 })
 ```
@@ -458,15 +453,15 @@ cmd({"cmd": "claim_station", "station": "tactical"})
 
 # Fire torpedo
 cmd({
-    "cmd": "fire",
+    "cmd": "fire_weapon",
     "ship": "player_ship",
     "weapon": "torpedo",
     "target": "C001"
 })
 
-# Monitor weapon events
-events = cmd({"cmd": "get_events", "ship": "player_ship"})
-# Look for weapon_fired, target_locked events
+# Confirm via telemetry / command response
+state = cmd({"cmd": "get_state", "ship": "player_ship"})
+print("Weapons:", state["state"]["systems"].get("weapons", {}))
 ```
 
 #### 4. Evasive Maneuvers (HELM)
@@ -481,11 +476,11 @@ cmd({"cmd": "set_thrust", "ship": "player_ship", "thrust": 1.0})
 
 # Rotate to evade
 cmd({
-    "cmd": "rotate",
+    "cmd": "set_angular_velocity",
     "ship": "player_ship",
-    "pitch_rate": 10.0,
-    "yaw_rate": 10.0,
-    "roll_rate": 0.0
+    "pitch": 10.0,
+    "yaw": 10.0,
+    "roll": 0.0
 })
 ```
 
@@ -555,16 +550,16 @@ Use voice chat or text to coordinate:
 ```python
 # Fleet Commander creates fleet
 cmd({
-    "cmd": "create_fleet",
+    "cmd": "fleet_create",
     "fleet_id": "alpha_squadron",
     "name": "Alpha Squadron",
     "flagship": "ship_1",
     "ships": ["ship_2", "ship_3"]
 })
 
-# Set formation
+# Form fleet into a formation
 cmd({
-    "cmd": "set_fleet_formation",
+    "cmd": "fleet_form",
     "fleet_id": "alpha_squadron",
     "formation": "wedge",
     "spacing": 1000.0
@@ -601,9 +596,10 @@ cmd({"cmd": "refuel", "ship": "player_ship"})
 
 **System Power Control:**
 ```python
-# Power on/off systems (ENGINEERING)
-cmd({"cmd": "power_on", "ship": "player_ship", "system": "sensors"})
-cmd({"cmd": "power_off", "ship": "player_ship", "system": "propulsion"})
+# NOTE: System power toggles are not yet standardized across all clients/servers.
+# If your server build exposes BaseSystem power controls, you can try:
+# cmd({"cmd": "power_on", "ship": "player_ship", "system": "sensors"})
+# cmd({"cmd": "power_off", "ship": "player_ship", "system": "propulsion"})
 ```
 
 **Power Priority:**
@@ -624,9 +620,10 @@ cmd({"cmd": "power_off", "ship": "player_ship", "system": "propulsion"})
 **Check Crew Status:**
 ```python
 crew = cmd({"cmd": "my_crew_status"})
-print(f"Fatigue: {crew['data']['fatigue']:.1%}")
-print(f"Efficiency: {crew['data']['efficiency']:.1%}")
-print(f"Success Rate: {crew['data']['success_rate']:.1%}")
+payload = crew.get("response", crew).get("data", crew.get("response", crew))
+print(f"Fatigue: {payload.get('fatigue', 0):.1%}")
+print(f"Efficiency: {payload.get('efficiency', 0):.1%}")
+print(f"Success Rate: {payload.get('success_rate', 0):.1%}")
 ```
 
 **Fatigue Effects:**

@@ -72,14 +72,18 @@ All commands follow this structure:
 }
 ```
 
-**Response Format:**
+**Response Format (station server commands):**
 ```json
 {
   "ok": true,
   "message": "Success message",
-  "data": { ... }
+  "response": { ... }
 }
 ```
+
+Notes:
+- Some “direct” server handlers (notably `get_state`, `get_events`, `list_scenarios`, `load_scenario`, `get_mission`, `get_mission_hints`) may return a command-specific payload without a `message/response` wrapper.
+- The **basic server** (`server.run_server`) uses a different response shape for some commands (see `server/run_server.py`).
 
 **Error Response:**
 ```json
@@ -97,6 +101,8 @@ All commands follow this structure:
 ### register_client
 Register a new client with the server.
 
+> In `server.station_server`, clients are auto-registered on connect and receive a welcome message containing `client_id`. Calling `register_client` is optional (use it to set a display name).
+
 **Request:**
 ```json
 {
@@ -110,7 +116,7 @@ Register a new client with the server.
 {
   "ok": true,
   "message": "Client registered as Alice",
-  "data": {
+  "response": {
     "client_id": "client_1",
     "player_name": "Alice",
     "session": {
@@ -141,7 +147,7 @@ Assign client to a ship.
 {
   "ok": true,
   "message": "Assigned to ship player_ship",
-  "data": {
+  "response": {
     "ship_id": "player_ship"
   }
 }
@@ -174,7 +180,7 @@ Claim a station on your assigned ship.
 {
   "ok": true,
   "message": "Claimed helm station",
-  "data": {
+  "response": {
     "station": "helm",
     "ship_id": "player_ship",
     "available_commands": [
@@ -226,7 +232,7 @@ Get your current session status.
 {
   "ok": true,
   "message": "Session status",
-  "data": {
+  "response": {
     "client_id": "client_1",
     "player_name": "Alice",
     "ship_id": "player_ship",
@@ -254,7 +260,7 @@ Get status of all stations on your ship.
 {
   "ok": true,
   "message": "Station status",
-  "data": {
+  "response": {
     "ship_id": "player_ship",
     "stations": [
       {"station": "captain", "claimed": true, "player": "Bob"},
@@ -282,7 +288,7 @@ Get status of all ships and their crews.
 {
   "ok": true,
   "message": "Fleet status",
-  "data": {
+  "response": {
     "ships": {
       "player_ship": [
         {"station": "captain", "player": "Bob"},
@@ -318,7 +324,7 @@ Keep session alive (prevents timeout).
 {
   "ok": true,
   "message": "Heartbeat received",
-  "data": {
+  "response": {
     "client_id": "client_1",
     "last_heartbeat": "2026-01-19T21:00:00"
   }
@@ -482,7 +488,7 @@ Engage autopilot with a specific program.
 {
   "cmd": "autopilot",
   "ship": "player_ship",
-  "mode": "match",
+  "program": "match",
   "target": "C001"
 }
 ```
@@ -492,7 +498,7 @@ Engage autopilot with a specific program.
 {
   "cmd": "autopilot",
   "ship": "player_ship",
-  "mode": "intercept",
+  "program": "intercept",
   "target": "C001"
 }
 ```
@@ -502,7 +508,7 @@ Engage autopilot with a specific program.
 {
   "cmd": "autopilot",
   "ship": "player_ship",
-  "mode": "hold"
+  "program": "hold"
 }
 ```
 
@@ -511,8 +517,10 @@ Engage autopilot with a specific program.
 {
   "ok": true,
   "message": "Autopilot engaged: match velocity",
-  "data": {
-    "mode": "match",
+  "response": {
+    "ok": true,
+    "status": "Autopilot engaged: match velocity",
+    "program": "match",
     "target": "C001"
   }
 }
@@ -522,6 +530,8 @@ Engage autopilot with a specific program.
 
 ### set_course
 Set navigation waypoint.
+
+> Note: `set_course` is currently not implemented in the navigation system and will return a NOT_IMPLEMENTED error in most builds.
 
 **Station:** HELM
 **Request:**
@@ -563,10 +573,12 @@ Active sensor ping (high accuracy, reveals position).
 ```json
 {
   "ok": true,
-  "message": "Active ping complete",
-  "data": {
+  "message": "Ping complete: 3 contacts detected",
+  "response": {
+    "ok": true,
+    "status": "Ping complete: 3 contacts detected",
     "contacts_detected": 3,
-    "cooldown_remaining": 30.0
+    "cooldown": 30.0
   }
 }
 ```
@@ -575,6 +587,8 @@ Active sensor ping (high accuracy, reveals position).
 
 ### get_events
 Get filtered events for your station.
+
+> Note: event logging/streaming is not currently wired into the core simulator, so most builds will return an empty list here.
 
 **Request:**
 ```json
@@ -588,23 +602,10 @@ Get filtered events for your station.
 ```json
 {
   "ok": true,
-  "events": [
-    {
-      "type": "sensor_contact_detected",
-      "ship_id": "player_ship",
-      "contact_id": "C001",
-      "timestamp": 123.45
-    },
-    {
-      "type": "autopilot_phase_change",
-      "ship_id": "player_ship",
-      "phase": "approach",
-      "timestamp": 124.0
-    }
-  ],
+  "events": [],
   "station": "ops",
-  "total_events": 50,
-  "filtered_count": 8
+  "total_events": 0,
+  "filtered_count": 0
 }
 ```
 
@@ -612,19 +613,16 @@ Get filtered events for your station.
 
 ## Weapons & Combat
 
-### fire
-Fire weapon at locked target.
+### fire_weapon
+Fire a weapon. If `target` is omitted, the server will attempt to use the currently locked target (if available).
 
 **Station:** TACTICAL
-**Weapon Types:**
-- `torpedo` - Guided torpedo
-- `pdc` - Point defense cannon
-- `missile` - Missile
+**Weapons:** Depends on ship loadout (commonly `torpedo`, `pdc`, `missile`).
 
 **Request:**
 ```json
 {
-  "cmd": "fire",
+  "cmd": "fire_weapon",
   "ship": "player_ship",
   "weapon": "torpedo",
   "target": "C001"
@@ -635,49 +633,33 @@ Fire weapon at locked target.
 ```json
 {
   "ok": true,
-  "message": "Torpedo fired at C001",
-  "data": {
+  "message": "Weapon 'torpedo' fired",
+  "response": {
+    "ok": true,
     "weapon": "torpedo",
     "target": "C001",
-    "projectile_id": "proj_001"
+    "damage": 10.0
   }
 }
 ```
 
 ---
 
-### cease_fire
-Stop all weapons.
-
-**Station:** TACTICAL
-**Request:**
-```json
-{
-  "cmd": "cease_fire",
-  "ship": "player_ship"
-}
-```
-
-**Response:**
-```json
-{
-  "ok": true,
-  "message": "All weapons ceased fire"
-}
-```
+### cease_fire (not implemented)
+Some older docs/clients reference `cease_fire`, but it is not currently registered as a station-server command. Prefer weapon-specific control via `fire_weapon` (and any weapon-system specific flags if/when added).
 
 ---
 
 ## Fleet Commands
 
-### create_fleet
+### fleet_create
 Create a new fleet (FLEET_COMMANDER only).
 
 **Station:** FLEET_COMMANDER
 **Request:**
 ```json
 {
-  "cmd": "create_fleet",
+  "cmd": "fleet_create",
   "fleet_id": "alpha_squadron",
   "name": "Alpha Squadron",
   "flagship": "player_ship",
@@ -690,25 +672,27 @@ Create a new fleet (FLEET_COMMANDER only).
 {
   "ok": true,
   "message": "Fleet 'Alpha Squadron' created",
-  "data": {
+  "response": {
     "fleet_id": "alpha_squadron",
-    "ship_count": 3
+    "name": "Alpha Squadron",
+    "flagship": "player_ship",
+    "ships": ["escort_1", "escort_2"]
   }
 }
 ```
 
 ---
 
-### set_fleet_formation
-Set fleet formation.
+### fleet_form
+Form fleet into a formation.
 
 **Station:** FLEET_COMMANDER
-**Formations:** `line`, `wedge`, `column`, `sphere`
+**Formations:** `line`, `wedge`, `column`, `sphere`, `wall`, `echelon`, `diamond`
 
 **Request:**
 ```json
 {
-  "cmd": "set_fleet_formation",
+  "cmd": "fleet_form",
   "fleet_id": "alpha_squadron",
   "formation": "wedge",
   "spacing": 1000.0
@@ -720,7 +704,8 @@ Set fleet formation.
 {
   "ok": true,
   "message": "Formation set to wedge",
-  "data": {
+  "response": {
+    "fleet_id": "alpha_squadron",
     "formation": "wedge",
     "spacing": 1000.0
   }
@@ -746,7 +731,7 @@ Get crew roster for your ship.
 {
   "ok": true,
   "message": "Crew status for player_ship",
-  "data": {
+  "response": {
     "ship_id": "player_ship",
     "crew_count": 3,
     "crew": [
@@ -782,7 +767,7 @@ Get your personal crew member status.
 {
   "ok": true,
   "message": "Status for Alice Chen",
-  "data": {
+  "response": {
     "crew_id": "crew_1",
     "name": "Alice Chen",
     "skills": {"PILOTING": 4, "GUNNERY": 3},
@@ -813,7 +798,7 @@ Take a rest period (reduces fatigue).
 {
   "ok": true,
   "message": "Alice Chen rested for 4.0 hours",
-  "data": {
+  "response": {
     "crew_id": "crew_1",
     "fatigue": 0.12,
     "stress": 0.05
@@ -824,6 +809,8 @@ Take a rest period (reduces fatigue).
 ---
 
 ## Event System
+
+> Current status: the simulation publishes many internal events on an in-process event bus, but the TCP servers do not currently expose a reliable event log/stream to clients. As a result, `get_events` will usually return an empty list. The event lists below are **aspirational/reference** for future event delivery.
 
 ### Event Types by Station
 
@@ -882,7 +869,6 @@ Events are filtered based on your station. Some events are visible to all statio
 - `critical_alert`
 - `mission_update`
 - `hint`
-- `gimbal_lock_warning`
 - `emergency_stop`
 
 ---
@@ -945,12 +931,13 @@ def send_command(sock, cmd):
 # Connect
 sock = socket.create_connection(('192.168.1.20', 8765))
 
-# Register
-response = send_command(sock, {
-    "cmd": "register_client",
-    "player_name": "Alice"
-})
-print(f"Registered: {response['data']['client_id']}")
+# station_server sends a welcome message immediately on connect:
+welcome = json.loads(sock.recv(4096).decode().strip())
+print(f"WELCOME: {welcome}")
+
+# Optional: set a display name
+response = send_command(sock, {"cmd": "register_client", "player_name": "Alice"})
+print(f"Registered: {response['response']['client_id']}")
 
 # Assign to ship
 send_command(sock, {
@@ -963,13 +950,13 @@ response = send_command(sock, {
     "cmd": "claim_station",
     "station": "helm"
 })
-print(f"Available commands: {response['data']['available_commands']}")
+print(f"Available commands: {response['response']['available_commands']}")
 
 # Engage autopilot
 send_command(sock, {
     "cmd": "autopilot",
     "ship": "player_ship",
-    "mode": "intercept",
+    "program": "intercept",
     "target": "C001"
 })
 

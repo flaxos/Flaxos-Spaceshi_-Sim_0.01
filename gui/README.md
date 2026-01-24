@@ -12,6 +12,16 @@ The GUI connects to a WebSocket bridge that forwards commands to the existing TC
 
 ## Quick Start
 
+### One-Command Stack (Recommended)
+
+From the repo root:
+
+```bash
+python tools/start_gui_stack.py --server station
+```
+
+This launches the TCP simulation server, WebSocket bridge, and GUI HTTP server.
+
 ### 1. Install Dependencies
 
 ```bash
@@ -21,7 +31,11 @@ pip install websockets
 ### 2. Start the Simulation Server
 
 ```bash
-python -m server.run_server --port 8765
+# Recommended: station-aware server (multi-crew / permissions)
+python -m server.station_server --port 8765
+
+# Minimal server (no stations)
+# python -m server.run_server --port 8765
 ```
 
 ### 3. Start the WebSocket Bridge
