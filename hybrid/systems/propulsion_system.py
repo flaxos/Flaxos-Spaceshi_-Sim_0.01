@@ -54,10 +54,10 @@ class PropulsionSystem(BaseSystem):
             self.main_drive["thrust"] = {"x": 0.0, "y": 0.0, "z": 0.0}
             if self.power_status:
                 self.power_status = False
-                event_bus.publish("propulsion_power_loss", None, "propulsion")
+                event_bus.publish("propulsion_power_loss", {"source": "propulsion"})
         elif not self.power_status:
             self.power_status = True
-            event_bus.publish("propulsion_power_restored", None, "propulsion")
+            event_bus.publish("propulsion_power_restored", {"source": "propulsion"})
 
         thrust_mag = math.sqrt(ship.thrust["x"]**2 + ship.thrust["y"]**2 + ship.thrust["z"]**2)
         if thrust_mag > 0:
@@ -101,7 +101,7 @@ class PropulsionSystem(BaseSystem):
             self.status = "idle"
 
         if magnitude > 10.0:
-            event_bus.publish("signature_spike", {"duration": 3.0, "magnitude": magnitude}, "propulsion")
+            event_bus.publish("signature_spike", {"duration": 3.0, "magnitude": magnitude, "source": "propulsion"})
 
     # ----- Commands -----
     def command(self, action, params):

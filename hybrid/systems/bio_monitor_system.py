@@ -37,7 +37,7 @@ class BioMonitorSystem(BaseSystem):
 
         power_system = ship.systems.get("power")
         if power_system and not power_system.request_power(self.power_draw * dt, "bio_monitor"):
-            event_bus.publish("bio_monitor_offline", None, "bio_monitor")
+            event_bus.publish("bio_monitor_offline", {"source": "bio_monitor"})
             return
 
         a = ship.acceleration
@@ -57,22 +57,22 @@ class BioMonitorSystem(BaseSystem):
                 self.status = "fatal"
                 self.crew_health = 0.0
                 self.health_status = "critical"
-                event_bus.publish("crew_fatal", None, "bio_monitor")
+                event_bus.publish("crew_fatal", {"source": "bio_monitor"})
             else:
                 self.status = "warning"
                 self.health_status = "warning"
-                event_bus.publish("high_g_warning", {"g_force": g_force, "timer": self.fail_timer}, "bio_monitor")
+                event_bus.publish("high_g_warning", {"g_force": g_force, "timer": self.fail_timer, "source": "bio_monitor"})
         elif g_force > self.max_sustained_g:
             self.health_status = "warning"
             self.status = "warning"
-            event_bus.publish("bio_warning", {"system": "bio", "g_forces": g_force, "limit": self.max_sustained_g})
+            event_bus.publish("bio_warning", {"system": "bio", "g_forces": g_force, "limit": self.max_sustained_g, "source": "bio_monitor"})
         else:
             self.status = "nominal"
             self.health_status = "nominal"
             self.fail_timer = 0
 
         if old_status != self.status:
-            event_bus.publish("bio_status_change", {"status": self.status}, "bio_monitor")
+            event_bus.publish("bio_status_change", {"status": self.status, "source": "bio_monitor"})
 
     def command(self, action, params):
         if action in ("override_bio_monitor", "override"):
