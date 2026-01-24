@@ -81,7 +81,24 @@ The GUI is being developed in phases:
 - **Phase 3**: Status Displays (ship status, navigation, sensors, weapons) ✓
 - **Phase 4**: Visual Controls (throttle, heading, autopilot) ✓
 - **Phase 5**: Integration (layout, scenarios, missions) ✓
-- **Phase 6**: Mobile Optimization (touch controls, responsive) - Pending
+- **Phase 6**: Mobile Optimization (touch controls, responsive) ✓
+
+## Mobile Support
+
+The GUI automatically switches to a mobile-optimized layout on screens <= 768px wide.
+
+### Mobile Features
+- **Tab Navigation**: 5 tabs (NAV, SEN, WPN, LOG, SYS) for panel grouping
+- **Touch Throttle**: Vertical drag control with 10% snap increments
+- **Touch Joystick**: Virtual joystick for pitch/yaw control
+- **Quick Actions**: Fire, Lock, Autopilot, Ping buttons
+- **Swipe Gestures**: Swipe left/right to change tabs
+- **iOS/Android Support**: Safe area handling, touch targets >= 44px
+
+### Testing on Mobile
+1. Ensure server is accessible on your network (`--host 0.0.0.0`)
+2. Open `http://<server-ip>:3000` on your mobile device
+3. See `docs/MOBILE_GUI_TESTING.md` for full testing checklist
 
 ## File Structure
 
@@ -91,11 +108,13 @@ gui/
 ├── ws_bridge.py              # WebSocket-TCP bridge
 ├── README.md                 # This file
 ├── styles/
-│   └── main.css              # CSS foundation & variables
+│   ├── main.css              # CSS foundation & variables
+│   └── mobile.css            # Mobile-specific overrides
 ├── js/
 │   ├── main.js               # App initialization
 │   ├── ws-client.js          # WebSocket client
-│   └── state-manager.js      # State synchronization
+│   ├── state-manager.js      # State synchronization
+│   └── gestures.js           # Touch gesture handling
 ├── components/
 │   ├── connection-status.js  # Connection indicator
 │   ├── panel.js              # Collapsible panel container
@@ -114,9 +133,11 @@ gui/
 │   ├── system-toggles.js     # System power toggles
 │   ├── quick-actions.js      # Quick action bar
 │   ├── scenario-loader.js    # Scenario list & load
-│   └── mission-objectives.js # Mission status & objectives
+│   ├── mission-objectives.js # Mission status & objectives
+│   ├── touch-throttle.js     # Mobile touch throttle (Phase 6)
+│   └── touch-joystick.js     # Mobile virtual joystick (Phase 6)
 └── layouts/
-    └── (Phase 6 - mobile)
+    └── mobile-layout.js      # Mobile tab layout (Phase 6)
 ```
 
 ## Commands
