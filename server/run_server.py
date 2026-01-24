@@ -102,6 +102,19 @@ def dispatch(runner: HybridRunner, req: dict) -> dict:
     if not ship:
         return {"ok": False, "error": f"ship {ship_id} not found"}
 
+    # Normalize set_thrust command to distinguish scalar throttle vs debug vector
+    if cmd == "set_thrust":
+        # Check if this is a legacy {x,y,z} vector command (debug-only)
+        has_vector = any(k in req for k in ("x", "y", "z"))
+        has_scalar = "thrust" in req
+        
+        if has_vector and not has_scalar:
+            # Legacy debug mode: route to set_thrust_vector
+            cmd = "set_thrust_vector"
+        elif not has_scalar and not has_vector:
+            # No params provided - default to scalar 0
+            req["thrust"] = 0.0
+
     command_data = {"command": cmd, "ship": ship_id, **req}
     command_data.pop("cmd", None)
     result = route_command(ship, command_data, runner.simulator.ships)

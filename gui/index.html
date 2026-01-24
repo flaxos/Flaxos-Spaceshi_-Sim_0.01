@@ -133,6 +133,11 @@
       min-height: 280px;
     }
 
+    .tactical-panel {
+      grid-column: span 4;
+      min-height: 350px;
+    }
+
     .targeting-panel {
       grid-column: span 3;
       min-height: 250px;
@@ -207,6 +212,7 @@
       .status-panel,
       .nav-panel,
       .sensors-panel,
+      .tactical-panel,
       .targeting-panel,
       .weapons-panel,
       .thrust-input-panel,
@@ -229,6 +235,7 @@
       .status-panel,
       .nav-panel,
       .sensors-panel,
+      .tactical-panel,
       .targeting-panel,
       .weapons-panel,
       .thrust-input-panel,
@@ -290,6 +297,10 @@
 
       <flaxos-panel title="Sensors" collapsible class="sensors-panel">
         <sensor-contacts id="sensor-contacts"></sensor-contacts>
+      </flaxos-panel>
+
+      <flaxos-panel title="Tactical Map" collapsible class="tactical-panel">
+        <tactical-map></tactical-map>
       </flaxos-panel>
 
       <flaxos-panel title="Targeting" collapsible class="targeting-panel">

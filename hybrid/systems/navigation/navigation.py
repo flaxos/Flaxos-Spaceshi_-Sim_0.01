@@ -67,28 +67,30 @@ class NavigationSystem(BaseSystem):
     def _apply_autopilot_command(self, ship, command: dict):
         """Apply autopilot command to ship.
 
+        Expanse-style: uses scalar throttle for propulsion and RCS for attitude.
+        
         Args:
             ship: Ship object
-            command: Command dict with thrust and heading
+            command: Command dict with thrust (0..1 scalar) and heading (attitude target)
         """
         thrust_value = command.get("thrust", 0.0)
         heading = command.get("heading")
 
-        # Apply thrust to propulsion
+        # Apply throttle to propulsion (scalar main drive)
         propulsion = ship.systems.get("propulsion")
-        if propulsion and hasattr(propulsion, "set_thrust"):
-            # Convert scalar thrust to vector (forward thrust only for now)
-            propulsion.set_thrust({
-                "x": thrust_value * 100,  # Scale to thrust magnitude
-                "y": 0.0,
-                "z": 0.0
-            })
+        if propulsion and hasattr(propulsion, "set_throttle"):
+            # thrust_value is 0..1 scalar
+            propulsion.set_throttle({"thrust": thrust_value})
 
-        # Apply heading
+        # Apply heading via RCS (attitude target, not instant teleport)
         if heading:
-            ship.orientation["pitch"] = heading.get("pitch", ship.orientation.get("pitch", 0))
-            ship.orientation["yaw"] = heading.get("yaw", ship.orientation.get("yaw", 0))
-            ship.orientation["roll"] = heading.get("roll", ship.orientation.get("roll", 0))
+            rcs = ship.systems.get("rcs")
+            if rcs and hasattr(rcs, "set_attitude_target"):
+                rcs.set_attitude_target({
+                    "pitch": heading.get("pitch", ship.orientation.get("pitch", 0)),
+                    "yaw": heading.get("yaw", ship.orientation.get("yaw", 0)),
+                    "roll": heading.get("roll", ship.orientation.get("roll", 0))
+                })
 
     def command(self, action: str, params: dict):
         """Handle navigation commands.

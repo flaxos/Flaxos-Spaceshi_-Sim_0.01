@@ -360,7 +360,9 @@ Get ship telemetry (filtered by station).
 ---
 
 ### set_thrust
-Set propulsion thrust (0.0 to 1.0).
+Set main drive throttle (0.0 to 1.0).
+
+**Expanse-style physics:** Thrust is applied along the ship's forward axis (+X in ship frame), then rotated to world frame by the ship's quaternion attitude. This means the ship must be pointed in the direction you want to accelerate.
 
 **Station:** HELM
 **Request:**
@@ -376,14 +378,43 @@ Set propulsion thrust (0.0 to 1.0).
 ```json
 {
   "ok": true,
-  "message": "Thrust set to 50%"
+  "throttle": 0.5,
+  "thrust_magnitude": 50.0
+}
+```
+
+---
+
+### set_thrust_vector (DEBUG)
+Set arbitrary thrust vector in world frame. **Debug/development only** - bypasses realistic ship-frame physics.
+
+**Station:** HELM
+**Request:**
+```json
+{
+  "cmd": "set_thrust_vector",
+  "ship": "player_ship",
+  "x": 50.0,
+  "y": 0.0,
+  "z": 0.0
+}
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "debug_mode": true,
+  "thrust_vector": {"x": 50.0, "y": 0.0, "z": 0.0}
 }
 ```
 
 ---
 
 ### set_orientation
-Set ship orientation (pitch, yaw, roll in degrees).
+Set attitude target for RCS. The ship will rotate to achieve this orientation using torque from RCS thrusters - **not instantaneous**.
+
+**Expanse-style physics:** Orientation changes take time as RCS thrusters fire to produce torque. For flip-and-burn maneuvers, set the target heading and wait for the ship to rotate before applying main drive thrust.
 
 **Station:** HELM
 **Request:**
@@ -401,14 +432,15 @@ Set ship orientation (pitch, yaw, roll in degrees).
 ```json
 {
   "ok": true,
-  "message": "Orientation set"
+  "status": "Attitude target set (RCS will maneuver)",
+  "target": {"pitch": 15.0, "yaw": 45.0, "roll": 0.0}
 }
 ```
 
 ---
 
 ### rotate
-Apply angular velocity to ship.
+Apply rotation command (adds to current attitude target).
 
 **Station:** HELM
 **Request:**
@@ -416,9 +448,8 @@ Apply angular velocity to ship.
 {
   "cmd": "rotate",
   "ship": "player_ship",
-  "pitch_rate": 5.0,
-  "yaw_rate": 0.0,
-  "roll_rate": 0.0
+  "axis": "yaw",
+  "amount": 90.0
 }
 ```
 
@@ -426,7 +457,8 @@ Apply angular velocity to ship.
 ```json
 {
   "ok": true,
-  "message": "Angular velocity set"
+  "status": "Rotate 90° on yaw commanded",
+  "target": {"pitch": 0.0, "yaw": 90.0, "roll": 0.0}
 }
 ```
 

@@ -1,6 +1,10 @@
 /**
- * Manual Thrust Input
+ * Manual Thrust Input (DEBUG MODE)
  * Direct X, Y, Z thrust entry with numeric inputs
+ * 
+ * WARNING: This bypasses Expanse-style ship-frame thrust.
+ * For realistic gameplay, use the Throttle Control instead.
+ * Vector thrust applies force directly in world coordinates.
  */
 
 import { stateManager } from "../js/state-manager.js";
@@ -351,9 +355,12 @@ class ManualThrust extends HTMLElement {
     const z = parseFloat(this.shadowRoot.getElementById("thrust-z").value) || 0;
 
     try {
-      await wsClient.sendShipCommand("set_thrust", { x, y, z });
+      // DEBUG: Use set_thrust_vector for direct world-frame thrust
+      // This bypasses ship-frame rotation (not realistic for gameplay)
+      await wsClient.sendShipCommand("set_thrust_vector", { x, y, z });
+      console.log("DEBUG: Applied vector thrust", { x, y, z });
     } catch (error) {
-      console.error("Set thrust failed:", error);
+      console.error("Set thrust vector failed:", error);
     }
   }
 
@@ -373,7 +380,9 @@ class ManualThrust extends HTMLElement {
     this.shadowRoot.getElementById("thrust-z").value = 0;
 
     try {
-      await wsClient.sendShipCommand("set_thrust", { x: 0, y: 0, z: 0 });
+      // Zero all thrust (both scalar and vector modes)
+      await wsClient.sendShipCommand("set_thrust", { thrust: 0 });
+      console.log("DEBUG: Emergency stop activated");
     } catch (error) {
       console.error("Emergency stop failed:", error);
     }
