@@ -14,7 +14,11 @@ desktop Python and Android/Pydroid.
 2. Start the TCP server:
 
    ```bash
-   python -m server.run_server --port 8765
+   # Recommended: station-aware server (multi-crew / permissions)
+   python -m server.station_server --port 8765
+
+   # Minimal server (no stations)
+   # python -m server.run_server --port 8765
    ```
 
 3. In another terminal, send a minimal request:
@@ -79,5 +83,5 @@ response payload so you can verify end-to-end socket connectivity.
 If you want to run the full server instead, use:
 
 ```bash
-python -m server.run_server --host 127.0.0.1 --port 8765
+python -m server.station_server --host 127.0.0.1 --port 8765
 ```

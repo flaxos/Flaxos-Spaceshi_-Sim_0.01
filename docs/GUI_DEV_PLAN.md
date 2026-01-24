@@ -275,22 +275,22 @@ Features:
 - Visual feedback on command success/failure
 
 Supported Commands (from existing API):
-- status
-- thrust <0.0-1.0>
-- heading <pitch> <yaw>
-- position
-- velocity
-- contacts
-- ping
-- target <contact_id>
-- untarget
-- autopilot <mode> [target]
-- fire <weapon_type>
-- cease_fire
-- power_on <system>
-- power_off <system>
-- refuel
-- emergency_stop
+- get_state [ship_id]
+- list_scenarios
+- load_scenario <scenario_id>
+- get_mission
+- get_mission_hints
+- pause
+- set_thrust <0.0-1.0>
+- set_thrust_vector <x> <y> <z> (debug)
+- set_orientation <pitch> <yaw> <roll>
+- set_angular_velocity <pitch_rate> <yaw_rate> <roll_rate>
+- rotate <axis> <amount>
+- ping_sensors
+- lock_target <contact_id>
+- unlock_target
+- autopilot <program> [target]
+- fire_weapon <weapon>
 ```
 
 ### 2.3 System Message Component
@@ -614,7 +614,7 @@ Behavior:
 
 Behavior:
 - Toggle switches for each system
-- Sends: power_on <system> or power_off <system>
+- Sends: (pending) system power toggles are not yet standardized in the TCP API
 - Visual state matches server state
 - Confirmation for critical systems (propulsion)
 ```
@@ -654,9 +654,8 @@ Behavior:
 └─────────────────────────────────────────────────────┘
 
 Behavior:
-- Fire Torpedo: sends fire torpedo
-- PDC toggle: sends fire pdc (enable) or cease_fire (disable PDC)
-- Cease Fire: sends cease_fire
+- Fire Torpedo: sends fire_weapon torpedo
+- PDC toggle: sends fire_weapon pdc (exact “auto/cease” flags depend on server implementation)
 - Warning if firing without lock
 - Disabled if no ammo
 ```
@@ -726,7 +725,7 @@ Behavior:
 - [ ] Heading controls send heading commands
 - [ ] System toggles send power on/off commands
 - [ ] Target lock button sends target command
-- [ ] Weapon buttons send fire/cease_fire commands
+- [ ] Weapon buttons send fire_weapon commands
 - [ ] Autopilot selector sends autopilot commands
 - [ ] Ping button sends ping command with cooldown
 - [ ] Quick actions work (refuel, e-stop, status)
@@ -1054,31 +1053,34 @@ gui/
 
 ---
 
-# Command Reference (Existing API)
+# Command Reference (Current Server / GUI Surface)
 
-For AI agents — these are the ONLY commands the GUI should send:
+This section is “source of truth” for the **web GUI** (`gui/`) command surface. The GUI primarily targets the TCP servers via `gui/ws_bridge.py`.
+
+Important notes:
+- `get_events` exists, but event delivery is not currently wired in the simulator, so it often returns an empty list.
+- Some GUI components currently send commands/args that are not implemented by the TCP server yet (these are called out below).
 
 | Command | Arguments | Description |
 |---------|-----------|-------------|
-| `get_state` | none | Get full ship state |
-| `get_events` | none | Get event log |
-| `get_mission` | none | Get mission status |
-| `status` | none | Text status summary |
-| `thrust` | `<0.0-1.0>` | Set thrust level |
-| `heading` | `<pitch> <yaw>` | Set heading angles |
-| `position` | none | Get position |
-| `velocity` | none | Get velocity |
-| `contacts` | none | Get sensor contacts |
-| `ping` | none | Active sensor ping |
-| `target` | `<contact_id>` | Lock target |
-| `untarget` | none | Unlock target |
-| `autopilot` | `<mode> [target]` | Set autopilot |
-| `fire` | `<weapon_type>` | Fire weapon |
-| `cease_fire` | none | Stop firing |
-| `power_on` | `<system>` | Power on system |
-| `power_off` | `<system>` | Power off system |
-| `refuel` | none | Refuel ship |
-| `emergency_stop` | none | Emergency stop |
+| `get_state` | `ship` (optional) | Get state snapshot (`ship` returns detailed state) |
+| `get_events` | `ship` (optional) | Get events (often empty) |
+| `list_scenarios` | - | List available scenarios |
+| `load_scenario` | `scenario` | Load scenario by id |
+| `get_mission` | - | Get mission status |
+| `get_mission_hints` | `clear` (optional) | Get mission hints |
+| `pause` | `on` (optional) | Pause/unpause simulation |
+| `set_thrust` | `thrust` | Scalar throttle `0.0..1.0` |
+| `set_thrust_vector` | `x,y,z` | Debug-only world-frame thrust |
+| `set_orientation` | `pitch,yaw,roll` | Attitude target (RCS maneuvers to reach it) |
+| `set_angular_velocity` | `pitch,yaw,roll` | Angular rate target (deg/s) |
+| `rotate` | `axis,amount` | Relative attitude change |
+| `ping_sensors` | - | Active sensor ping |
+| `lock_target` | `target_id` | Lock target contact |
+| `unlock_target` | - | Unlock target |
+| `autopilot` | `program` (+ `target` optional) | Engage autopilot program |
+| `fire_weapon` | `weapon` (+ `target` optional) | Fire weapon (backend expects `weapon`; some GUI code uses `weapon_type`) |
+| `toggle_system` | `system,state` | **Planned/WIP** (GUI uses it; server-side support not standardized yet) |
 
 ---
 

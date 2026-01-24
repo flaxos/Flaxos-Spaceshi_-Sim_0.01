@@ -11,7 +11,7 @@
 Following the successful completion of Sprint S3 Preparation, Phase 1 (Station Architecture), and Phase 2 (Fleet & Crew Systems), this document provides prioritized recommendations for the next development sprint. The first three recommendations have been fully implemented as part of this sprint cycle.
 
 **Implemented in This Sprint:**
-1. ✅ Event Filtering System (Complete)
+1. ⚠️ Event Filtering System (filtering logic present; end-to-end client event delivery not yet wired)
 2. ✅ Fleet Status Reporting (Complete)
 3. ✅ Player Hint/Tutorial System (Complete)
 

@@ -24,7 +24,7 @@ This document tracks the implementation status of all major features in the Flax
 | Feature | Status | Tests | Notes |
 |---------|--------|-------|-------|
 | Newtonian physics | ✅ Complete | 72/72 passing | Position, velocity, acceleration |
-| Orientation system | ✅ Complete | ✅ | Euler angles (pitch, yaw, roll) |
+| Orientation system | ✅ Complete | ✅ | Quaternion-based attitude integration; Euler angles kept for telemetry/commands |
 | Autopilot programs | ✅ Complete | ✅ | Match velocity, intercept, hold position |
 | Relative motion calculations | ✅ Complete | ✅ | Range, bearing, TCA, CPA |
 | Collision detection | ✅ Complete | ✅ | Point mass collision |
@@ -115,14 +115,14 @@ This document tracks the implementation status of all major features in the Flax
 
 ## Phase 3: Attitude & Torque (Planned)
 
-### Quaternion Attitude System 📋
+### Quaternion Attitude System ✅
 | Feature | Status | Tests | Notes |
 |---------|--------|-------|-------|
 | Quaternion math library | ✅ Complete | ✅ | Creation, multiplication, SLERP |
-| Quaternion integration | 📋 Planned | - | Replace Euler angles in physics |
-| RCS thruster system | 📋 Planned | - | YAML configuration format |
-| Torque calculation | 📋 Planned | - | Position × force vector |
-| Gimbal lock elimination | 📋 Planned | - | Benefits of quaternions |
+| Quaternion integration | ✅ Complete | ✅ | Ship attitude integrated via quaternion, Euler derived for telemetry |
+| RCS thruster system | ✅ Complete | ✅ | Torque-based RCS system present (`hybrid/systems/rcs_system.py`) |
+| Torque calculation | ✅ Complete | ✅ | Torque \( \tau = r \times F \), angular acceleration applied to angular velocity |
+| Gimbal lock elimination | ✅ Complete | ✅ | Quaternions remove gimbal lock from attitude representation |
 
 **Target Timeline**: Sprint S3 (Next sprint)
 
@@ -137,7 +137,7 @@ This document tracks the implementation status of all major features in the Flax
 | Multi-client support | ✅ Complete | ✅ | Concurrent connections |
 | Station-aware server | ✅ Complete | ✅ | Permission enforcement |
 | Command routing | ✅ Complete | ✅ | Legacy + station commands |
-| Event streaming | ✅ Complete | ✅ | Filtered event delivery |
+| Event streaming | ⚠️ Partial | - | `get_events` exists, but simulator event logging is not currently wired for clients |
 | Telemetry streaming | ✅ Complete | ✅ | Filtered state snapshots |
 
 **Files:**
@@ -238,7 +238,7 @@ This document tracks the implementation status of all major features in the Flax
 
 ## Known Limitations
 
-1. **Gimbal Lock**: Euler angles can experience gimbal lock at extreme orientations (fixed in S3)
+1. **Event log delivery**: `get_events` is exposed but most builds return an empty event list because simulator-side event logging is not wired
 2. **NumPy Dependency**: Fleet formations require NumPy (optional but recommended)
 3. **No Replay System**: Recording exists but no replay viewer yet
 4. **Limited AI**: AI controller has basic behaviors only

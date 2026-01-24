@@ -216,16 +216,16 @@ class CrewManager:
 - Run physics tick loop
 - Manage ship collection
 - Process projectiles and collisions
-- Generate events
+- Publish internal events (event delivery to clients is not yet wired)
 
 **Key Methods:**
 ```python
 class Simulator:
-    def tick(self, dt: float):
-        """Advance simulation by dt seconds"""
+    def tick(self):
+        """Advance simulation by one fixed timestep (dt)"""
         # 1. Update all ships
         for ship in self.ships.values():
-            ship.update(dt, self)
+            ship.tick(self.dt, list(self.ships.values()), self.time)
 
         # 2. Update projectiles
         self._update_projectiles(dt)
@@ -234,9 +234,9 @@ class Simulator:
         self._check_collisions()
 
         # 4. Update formations
-        self.fleet_manager.update(dt)
+        self.fleet_manager.update(self.dt)
 
-        self.time += dt
+        self.time += self.dt
 ```
 
 #### `ship.py` - Ship Entity
@@ -264,11 +264,11 @@ class Ship:
 
 **Key Methods:**
 ```python
-def update(self, dt: float, simulator):
-    """Physics update"""
+def tick(self, dt: float, all_ships: list, sim_time: float):
+    """Update systems, then update physics"""
+    for system in self.systems.values():
+        system.tick(dt, self, self.event_bus)
     self._update_physics(dt)
-    self._update_systems(dt)
-    self._update_navigation(dt)
 
 def handle_command(self, command_data: dict):
     """Process command"""
@@ -369,9 +369,11 @@ Full State                    Station Filtering   Filtered State
 
 ### Event Flow
 ```
-System → Event Bus → Event Filter → StationServer → Client
-  ↓                        ↓                            ↓
-Generate Event      Filter by Station           Display to User
+System → Event Bus (in-process)
+  ↓
+Generate internal events
+
+Note: The TCP servers expose `get_events`, but the simulator does not currently maintain a persistent event log for clients, so event delivery is typically empty.
 ```
 
 ---
@@ -462,9 +464,9 @@ class FleetManager:
 
     fleets: Dict[str, Fleet]
 
-    def create_fleet(self, fleet_id: str, flagship_id: str)
-    def add_ship(self, fleet_id: str, ship_id: str)
-    def set_formation(self, fleet_id: str, formation_type: str)
+    def create_fleet(self, fleet_id: str, name: str, flagship_id: str, ship_ids: list[str] | None = None)
+    def add_ship_to_fleet(self, ship_id: str, fleet_id: str)
+    def form_fleet(self, fleet_id: str, formation_type: str, spacing: float = 2000.0)
     def update(self, dt: float)  # Maintain formations
 ```
 
@@ -494,7 +496,7 @@ class NewSystem:
     def __init__(self, ship):
         self.ship = ship
 
-    def update(self, dt: float):
+    def tick(self, dt: float, ship, event_bus):
         """Called each physics tick"""
         pass
 

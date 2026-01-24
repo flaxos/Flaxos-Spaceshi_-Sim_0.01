@@ -34,8 +34,9 @@ Platform parity: Desktop ✅, Android ✅ (smoke tests verified)
 - Station-filtered telemetry working (helm sees navigation, engineering sees systems)
 
 ## What's Broken (max 3)
-- None currently blocking demo slice D1-D8
-- All dependencies installed (pytest, numpy)
+- `get_events` is exposed but event logging is not currently wired in the core simulator, so clients typically receive an empty event list
+- Station command lists can include planned/legacy names that are not registered with the dispatcher (results in `Unknown command`)
+- Some GUI components may send arguments that differ from the current TCP server expectations (see `docs/API_REFERENCE.md` and `docs/GUI_DEV_PLAN.md`)
 
 ## Post-D6 Bug Fixes Completed This Session
 - **Test Suite Restoration** - Fixed D6 API breaking changes that caused test failures

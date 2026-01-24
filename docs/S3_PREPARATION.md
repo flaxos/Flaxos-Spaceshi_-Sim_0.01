@@ -4,6 +4,8 @@
 
 This document summarizes the critical issues identified and resolved in preparation for **Sprint S3: Attitude (quaternions), RCS torque, aim fidelity**.
 
+> Update (2026-01): The quaternion attitude path and an RCS torque system now exist in the codebase. This document is retained as a historical preparation note; references to “will implement” should be read as “implemented” unless explicitly marked as a remaining TODO.
+
 **Status**: ✅ All critical blockers resolved, codebase ready for S3 implementation
 
 **Date**: 2026-01-19

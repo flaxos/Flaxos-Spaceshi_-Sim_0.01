@@ -16,30 +16,33 @@ All critical bugs have been resolved as of Phase 2 completion.
 
 ## High Priority Issues
 
-### 1. Gimbal Lock in Euler Angle System
+### 1. Event streaming (`get_events`) not wired
 **Status**: 🔴 Known Limitation
-**Severity**: High (Physics accuracy)
-**Affected Components**: `hybrid/ship.py`, orientation calculations
-**Planned Fix**: Sprint S3 (Quaternion implementation)
+**Severity**: High (UI/event log)
+**Affected Components**: `server/station_server.py`, `server/run_server.py`, GUI event log polling
 
 **Description:**
-The current orientation system uses Euler angles (pitch, yaw, roll) which can experience gimbal lock at extreme orientations (e.g., pitch = ±90°).
+The TCP servers expose a `get_events` command, but the core simulator does not maintain an event log (`sim.event_log` / `sim.recent_events`) that the server can read. As a result, most builds return an empty event list.
 
 **Impact:**
-- Unpredictable rotation behavior near vertical orientations
-- Difficult to maintain stable attitude control at extreme angles
-- Autopilot may become unstable in edge cases
+- The web GUI event log will typically remain empty.
+- Docs/examples that rely on event types (autopilot phases, sensor detections) should instead poll telemetry via `get_state`.
 
 **Workaround:**
-Avoid sustained operations at pitch angles near ±90°
+- Use `get_state` polling to monitor navigation/sensors/weapons state.
 
-**Resolution Plan:**
-Sprint S3 will implement quaternion-based attitude representation, completely eliminating gimbal lock.
+---
 
-**Files to Change:**
-- `hybrid/ship.py` - Add quaternion state
-- `hybrid/utils/quaternion.py` - New quaternion math library
-- `hybrid/navigation/` - Update autopilot to use quaternions
+### 2. Station command lists include planned/legacy names
+**Status**: ⚠️ Known Limitation
+**Severity**: Medium (API ergonomics)
+**Affected Components**: `server/stations/station_types.py`, `server/stations/station_commands.py`
+
+**Description:**
+Station definitions contain a superset of command names (some planned, some legacy). `claim_station` / `my_status` may report commands that are not currently registered with the dispatcher, resulting in `Unknown command` at runtime.
+
+**Workaround:**
+- Prefer the explicit “implemented” commands documented in `docs/API_REFERENCE.md` and used by the web GUI command prompt.
 
 ---
 
