@@ -1,5 +1,12 @@
 # hybrid/systems/propulsion_system.py
-"""Propulsion system providing thrust and fuel management."""
+"""Propulsion system providing thrust and fuel management.
+
+Expanse-style hard-sci physics:
+- Main drive provides thrust along ship's forward axis (+X in ship frame)
+- Ship quaternion rotates thrust into world frame for acceleration
+- Scalar throttle (0..1) is the primary control input
+- Debug vector thrust preserved for development/testing only
+"""
 
 from hybrid.core.base_system import BaseSystem
 from hybrid.utils.math_utils import is_valid_number, clamp
@@ -8,8 +15,9 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 class PropulsionSystem(BaseSystem):
-    """Manages ship propulsion and thrust."""
+    """Manages ship propulsion with Expanse-style main drive."""
 
     def __init__(self, config=None):
         super().__init__(config)
@@ -21,8 +29,16 @@ class PropulsionSystem(BaseSystem):
 
         # Main drive configuration
         self.max_thrust = float(config.get("max_thrust", 100.0))
+        
+        # Primary control: scalar throttle (0.0 to 1.0)
+        self.throttle = 0.0
+        
+        # Debug mode: direct vector thrust (bypasses ship-frame transform)
+        self._debug_thrust_vector = None  # None means use throttle + ship frame
+        
+        # Legacy compatibility - keep main_drive dict for telemetry
         self.main_drive = {
-            "thrust": {"x": 0.0, "y": 0.0, "z": 0.0},
+            "throttle": 0.0,
             "max_thrust": self.max_thrust,
         }
 
@@ -32,26 +48,54 @@ class PropulsionSystem(BaseSystem):
         self.max_fuel = float(config.get("max_fuel", 1000.0))
         self.fuel_level = float(config.get("fuel_level", self.max_fuel))
 
-        # Tracking
-        self.current_thrust = {"x": 0.0, "y": 0.0, "z": 0.0}
+        # Tracking - world-frame thrust after rotation
+        self.thrust_world = {"x": 0.0, "y": 0.0, "z": 0.0}
         self.power_status = True
         self.status = "idle"
 
     def tick(self, dt, ship, event_bus):
+        """Update propulsion and apply thrust.
+        
+        Hard-sci model:
+        1. Throttle sets force magnitude along ship's +X axis (forward)
+        2. Ship quaternion rotates this into world frame
+        3. F=ma gives acceleration in world frame
+        """
         if not self.enabled:
             ship.thrust = {"x": 0.0, "y": 0.0, "z": 0.0}
             ship.acceleration = {"x": 0.0, "y": 0.0, "z": 0.0}
-            self.main_drive["thrust"] = {"x": 0.0, "y": 0.0, "z": 0.0}
+            self.thrust_world = {"x": 0.0, "y": 0.0, "z": 0.0}
             self.status = "offline"
             return
 
-        thrust = self.main_drive["thrust"]
-        magnitude = math.sqrt(thrust["x"]**2 + thrust["y"]**2 + thrust["z"]**2)
-        total_power = self.power_draw + (self.power_draw_per_thrust * magnitude * dt)
+        # Calculate thrust magnitude
+        if self._debug_thrust_vector is not None:
+            # Debug mode: use arbitrary vector directly (world frame)
+            thrust_world_x = self._debug_thrust_vector["x"]
+            thrust_world_y = self._debug_thrust_vector["y"]
+            thrust_world_z = self._debug_thrust_vector["z"]
+            thrust_magnitude = math.sqrt(
+                thrust_world_x**2 + thrust_world_y**2 + thrust_world_z**2
+            )
+        else:
+            # Normal mode: main drive thrust along ship's forward axis (+X)
+            thrust_magnitude = self.throttle * self.max_thrust
+            
+            # Ship-frame force vector: [thrust, 0, 0] (forward)
+            ship_frame_force = (thrust_magnitude, 0.0, 0.0)
+            
+            # Rotate ship-frame force into world frame using quaternion
+            thrust_world_x, thrust_world_y, thrust_world_z = self._rotate_to_world(
+                ship, ship_frame_force
+            )
+
+        # Power check
+        total_power = self.power_draw + (self.power_draw_per_thrust * thrust_magnitude * dt)
         power_system = ship.systems.get("power")
         if power_system and not power_system.request_power(total_power, "propulsion"):
             logger.warning(f"Propulsion on {ship.id} reduced due to power shortage")
-            self.main_drive["thrust"] = {"x": 0.0, "y": 0.0, "z": 0.0}
+            thrust_world_x = thrust_world_y = thrust_world_z = 0.0
+            thrust_magnitude = 0.0
             if self.power_status:
                 self.power_status = False
                 event_bus.publish("propulsion_power_loss", {"source": "propulsion"})
@@ -59,15 +103,11 @@ class PropulsionSystem(BaseSystem):
             self.power_status = True
             event_bus.publish("propulsion_power_restored", {"source": "propulsion"})
 
-        # Copy commanded thrust to ship for physics calculation
-        ship.thrust = {
-            "x": self.main_drive["thrust"]["x"],
-            "y": self.main_drive["thrust"]["y"],
-            "z": self.main_drive["thrust"]["z"]
-        }
+        # Store world-frame thrust for telemetry
+        self.thrust_world = {"x": thrust_world_x, "y": thrust_world_y, "z": thrust_world_z}
+        ship.thrust = dict(self.thrust_world)
 
-        thrust_mag = math.sqrt(ship.thrust["x"]**2 + ship.thrust["y"]**2 + ship.thrust["z"]**2)
-        if thrust_mag > 0:
+        if thrust_magnitude > 0:
             # Guard against invalid mass
             if ship.mass <= 0:
                 logger.error(f"Ship {ship.id} has invalid mass {ship.mass}, cannot calculate acceleration")
@@ -75,22 +115,19 @@ class PropulsionSystem(BaseSystem):
                 self.status = "error"
                 return
 
-            consumption = (thrust_mag / max(self.max_thrust, 1e-10)) * self.fuel_consumption * dt
+            # Fuel consumption
+            consumption = (thrust_magnitude / max(self.max_thrust, 1e-10)) * self.fuel_consumption * dt
             if self.fuel_level >= consumption:
                 self.fuel_level -= consumption
 
-                # Calculate acceleration with guards
-                accel_x = ship.thrust["x"] / ship.mass
-                accel_y = ship.thrust["y"] / ship.mass
-                accel_z = ship.thrust["z"] / ship.mass
+                # F = ma -> a = F/m
+                accel_x = thrust_world_x / ship.mass
+                accel_y = thrust_world_y / ship.mass
+                accel_z = thrust_world_z / ship.mass
 
                 # Validate acceleration values
                 if all(is_valid_number(a) for a in [accel_x, accel_y, accel_z]):
-                    ship.acceleration = {
-                        "x": accel_x,
-                        "y": accel_y,
-                        "z": accel_z,
-                    }
+                    ship.acceleration = {"x": accel_x, "y": accel_y, "z": accel_z}
                     self.status = "active"
                 else:
                     logger.error(f"Ship {ship.id}: Invalid acceleration calculated, zeroing thrust")
@@ -107,13 +144,45 @@ class PropulsionSystem(BaseSystem):
             ship.acceleration = {"x": 0.0, "y": 0.0, "z": 0.0}
             self.status = "idle"
 
-        if magnitude > 10.0:
-            event_bus.publish("signature_spike", {"duration": 3.0, "magnitude": magnitude, "source": "propulsion"})
+        # Signature spike for sensor detection
+        if thrust_magnitude > 10.0:
+            event_bus.publish("signature_spike", {
+                "duration": 3.0, 
+                "magnitude": thrust_magnitude, 
+                "source": "propulsion"
+            })
+
+    def _rotate_to_world(self, ship, ship_frame_vec):
+        """Rotate a vector from ship frame to world frame using ship quaternion.
+        
+        Args:
+            ship: Ship object with quaternion attribute
+            ship_frame_vec: Tuple (x, y, z) in ship frame
+            
+        Returns:
+            Tuple (x, y, z) in world frame
+        """
+        # Get quaternion from ship (if available)
+        quat = getattr(ship, 'quaternion', None)
+        if quat is None or not hasattr(quat, 'rotate_vector'):
+            # Fallback: no rotation (assume identity orientation)
+            return ship_frame_vec
+        
+        # Rotate ship-frame vector to world frame
+        return quat.rotate_vector(ship_frame_vec)
 
     # ----- Commands -----
     def command(self, action, params):
+        if action == "set_throttle":
+            return self.set_throttle(params)
+        if action == "set_thrust_vector":
+            return self.set_thrust_vector(params)
         if action == "set_thrust":
-            return self.set_thrust(params)
+            # Legacy compatibility: route based on params
+            if any(k in params for k in ("x", "y", "z")):
+                return self.set_thrust_vector(params)
+            else:
+                return self.set_throttle(params)
         if action == "refuel":
             return self.refuel(params)
         if action == "emergency_stop":
@@ -126,14 +195,54 @@ class PropulsionSystem(BaseSystem):
             return self.power_off()
         return super().command(action, params)
 
-    def set_thrust(self, params):
+    def set_throttle(self, params):
+        """Set main drive throttle (0.0 to 1.0).
+        
+        This is the primary gameplay API. Thrust is applied along ship's
+        forward axis (+X in ship frame), rotated to world frame by quaternion.
+        """
         if not self.enabled:
             return {"error": "Propulsion system is disabled"}
 
         try:
-            x = float(params.get("x", self.main_drive["thrust"]["x"]))
-            y = float(params.get("y", self.main_drive["thrust"]["y"]))
-            z = float(params.get("z", self.main_drive["thrust"]["z"]))
+            # Accept 'thrust' or 'throttle' parameter
+            throttle = params.get("thrust", params.get("throttle", 0.0))
+            throttle = float(throttle)
+            
+            if not is_valid_number(throttle):
+                return {"error": "Invalid throttle value (NaN or Inf detected)"}
+            
+            # Clamp to valid range
+            self.throttle = max(0.0, min(1.0, throttle))
+            
+            # Clear debug mode
+            self._debug_thrust_vector = None
+            
+            # Update telemetry
+            self.main_drive["throttle"] = self.throttle
+            
+            return {
+                "status": "Throttle updated",
+                "throttle": self.throttle,
+                "thrust_magnitude": self.throttle * self.max_thrust
+            }
+        except (ValueError, TypeError) as e:
+            logger.error(f"Error setting throttle: {e}")
+            return {"error": f"Invalid throttle parameter: {e}"}
+
+    def set_thrust_vector(self, params):
+        """Set arbitrary thrust vector (DEBUG ONLY).
+        
+        This bypasses ship-frame rotation and applies thrust directly in world frame.
+        Intended for debugging and testing only - not realistic for gameplay.
+        """
+        if not self.enabled:
+            return {"error": "Propulsion system is disabled"}
+
+        try:
+            x = float(params.get("x", 0.0))
+            y = float(params.get("y", 0.0))
+            z = float(params.get("z", 0.0))
 
             # Validate thrust values
             if not all(is_valid_number(v) for v in [x, y, z]):
@@ -151,12 +260,20 @@ class PropulsionSystem(BaseSystem):
                 else:
                     x = y = z = 0.0
 
-            self.main_drive["thrust"] = {"x": x, "y": y, "z": z}
-            self.current_thrust = dict(self.main_drive["thrust"])
-            return {"status": "Thrust updated", "thrust": self.main_drive["thrust"]}
+            self._debug_thrust_vector = {"x": x, "y": y, "z": z}
+            
+            # Update throttle to reflect magnitude (for telemetry)
+            self.throttle = magnitude / self.max_thrust if self.max_thrust > 0 else 0.0
+            self.main_drive["throttle"] = self.throttle
+            
+            return {
+                "status": "Debug thrust vector set",
+                "thrust_vector": self._debug_thrust_vector,
+                "debug_mode": True
+            }
         except (ValueError, TypeError) as e:
-            logger.error(f"Error setting thrust: {e}")
-            return {"error": f"Invalid thrust parameters: {e}"}
+            logger.error(f"Error setting thrust vector: {e}")
+            return {"error": f"Invalid thrust vector parameters: {e}"}
 
     def refuel(self, params):
         amount = float(params.get("amount", self.max_fuel - self.fuel_level))
@@ -169,23 +286,32 @@ class PropulsionSystem(BaseSystem):
         }
 
     def emergency_stop(self):
-        self.main_drive["thrust"] = {"x": 0.0, "y": 0.0, "z": 0.0}
-        self.current_thrust = {"x": 0.0, "y": 0.0, "z": 0.0}
-        return {"status": "Emergency stop activated", "thrust": self.main_drive["thrust"]}
+        """Emergency stop - zero throttle and clear debug vector."""
+        self.throttle = 0.0
+        self._debug_thrust_vector = None
+        self.thrust_world = {"x": 0.0, "y": 0.0, "z": 0.0}
+        self.main_drive["throttle"] = 0.0
+        return {"status": "Emergency stop activated", "throttle": 0.0}
 
     def get_thrust(self):
-        return self.main_drive["thrust"]
+        """Get current world-frame thrust vector."""
+        return self.thrust_world
 
     def get_state(self):
         state = super().get_state()
         state.update({
             "status": self.status,
-            "main_drive": self.main_drive,
+            "throttle": self.throttle,
             "max_thrust": self.max_thrust,
-            "current_thrust": self.current_thrust,
+            "thrust_magnitude": self.throttle * self.max_thrust,
+            "thrust_world": self.thrust_world,
+            "debug_mode": self._debug_thrust_vector is not None,
             "fuel_level": self.fuel_level,
             "fuel_percent": (self.fuel_level / self.max_fuel * 100) if self.max_fuel > 0 else 0,
             "max_fuel": self.max_fuel,
             "power_status": self.power_status,
+            # Legacy compatibility
+            "main_drive": self.main_drive,
+            "current_thrust": self.thrust_world,
         })
         return state
