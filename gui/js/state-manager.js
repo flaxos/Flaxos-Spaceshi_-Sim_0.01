@@ -357,29 +357,37 @@ class StateManager extends EventTarget {
       heading = ship.heading;
     }
 
-    // Handle thrust - could be scalar or {x,y,z} object
+    // Handle thrust - prioritize propulsion system throttle (0-1 scalar)
     let thrust = 0;
-    if (ship?.thrust !== undefined) {
+    const propulsion = ship?.systems?.propulsion;
+    
+    // First, try to get throttle directly from propulsion system (most accurate)
+    if (propulsion?.throttle !== undefined) {
+      thrust = propulsion.throttle;
+    } else if (ship?.thrust_level !== undefined) {
+      thrust = ship.thrust_level;
+    } else if (ship?.thrust !== undefined) {
       if (typeof ship.thrust === "number") {
         thrust = ship.thrust;
       } else if (typeof ship.thrust === "object") {
-        // Calculate thrust magnitude from vector
+        // Calculate thrust magnitude from vector as fallback
         const tx = ship.thrust.x || 0;
         const ty = ship.thrust.y || 0;
         const tz = ship.thrust.z || 0;
-        thrust = Math.sqrt(tx*tx + ty*ty + tz*tz);
+        const magnitude = Math.sqrt(tx*tx + ty*ty + tz*tz);
         // Normalize to 0-1 range if we have max_thrust from propulsion system
-        const propulsion = ship.systems?.propulsion;
         if (propulsion?.max_thrust && propulsion.max_thrust > 0) {
-          thrust = thrust / propulsion.max_thrust;
-        } else if (thrust > 1) {
-          thrust = thrust / 100; // Assume percentage if over 1
+          thrust = magnitude / propulsion.max_thrust;
+        } else if (magnitude > 1) {
+          thrust = magnitude / 100; // Assume percentage if over 1
+        } else {
+          thrust = magnitude;
         }
       }
     }
-    if (ship?.thrust_level !== undefined) {
-      thrust = ship.thrust_level;
-    }
+    
+    // Clamp to valid range
+    thrust = Math.max(0, Math.min(1, thrust));
 
     // Get autopilot from navigation system
     let autopilot = null;
