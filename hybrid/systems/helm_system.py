@@ -8,6 +8,8 @@ Expanse-style helm control:
 """
 
 from hybrid.core.base_system import BaseSystem
+from hybrid.utils.math_utils import calculate_bearing
+from hybrid.navigation.relative_motion import calculate_relative_motion
 import math
 import logging
 
@@ -87,6 +89,10 @@ class HelmSystem(BaseSystem):
             return self._cmd_set_angular_velocity(params)
         if action == "rotate":
             return self._cmd_rotate(params)
+        if action == "point_at":
+            return self._cmd_point_at(params)
+        if action == "maneuver":
+            return self._cmd_maneuver(params)
         if action == "set_dampening":
             return self._cmd_set_dampening(params)
         if action == "set_mode":
@@ -247,6 +253,245 @@ class HelmSystem(BaseSystem):
             "status": f"Rotate {amount}° on {axis} commanded",
             "target": self.attitude_target
         }
+
+    def _cmd_point_at(self, params):
+        """Point ship at a target contact or position.
+        
+        Uses RCS to rotate ship to face the target. This is the Expanse-style
+        "point at target" command - rotation only, no translation.
+        
+        Args:
+            params: Dictionary with either:
+                - 'target': Contact ID or ship ID to point at
+                - 'position': Dict {x, y, z} absolute position to point at
+                - 'contact_id': Alternative to 'target' for contact ID
+                
+        Returns:
+            dict: Result status with calculated bearing
+        """
+        if not self.enabled:
+            return {"error": "Helm system is disabled"}
+        
+        ship = params.get("_ship") or params.get("ship")
+        if not ship:
+            return {"error": "Ship reference required"}
+        
+        # Get target position
+        target_pos = None
+        target_id = None
+        
+        # Check for position parameter (absolute coordinates)
+        if "position" in params:
+            pos = params["position"]
+            if isinstance(pos, dict):
+                target_pos = pos
+            elif isinstance(pos, (list, tuple)) and len(pos) >= 3:
+                target_pos = {"x": float(pos[0]), "y": float(pos[1]), "z": float(pos[2])}
+            else:
+                return {"error": "Invalid position format. Expected {x, y, z} or [x, y, z]"}
+        
+        # Check for target/contact_id parameter (look up in all_ships or contacts)
+        elif "target" in params or "contact_id" in params:
+            target_id = params.get("target") or params.get("contact_id")
+            all_ships = params.get("all_ships", {})
+            
+            # Try to find target in ships
+            if target_id in all_ships:
+                target_ship = all_ships[target_id]
+                if hasattr(target_ship, "position"):
+                    target_pos = target_ship.position
+                elif isinstance(target_ship, dict) and "position" in target_ship:
+                    target_pos = target_ship["position"]
+            
+            # If not found, try to get from sensor contacts (would need sensor system)
+            if target_pos is None:
+                sensor_system = ship.systems.get("sensors")
+                if sensor_system and hasattr(sensor_system, "get_contact"):
+                    contact = sensor_system.get_contact(target_id)
+                    if contact:
+                        if hasattr(contact, "position"):
+                            target_pos = contact.position
+                        elif isinstance(contact, dict) and "position" in contact:
+                            target_pos = contact["position"]
+        
+        if target_pos is None:
+            return {"error": f"Target '{target_id}' not found or position not provided"}
+        
+        # Calculate bearing to target
+        try:
+            bearing = calculate_bearing(ship.position, target_pos, ship.orientation)
+            
+            # Set attitude target (RCS will rotate ship to this heading)
+            self.attitude_target = {
+                "pitch": bearing.get("pitch", 0),
+                "yaw": bearing.get("yaw", 0),
+                "roll": ship.orientation.get("roll", 0)  # Keep current roll
+            }
+            
+            # Route to RCS
+            rcs = ship.systems.get("rcs")
+            if rcs:
+                rcs.set_attitude_target(self.attitude_target)
+            
+            return {
+                "status": f"Pointing at target" + (f" '{target_id}'" if target_id else ""),
+                "target": self.attitude_target,
+                "bearing": bearing,
+                "target_position": target_pos
+            }
+        except Exception as e:
+            logger.error(f"Error calculating bearing to target: {e}")
+            return {"error": f"Failed to calculate bearing: {e}"}
+
+    def _cmd_maneuver(self, params):
+        """Execute pre-programmed maneuver.
+        
+        Supported maneuvers:
+        - flip_burn: Rotate 180° and burn (deceleration maneuver)
+        - retrograde: Point opposite to velocity and burn
+        - prograde: Point along velocity and burn
+        
+        Args:
+            params: Dictionary with:
+                - 'type': Maneuver type ('flip_burn', 'retrograde', 'prograde')
+                - 'g': Optional G-force for burn (default: current throttle)
+                - 'duration': Optional duration in seconds (None = until stopped)
+                
+        Returns:
+            dict: Result status
+        """
+        if not self.enabled:
+            return {"error": "Helm system is disabled"}
+        
+        ship = params.get("_ship") or params.get("ship")
+        if not ship:
+            return {"error": "Ship reference required"}
+        
+        maneuver_type = params.get("type")
+        if not maneuver_type:
+            return {"error": "Missing maneuver type"}
+        
+        maneuver_type = maneuver_type.lower()
+        
+        if maneuver_type == "flip_burn":
+            # Flip-and-burn: rotate 180° then burn
+            current = ship.orientation
+            new_target = {
+                "pitch": current.get("pitch", 0),
+                "yaw": (current.get("yaw", 0) + 180) % 360,
+                "roll": current.get("roll", 0)
+            }
+            # Normalize yaw to [-180, 180]
+            if new_target["yaw"] > 180:
+                new_target["yaw"] -= 360
+            
+            self.attitude_target = new_target
+            
+            # Route to RCS
+            rcs = ship.systems.get("rcs")
+            if rcs:
+                rcs.set_attitude_target(self.attitude_target)
+            
+            return {
+                "status": "Flip-and-burn initiated (rotating 180°)",
+                "target": self.attitude_target,
+                "note": "Set thrust after rotation completes"
+            }
+        
+        elif maneuver_type == "retrograde":
+            # Retrograde burn: point opposite to velocity vector
+            vel_mag = math.sqrt(
+                ship.velocity["x"]**2 + 
+                ship.velocity["y"]**2 + 
+                ship.velocity["z"]**2
+            )
+            
+            if vel_mag < 0.001:
+                return {"error": "Ship has no velocity - cannot determine retrograde"}
+            
+            # Calculate retrograde direction (opposite of velocity)
+            retrograde_vec = {
+                "x": -ship.velocity["x"] / vel_mag,
+                "y": -ship.velocity["y"] / vel_mag,
+                "z": -ship.velocity["z"] / vel_mag
+            }
+            
+            # Convert to heading
+            from hybrid.navigation.relative_motion import vector_to_heading
+            retrograde_heading = vector_to_heading(retrograde_vec)
+            
+            self.attitude_target = {
+                "pitch": retrograde_heading["pitch"],
+                "yaw": retrograde_heading["yaw"],
+                "roll": ship.orientation.get("roll", 0)
+            }
+            
+            # Route to RCS
+            rcs = ship.systems.get("rcs")
+            if rcs:
+                rcs.set_attitude_target(self.attitude_target)
+            
+            # Optionally set thrust if G-force specified
+            g_force = params.get("g")
+            if g_force is not None:
+                propulsion = ship.systems.get("propulsion")
+                if propulsion:
+                    propulsion.set_throttle({"g": float(g_force), "_ship": ship, "ship": ship})
+            
+            return {
+                "status": "Retrograde burn initiated",
+                "target": self.attitude_target,
+                "thrust_g": g_force
+            }
+        
+        elif maneuver_type == "prograde":
+            # Prograde burn: point along velocity vector
+            vel_mag = math.sqrt(
+                ship.velocity["x"]**2 + 
+                ship.velocity["y"]**2 + 
+                ship.velocity["z"]**2
+            )
+            
+            if vel_mag < 0.001:
+                return {"error": "Ship has no velocity - cannot determine prograde"}
+            
+            # Calculate prograde direction (same as velocity)
+            prograde_vec = {
+                "x": ship.velocity["x"] / vel_mag,
+                "y": ship.velocity["y"] / vel_mag,
+                "z": ship.velocity["z"] / vel_mag
+            }
+            
+            # Convert to heading
+            from hybrid.navigation.relative_motion import vector_to_heading
+            prograde_heading = vector_to_heading(prograde_vec)
+            
+            self.attitude_target = {
+                "pitch": prograde_heading["pitch"],
+                "yaw": prograde_heading["yaw"],
+                "roll": ship.orientation.get("roll", 0)
+            }
+            
+            # Route to RCS
+            rcs = ship.systems.get("rcs")
+            if rcs:
+                rcs.set_attitude_target(self.attitude_target)
+            
+            # Optionally set thrust if G-force specified
+            g_force = params.get("g")
+            if g_force is not None:
+                propulsion = ship.systems.get("propulsion")
+                if propulsion:
+                    propulsion.set_throttle({"g": float(g_force), "_ship": ship, "ship": ship})
+            
+            return {
+                "status": "Prograde burn initiated",
+                "target": self.attitude_target,
+                "thrust_g": g_force
+            }
+        
+        else:
+            return {"error": f"Unknown maneuver type: {maneuver_type}"}
 
     def _cmd_helm_override(self, params):
         if not self.enabled:

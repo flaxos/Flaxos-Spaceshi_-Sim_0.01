@@ -323,6 +323,9 @@ class Ship:
         Returns:
             dict: Complete ship state
         """
+        # Calculate navigation awareness metrics
+        nav_awareness = self._calculate_navigation_awareness()
+        
         # Start with the ship's physical state
         state = {
             "id": self.id,
@@ -339,6 +342,7 @@ class Ship:
             "orientation": self.orientation,
             "angular_velocity": self.angular_velocity,
             "thrust": self.thrust,
+            "navigation": nav_awareness,  # Add navigation awareness metrics
             "systems": {}
         }
         
@@ -357,6 +361,52 @@ class Ship:
                 state["systems"][system_type] = copy.deepcopy(system)
         
         return state
+    
+    def _calculate_navigation_awareness(self):
+        """Calculate navigation awareness metrics: drift angle, velocity heading, etc.
+        
+        Returns:
+            dict: Navigation awareness data
+        """
+        from hybrid.utils.math_utils import magnitude, normalize_vector, dot_product
+        from hybrid.navigation.relative_motion import vector_to_heading
+        
+        # Calculate velocity magnitude
+        vel_mag = magnitude(self.velocity)
+        
+        # Calculate velocity heading (direction of velocity vector)
+        velocity_heading = {"pitch": 0.0, "yaw": 0.0, "roll": 0.0}
+        if vel_mag > 0.001:
+            velocity_heading = vector_to_heading(self.velocity)
+        
+        # Calculate drift angle (angle between ship heading and velocity direction)
+        # Use quaternion to get ship's forward direction in world frame
+        drift_angle = 0.0
+        if vel_mag > 0.001 and hasattr(self, 'quaternion'):
+            # Ship's forward axis in ship frame is +X
+            ship_forward_ship_frame = (1.0, 0.0, 0.0)
+            # Rotate to world frame
+            ship_forward_world = self.quaternion.rotate_vector(ship_forward_ship_frame)
+            
+            # Normalize velocity vector
+            vel_normalized = normalize_vector(self.velocity)
+            
+            # Calculate angle between ship forward and velocity
+            # dot product gives cos(angle)
+            dot = (ship_forward_world[0] * vel_normalized["x"] + 
+                   ship_forward_world[1] * vel_normalized["y"] + 
+                   ship_forward_world[2] * vel_normalized["z"])
+            
+            # Clamp to valid range for acos
+            dot = max(-1.0, min(1.0, dot))
+            drift_angle = math.degrees(math.acos(dot))
+        
+        return {
+            "velocity_heading": velocity_heading,
+            "velocity_magnitude": vel_mag,
+            "drift_angle": drift_angle,
+            "heading": self.orientation.copy()  # Current heading (nose direction)
+        }
 
     def take_damage(self, amount, source=None):
         """

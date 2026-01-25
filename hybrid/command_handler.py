@@ -21,6 +21,8 @@ system_commands = {
     "set_orientation": ("helm", "set_orientation_target"),
     "set_angular_velocity": ("helm", "set_angular_velocity"),
     "rotate": ("helm", "rotate"),
+    "point_at": ("helm", "point_at"),
+    "maneuver": ("helm", "maneuver"),
     # RCS direct commands (for advanced control)
     "rcs_attitude_target": ("rcs", "set_attitude_target"),
     "rcs_angular_velocity": ("rcs", "set_angular_velocity"),

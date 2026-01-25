@@ -15,6 +15,9 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Earth gravity constant (m/s²)
+G_FORCE = 9.81
+
 
 class PropulsionSystem(BaseSystem):
     """Manages ship propulsion with Expanse-style main drive."""
@@ -52,6 +55,10 @@ class PropulsionSystem(BaseSystem):
         self.thrust_world = {"x": 0.0, "y": 0.0, "z": 0.0}
         self.power_status = True
         self.status = "idle"
+        
+        # G-force tracking (calculated from acceleration)
+        self.current_thrust_g = 0.0
+        self.max_thrust_g = 0.0  # Will be calculated from max_thrust and ship mass
 
     def tick(self, dt, ship, event_bus):
         """Update propulsion and apply thrust.
@@ -106,6 +113,9 @@ class PropulsionSystem(BaseSystem):
         # Store world-frame thrust for telemetry
         self.thrust_world = {"x": thrust_world_x, "y": thrust_world_y, "z": thrust_world_z}
         ship.thrust = dict(self.thrust_world)
+        
+        # Calculate G-force from acceleration magnitude (will be updated after acceleration is set)
+        # We'll update this after acceleration is calculated
 
         if thrust_magnitude > 0:
             # Guard against invalid mass
@@ -128,6 +138,9 @@ class PropulsionSystem(BaseSystem):
                 # Validate acceleration values
                 if all(is_valid_number(a) for a in [accel_x, accel_y, accel_z]):
                     ship.acceleration = {"x": accel_x, "y": accel_y, "z": accel_z}
+                    # Calculate current G-force from acceleration magnitude
+                    accel_magnitude = math.sqrt(accel_x**2 + accel_y**2 + accel_z**2)
+                    self.current_thrust_g = accel_magnitude / G_FORCE
                     self.status = "active"
                 else:
                     logger.error(f"Ship {ship.id}: Invalid acceleration calculated, zeroing thrust")
@@ -142,7 +155,13 @@ class PropulsionSystem(BaseSystem):
                 event_bus.publish("propulsion_status_change", {"system": "propulsion", "status": "no_fuel"})
         else:
             ship.acceleration = {"x": 0.0, "y": 0.0, "z": 0.0}
+            self.current_thrust_g = 0.0
             self.status = "idle"
+        
+        # Update max G-force capability (if we have ship mass)
+        if hasattr(ship, 'mass') and ship.mass > 0:
+            max_accel = self.max_thrust / ship.mass
+            self.max_thrust_g = max_accel / G_FORCE
 
         # Signature spike for sensor detection
         if thrust_magnitude > 10.0:
@@ -196,24 +215,47 @@ class PropulsionSystem(BaseSystem):
         return super().command(action, params)
 
     def set_throttle(self, params):
-        """Set main drive throttle (0.0 to 1.0).
+        """Set main drive throttle (0.0 to 1.0) or G-force.
         
         This is the primary gameplay API. Thrust is applied along ship's
         forward axis (+X in ship frame), rotated to world frame by quaternion.
+        
+        Args:
+            params: Dict with either:
+                - 'thrust' or 'throttle': 0.0 to 1.0 scalar
+                - 'g': Desired G-force (requires ship mass)
         """
         if not self.enabled:
             return {"error": "Propulsion system is disabled"}
 
         try:
-            # Accept 'thrust' or 'throttle' parameter
-            throttle = params.get("thrust", params.get("throttle", 0.0))
-            throttle = float(throttle)
+            # Check if G-force is specified (takes precedence)
+            if "g" in params:
+                g_force = float(params["g"])
+                if not is_valid_number(g_force):
+                    return {"error": "Invalid G-force value (NaN or Inf detected)"}
+                
+                # Need ship reference to calculate throttle from G
+                ship = params.get("ship") or params.get("_ship")
+                if not ship or not hasattr(ship, "mass") or ship.mass <= 0:
+                    return {"error": "Ship mass required to set throttle by G-force"}
+                
+                # Convert G to throttle: g * 9.81 * mass = thrust, throttle = thrust / max_thrust
+                required_thrust = g_force * G_FORCE * ship.mass
+                throttle = required_thrust / self.max_thrust if self.max_thrust > 0 else 0.0
+                throttle = max(0.0, min(1.0, throttle))  # Clamp to valid range
+            else:
+                # Accept 'thrust' or 'throttle' parameter (legacy scalar)
+                throttle = params.get("thrust", params.get("throttle", 0.0))
+                throttle = float(throttle)
+                
+                if not is_valid_number(throttle):
+                    return {"error": "Invalid throttle value (NaN or Inf detected)"}
+                
+                # Clamp to valid range
+                throttle = max(0.0, min(1.0, throttle))
             
-            if not is_valid_number(throttle):
-                return {"error": "Invalid throttle value (NaN or Inf detected)"}
-            
-            # Clamp to valid range
-            self.throttle = max(0.0, min(1.0, throttle))
+            self.throttle = throttle
             
             # Clear debug mode
             self._debug_thrust_vector = None
@@ -310,6 +352,9 @@ class PropulsionSystem(BaseSystem):
             "fuel_percent": (self.fuel_level / self.max_fuel * 100) if self.max_fuel > 0 else 0,
             "max_fuel": self.max_fuel,
             "power_status": self.power_status,
+            # G-force metrics
+            "thrust_g": self.current_thrust_g,
+            "max_thrust_g": self.max_thrust_g,
             # Legacy compatibility
             "main_drive": self.main_drive,
             "current_thrust": self.thrust_world,
