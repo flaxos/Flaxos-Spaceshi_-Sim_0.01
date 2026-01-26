@@ -41,6 +41,7 @@ class SensorSystem(BaseSystem):
         self.all_ships = []
         self.current_tick = 0
         self.sim_time = 0.0
+        self._last_contact_ids = set()
 
     def tick(self, dt: float, ship, event_bus):
         """Update sensor system.
@@ -88,6 +89,46 @@ class SensorSystem(BaseSystem):
             "ship_id": ship.id,
             "contacts": len(self.contact_tracker.get_all_contacts(self.sim_time))
         })
+
+        self._emit_contact_events(ship, event_bus)
+
+    def _emit_contact_events(self, ship, event_bus):
+        current_contacts = self.contact_tracker.get_all_contacts(self.sim_time)
+        current_ids = set(current_contacts.keys())
+
+        new_contacts = current_ids - self._last_contact_ids
+        lost_contacts = self._last_contact_ids - current_ids
+
+        for contact_id in new_contacts:
+            contact = current_contacts.get(contact_id)
+            if contact:
+                event_bus.publish("sensor_contact_detected", {
+                    "ship_id": ship.id,
+                    "contact_id": contact_id,
+                    "contact": self._serialize_contact(contact),
+                })
+
+        for contact_id in lost_contacts:
+            event_bus.publish("sensor_contact_lost", {
+                "ship_id": ship.id,
+                "contact_id": contact_id,
+            })
+
+        self._last_contact_ids = current_ids
+
+    def _serialize_contact(self, contact):
+        return {
+            "id": contact.id,
+            "position": contact.position,
+            "velocity": contact.velocity,
+            "confidence": contact.confidence,
+            "last_update": contact.last_update,
+            "detection_method": contact.detection_method,
+            "bearing": contact.bearing,
+            "distance": contact.distance,
+            "signature": contact.signature,
+            "classification": contact.classification,
+        }
 
     def command(self, action: str, params: dict):
         """Handle sensor commands.

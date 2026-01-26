@@ -26,6 +26,9 @@ class NavigationSystem(BaseSystem):
 
         # Simulation time tracking
         self.sim_time = 0.0
+        self._last_autopilot_mode = None
+        self._last_autopilot_program = None
+        self._last_autopilot_phase = None
 
     def tick(self, dt: float, ship, event_bus):
         """Update navigation system and apply autopilot if active.
@@ -63,6 +66,45 @@ class NavigationSystem(BaseSystem):
             "mode": self.controller.mode,
             "autopilot": self.controller.autopilot_program_name
         })
+
+        self._publish_autopilot_events(ship, event_bus)
+
+    def _publish_autopilot_events(self, ship, event_bus):
+        if not self.controller:
+            return
+
+        state = self.controller.get_state()
+        current_mode = state.get("mode")
+        current_program = state.get("current_program")
+        autopilot_state = state.get("autopilot_state", {})
+        current_phase = autopilot_state.get("phase")
+
+        if current_program and current_program != self._last_autopilot_program:
+            event_bus.publish("autopilot_engaged", {
+                "ship_id": ship.id,
+                "program": current_program,
+                "target": state.get("target_id"),
+                "mode": current_mode,
+            })
+
+        if self._last_autopilot_program and current_mode == "manual" and self._last_autopilot_mode != "manual":
+            event_bus.publish("autopilot_complete", {
+                "ship_id": ship.id,
+                "program": self._last_autopilot_program,
+                "mode": current_mode,
+            })
+
+        if current_phase and current_phase != self._last_autopilot_phase:
+            event_bus.publish("autopilot_phase_change", {
+                "ship_id": ship.id,
+                "program": current_program,
+                "phase": current_phase,
+                "status": autopilot_state.get("status"),
+            })
+
+        self._last_autopilot_mode = current_mode
+        self._last_autopilot_program = current_program
+        self._last_autopilot_phase = current_phase
 
     def _apply_autopilot_command(self, ship, command: dict):
         """Apply autopilot command to ship.
@@ -149,9 +191,28 @@ class NavigationSystem(BaseSystem):
 
         # Handle "off" special case
         if program.lower() == "off":
-            return self.controller.disengage_autopilot()
+            result = self.controller.disengage_autopilot()
+            event_bus = params.get("event_bus")
+            ship = params.get("ship")
+            if event_bus and ship:
+                event_bus.publish("autopilot_complete", {
+                    "ship_id": ship.id,
+                    "program": self._last_autopilot_program,
+                    "mode": "manual",
+                })
+            return result
 
-        return self.controller.engage_autopilot(program, target, params)
+        result = self.controller.engage_autopilot(program, target, params)
+        event_bus = params.get("event_bus")
+        ship = params.get("ship")
+        if event_bus and ship and not result.get("error"):
+            event_bus.publish("autopilot_engaged", {
+                "ship_id": ship.id,
+                "program": program,
+                "target": target,
+                "mode": self.controller.mode,
+            })
+        return result
 
     def _cmd_set_course(self, params: dict):
         """Set navigation course (not yet implemented).

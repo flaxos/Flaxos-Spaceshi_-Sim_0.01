@@ -23,7 +23,7 @@ class Weapon:
             and (self.ammo is None or self.ammo > 0)
         )
 
-    def fire(self, current_time, power_manager, target_ship=None):
+    def fire(self, current_time, power_manager, target_ship=None, ship_id=None):
         """Fire weapon at target.
 
         Args:
@@ -62,7 +62,8 @@ class Weapon:
             "weapon": self.name,
             "target": target_id,
             "damage": self.damage,
-            "damage_result": damage_result
+            "damage_result": damage_result,
+            "ship_id": ship_id,
         })
 
         return {
@@ -107,7 +108,7 @@ class WeaponSystem:
         if not weapon:
             return False
         current_time = time.time()
-        return weapon.fire(current_time, power_manager, target)
+        return weapon.fire(current_time, power_manager, target, ship_id=None)
 
     def get_state(self):
         """Get weapon system state.
@@ -178,7 +179,7 @@ class WeaponSystem:
 
             # Fire the weapon
             current_time = time.time()
-            fire_result = weapon.fire(current_time, power_manager, target_ship)
+            fire_result = weapon.fire(current_time, power_manager, target_ship, ship_id=ship.id)
 
             if fire_result.get("ok"):
                 return {

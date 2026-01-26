@@ -23,6 +23,7 @@ class PowerSystem(BaseSystem):
         self.total_draw = 0.0
         self.drawing_systems = {}
         self.status = "online"
+        self._last_status = self.status
 
     def tick(self, dt, ship, event_bus):
         if not self.enabled:
@@ -46,6 +47,15 @@ class PowerSystem(BaseSystem):
             event_bus.publish("power_low", {"system": "power", "level": self.stored_power / self.capacity, "source": "power"})
         else:
             self.status = "online"
+
+        if self.status != self._last_status:
+            event_bus.publish("power_state_change", {
+                "ship_id": getattr(ship, "id", None),
+                "status": self.status,
+                "stored_power": self.stored_power,
+                "capacity": self.capacity,
+            })
+            self._last_status = self.status
 
     def command(self, action, params):
         if action == "power_on":

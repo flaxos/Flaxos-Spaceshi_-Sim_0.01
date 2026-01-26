@@ -143,6 +143,27 @@ class ActiveSensor:
                 "range": self.range,
                 "timestamp": sim_time
             })
+            event_bus.publish("active_ping_complete", {
+                "ship_id": observer_ship.id,
+                "contacts_detected": len(detected),
+                "contacts": list(detected.keys()),
+                "timestamp": sim_time
+            })
+            for contact_id, contact in detected.items():
+                event_bus.publish("sensor_contact_updated", {
+                    "ship_id": observer_ship.id,
+                    "contact_id": contact_id,
+                    "contact": {
+                        "position": contact.position,
+                        "velocity": contact.velocity,
+                        "confidence": contact.confidence,
+                        "bearing": contact.bearing,
+                        "distance": contact.distance,
+                        "signature": contact.signature,
+                        "classification": contact.classification,
+                        "detection_method": contact.detection_method,
+                    },
+                })
 
         logger.info(f"Active ping from {observer_ship.id}: {len(detected)} contacts detected")
 
