@@ -351,6 +351,8 @@ class StationServer:
             "critical": ["all"],
             "alert": ["all"],
             "mission": ["all"],
+            "mission_update": ["all"],
+            "mission_complete": ["all"],
             "hint": ["all"],
             "gimbal_lock": ["nav_status", "helm_status"],  # HELM needs to know
         }

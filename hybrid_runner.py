@@ -29,6 +29,7 @@ class HybridRunner:
         self.state_cache = {}
         self.last_update_time = 0
         self.mission = None
+        self.last_mission_status = None
         self.player_ship_id = None
         
         # Create fleet_state directory if it doesn't exist
@@ -127,6 +128,7 @@ class HybridRunner:
         self.tick_count = 0
         self.state_cache = {}
         self.last_update_time = 0
+        self.last_mission_status = None
         self.simulator.fleet_manager = FleetManager(simulator=self.simulator)
 
     def _select_player_ship(self, ships_data):
@@ -172,6 +174,7 @@ class HybridRunner:
                     )
 
             self.mission = scenario_data.get("mission")
+            self.last_mission_status = None
             self.player_ship_id = None
             if isinstance(scenario_data.get("config"), dict):
                 self.player_ship_id = scenario_data["config"].get("player_ship_id")
@@ -179,6 +182,7 @@ class HybridRunner:
                 self.player_ship_id = self._select_player_ship(ships_data)
             if self.mission:
                 self.mission.start(self.simulator.time)
+                self.last_mission_status = self.mission.tracker.mission_status
 
             if was_running:
                 self.start()
@@ -240,7 +244,23 @@ class HybridRunner:
         if not player_ship and self.simulator.ships:
             player_ship = next(iter(self.simulator.ships.values()))
         if player_ship:
+            previous_status = self.last_mission_status or self.mission.tracker.mission_status
             self.mission.update(self.simulator, player_ship)
+            current_status = self.mission.tracker.mission_status
+            if current_status != previous_status:
+                event_name = "mission_complete" if current_status in ("success", "failure") else "mission_update"
+                payload = {
+                    "type": event_name,
+                    "ship_id": player_ship.id,
+                    "mission": self.get_mission_status(),
+                    "mission_status": current_status,
+                    "name": self.mission.name,
+                    "description": self.mission.description,
+                    "message": self.mission.get_result_message() if current_status in ("success", "failure") else "Mission updated.",
+                    "sim_time": self.simulator.time,
+                }
+                player_ship.event_bus.publish(event_name, payload)
+            self.last_mission_status = current_status
     
     def _update_state_cache(self):
         """Update the internal state cache"""
