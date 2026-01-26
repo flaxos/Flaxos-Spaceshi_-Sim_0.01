@@ -103,20 +103,57 @@ Flaxos Spaceship Simulator is a **hard sci-fi multiplayer space combat simulator
 
 ### 1. Server Layer (`server/`)
 
-#### `station_server.py` - Main Server
+#### `main.py` - Unified Server Entrypoint (Protocol v1)
+
+**Sprint A consolidated the server into a single entrypoint:**
+```bash
+# Station mode (multi-crew, default)
+python -m server.main
+
+# Minimal mode (backwards compat, no stations)
+python -m server.main --mode minimal
+
+# LAN accessible
+python -m server.main --lan
+```
+
 **Responsibilities:**
 - Accept TCP client connections
 - Route commands to simulation
-- Filter telemetry/events by station
+- Filter telemetry/events by station (station mode)
 - Manage client sessions
+- Provide autodiscovery endpoint (`_discover` command)
 
 **Key Components:**
-- `StationServer` - Main server class
+- `UnifiedServer` - Main server class with mode switching
+- `ServerConfig` - Canonical configuration (`server/config.py`)
 - `handle_connection()` - Per-client connection handler
-- `dispatch()` - Command routing
-- `_handle_get_state()` - Telemetry delivery with filtering
+- `dispatch()` - Mode-aware command routing
+- `_handle_get_state()` - Telemetry delivery with filtering (station mode)
 - `_handle_get_events()` - Event delivery with filtering
 - `list_ships` command exposes live ship metadata from the simulator
+
+**Configuration (`server/config.py`):**
+```python
+# Default ports (canonical source of truth)
+DEFAULT_TCP_PORT = 8765      # Simulation server
+DEFAULT_WS_PORT = 8080       # WebSocket bridge
+DEFAULT_HTTP_PORT = 3000     # GUI static files
+
+# Server modes
+ServerMode.MINIMAL  # Basic, no station management
+ServerMode.STATION  # Full multi-crew support (default)
+```
+
+**Protocol v1 (`server/protocol.py`):**
+- Formalized message envelope format
+- Standardized error codes
+- Request/Response/WSEnvelope classes
+- Contract tests in `tests/protocol/test_protocol_v1.py`
+
+#### Legacy Entrypoints (deprecated)
+- `run_server.py` - Use `python -m server.main --mode minimal`
+- `station_server.py` - Use `python -m server.main` (default)
 
 #### `stations/` - Station Management System
 
@@ -380,8 +417,12 @@ Note: The TCP servers expose `get_events`, but the simulator does not currently 
 
 ## Network Protocol
 
+### Protocol Version: 1.0
+
+The protocol is formalized in `server/protocol.py` with contract tests.
+
 ### Wire Format
-**Newline-delimited JSON over TCP**
+**Newline-delimited JSON over TCP (NDJSON)**
 
 ```
 {"cmd": "claim_station", "station": "helm"}\n
@@ -389,23 +430,25 @@ Note: The TCP servers expose `get_events`, but the simulator does not currently 
 {"cmd": "get_state"}\n
 ```
 
-### Command Structure
+### Command Structure (Request)
 ```json
 {
   "cmd": "command_name",
   "arg1": "value1",
-  "arg2": 123
+  "arg2": 123,
+  "_request_id": "optional-correlation-id"
 }
 ```
 
-### Response Structure
+### Response Structure (Success)
 ```json
 {
   "ok": true,
   "message": "Success message",
   "response": {
     "data_field": "value"
-  }
+  },
+  "_request_id": "echoed-if-provided"
 }
 ```
 
@@ -415,6 +458,49 @@ Note: The TCP servers expose `get_events`, but the simulator does not currently 
   "ok": false,
   "error": "Error message",
   "code": "ERROR_CODE"
+}
+```
+
+### Standard Error Codes
+| Code | Description |
+|------|-------------|
+| `BAD_REQUEST` | Malformed request |
+| `MISSING_PARAM` | Required parameter missing |
+| `PERMISSION_DENIED` | Station doesn't allow command |
+| `NOT_REGISTERED` | Client not registered |
+| `SHIP_NOT_FOUND` | Ship doesn't exist |
+| `INTERNAL_ERROR` | Unexpected server error |
+
+### WebSocket Bridge Envelope
+The WS bridge (`gui/ws_bridge.py`) wraps TCP responses:
+```json
+{
+  "type": "response",
+  "data": { /* TCP response */ },
+  "version": "1.0",
+  "timestamp": 1706300000.0
+}
+```
+
+**Message Types:** `response`, `error`, `connection_status`, `pong`
+
+### Autodiscovery
+Send `{"cmd": "_discover"}` to get connection info:
+```json
+{
+  "ok": true,
+  "version": "1.0",
+  "mode": "station",
+  "endpoints": {
+    "tcp": {"host": "127.0.0.1", "port": 8765},
+    "ws": {"host": "127.0.0.1", "port": 8080},
+    "http": {"host": "127.0.0.1", "port": 3000}
+  },
+  "features": {
+    "stations": true,
+    "multi_crew": true,
+    "fleet_commands": true
+  }
 }
 ```
 
@@ -624,8 +710,11 @@ Flaxos-Spaceshi_-Sim_0.01/
 │   ├── navigation/         # Autopilot
 │   └── commands/           # Command handlers
 ├── server/                 # Network server
-│   ├── station_server.py   # Main server
-│   ├── run_server.py       # Launcher
+│   ├── main.py             # Unified entrypoint (use this)
+│   ├── config.py           # Canonical configuration
+│   ├── protocol.py         # Protocol v1 envelope definitions
+│   ├── station_server.py   # Legacy (deprecated)
+│   ├── run_server.py       # Legacy (deprecated)
 │   └── stations/           # Station system
 │       ├── station_types.py
 │       ├── station_manager.py

@@ -1,8 +1,10 @@
 """
 Start the full GUI stack in a single terminal:
-- TCP simulation server
+- TCP simulation server (unified entrypoint)
 - WebSocket bridge
 - GUI static file server
+
+Uses the unified server.main entrypoint with --mode flag.
 """
 
 from __future__ import annotations
@@ -14,8 +16,19 @@ import sys
 import time
 import webbrowser
 
-
+# Add project root to path for imports
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
+
+from server.config import (
+    DEFAULT_TCP_PORT,
+    DEFAULT_WS_PORT,
+    DEFAULT_HTTP_PORT,
+    DEFAULT_HOST,
+    DEFAULT_DT,
+    DEFAULT_FLEET_DIR,
+)
 
 
 def _ensure_websockets() -> None:
@@ -49,31 +62,47 @@ def _terminate_processes(processes: list[subprocess.Popen]) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Start Flaxos GUI stack")
-    parser.add_argument("--host", default="127.0.0.1", help="TCP server host")
-    parser.add_argument("--tcp-port", type=int, default=8765, help="TCP server port")
+    parser.add_argument("--host", default=DEFAULT_HOST, help="TCP server host")
+    parser.add_argument("--tcp-port", type=int, default=DEFAULT_TCP_PORT, help="TCP server port")
     parser.add_argument("--ws-host", default="0.0.0.0", help="WebSocket bind host")
-    parser.add_argument("--ws-port", type=int, default=8080, help="WebSocket port")
-    parser.add_argument("--http-port", type=int, default=3000, help="GUI HTTP port")
-    parser.add_argument("--dt", type=float, default=0.1, help="Simulation timestep")
-    parser.add_argument("--fleet-dir", default="hybrid_fleet", help="Fleet directory")
+    parser.add_argument("--ws-port", type=int, default=DEFAULT_WS_PORT, help="WebSocket port")
+    parser.add_argument("--http-port", type=int, default=DEFAULT_HTTP_PORT, help="GUI HTTP port")
+    parser.add_argument("--dt", type=float, default=DEFAULT_DT, help="Simulation timestep")
+    parser.add_argument("--fleet-dir", default=DEFAULT_FLEET_DIR, help="Fleet directory")
+    parser.add_argument(
+        "--mode",
+        choices=["minimal", "station"],
+        default="station",
+        help="Server mode: minimal (basic) or station (multi-crew, default)",
+    )
+    # Backwards compat alias
     parser.add_argument(
         "--server",
         choices=["run", "station"],
-        default="run",
-        help="Server type: run=basic, station=multi-crew",
+        default=None,
+        help="(deprecated) Use --mode instead. run=minimal, station=station",
     )
+    parser.add_argument("--lan", action="store_true", help="Enable LAN mode (bind to 0.0.0.0)")
     parser.add_argument("--no-browser", action="store_true", help="Do not open browser")
     args = parser.parse_args()
 
     _ensure_websockets()
 
-    python = sys.executable
-    server_module = "server.run_server" if args.server == "run" else "server.station_server"
+    # Handle backwards compat --server flag
+    mode = args.mode
+    if args.server:
+        mode = "minimal" if args.server == "run" else "station"
+        print(f"[warn] --server is deprecated, use --mode {mode} instead")
 
+    python = sys.executable
+
+    # Use unified server.main entrypoint
     server_cmd = [
         python,
         "-m",
-        server_module,
+        "server.main",
+        "--mode",
+        mode,
         "--host",
         args.host,
         "--port",
@@ -83,6 +112,9 @@ def main() -> int:
         "--fleet-dir",
         args.fleet_dir,
     ]
+
+    if args.lan:
+        server_cmd.append("--lan")
 
     ws_bridge_cmd = [
         python,
@@ -111,8 +143,10 @@ def main() -> int:
         processes.append(_start_process("GUI server", http_cmd, os.path.join(ROOT_DIR, "gui")))
 
         gui_url = f"http://localhost:{args.http_port}/"
+        print(f"[ready] Mode: {mode}")
         print(f"[ready] GUI: {gui_url}")
         print(f"[ready] WS bridge: ws://localhost:{args.ws_port}")
+        print(f"[ready] TCP server: {args.host}:{args.tcp_port}")
         print("Press Ctrl+C to stop all services.")
 
         if not args.no_browser:
