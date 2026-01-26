@@ -2,13 +2,23 @@
 WebSocket-TCP Bridge for Flaxos Spaceship Sim GUI.
 
 Bridges WebSocket clients to the TCP simulation server.
+Uses the standardized Protocol v1 envelope format.
 """
+
+from __future__ import annotations
 
 import asyncio
 import json
 import logging
 import argparse
+import os
+import sys
 from typing import Set, Optional
+
+# Ensure project root is on sys.path for imports
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
 
 try:
     import websockets
@@ -16,6 +26,14 @@ try:
 except ImportError:
     print("websockets library required: pip install websockets")
     raise
+
+from server.config import (
+    DEFAULT_TCP_PORT,
+    DEFAULT_WS_PORT,
+    DEFAULT_HOST,
+    PROTOCOL_VERSION,
+)
+from server.protocol import WSEnvelope, MessageType
 
 logging.basicConfig(
     level=logging.INFO,
@@ -95,15 +113,18 @@ class WSBridge:
     """
     Bridges WebSocket clients to TCP simulation server.
 
+    Uses Protocol v1 envelope format for all messages.
+
     Responsibilities:
     - Accept WebSocket connections on configurable port
     - Forward JSON messages to TCP server
+    - Wrap responses in Protocol v1 WSEnvelope format
     - Broadcast server responses to connected WebSocket clients
-    - Handle connection lifecycle
+    - Handle connection lifecycle and autodiscovery
     """
 
-    def __init__(self, ws_host: str = "0.0.0.0", ws_port: int = 8080,
-                 tcp_host: str = "127.0.0.1", tcp_port: int = 8765):
+    def __init__(self, ws_host: str = "0.0.0.0", ws_port: int = DEFAULT_WS_PORT,
+                 tcp_host: str = DEFAULT_HOST, tcp_port: int = DEFAULT_TCP_PORT):
         self.ws_host = ws_host
         self.ws_port = ws_port
         self.tcp = TCPConnection(tcp_host, tcp_port)
@@ -127,16 +148,14 @@ class WSBridge:
         logger.info(f"Client disconnected: {client_addr} (total: {len(self.clients)})")
 
     def _build_status_message(self, status: str) -> str:
-        """Build a connection status message payload."""
-        return json.dumps({
-            "type": "connection_status",
-            "data": {
-                "status": status,
-                "tcp_host": self.tcp.host,
-                "tcp_port": self.tcp.port,
-                "tcp_connected": self.tcp.connected
-            }
-        })
+        """Build a connection status message payload using Protocol v1."""
+        envelope = WSEnvelope.status(
+            status=status,
+            tcp_connected=self.tcp.connected,
+            tcp_host=self.tcp.host,
+            tcp_port=self.tcp.port,
+        )
+        return envelope.to_wire()
 
     async def _send_status(self, websocket: WebSocketServerProtocol, status: str):
         """Send connection status to a client."""
@@ -186,24 +205,22 @@ class WSBridge:
             await self.unregister(websocket)
 
     async def _process_message(self, websocket: WebSocketServerProtocol, message: str):
-        """Process incoming message from WebSocket client."""
+        """Process incoming message from WebSocket client using Protocol v1."""
         # Validate JSON
         try:
             data = json.loads(message)
         except json.JSONDecodeError:
-            error_response = json.dumps({
-                "type": "error",
-                "data": {"error": "Invalid JSON"}
-            })
-            await websocket.send(error_response)
+            error_envelope = WSEnvelope.error("Invalid JSON")
+            await websocket.send(error_envelope.to_wire())
             return
 
-        # Handle internal commands
+        # Handle internal commands (bridge-level, not forwarded to TCP)
         cmd = data.get("cmd") or data.get("command")
+
         if cmd == "_ping":
             # Internal ping for latency measurement
-            pong = json.dumps({"type": "pong", "data": {"timestamp": data.get("timestamp")}})
-            await websocket.send(pong)
+            pong = WSEnvelope.pong(data.get("timestamp"))
+            await websocket.send(pong.to_wire())
             return
 
         if cmd == "_status":
@@ -211,35 +228,33 @@ class WSBridge:
             await self._send_status(websocket, "connected" if self.tcp.connected else "disconnected")
             return
 
+        if cmd == "_discover":
+            # Discovery request - forward to TCP server for full info
+            pass  # Let it fall through to TCP forwarding
+
         # Forward to TCP server
         response = await self.tcp.send_receive(message)
         await self._maybe_broadcast_tcp_status()
 
         if response is None:
             # TCP error
-            error_response = json.dumps({
-                "type": "error",
-                "data": {"error": "TCP server unavailable", "tcp_connected": False}
-            })
-            await websocket.send(error_response)
+            error_envelope = WSEnvelope.error(
+                "TCP server unavailable",
+                {"tcp_connected": False}
+            )
+            await websocket.send(error_envelope.to_wire())
             # Notify all clients of TCP disconnect
             await self._maybe_broadcast_tcp_status(status="tcp_disconnected")
             return
 
-        # Parse and forward response
+        # Parse and wrap response using Protocol v1 envelope
         try:
             response_data = json.loads(response)
-            wrapped = json.dumps({
-                "type": "response",
-                "data": response_data
-            })
+            wrapped = WSEnvelope.response(response_data)
         except json.JSONDecodeError:
-            wrapped = json.dumps({
-                "type": "response",
-                "data": {"raw": response}
-            })
+            wrapped = WSEnvelope.response({"raw": response})
 
-        await websocket.send(wrapped)
+        await websocket.send(wrapped.to_wire())
 
     async def start(self):
         """Start the WebSocket server."""
@@ -268,12 +283,14 @@ class WSBridge:
 
 
 async def main():
-    parser = argparse.ArgumentParser(description="WebSocket-TCP Bridge for Flaxos Sim")
+    parser = argparse.ArgumentParser(description="WebSocket-TCP Bridge for Flaxos Sim (Protocol v1)")
     parser.add_argument("--ws-host", default="0.0.0.0", help="WebSocket bind host")
-    parser.add_argument("--ws-port", type=int, default=8080, help="WebSocket port")
-    parser.add_argument("--tcp-host", default="127.0.0.1", help="TCP server host")
-    parser.add_argument("--tcp-port", type=int, default=8765, help="TCP server port")
+    parser.add_argument("--ws-port", type=int, default=DEFAULT_WS_PORT, help="WebSocket port")
+    parser.add_argument("--tcp-host", default=DEFAULT_HOST, help="TCP server host")
+    parser.add_argument("--tcp-port", type=int, default=DEFAULT_TCP_PORT, help="TCP server port")
     args = parser.parse_args()
+
+    logger.info(f"Protocol version: {PROTOCOL_VERSION}")
 
     bridge = WSBridge(
         ws_host=args.ws_host,

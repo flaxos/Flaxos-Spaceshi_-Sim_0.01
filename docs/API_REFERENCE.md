@@ -1,13 +1,15 @@
 # TCP JSON API Reference
 
-**Version**: 1.0
-**Protocol**: Newline-delimited JSON over TCP
-**Last Updated**: 2026-01-19
+**Protocol Version**: 1.0
+**Wire Format**: Newline-delimited JSON over TCP (NDJSON)
+**Last Updated**: 2026-01-26
 
 ## Table of Contents
 - [Overview](#overview)
+- [Server Entrypoint](#server-entrypoint)
 - [Connection](#connection)
 - [Command Format](#command-format)
+- [Autodiscovery](#autodiscovery)
 - [Station Management](#station-management)
 - [Ship Control Commands](#ship-control-commands)
 - [Navigation & Autopilot](#navigation--autopilot)
@@ -30,6 +32,43 @@ The Flaxos Spaceship Sim server communicates via **TCP JSON protocol**. Commands
 - Commands must include a `"cmd"` field
 - Most commands require a `"ship"` field (auto-filled if assigned)
 - All JSON strings must be properly escaped
+- Optional `_request_id` field for request/response correlation
+
+---
+
+## Server Entrypoint
+
+Use the unified server entrypoint:
+
+```bash
+# Station mode (multi-crew, default)
+python -m server.main
+
+# Minimal mode (no station management)
+python -m server.main --mode minimal
+
+# LAN accessible
+python -m server.main --lan
+
+# Custom port
+python -m server.main --port 9000
+```
+
+### Default Ports
+| Service | Port | Description |
+|---------|------|-------------|
+| TCP Server | 8765 | Main simulation server |
+| WebSocket Bridge | 8080 | Browser client bridge |
+| HTTP GUI | 3000 | Static file server |
+
+### Full GUI Stack
+```bash
+# Start everything (server + WS bridge + HTTP server)
+python tools/start_gui_stack.py
+
+# With options
+python tools/start_gui_stack.py --mode station --lan
+```
 
 ---
 
@@ -57,6 +96,40 @@ response = json.loads(sock.recv(4096).decode().strip())
 3. **Assign** to ship with `assign_ship`
 4. **Claim** station with `claim_station`
 5. **Issue** commands based on station permissions
+
+---
+
+## Autodiscovery
+
+Clients can query server configuration using the `_discover` command:
+
+**Request:**
+```json
+{
+  "cmd": "_discover"
+}
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "version": "1.0",
+  "mode": "station",
+  "endpoints": {
+    "tcp": {"host": "127.0.0.1", "port": 8765},
+    "ws": {"host": "127.0.0.1", "port": 8080},
+    "http": {"host": "127.0.0.1", "port": 3000}
+  },
+  "features": {
+    "stations": true,
+    "multi_crew": true,
+    "fleet_commands": true
+  }
+}
+```
+
+This allows GUI clients to auto-configure connection settings.
 
 ---
 
