@@ -19,6 +19,7 @@ class FlightComputer extends HTMLElement {
     this._targetContact = null;
     this._waypoint = { x: 0, y: 0, z: 0 };
     this._computedSolution = null;
+    this._waypointExecutionMode = "point";
   }
 
   connectedCallback() {
@@ -81,6 +82,30 @@ class FlightComputer extends HTMLElement {
           color: var(--bg-primary, #0a0a0f);
         }
 
+        .waypoint-toggle {
+          display: flex;
+          gap: 4px;
+          margin-bottom: 12px;
+        }
+
+        .toggle-btn {
+          flex: 1;
+          padding: 6px 8px;
+          background: var(--bg-input, #1a1a24);
+          border: 1px solid var(--border-default, #2a2a3a);
+          border-radius: 4px;
+          color: var(--text-secondary, #888899);
+          font-size: 0.65rem;
+          cursor: pointer;
+          transition: all 0.15s ease;
+        }
+
+        .toggle-btn.active {
+          background: var(--status-nominal, #00ff88);
+          border-color: var(--status-nominal, #00ff88);
+          color: var(--bg-primary, #0a0a0f);
+        }
+
         /* Waypoint Input */
         .waypoint-input {
           display: grid;
@@ -116,6 +141,13 @@ class FlightComputer extends HTMLElement {
         .input-group input:focus, .input-group select:focus {
           outline: none;
           border-color: var(--status-info, #00aaff);
+        }
+
+        .autopilot-options {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 8px;
+          margin-bottom: 12px;
         }
 
         /* Solution Display */
@@ -310,6 +342,27 @@ class FlightComputer extends HTMLElement {
           <label>Approach G-Force</label>
           <input type="number" id="approach-g" value="1.0" min="0.1" max="10" step="0.1" style="width: 100%;" />
         </div>
+        <div class="waypoint-toggle">
+          <button class="toggle-btn active" data-waypoint-mode="point">Point At</button>
+          <button class="toggle-btn" data-waypoint-mode="autopilot">Fly To</button>
+        </div>
+        <div class="autopilot-options hidden" id="autopilot-options">
+          <div class="input-group">
+            <label>Stop at Target</label>
+            <select id="course-stop">
+              <option value="true" selected>Yes</option>
+              <option value="false">No</option>
+            </select>
+          </div>
+          <div class="input-group">
+            <label>Tolerance (m)</label>
+            <input type="number" id="course-tolerance" value="50" min="1" step="1" />
+          </div>
+          <div class="input-group">
+            <label>Max Thrust (0-1)</label>
+            <input type="number" id="course-max-thrust" min="0" max="1" step="0.05" placeholder="Auto" />
+          </div>
+        </div>
       </div>
 
       <!-- Intercept Mode -->
@@ -394,6 +447,12 @@ class FlightComputer extends HTMLElement {
       });
     });
 
+    this.shadowRoot.querySelectorAll(".toggle-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        this._setWaypointExecutionMode(btn.dataset.waypointMode);
+      });
+    });
+
     // Input changes trigger recompute
     this.shadowRoot.querySelectorAll("input, select").forEach(input => {
       input.addEventListener("change", () => {
@@ -432,6 +491,19 @@ class FlightComputer extends HTMLElement {
     // Update target dropdown if intercept mode
     if (mode === "intercept") {
       this._updateTargetDropdown();
+    }
+  }
+
+  _setWaypointExecutionMode(mode) {
+    if (!mode) return;
+    this._waypointExecutionMode = mode;
+    this.shadowRoot.querySelectorAll(".toggle-btn").forEach(btn => {
+      btn.classList.toggle("active", btn.dataset.waypointMode === mode);
+    });
+    const autopilotOptions = this.shadowRoot.getElementById("autopilot-options");
+    autopilotOptions.classList.toggle("hidden", mode !== "autopilot");
+    if (this._computedSolution) {
+      this._compute();
     }
   }
 
@@ -512,6 +584,11 @@ class FlightComputer extends HTMLElement {
     const targetY = parseFloat(this.shadowRoot.getElementById("waypoint-y").value) || 0;
     const targetZ = parseFloat(this.shadowRoot.getElementById("waypoint-z").value) || 0;
     const approachG = parseFloat(this.shadowRoot.getElementById("approach-g").value) || 1.0;
+    const stopValue = this.shadowRoot.getElementById("course-stop")?.value ?? "true";
+    const stop = stopValue !== "false";
+    const tolerance = parseFloat(this.shadowRoot.getElementById("course-tolerance")?.value) || 50;
+    const maxThrustValue = parseFloat(this.shadowRoot.getElementById("course-max-thrust")?.value);
+    const maxThrust = Number.isFinite(maxThrustValue) ? maxThrustValue : null;
 
     // Calculate relative vector
     const dx = targetX - position[0];
@@ -578,7 +655,11 @@ class FlightComputer extends HTMLElement {
       command: {
         type: "waypoint",
         position: { x: targetX, y: targetY, z: targetZ },
-        g: approachG
+        g: approachG,
+        executionMode: this._waypointExecutionMode,
+        stop,
+        tolerance,
+        max_thrust: maxThrust
       }
     };
   }
@@ -774,9 +855,23 @@ class FlightComputer extends HTMLElement {
 
       switch (cmd.type) {
         case "waypoint":
-          // Set heading and engage autopilot or manual approach
-          await wsClient.sendShipCommand("point_at", { position: cmd.position });
-          this._showMessage(`Pointing at waypoint (${cmd.position.x.toFixed(0)}, ${cmd.position.y.toFixed(0)}, ${cmd.position.z.toFixed(0)})`, "info");
+          if (cmd.executionMode === "autopilot") {
+            const payload = {
+              x: cmd.position.x,
+              y: cmd.position.y,
+              z: cmd.position.z,
+              stop: cmd.stop,
+              tolerance: cmd.tolerance
+            };
+            if (cmd.max_thrust !== null && cmd.max_thrust !== undefined) {
+              payload.max_thrust = cmd.max_thrust;
+            }
+            await wsClient.sendShipCommand("set_course", payload);
+            this._showMessage(`Course set to (${cmd.position.x.toFixed(0)}, ${cmd.position.y.toFixed(0)}, ${cmd.position.z.toFixed(0)})`, "success");
+          } else {
+            await wsClient.sendShipCommand("point_at", { position: cmd.position });
+            this._showMessage(`Pointing at waypoint (${cmd.position.x.toFixed(0)}, ${cmd.position.y.toFixed(0)}, ${cmd.position.z.toFixed(0)})`, "info");
+          }
           break;
 
         case "intercept":

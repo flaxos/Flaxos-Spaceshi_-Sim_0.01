@@ -274,12 +274,32 @@ class NavigationSystem(BaseSystem):
         except (TypeError, ValueError):
             return error_dict("INVALID_COORDINATES", "Course requires numeric x, y, z values")
 
-        stop = bool(params.get("stop", True))
-        tolerance = params.get("tolerance", 50.0)
-        max_thrust = params.get("max_thrust")
-        coast_speed = params.get("coast_speed")
-        max_speed = params.get("max_speed")
-        brake_buffer = params.get("brake_buffer")
+        stop_value = params.get("stop", True)
+        if isinstance(stop_value, str):
+            stop = stop_value.strip().lower() in {"1", "true", "yes", "on"}
+        else:
+            stop = bool(stop_value)
+
+        try:
+            tolerance = float(params.get("tolerance", 50.0))
+        except (TypeError, ValueError):
+            return error_dict("INVALID_TOLERANCE", "Tolerance must be a number")
+
+        def _parse_optional_float(value, label):
+            if value is None:
+                return None
+            try:
+                return float(value)
+            except (TypeError, ValueError):
+                raise ValueError(f"{label} must be a number")
+
+        try:
+            max_thrust = _parse_optional_float(params.get("max_thrust"), "Max thrust")
+            coast_speed = _parse_optional_float(params.get("coast_speed"), "Coast speed")
+            max_speed = _parse_optional_float(params.get("max_speed"), "Max speed")
+            brake_buffer = _parse_optional_float(params.get("brake_buffer"), "Brake buffer")
+        except ValueError as exc:
+            return error_dict("INVALID_COURSE_PARAM", str(exc))
 
         autopilot_params = {
             "x": x,
