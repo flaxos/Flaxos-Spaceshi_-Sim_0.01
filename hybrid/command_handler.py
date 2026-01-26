@@ -129,13 +129,20 @@ def execute_command(ship, command_type, command_data, all_ships=None):
         # Inject ship object, event bus, and all_ships into command_data for systems that need it
         command_data_with_ship = command_data.copy()
         command_data_with_ship["ship"] = ship
+        command_data_with_ship["_ship"] = ship  # Some systems use _ship
         command_data_with_ship["event_bus"] = ship.event_bus
         if all_ships is not None:
             # D6: Keep all_ships as dict for target resolution in weapon system
             command_data_with_ship["all_ships"] = all_ships
 
         # Execute the command on the system
-        return ship.systems[system_name].command(action, command_data_with_ship)
+        try:
+            result = ship.systems[system_name].command(action, command_data_with_ship)
+            logger.debug(f"Command {command_type} -> {system_name}.{action} returned: {result}")
+            return result
+        except Exception as e:
+            logger.error(f"Error executing {command_type} -> {system_name}.{action}: {e}", exc_info=True)
+            return {"error": f"Command execution failed: {e}"}
         
     # Handle direct ship commands
     return ship.command(command_type, command_data)

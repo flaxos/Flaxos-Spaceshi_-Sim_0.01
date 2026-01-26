@@ -283,8 +283,23 @@ class HybridRunner:
                         elif "last_ping_time" not in sensor_system["active"]:
                             sensor_system["active"]["last_ping_time"] = 0
                 
-                # Get state with fixed fields
-                self.state_cache[ship_id] = ship.get_state()
+                # Get state with fixed fields (include current sim time for flight path)
+                state = ship.get_state()
+                # Ensure flight_path is included if ship has it
+                if hasattr(ship, 'get_flight_path'):
+                    try:
+                        # Use current simulation time for accurate flight path
+                        current_sim_time = self.simulator.time if hasattr(self.simulator, 'time') else None
+                        state["flight_path"] = ship.get_flight_path(60, current_sim_time=current_sim_time)
+                    except Exception as e:
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        logger.warning(f"Error getting flight path for {ship_id}: {e}")
+                        state["flight_path"] = []
+                elif "flight_path" not in state:
+                    # Ensure flight_path exists even if method doesn't
+                    state["flight_path"] = []
+                self.state_cache[ship_id] = state
             except Exception as e:
                 print(f"Error getting state for {ship_id}: {e}")
                 # Create a minimal valid state to avoid cascading errors
