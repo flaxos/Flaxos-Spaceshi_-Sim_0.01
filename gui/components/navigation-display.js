@@ -211,6 +211,37 @@ class NavigationDisplay extends HTMLElement {
           padding: 24px;
           font-style: italic;
         }
+
+        .nav-assistance {
+          margin-top: 16px;
+          padding: 12px;
+          background: rgba(0, 255, 136, 0.1);
+          border: 1px solid var(--status-nominal, #00ff88);
+          border-radius: 8px;
+        }
+
+        .nav-assistance.inactive {
+          background: rgba(0, 0, 0, 0.2);
+          border-color: var(--border-default, #2a2a3a);
+        }
+
+        .suggestion-item {
+          margin-top: 8px;
+          padding: 8px;
+          background: rgba(0, 0, 0, 0.3);
+          border-radius: 4px;
+          font-size: 0.75rem;
+        }
+
+        .suggestion-type {
+          color: var(--status-info, #00aaff);
+          font-weight: 600;
+        }
+
+        .suggestion-text {
+          color: var(--text-secondary, #888899);
+          margin-top: 4px;
+        }
       </style>
 
       <div id="content">
@@ -235,7 +266,16 @@ class NavigationDisplay extends HTMLElement {
     const thrust = (nav.thrust ?? 0) * 100;
     const autopilot = nav.autopilot || ship.autopilot || null;
 
-    const velMagnitude = this._magnitude(velocity);
+    // Get navigation awareness data
+    const navAwareness = ship.navigation || {};
+    const velocityHeading = navAwareness.velocity_heading || { pitch: 0, yaw: 0 };
+    const driftAngle = navAwareness.drift_angle || 0;
+    const velMagnitude = navAwareness.velocity_magnitude || this._magnitude(velocity);
+    
+    // Get propulsion G-force data
+    const propulsion = ship.systems?.propulsion || {};
+    const thrustG = propulsion.thrust_g || 0;
+    const maxThrustG = propulsion.max_thrust_g || 0;
 
     content.innerHTML = `
       <div class="section">
@@ -288,9 +328,69 @@ class NavigationDisplay extends HTMLElement {
           <div class="thrust-fill" style="width: ${thrust}%"></div>
           <span class="thrust-text">${thrust.toFixed(0)}%</span>
         </div>
+        ${thrustG > 0 ? `
+          <div style="margin-top: 4px; font-size: 0.7rem; color: var(--status-info, #00aaff);">
+            ${thrustG.toFixed(2)} G ${maxThrustG > 0 ? `/ ${maxThrustG.toFixed(1)} G max` : ''}
+          </div>
+        ` : ''}
       </div>
 
+      ${this._renderNavigationAwareness(navAwareness, velocityHeading, driftAngle)}
+
+      ${this._renderNavAssistance(ship)}
+
       ${this._renderAutopilot(autopilot)}
+    `;
+  }
+
+  _renderNavAssistance(ship) {
+    const navSystem = ship?.systems?.navigation || {};
+    const navAssistance = navSystem.nav_assistance || {};
+    
+    if (!navAssistance.nav_computer_online) {
+      return '';
+    }
+
+    const suggestions = navAssistance.suggestions || [];
+    const hasSuggestions = suggestions.length > 0;
+
+    return `
+      <div class="nav-assistance ${hasSuggestions ? '' : 'inactive'}">
+        <div class="section-title">Nav Computer Assistance</div>
+        ${hasSuggestions ? `
+          ${suggestions.map(s => `
+            <div class="suggestion-item">
+              <div class="suggestion-type">${s.type.toUpperCase()}</div>
+              <div class="suggestion-text">${s.text}</div>
+            </div>
+          `).join('')}
+        ` : `
+          <div style="font-size: 0.75rem; color: var(--text-dim, #555566);">
+            Nav computer online - calculations available
+          </div>
+        `}
+      </div>
+    `;
+  }
+
+  _renderNavigationAwareness(navAwareness, velocityHeading, driftAngle) {
+    if (!navAwareness || Object.keys(navAwareness).length === 0) {
+      return '';
+    }
+
+    const driftClass = Math.abs(driftAngle) < 5 ? 'positive' : Math.abs(driftAngle) < 30 ? 'warning' : 'negative';
+    const driftText = Math.abs(driftAngle) < 1 ? 'ON-AXIS' : `${driftAngle.toFixed(1)}° DRIFT`;
+
+    return `
+      <div class="section">
+        <div class="section-title">Navigation Awareness</div>
+        <div class="vector-grid">
+          <span class="vector-label">Velocity Heading:</span>
+          <span class="vector-value">${this._formatAngle(velocityHeading.pitch || 0)}° / ${this._formatAngle(velocityHeading.yaw || 0)}°</span>
+          <span class="vector-label">Drift Angle:</span>
+          <span class="vector-value ${driftClass}">${driftText}</span>
+        </div>
+      </div>
     `;
   }
 

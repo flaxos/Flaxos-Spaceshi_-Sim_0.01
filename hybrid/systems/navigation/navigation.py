@@ -68,6 +68,7 @@ class NavigationSystem(BaseSystem):
         """Apply autopilot command to ship.
 
         Expanse-style: uses scalar throttle for propulsion and RCS for attitude.
+        Navigation directs helm - autopilot commands go through helm system.
         
         Args:
             ship: Ship object
@@ -77,20 +78,33 @@ class NavigationSystem(BaseSystem):
         heading = command.get("heading")
 
         # Apply throttle to propulsion (scalar main drive)
+        # Route through helm system for consistency, but helm allows autopilot control
         propulsion = ship.systems.get("propulsion")
         if propulsion and hasattr(propulsion, "set_throttle"):
             # thrust_value is 0..1 scalar
-            propulsion.set_throttle({"thrust": thrust_value})
+            propulsion.set_throttle({"thrust": thrust_value, "_ship": ship, "ship": ship})
 
-        # Apply heading via RCS (attitude target, not instant teleport)
+        # Apply heading via RCS through helm (attitude target, not instant teleport)
         if heading:
-            rcs = ship.systems.get("rcs")
-            if rcs and hasattr(rcs, "set_attitude_target"):
-                rcs.set_attitude_target({
+            helm = ship.systems.get("helm")
+            if helm and hasattr(helm, "_cmd_set_orientation_target"):
+                # Use helm's orientation target command
+                helm._cmd_set_orientation_target({
                     "pitch": heading.get("pitch", ship.orientation.get("pitch", 0)),
                     "yaw": heading.get("yaw", ship.orientation.get("yaw", 0)),
-                    "roll": heading.get("roll", ship.orientation.get("roll", 0))
+                    "roll": heading.get("roll", ship.orientation.get("roll", 0)),
+                    "_ship": ship,
+                    "ship": ship
                 })
+            else:
+                # Fallback: direct RCS control
+                rcs = ship.systems.get("rcs")
+                if rcs and hasattr(rcs, "set_attitude_target"):
+                    rcs.set_attitude_target({
+                        "pitch": heading.get("pitch", ship.orientation.get("pitch", 0)),
+                        "yaw": heading.get("yaw", ship.orientation.get("yaw", 0)),
+                        "roll": heading.get("roll", ship.orientation.get("roll", 0))
+                    })
 
     def command(self, action: str, params: dict):
         """Handle navigation commands.
@@ -160,6 +174,9 @@ class NavigationSystem(BaseSystem):
 
         if self.controller:
             state.update(self.controller.get_state())
+            # Add navigation assistance data (makes manual control easier)
+            if hasattr(self.controller, "get_nav_assistance"):
+                state["nav_assistance"] = self.controller.get_nav_assistance()
         else:
             state["mode"] = "manual"
             state["autopilot_enabled"] = False
