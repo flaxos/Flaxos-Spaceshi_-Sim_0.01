@@ -194,6 +194,7 @@ Claim a station on your assigned ship.
   }
 }
 ```
+> `available_commands` only includes commands that are registered with the station dispatcher. Planned or legacy-only commands are intentionally omitted.
 
 ---
 
