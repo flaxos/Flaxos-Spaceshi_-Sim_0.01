@@ -106,6 +106,7 @@ class ShipGUI(tk.Tk):
         self.current_ship = tk.StringVar(value=list(self.ships.keys())[0])
         self.connection_state = tk.StringVar()
         self.last_server_error = None
+        self.weapon_var = tk.StringVar()
 
         # Build GUI
         self.create_widgets()
@@ -146,6 +147,7 @@ class ShipGUI(tk.Tk):
         ship_combo = ttk.Combobox(top, values=list(self.ships.keys()), textvariable=self.current_ship, state="readonly")
         ship_combo.pack(side='left', padx=5)
         ship_combo.current(0)
+        ship_combo.bind("<<ComboboxSelected>>", self.on_ship_changed)
         ttk.Button(top, text="Test Server", command=self.test_server_connection).pack(side='left', padx=5)
         self.status_label = ttk.Label(top, text="")
         self.status_label.pack(side='left', padx=20)
@@ -237,8 +239,12 @@ class ShipGUI(tk.Tk):
 
     def create_weapons_tab(self, parent):
         frame = ttk.LabelFrame(parent, text="Weapons Systems"); frame.pack(fill='both', expand=True, padx=8, pady=8)
+        ttk.Label(frame, text="Weapon:").pack(anchor='w')
+        self.weapon_combo = ttk.Combobox(frame, textvariable=self.weapon_var, state="readonly")
+        self.weapon_combo.pack(anchor='w', pady=2)
+        self._update_weapon_options()
         ttk.Button(frame, text="Fire Weapon", command=self.on_weapon_fire).pack(anchor='w')
-        ttk.Label(frame, text="(Future: Add weapon selector/payload)").pack(anchor='w')
+        ttk.Label(frame, text="(Uses weapon selected above)").pack(anchor='w')
 
     def create_map_tab(self, parent):
         frame = ttk.Frame(parent); frame.pack(fill='both', expand=True, padx=8, pady=8)
@@ -289,7 +295,12 @@ class ShipGUI(tk.Tk):
         self._update_sensor_output(resp)
 
     def on_power_toggle(self):
-        payload = {"ship": self.current_ship.get(), "system": "power"}
+        ship_id = self.current_ship.get()
+        systems = self.ships.get(ship_id, {}).get("systems", {})
+        if "power" not in systems:
+            messagebox.showerror("Power", "Power system toggle is unavailable for this ship")
+            return
+        payload = {"ship": ship_id, "system": "power"}
         cmd = "power_on" if self.power_mode_var.get() else "power_off"
         resp = send_command_to_server(self.host, self.port, cmd, payload)
         self.log_debug(f">> {cmd} {payload}\n<< {resp}")
@@ -304,11 +315,39 @@ class ShipGUI(tk.Tk):
         self.power_state.set(json.dumps(data))
 
     def on_weapon_fire(self):
-        payload = {"ship": self.current_ship.get(), "target": self.target_ship_var.get()}
+        weapon_name = self.weapon_var.get()
+        if not weapon_name:
+            messagebox.showerror("Weapon", "No weapon available for this ship")
+            return
+        payload = {
+            "ship": self.current_ship.get(),
+            "target": self.target_ship_var.get(),
+            "weapon": weapon_name,
+        }
         resp = send_command_to_server(self.host, self.port, "fire_weapon", payload)
         self.log_debug(f">> fire_weapon {payload}\n<< {resp}")
         data = self._parse_response(resp)
         messagebox.showinfo("Weapon", json.dumps(data))
+
+    def on_ship_changed(self, event=None):
+        self._update_weapon_options()
+
+    def _update_weapon_options(self):
+        weapons = self._get_weapon_names(self.current_ship.get())
+        self.weapon_combo["values"] = weapons
+        if weapons:
+            self.weapon_var.set(weapons[0])
+            self.weapon_combo.current(0)
+        else:
+            self.weapon_var.set("")
+
+    def _get_weapon_names(self, ship_id):
+        ship = self.ships.get(ship_id, {})
+        systems = ship.get("systems", {})
+        weapons_cfg = systems.get("weapons", {})
+        entries = weapons_cfg.get("weapons", [])
+        names = [weapon.get("name") for weapon in entries if weapon.get("name")]
+        return names
 
     def on_draw_map(self):
         # Get all ship positions and draw them

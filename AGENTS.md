@@ -46,9 +46,10 @@ This document helps AI agents (e.g. Codex, ChatGPT) understand project structure
   - Tracks draw/supply and toggled systems
 
 ### Tick Integration
-Invoke each frame via the simulator:
+The simulator tick loop already calls `tick()` on each system, so no manual
+call is required from the caller.
 ```python
-ship.power_system.tick()
+# handled inside Ship.tick()
 ```
 
 ---
@@ -56,10 +57,10 @@ ship.power_system.tick()
 🧪 CLI Commands (via `hybrid.cli`)
 
 ```bash
-python -m hybrid.cli --ship test_ship_001 --command '{"command": "reactor_start"}'
-python -m hybrid.cli --ship test_ship_001 --command '{"command": "get_power_status"}'
-python -m hybrid.cli --ship test_ship_001 --command '{"command": "toggle_system", "system": "railgun", "state": 0}'
-python -m hybrid.cli --ship test_ship_001 --command '{"command": "set_power_allocation", "primary": 0.5, "secondary": 0.3, "tertiary": 0.2}'
+python -m hybrid.cli --ship test_ship_001 --command '{"command": "get_power_state"}'
+python -m hybrid.cli --ship test_ship_001 --command '{"command": "set_power_profile", "profile": "offensive"}'
+python -m hybrid.cli --ship test_ship_001 --command '{"command": "get_power_profiles"}'
+python -m hybrid.cli --ship test_ship_001 --command '{"command": "set_power_allocation", "allocation": {"primary": 0.5, "secondary": 0.3, "tertiary": 0.2}}'
 ```
 
 All commands update the live ship state through the power system.
