@@ -125,7 +125,7 @@ h3 { font-size: var(--font-size-base); }
   gap: var(--space-sm);
   padding: var(--space-sm);
   grid-template-columns: repeat(12, 1fr);
-  grid-auto-rows: minmax(100px, auto);
+  grid-auto-rows: minmax(clamp(140px, 18vh, 240px), auto);
 }
 
 /* Panel component base */
