@@ -13,6 +13,31 @@ if ROOT_DIR not in sys.path:
 from hybrid_runner import HybridRunner
 from hybrid.command_handler import route_command
 
+
+def _json_default(value):
+    if isinstance(value, (set, tuple)):
+        return list(value)
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="replace")
+    try:
+        import numpy as np
+
+        if isinstance(value, (np.integer, np.floating, np.bool_)):
+            return value.item()
+        if isinstance(value, np.ndarray):
+            return value.tolist()
+    except Exception:
+        pass
+    if hasattr(value, "to_dict") and callable(value.to_dict):
+        return value.to_dict()
+    if hasattr(value, "__dict__"):
+        return value.__dict__
+    return str(value)
+
+
+def _json_dumps(payload: dict) -> str:
+    return json.dumps(payload, default=_json_default)
+
 """
 Protocol: newline-delimited JSON over TCP.
 
@@ -149,11 +174,11 @@ def _serve(host: str, port: int, dt: float, fleet_dir: str) -> None:
                     try:
                         req = json.loads(line.decode("utf-8"))
                     except json.JSONDecodeError:
-                        err = json.dumps({"ok": False, "error": "bad json"}) + "\n"
+                        err = _json_dumps({"ok": False, "error": "bad json"}) + "\n"
                         conn.sendall(err.encode("utf-8"))
                         continue
                     resp = dispatch(runner, req)
-                    conn.sendall((json.dumps(resp) + "\n").encode("utf-8"))
+                    conn.sendall((_json_dumps(resp) + "\n").encode("utf-8"))
         finally:
             conn.close()
 
