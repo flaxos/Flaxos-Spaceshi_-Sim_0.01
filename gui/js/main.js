@@ -38,6 +38,9 @@ import "../components/touch-throttle.js";
 import "../components/touch-joystick.js";
 import { mobileLayout } from "../layouts/mobile-layout.js";
 import { initMobileGestures } from "./gestures.js";
+// Phase 7: Enhanced Navigation & Multi-Crew
+import "../components/flight-computer.js";
+import { stationManager } from "./station-manager.js";
 
 // App state
 const app = {
@@ -83,6 +86,9 @@ async function init() {
   // Initialize mobile layout (Phase 6)
   mobileLayout.init();
   initMobileGestures();
+
+  // Initialize station manager (Phase 7)
+  stationManager.init();
 
   // Debug mode logging
   if (app.config.debugMode) {
@@ -229,6 +235,7 @@ window.flaxosApp = {
   wsClient,
   stateManager,
   mobileLayout,
+  stationManager,
   sendCommand,
   showSystemMessage,
   config: app.config

@@ -278,7 +278,7 @@ def calculate_distance(pos1, pos2):
     return magnitude(diff)
 
 def calculate_bearing(from_pos, to_pos, from_orientation=None):
-    """Calculate bearing from one position to another.
+    """Calculate bearing from one position to another using proper 3D math.
 
     Args:
         from_pos (dict): Observer position {x, y, z}
@@ -286,27 +286,63 @@ def calculate_bearing(from_pos, to_pos, from_orientation=None):
         from_orientation (dict, optional): Observer orientation {pitch, yaw, roll}
 
     Returns:
-        dict: Bearing with {yaw, pitch} in degrees
-
-    Note:
-        LIMITATION (Pre-S3): When from_orientation is provided, this function performs
-        a simple angular subtraction which doesn't account for roll or proper 3D rotation.
-        This causes inaccurate bearings during high-rotation maneuvers or non-zero roll.
-        S3 will replace this with quaternion-based bearing calculations for proper aim fidelity.
+        dict: Bearing with {yaw, pitch} in degrees (world-space if no orientation,
+              ship-relative if orientation provided)
     """
     diff = subtract_vectors(to_pos, from_pos)
 
-    # Calculate yaw (horizontal angle)
-    yaw = math.degrees(math.atan2(diff.get('y', 0), diff.get('x', 0)))
+    # Get the direction vector magnitude
+    dist = magnitude(diff)
+    if dist < 1e-10:
+        # Target at same position - return zero bearing
+        return {"yaw": 0.0, "pitch": 0.0}
 
-    # Calculate pitch (vertical angle)
+    # Calculate world-space bearing to target
+    # Yaw: angle in XY plane from +X axis (counterclockwise positive)
+    world_yaw = math.degrees(math.atan2(diff.get('y', 0), diff.get('x', 0)))
+
+    # Pitch: angle from XY plane to target (positive = above, negative = below)
     horizontal_distance = math.sqrt(diff.get('x', 0)**2 + diff.get('y', 0)**2)
-    pitch = math.degrees(math.atan2(diff.get('z', 0), horizontal_distance))
+    world_pitch = math.degrees(math.atan2(diff.get('z', 0), horizontal_distance))
 
-    # If observer orientation is provided, make bearing relative to it
-    # WARNING: This is a simplified approximation that ignores roll and 3D rotation matrix
-    if from_orientation:
-        yaw = normalize_angle(yaw - from_orientation.get('yaw', 0))
-        pitch = normalize_angle(pitch - from_orientation.get('pitch', 0))
+    # If no observer orientation, return world-space bearing
+    if not from_orientation:
+        return {"yaw": world_yaw, "pitch": world_pitch}
 
-    return {"yaw": yaw, "pitch": pitch}
+    # Convert bearing to ship-relative using quaternion rotation
+    # This properly handles roll and 3D transformations
+    try:
+        from hybrid.utils.quaternion import Quaternion
+        import numpy as np
+
+        # Create quaternion from ship orientation (inverted to transform world->ship frame)
+        ship_quat = Quaternion.from_euler(
+            from_orientation.get('pitch', 0),
+            from_orientation.get('yaw', 0),
+            from_orientation.get('roll', 0)
+        )
+
+        # Normalize the direction vector
+        direction = np.array([
+            diff.get('x', 0) / dist,
+            diff.get('y', 0) / dist,
+            diff.get('z', 0) / dist
+        ])
+
+        # Transform direction vector to ship frame using inverse quaternion
+        ship_frame_dir = ship_quat.conjugate().rotate_vector(direction)
+
+        # Calculate relative bearing from ship-frame direction
+        # In ship frame: +X = forward, +Y = left, +Z = up
+        rel_yaw = math.degrees(math.atan2(ship_frame_dir[1], ship_frame_dir[0]))
+        horizontal_dist = math.sqrt(ship_frame_dir[0]**2 + ship_frame_dir[1]**2)
+        rel_pitch = math.degrees(math.atan2(ship_frame_dir[2], horizontal_dist))
+
+        return {"yaw": normalize_angle(rel_yaw), "pitch": normalize_angle(rel_pitch)}
+
+    except ImportError:
+        # Fallback to simple calculation if quaternion module unavailable
+        logger.warning("Quaternion module not available, using simplified bearing calculation")
+        yaw = normalize_angle(world_yaw - from_orientation.get('yaw', 0))
+        pitch = normalize_angle(world_pitch - from_orientation.get('pitch', 0))
+        return {"yaw": yaw, "pitch": pitch}
