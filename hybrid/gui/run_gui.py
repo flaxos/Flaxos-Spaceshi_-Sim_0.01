@@ -295,7 +295,12 @@ class ShipGUI(tk.Tk):
         self._update_sensor_output(resp)
 
     def on_power_toggle(self):
-        payload = {"ship": self.current_ship.get(), "system": "power"}
+        ship_id = self.current_ship.get()
+        systems = self.ships.get(ship_id, {}).get("systems", {})
+        if "power" not in systems:
+            messagebox.showerror("Power", "Power system toggle is unavailable for this ship")
+            return
+        payload = {"ship": ship_id, "system": "power"}
         cmd = "power_on" if self.power_mode_var.get() else "power_off"
         resp = send_command_to_server(self.host, self.port, cmd, payload)
         self.log_debug(f">> {cmd} {payload}\n<< {resp}")
