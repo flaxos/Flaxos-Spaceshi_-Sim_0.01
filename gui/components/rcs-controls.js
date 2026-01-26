@@ -5,6 +5,7 @@
 
 import { stateManager } from "../js/state-manager.js";
 import { wsClient } from "../js/ws-client.js";
+import { calculate3DBearing } from "../js/helm-requests.js";
 
 class RCSControls extends HTMLElement {
   constructor() {
@@ -482,7 +483,7 @@ class RCSControls extends HTMLElement {
     }
 
     const contacts = stateManager.getContacts();
-    const contact = contacts.find(c => 
+    const contact = contacts.find(c =>
       (c.contact_id || c.id) === this._selectedTarget
     );
 
@@ -491,38 +492,27 @@ class RCSControls extends HTMLElement {
       return;
     }
 
-    // Calculate bearing to target
-    // If contact has bearing, use that. Otherwise calculate from position.
-    let targetYaw = contact.bearing ?? contact.bearing_to;
-    
-    if (targetYaw === undefined && contact.position) {
-      // Calculate bearing from position
-      const ship = stateManager.getShipState();
-      const shipPos = ship?.position || { x: 0, y: 0, z: 0 };
-      const targetPos = contact.position;
-      
-      const dx = targetPos.x - shipPos.x;
-      const dy = targetPos.y - shipPos.y;
-      
-      // Calculate angle (atan2 gives angle from positive X axis)
-      targetYaw = Math.atan2(dy, dx) * (180 / Math.PI);
-      // Convert to compass bearing (0 = north/+Y, 90 = east/+X)
-      targetYaw = (90 - targetYaw + 360) % 360;
-    }
+    // Calculate 3D bearing to target (both pitch AND yaw)
+    const ship = stateManager.getShipState();
+    const shipPos = ship?.position || { x: 0, y: 0, z: 0 };
+    const targetPos = contact.position;
 
-    if (targetYaw === undefined) {
-      this._showMessage("Cannot determine target bearing", "error");
+    if (!targetPos) {
+      this._showMessage("Cannot determine target position", "error");
       return;
     }
 
+    // Calculate proper 3D bearing including pitch
+    const bearing = calculate3DBearing(shipPos, targetPos);
+
     try {
-      console.log("Pointing at target:", this._selectedTarget, "bearing:", targetYaw);
+      console.log("Pointing at target:", this._selectedTarget, "bearing:", bearing);
       await wsClient.sendShipCommand("set_orientation", {
-        pitch: 0,
-        yaw: targetYaw,
+        pitch: bearing.pitch,
+        yaw: bearing.yaw,
         roll: 0
       });
-      this._showMessage(`Pointing at ${this._selectedTarget}`, "info");
+      this._showMessage(`Pointing at ${this._selectedTarget} (P: ${bearing.pitch.toFixed(1)}° Y: ${bearing.yaw.toFixed(1)}°)`, "info");
     } catch (error) {
       console.error("Point at target failed:", error);
       this._showMessage(`Point at target failed: ${error.message}`, "error");
@@ -533,29 +523,30 @@ class RCSControls extends HTMLElement {
     // Point in direction of travel (velocity vector)
     const nav = stateManager.getNavigation();
     const vel = nav.velocity || [0, 0, 0];
-    
-    const vx = vel[0] || vel.x || 0;
-    const vy = vel[1] || vel.y || 0;
-    
-    const speed = Math.sqrt(vx * vx + vy * vy);
+
+    const vx = vel[0] ?? vel.x ?? 0;
+    const vy = vel[1] ?? vel.y ?? 0;
+    const vz = vel[2] ?? vel.z ?? 0;
+
+    const speed = Math.sqrt(vx * vx + vy * vy + vz * vz);
     if (speed < 0.1) {
       this._showMessage("No significant velocity", "warning");
       return;
     }
 
-    // Calculate yaw from velocity direction
-    let yaw = Math.atan2(vy, vx) * (180 / Math.PI);
-    // Convert to compass bearing
-    yaw = (90 - yaw + 360) % 360;
+    // Calculate 3D bearing from velocity vector
+    const horizontalSpeed = Math.sqrt(vx * vx + vy * vy);
+    const yaw = Math.atan2(vy, vx) * (180 / Math.PI);
+    const pitch = Math.atan2(vz, horizontalSpeed) * (180 / Math.PI);
 
     try {
-      console.log("Pointing prograde:", yaw);
+      console.log("Pointing prograde: P:", pitch.toFixed(1), "Y:", yaw.toFixed(1));
       await wsClient.sendShipCommand("set_orientation", {
-        pitch: 0,
+        pitch: pitch,
         yaw: yaw,
         roll: 0
       });
-      this._showMessage("Pointing prograde", "info");
+      this._showMessage(`Pointing prograde (P: ${pitch.toFixed(1)}° Y: ${yaw.toFixed(1)}°)`, "info");
     } catch (error) {
       console.error("Point prograde failed:", error);
       this._showMessage(`Point prograde failed: ${error.message}`, "error");
@@ -566,29 +557,30 @@ class RCSControls extends HTMLElement {
     // Point opposite to direction of travel
     const nav = stateManager.getNavigation();
     const vel = nav.velocity || [0, 0, 0];
-    
-    const vx = vel[0] || vel.x || 0;
-    const vy = vel[1] || vel.y || 0;
-    
-    const speed = Math.sqrt(vx * vx + vy * vy);
+
+    const vx = vel[0] ?? vel.x ?? 0;
+    const vy = vel[1] ?? vel.y ?? 0;
+    const vz = vel[2] ?? vel.z ?? 0;
+
+    const speed = Math.sqrt(vx * vx + vy * vy + vz * vz);
     if (speed < 0.1) {
       this._showMessage("No significant velocity", "warning");
       return;
     }
 
-    // Calculate yaw from opposite velocity direction
-    let yaw = Math.atan2(-vy, -vx) * (180 / Math.PI);
-    // Convert to compass bearing
-    yaw = (90 - yaw + 360) % 360;
+    // Calculate 3D bearing from opposite velocity vector
+    const horizontalSpeed = Math.sqrt(vx * vx + vy * vy);
+    const yaw = Math.atan2(-vy, -vx) * (180 / Math.PI);
+    const pitch = Math.atan2(-vz, horizontalSpeed) * (180 / Math.PI);
 
     try {
-      console.log("Pointing retrograde:", yaw);
+      console.log("Pointing retrograde: P:", pitch.toFixed(1), "Y:", yaw.toFixed(1));
       await wsClient.sendShipCommand("set_orientation", {
-        pitch: 0,
+        pitch: pitch,
         yaw: yaw,
         roll: 0
       });
-      this._showMessage("Pointing retrograde", "info");
+      this._showMessage(`Pointing retrograde (P: ${pitch.toFixed(1)}° Y: ${yaw.toFixed(1)}°)`, "info");
     } catch (error) {
       console.error("Point retrograde failed:", error);
       this._showMessage(`Point retrograde failed: ${error.message}`, "error");

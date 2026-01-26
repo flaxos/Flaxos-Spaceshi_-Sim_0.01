@@ -5,6 +5,7 @@
 
 import { stateManager } from "../js/state-manager.js";
 import { wsClient } from "../js/ws-client.js";
+import { helmRequests, calculate3DBearing } from "../js/helm-requests.js";
 
 class SensorContacts extends HTMLElement {
   constructor() {
@@ -400,44 +401,44 @@ class SensorContacts extends HTMLElement {
   async _handleContactAction(action, contactId) {
     const contacts = stateManager.getContacts();
     const contact = contacts.find(c => (c.contact_id || c.id) === contactId);
-    
+
     if (!contact) {
       console.error("Contact not found:", contactId);
       return;
     }
 
     if (action === "point") {
-      // Point at target - calculate bearing and set orientation
-      let targetYaw = contact.bearing ?? contact.bearing_to;
-      
-      if (targetYaw === undefined && contact.position) {
-        // Calculate bearing from position
-        const ship = stateManager.getShipState();
-        const shipPos = ship?.position || { x: 0, y: 0, z: 0 };
-        const targetPos = contact.position;
-        
-        const dx = (targetPos.x ?? targetPos[0] ?? 0) - (shipPos.x ?? shipPos[0] ?? 0);
-        const dy = (targetPos.y ?? targetPos[1] ?? 0) - (shipPos.y ?? shipPos[1] ?? 0);
-        
-        // Calculate yaw angle
-        targetYaw = Math.atan2(dy, dx) * (180 / Math.PI);
-        targetYaw = (90 - targetYaw + 360) % 360;
+      // Calculate 3D bearing to target (both pitch AND yaw)
+      const ship = stateManager.getShipState();
+      const shipPos = ship?.position || { x: 0, y: 0, z: 0 };
+      const targetPos = contact.position;
+
+      if (!targetPos) {
+        this._showMessage("Cannot determine target position", "error");
+        return;
       }
 
-      if (targetYaw !== undefined) {
-        try {
-          console.log("Pointing at contact:", contactId, "bearing:", targetYaw);
-          await wsClient.sendShipCommand("set_orientation", {
-            pitch: 0,
-            yaw: targetYaw,
-            roll: 0
-          });
-          this._showMessage(`Pointing at ${contactId}`, "info");
-        } catch (error) {
-          console.error("Point at target failed:", error);
-          this._showMessage(`Point failed: ${error.message}`, "error");
-        }
-      }
+      // Calculate proper 3D bearing including pitch
+      const bearing = calculate3DBearing(shipPos, targetPos);
+
+      console.log("Calculated 3D bearing to", contactId, ":", bearing);
+
+      // Create a helm request instead of directly executing
+      // This respects station roles: sensors identify, helm executes
+      const request = helmRequests.createRequest({
+        type: 'point_at',
+        source: 'sensors',
+        targetId: contactId,
+        params: {
+          pitch: bearing.pitch,
+          yaw: bearing.yaw,
+          roll: 0,
+          range: bearing.range
+        },
+        description: `Point at ${contactId}: P: ${bearing.pitch.toFixed(1)}° | Y: ${bearing.yaw.toFixed(1)}°`
+      });
+
+      this._showMessage(`Helm request sent: Point at ${contactId}`, "info");
     } else if (action === "lock") {
       // Lock target
       try {
