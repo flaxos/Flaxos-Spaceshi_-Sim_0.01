@@ -211,6 +211,11 @@
       min-height: var(--panel-height-sm);
     }
 
+    .power-panel {
+      grid-column: span 3;
+      min-height: var(--panel-height-sm);
+    }
+
     /* Placeholder panels */
     .placeholder-panel {
       grid-column: span 3;
@@ -258,6 +263,7 @@
       .helm-requests-panel,
       .weapon-ctrl-panel,
       .systems-panel,
+      .power-panel,
       .placeholder-panel {
         grid-column: span 6;
       }
@@ -286,6 +292,7 @@
       .helm-requests-panel,
       .weapon-ctrl-panel,
       .systems-panel,
+      .power-panel,
       .placeholder-panel {
         grid-column: span 12;
       }
@@ -335,6 +342,10 @@
 
       <flaxos-panel title="Systems" collapsible class="systems-panel">
         <system-toggles></system-toggles>
+      </flaxos-panel>
+
+      <flaxos-panel title="Power Management" collapsible class="power-panel">
+        <power-management></power-management>
       </flaxos-panel>
 
       <flaxos-panel title="Navigation" collapsible class="nav-panel">

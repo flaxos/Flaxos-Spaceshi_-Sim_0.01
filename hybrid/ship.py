@@ -112,6 +112,10 @@ class Ship:
             "request_power": self._cmd_request_power,
             "reroute_power": self._cmd_reroute_power,
             "get_power_state": self._cmd_get_power_state,
+            "set_power_allocation": self._cmd_set_power_allocation,
+            "set_power_profile": self._cmd_set_power_profile,
+            "get_power_profiles": self._cmd_get_power_profiles,
+            "set_overdrive_limits": self._cmd_set_overdrive_limits,
             "get_subsystem_health": self._cmd_get_subsystem_health,
             "repair_subsystem": self._cmd_repair_subsystem,
         }
@@ -667,6 +671,49 @@ class Ship:
         if not pm:
             return {"error": "Power management system not available"}
         return pm.get_state()
+
+    def _cmd_set_power_allocation(self, params):
+        """Set power allocation ratios for the power management system."""
+        pm = self.systems.get("power_management")
+        if not pm:
+            return {"error": "Power management system not available"}
+        allocation = params.get("allocation", {})
+        if not allocation:
+            allocation = {
+                key: params.get(key)
+                for key in ("primary", "secondary", "tertiary")
+                if params.get(key) is not None
+            }
+        if not allocation:
+            return {"error": "Missing allocation values"}
+        return pm.set_power_allocation(allocation)
+
+    def _cmd_set_power_profile(self, params):
+        """Apply a named power profile."""
+        pm = self.systems.get("power_management")
+        if not pm:
+            return {"error": "Power management system not available"}
+        profile = params.get("profile") or params.get("mode")
+        if not profile:
+            return {"error": "Missing profile parameter"}
+        return pm.apply_profile(profile, ship=self)
+
+    def _cmd_get_power_profiles(self, params):
+        """Return available power profiles."""
+        pm = self.systems.get("power_management")
+        if not pm:
+            return {"error": "Power management system not available"}
+        return pm.get_profiles()
+
+    def _cmd_set_overdrive_limits(self, params):
+        """Set overdrive limits for power buses."""
+        pm = self.systems.get("power_management")
+        if not pm:
+            return {"error": "Power management system not available"}
+        limits = params.get("limits", params)
+        if not limits:
+            return {"error": "Missing limits"}
+        return pm.set_overdrive_limits(limits)
 
     def enable_ai(self, behavior=None, params=None):
         """
