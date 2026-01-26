@@ -4,6 +4,7 @@ import json
 import socket
 import threading
 import argparse
+import logging
 
 # Ensure project root is on sys.path for direct execution
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -12,6 +13,9 @@ if ROOT_DIR not in sys.path:
 
 from hybrid_runner import HybridRunner
 from hybrid.command_handler import route_command
+from utils.logger import setup_logging
+
+logger = logging.getLogger(__name__)
 
 
 def _json_default(value):
@@ -67,6 +71,8 @@ def dispatch(runner: HybridRunner, req: dict) -> dict:
     if not cmd:
         return {"ok": False, "error": "missing cmd"}
 
+    logger.info("Dispatching command", extra={"command": cmd, "ship": req.get("ship")})
+
     if cmd == "get_state":
         ship_id = req.get("ship")
         states = runner.get_all_ship_states()
@@ -92,6 +98,8 @@ def dispatch(runner: HybridRunner, req: dict) -> dict:
             events = list(runner.simulator.event_log)[-limit:]
         else:
             events = []
+        for event in events:
+            logger.info("Event", extra={"event": event})
         return {"ok": True, "events": events, "total_events": len(events)}
 
     if cmd == "list_scenarios":
@@ -159,7 +167,7 @@ def _serve(host: str, port: int, dt: float, fleet_dir: str) -> None:
     runner = HybridRunner(fleet_dir=fleet_dir, dt=dt)
     runner.load_ships()
     runner.start()
-    print(f"Server on {host}:{port} dt={dt}")
+    logger.info("Server started", extra={"host": host, "port": port, "dt": dt})
 
     srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -184,6 +192,7 @@ def _serve(host: str, port: int, dt: float, fleet_dir: str) -> None:
                         err = _json_dumps({"ok": False, "error": "bad json"}) + "\n"
                         conn.sendall(err.encode("utf-8"))
                         continue
+                    logger.info("Command received", extra={"request": req})
                     resp = dispatch(runner, req)
                     conn.sendall((_json_dumps(resp) + "\n").encode("utf-8"))
         finally:
@@ -204,7 +213,11 @@ def main() -> None:
     ap.add_argument("--port", type=int, default=8765)
     ap.add_argument("--dt", type=float, default=0.1)
     ap.add_argument("--fleet-dir", default="hybrid_fleet")
+    ap.add_argument("--log-file", default=None)
     args = ap.parse_args()
+    log_path = setup_logging(args.log_file)
+    if log_path:
+        logger.info("Logging to file", extra={"log_file": log_path})
     _serve(args.host, args.port, args.dt, args.fleet_dir)
 
 
