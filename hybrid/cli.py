@@ -159,10 +159,11 @@ def run_cli(fleet_dir="hybrid_fleet", dt=0.1):
             print("3. Set course")
             print("4. Toggle autopilot")
             print("5. Ping sensors")
-            print("6. Custom command")
-            print("7. Switch ship")
-            print("8. Save states")
-            print("9. Exit")
+            print("6. Set power profile")
+            print("7. Custom command")
+            print("8. Switch ship")
+            print("9. Save states")
+            print("10. Exit")
             
             try:
                 choice = input("\nEnter command: ")
@@ -203,6 +204,18 @@ def run_cli(fleet_dir="hybrid_fleet", dt=0.1):
                     print("Result:", json.dumps(result, indent=2))
                     
                 elif choice == "6":
+                    profile = input("Power profile (offensive/defensive): ").strip()
+                    if not profile:
+                        print("Profile name required")
+                        continue
+                    result = runner.send_command(
+                        selected_ship,
+                        "set_power_profile",
+                        {"profile": profile}
+                    )
+                    print("Result:", json.dumps(result, indent=2))
+
+                elif choice == "7":
                     # Custom command
                     cmd = input("Command: ")
                     args_str = input("Args (JSON): ")
@@ -214,7 +227,7 @@ def run_cli(fleet_dir="hybrid_fleet", dt=0.1):
                     except json.JSONDecodeError:
                         print("Invalid JSON args")
                         
-                elif choice == "7":
+                elif choice == "8":
                     # Switch ship
                     print("\nAvailable ships:")
                     for i, ship_id in enumerate(ship_ids):
@@ -230,12 +243,12 @@ def run_cli(fleet_dir="hybrid_fleet", dt=0.1):
                     except ValueError:
                         print("Invalid input, please enter a number")
                         
-                elif choice == "8":
+                elif choice == "9":
                     # Save states
                     result = runner.save_states()
                     print("Result:", json.dumps(result, indent=2))
                     
-                elif choice == "9":
+                elif choice == "10":
                     # Exit
                     print("Exiting...")
                     break

@@ -12,6 +12,7 @@
 - [Ship Control Commands](#ship-control-commands)
 - [Navigation & Autopilot](#navigation--autopilot)
 - [Sensors & Targeting](#sensors--targeting)
+- [Engineering & Power Management](#engineering--power-management)
 - [Weapons & Combat](#weapons--combat)
 - [Fleet Commands](#fleet-commands)
 - [Crew Management](#crew-management)
@@ -607,6 +608,93 @@ Get filtered events for your station.
   "station": "ops",
   "total_events": 0,
   "filtered_count": 0
+}
+```
+
+---
+
+## Engineering & Power Management
+
+### set_power_profile
+Apply a predefined engineering power profile (offensive/defensive) to update power allocation, overdrive limits, and weapon/system enablement.
+
+**Station:** ENGINEERING
+
+**Request:**
+```json
+{
+  "cmd": "set_power_profile",
+  "ship": "player_ship",
+  "profile": "offensive"
+}
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "message": "Power profile 'offensive' applied",
+  "response": {
+    "status": "power_profile_applied",
+    "profile": "offensive",
+    "power_allocation": {
+      "primary": 0.6,
+      "secondary": 0.25,
+      "tertiary": 0.15
+    },
+    "overdrive_limits": {
+      "primary": 1.2,
+      "secondary": 1.0,
+      "tertiary": 1.0
+    }
+  }
+}
+```
+
+---
+
+### get_power_profiles
+List available engineering profiles and the current active profile.
+
+**Station:** ENGINEERING
+
+**Request:**
+```json
+{
+  "cmd": "get_power_profiles",
+  "ship": "player_ship"
+}
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "message": "Power profiles retrieved",
+  "response": {
+    "profiles": ["defensive", "offensive"],
+    "active_profile": "offensive",
+    "definitions": {
+      "offensive": {
+        "power_allocation": {
+          "primary": 0.6,
+          "secondary": 0.25,
+          "tertiary": 0.15
+        },
+        "overdrive_limits": {
+          "primary": 1.2,
+          "secondary": 1.0,
+          "tertiary": 1.0
+        },
+        "systems": {
+          "railgun": {"enabled": true, "power_draw": 60.0},
+          "pdc": {"enabled": true, "power_draw": 18.0},
+          "ecm": {"enabled": false, "power_draw": 0.0},
+          "eccm": {"enabled": false, "power_draw": 0.0}
+        }
+      }
+    }
+  }
 }
 ```
 
