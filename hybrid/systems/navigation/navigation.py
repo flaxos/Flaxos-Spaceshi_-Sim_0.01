@@ -93,6 +93,7 @@ class NavigationSystem(BaseSystem):
                     "pitch": heading.get("pitch", ship.orientation.get("pitch", 0)),
                     "yaw": heading.get("yaw", ship.orientation.get("yaw", 0)),
                     "roll": heading.get("roll", ship.orientation.get("roll", 0)),
+                    "manual_input": False,
                     "_ship": ship,
                     "ship": ship
                 })
