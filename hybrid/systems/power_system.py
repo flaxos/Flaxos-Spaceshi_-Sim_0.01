@@ -16,6 +16,9 @@ class PowerSystem(BaseSystem):
         self.stored_power = float(config.get("initial", self.capacity * 0.8))
         self.efficiency = float(config.get("efficiency", 0.95))
         self.allocations = config.get("allocations", {})
+        self.base_generation_rate = self.generation_rate
+        self.base_capacity = self.capacity
+        self.base_efficiency = self.efficiency
 
         # Additional tracking
         self.generation = config.get("generation", 5.0)  # fallback for old configs
@@ -26,6 +29,21 @@ class PowerSystem(BaseSystem):
         self._last_status = self.status
 
     def tick(self, dt, ship, event_bus):
+        damage_factor = 1.0
+        if ship is not None and hasattr(ship, "damage_model"):
+            damage_factor = ship.damage_model.get_degradation_factor("power")
+
+        self.capacity = self.base_capacity * damage_factor
+        self.generation_rate = self.base_generation_rate * damage_factor
+        self.efficiency = self.base_efficiency * max(0.1, damage_factor)
+        self.current = min(self.current, self.capacity)
+        self.stored_power = min(self.stored_power, self.capacity)
+
+        if damage_factor <= 0:
+            self.status = "failed"
+            event_bus.publish("power_failed", {"system": "power"})
+            return
+
         if not self.enabled:
             self.status = "offline"
             event_bus.publish("power_offline", {"source": "power"})

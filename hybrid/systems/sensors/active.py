@@ -26,12 +26,19 @@ class ActiveSensor:
                 - resolution_boost: Accuracy multiplier vs passive
         """
         self.range = config.get("active_range", config.get("scan_range", 500000))  # 500km default
+        self.base_range = self.range
         self.cooldown = config.get("ping_cooldown", config.get("cooldown", 30.0))  # 30 seconds
         self.power_cost = config.get("ping_power_cost", config.get("power_cost", 50.0))
         self.resolution_boost = config.get("resolution_boost", 0.95)  # Much better than passive
+        self.base_resolution_boost = self.resolution_boost
 
         self.last_ping_time = -1000.0  # Start ready
         self.contacts: Dict[str, ContactData] = {}
+
+    def set_range_multiplier(self, multiplier: float):
+        clamped = max(0.0, multiplier)
+        self.range = max(0.0, self.base_range * clamped)
+        self.resolution_boost = min(0.98, self.base_resolution_boost * max(0.2, clamped))
 
     def can_ping(self, current_time: float) -> bool:
         """Check if ping is available.

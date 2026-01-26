@@ -88,6 +88,7 @@ def get_ship_telemetry(ship, sim_time: float = None) -> Dict[str, Any]:
         "autopilot_program": autopilot_program,
         "weapons": weapons_status,
         "sensors": sensor_contacts,
+        "subsystem_health": ship.damage_model.get_report() if hasattr(ship, "damage_model") else {},
         "systems": {
             system_name: system.get("status", "unknown") if isinstance(system, dict) else
                          system.get_state().get("status", "online") if hasattr(system, "get_state") else "online"

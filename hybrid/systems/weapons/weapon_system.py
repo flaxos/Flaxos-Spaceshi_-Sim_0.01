@@ -8,9 +8,12 @@ class Weapon:
     def __init__(self, name, power_cost, max_heat, ammo_count=None, damage=10.0):
         self.name = name
         self.power_cost = power_cost
+        self.base_power_cost = power_cost
         self.max_heat = max_heat
+        self.base_max_heat = max_heat
         self.ammo = ammo_count
         self.damage = damage  # D6: Damage per hit
+        self.base_damage = damage
         self.heat = 0.0
         self.last_fired = 0.0
         self.cooldown_time = DEFAULT_COOLDOWN_TIME
@@ -23,7 +26,7 @@ class Weapon:
             and (self.ammo is None or self.ammo > 0)
         )
 
-    def fire(self, current_time, power_manager, target_ship=None, ship_id=None):
+    def fire(self, current_time, power_manager, target_ship=None, ship_id=None, damage_factor=1.0):
         """Fire weapon at target.
 
         Args:
@@ -34,6 +37,9 @@ class Weapon:
         Returns:
             dict: Fire result with damage info
         """
+        if damage_factor <= 0.0:
+            self.event_bus.publish("weapon_cannot_fire", {"weapon": self.name, "reason": "damaged"})
+            return {"ok": False, "reason": "damaged"}
         if not self.can_fire(current_time):
             self.event_bus.publish("weapon_cannot_fire", {"weapon": self.name})
             return {"ok": False, "reason": "cannot_fire"}
@@ -47,8 +53,9 @@ class Weapon:
 
         # D6: Apply damage to target if provided
         damage_result = None
+        effective_damage = self.damage * damage_factor
         if target_ship and hasattr(target_ship, 'take_damage'):
-            damage_result = target_ship.take_damage(self.damage, source=self.name)
+            damage_result = target_ship.take_damage(effective_damage, source=self.name)
 
         # Extract target ID (handle both Ship objects and string IDs)
         target_id = None
@@ -61,14 +68,14 @@ class Weapon:
         self.event_bus.publish("weapon_fired", {
             "weapon": self.name,
             "target": target_id,
-            "damage": self.damage,
+            "damage": effective_damage,
             "damage_result": damage_result,
             "ship_id": ship_id,
         })
 
         return {
             "ok": True,
-            "damage": self.damage,
+            "damage": effective_damage,
             "target": target_id,
             "damage_result": damage_result
         }
@@ -91,6 +98,7 @@ class WeaponSystem:
             )
             self.weapons[wcfg["name"]] = weapon
         self.event_bus = EventBus.get_instance()
+        self.damage_factor = 1.0
 
     def tick(self, dt, ship=None, event_bus=None):
         """Update weapon system.
@@ -100,6 +108,16 @@ class WeaponSystem:
             ship: Ship with this weapon system (optional)
             event_bus: Event bus (optional)
         """
+        if ship is not None and hasattr(ship, "damage_model"):
+            self.damage_factor = ship.damage_model.get_degradation_factor("weapons")
+        else:
+            self.damage_factor = 1.0
+
+        for weapon in self.weapons.values():
+            weapon.max_heat = weapon.base_max_heat * max(0.25, self.damage_factor)
+            weapon.power_cost = weapon.base_power_cost * (1.0 + (1.0 - self.damage_factor))
+            weapon.damage = weapon.base_damage * max(0.1, self.damage_factor)
+
         for weapon in self.weapons.values():
             weapon.cool_down(dt)
 
@@ -108,7 +126,7 @@ class WeaponSystem:
         if not weapon:
             return False
         current_time = time.time()
-        return weapon.fire(current_time, power_manager, target, ship_id=None)
+        return weapon.fire(current_time, power_manager, target, ship_id=None, damage_factor=self.damage_factor)
 
     def get_state(self):
         """Get weapon system state.
@@ -127,7 +145,9 @@ class WeaponSystem:
                     "can_fire": w.can_fire(time.time())
                 }
                 for w in self.weapons.values()
-            ]
+            ],
+            "status": "failed" if self.damage_factor <= 0.0 else "degraded" if self.damage_factor < 1.0 else "online",
+            "degradation_factor": self.damage_factor,
         }
 
     def command(self, action: str, params: dict):
@@ -179,7 +199,13 @@ class WeaponSystem:
 
             # Fire the weapon
             current_time = time.time()
-            fire_result = weapon.fire(current_time, power_manager, target_ship, ship_id=ship.id)
+            fire_result = weapon.fire(
+                current_time,
+                power_manager,
+                target_ship,
+                ship_id=ship.id,
+                damage_factor=self.damage_factor,
+            )
 
             if fire_result.get("ok"):
                 return {

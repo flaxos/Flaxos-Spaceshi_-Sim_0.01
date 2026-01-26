@@ -78,6 +78,15 @@ class Ship:
         # Create the event bus for system communication
         self.event_bus = EventBus()
 
+        # Initialize damage model
+        from hybrid.systems.damage_model import DamageModel
+        from hybrid.systems_schema import get_subsystem_health_schema
+        self.damage_model = DamageModel(
+            config.get("damage_model", {}),
+            schema=get_subsystem_health_schema(),
+            systems_config=config.get("systems", {}),
+        )
+
         # Initialize systems
         self.systems = {}
         self._load_systems(config.get("systems", {}))
@@ -100,6 +109,8 @@ class Ship:
             "request_power": self._cmd_request_power,
             "reroute_power": self._cmd_reroute_power,
             "get_power_state": self._cmd_get_power_state,
+            "get_subsystem_health": self._cmd_get_subsystem_health,
+            "repair_subsystem": self._cmd_repair_subsystem,
         }
         
     def _get_vector3_config(self, config, x_key="x", y_key="y", z_key="z"):
@@ -402,7 +413,8 @@ class Ship:
             "thrust": self.thrust,
             "navigation": nav_awareness,  # Add navigation awareness metrics
             "flight_path": self.get_flight_path(60) if self._flight_path_history else [],  # Last 60 seconds of flight path
-            "systems": {}
+            "systems": {},
+            "damage_model": self.damage_model.get_report(),
         }
         
         # Add systems state
@@ -522,6 +534,21 @@ class Ship:
     def _cmd_get_state(self, params):
         """Command handler for get_state"""
         return self.get_state()
+
+    def _cmd_get_subsystem_health(self, params):
+        subsystem = params.get("subsystem")
+        if subsystem:
+            return self.damage_model.get_subsystem_report(subsystem)
+        return self.damage_model.get_report()
+
+    def _cmd_repair_subsystem(self, params):
+        subsystem = params.get("subsystem")
+        amount = float(params.get("amount", 0))
+        if not subsystem:
+            return {"ok": False, "error": "Missing subsystem"}
+        if amount <= 0:
+            return {"ok": False, "error": "Repair amount must be positive"}
+        return self.damage_model.repair_subsystem(subsystem, amount)
 
     def _cmd_get_position(self, params):
         """Return current ship position"""

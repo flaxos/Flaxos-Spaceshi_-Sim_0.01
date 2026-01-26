@@ -32,6 +32,7 @@ class PropulsionSystem(BaseSystem):
 
         # Main drive configuration
         self.max_thrust = float(config.get("max_thrust", 100.0))
+        self.base_max_thrust = self.max_thrust
         
         # Primary control: scalar throttle (0.0 to 1.0)
         self.throttle = 0.0
@@ -47,6 +48,9 @@ class PropulsionSystem(BaseSystem):
 
         # Fuel and efficiency
         self.efficiency = float(config.get("efficiency", 0.9))
+        self.base_efficiency = self.efficiency
+        self.base_power_draw = self.power_draw
+        self.base_power_draw_per_thrust = self.power_draw_per_thrust
         self.fuel_consumption = float(config.get("fuel_consumption", 0.1))
         self.max_fuel = float(config.get("max_fuel", 1000.0))
         self.fuel_level = float(config.get("fuel_level", self.max_fuel))
@@ -68,6 +72,22 @@ class PropulsionSystem(BaseSystem):
         2. Ship quaternion rotates this into world frame
         3. F=ma gives acceleration in world frame
         """
+        damage_factor = 1.0
+        if ship is not None and hasattr(ship, "damage_model"):
+            damage_factor = ship.damage_model.get_degradation_factor("propulsion")
+
+        if damage_factor <= 0.0:
+            ship.thrust = {"x": 0.0, "y": 0.0, "z": 0.0}
+            ship.acceleration = {"x": 0.0, "y": 0.0, "z": 0.0}
+            self.thrust_world = {"x": 0.0, "y": 0.0, "z": 0.0}
+            self.status = "failed"
+            return
+
+        self.max_thrust = self.base_max_thrust * damage_factor
+        self.efficiency = self.base_efficiency * max(0.1, damage_factor)
+        self.power_draw = self.base_power_draw * (1.0 + (1.0 - damage_factor))
+        self.power_draw_per_thrust = self.base_power_draw_per_thrust * (1.0 + (1.0 - damage_factor))
+
         if not self.enabled:
             ship.thrust = {"x": 0.0, "y": 0.0, "z": 0.0}
             ship.acceleration = {"x": 0.0, "y": 0.0, "z": 0.0}

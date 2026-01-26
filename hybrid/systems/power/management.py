@@ -25,11 +25,30 @@ class PowerManagementSystem:
                 output_rate=params.get("output_rate", base.output_rate),
                 thermal_limit=params.get("thermal_limit", base.thermal_limit)
             )
+        self._base_reactors = {
+            name: {
+                "capacity": reactor.capacity,
+                "output_rate": reactor.output_rate,
+                "thermal_limit": reactor.thermal_limit,
+            }
+            for name, reactor in self.reactors.items()
+        }
         self.event_bus = EventBus.get_instance()
         self._last_reactor_status = {}
 
     def tick(self, dt, ship=None, event_bus=None):
+        damage_factor = 1.0
+        if ship is not None and hasattr(ship, "damage_model"):
+            damage_factor = ship.damage_model.get_degradation_factor("power")
+
         for reactor in self.reactors.values():
+            base = self._base_reactors.get(reactor.name, {})
+            if base:
+                reactor.capacity = base["capacity"] * damage_factor
+                reactor.output_rate = base["output_rate"] * damage_factor
+                reactor.thermal_limit = base["thermal_limit"]
+                reactor.available = min(reactor.available, reactor.capacity)
+
             reactor.tick(dt)
             if reactor.status == "overheated":
                 self.event_bus.publish("power_overheat", {"reactor": reactor.name})
