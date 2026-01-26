@@ -308,24 +308,29 @@ class HelmRequestsPanel extends HTMLElement {
     if (!request || request.status !== 'pending') return;
 
     try {
+      let response;
       // Execute based on request type
       if (request.type === 'point_at' || request.type === 'set_heading') {
-        await wsClient.sendShipCommand("set_orientation", {
+        response = await wsClient.sendShipCommand("set_orientation", {
           pitch: request.params.pitch || 0,
           yaw: request.params.yaw || 0,
           roll: request.params.roll || 0
         });
       } else if (request.type === 'intercept') {
         // Could trigger autopilot intercept mode
-        await wsClient.sendShipCommand("set_autopilot", {
-          mode: "intercept",
+        response = await wsClient.sendShipCommand("autopilot", {
+          program: "intercept",
           target: request.targetId
         });
       } else if (request.type === 'match_velocity') {
-        await wsClient.sendShipCommand("set_autopilot", {
-          mode: "match",
+        response = await wsClient.sendShipCommand("autopilot", {
+          program: "match",
           target: request.targetId
         });
+      }
+
+      if (response && response.error) {
+        throw new Error(response.error);
       }
 
       // Mark as executed
