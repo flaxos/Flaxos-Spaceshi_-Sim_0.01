@@ -346,9 +346,24 @@ class ThrottleControl extends HTMLElement {
         thrust: value  // Scalar 0-1
       });
       console.log("Throttle response:", response);
+      
+      // Check for errors in response
+      if (response?.ok === false || response?.error) {
+        const errorMsg = response.error || response.message || "Unknown error";
+        console.error("Throttle command error:", errorMsg);
+        this._showMessage(`Throttle error: ${errorMsg}`, "error");
+        // Revert visual on error
+        this._updateFromState();
+      } else if (response?.response?.throttle !== undefined) {
+        // Update from server response if available
+        this._currentValue = response.response.throttle;
+        this._updateVisual(this._currentValue);
+      }
     } catch (error) {
       console.error("Throttle command failed:", error);
       this._showMessage(`Throttle failed: ${error.message}`, "error");
+      // Revert visual on error
+      this._updateFromState();
     }
   }
 
