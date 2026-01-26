@@ -156,6 +156,24 @@ function setupGlobalEvents() {
     }
     showSystemMessage("success", `Scenario "${scenario}" loaded`, "Mission Ready");
   });
+
+  // Mission event notifications
+  stateManager.addEventListener("event", (e) => {
+    const event = e.detail || {};
+    const eventType = event.type || "";
+    if (!eventType.toLowerCase().includes("mission")) {
+      return;
+    }
+
+    const payload = event.data || {};
+    const mission = payload.mission || {};
+    const status = payload.mission_status || mission.mission_status || mission.status;
+    const title = payload.name || mission.name || "Mission Update";
+    const message = payload.message || (status ? `Mission status: ${status}` : "Mission event received.");
+    const severity = status === "success" ? "success" : status === "failure" ? "error" : "info";
+
+    showSystemMessage(severity, message, title);
+  });
 }
 
 /**
