@@ -22,6 +22,8 @@ import "../components/weapons-status.js";
 import "../components/throttle-control.js";
 import "../components/heading-control.js";
 import "../components/rcs-controls.js";
+import "../components/micro-rcs-control.js";
+import "../components/position-heading-calculator.js";
 import "../components/autopilot-control.js";
 import "../components/weapon-controls.js";
 import "../components/system-toggles.js";

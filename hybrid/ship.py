@@ -13,6 +13,7 @@ import math
 import time
 import copy
 import logging
+from collections import deque
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +67,13 @@ class Ship:
         self.angular_velocity = {"pitch": 0.0, "yaw": 0.0, "roll": 0.0}
         self.angular_acceleration = {"pitch": 0.0, "yaw": 0.0, "roll": 0.0}  # For S3: RCS torque integration
         self.thrust = {"x": 0.0, "y": 0.0, "z": 0.0}
+
+        # Flight path logging (for minimap trails)
+        # Records position history: 600 samples @ 0.5s = 5 minutes of history
+        self._flight_path_max_samples = 600
+        self._flight_path_sample_interval = 0.5  # seconds
+        self._flight_path_history = deque(maxlen=self._flight_path_max_samples)
+        self._last_flight_path_sample_time = 0.0
 
         # Create the event bus for system communication
         self.event_bus = EventBus()
@@ -214,6 +222,9 @@ class Ship:
         self.position["y"] += self.velocity["y"] * dt
         self.position["z"] += self.velocity["z"] * dt
 
+        # Record position in flight path history
+        self._record_flight_path(dt)
+
         # Sanitize physics state (check for NaN/Inf and clamp to reasonable bounds)
         self.position, self.velocity, self.acceleration, recovered = sanitize_physics_state(
             self.position, self.velocity, self.acceleration, self.id
@@ -266,6 +277,42 @@ class Ship:
 
         # S3: No more gimbal lock warnings! Quaternions handle all orientations perfectly.
         # The old gimbal lock warning has been removed - quaternions eliminate this issue entirely.
+
+    def _record_flight_path(self, dt):
+        """Record position in flight path history at regular intervals."""
+        current_time = time.time()
+        
+        # Sample at regular intervals
+        if current_time - self._last_flight_path_sample_time >= self._flight_path_sample_interval:
+            self._flight_path_history.append({
+                "pos": {
+                    "x": self.position["x"],
+                    "y": self.position["y"],
+                    "z": self.position["z"]
+                },
+                "t": current_time
+            })
+            self._last_flight_path_sample_time = current_time
+
+    def get_flight_path(self, max_age_seconds=60):
+        """Get flight path positions from last N seconds.
+        
+        Args:
+            max_age_seconds: Maximum age of positions to include
+            
+        Returns:
+            list: List of position dicts {x, y, z} from last N seconds
+        """
+        if not self._flight_path_history:
+            return []
+        
+        now = time.time()
+        cutoff_time = now - max_age_seconds
+        
+        return [
+            entry["pos"] for entry in self._flight_path_history
+            if entry["t"] >= cutoff_time
+        ]
 
     def command(self, command_type, params=None):
         """
@@ -343,6 +390,7 @@ class Ship:
             "angular_velocity": self.angular_velocity,
             "thrust": self.thrust,
             "navigation": nav_awareness,  # Add navigation awareness metrics
+            "flight_path": self.get_flight_path(60),  # Last 60 seconds of flight path
             "systems": {}
         }
         

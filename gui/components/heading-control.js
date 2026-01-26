@@ -375,12 +375,25 @@ class HeadingControl extends HTMLElement {
       });
       console.log("Heading response:", response);
       
-      if (response?.error) {
-        this._showMessage(`Heading error: ${response.error}`, "error");
+      // Check for errors in response
+      if (response?.ok === false || response?.error) {
+        const errorMsg = response.error || response.message || "Unknown error";
+        console.error("Heading command error:", errorMsg);
+        this._showMessage(`Heading error: ${errorMsg}`, "error");
+        // Revert on error
+        this._updateFromState();
+      } else if (response?.response?.target) {
+        // Update from server response if available
+        const target = response.response.target;
+        this._pitch = target.pitch || this._pitch;
+        this._yaw = target.yaw || this._yaw;
+        this._updateVisual();
       }
     } catch (error) {
       console.error("Heading command failed:", error);
       this._showMessage(`Heading failed: ${error.message}`, "error");
+      // Revert on error
+      this._updateFromState();
     }
   }
 
