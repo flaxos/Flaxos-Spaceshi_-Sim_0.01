@@ -145,7 +145,8 @@ class HelmSystem(BaseSystem):
             self.attitude_target = {"pitch": pitch, "yaw": yaw, "roll": roll}
             
             # Record manual input for navigation system (if nav computer is online)
-            if ship:
+            record_manual_input = params.get("manual_input", True)
+            if ship and record_manual_input:
                 nav_system = ship.systems.get("navigation")
                 if nav_system and hasattr(nav_system, "controller") and nav_system.controller:
                     nav_system.controller.set_manual_input(getattr(ship, "sim_time", 0.0))
