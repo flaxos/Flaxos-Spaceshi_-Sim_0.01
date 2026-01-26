@@ -393,12 +393,16 @@ class StateManager extends EventTarget {
     let autopilot = null;
     if (ship?.systems?.navigation) {
       const nav = ship.systems.navigation;
+      const autopilotState = nav.autopilot_state || nav.autopilotState || null;
       autopilot = {
         mode: nav.mode || "manual",
         enabled: nav.autopilot_enabled || false,
         target: nav.target || null,
         phase: nav.phase || null,
-        range: nav.target_range || null,
+        range: autopilotState?.distance ?? nav.target_range ?? null,
+        distance: autopilotState?.distance ?? null,
+        closingSpeed: autopilotState?.closing_speed ?? null,
+        eta: autopilotState?.eta ?? null,
       };
     } else if (ship?.autopilot) {
       autopilot = ship.autopilot;
