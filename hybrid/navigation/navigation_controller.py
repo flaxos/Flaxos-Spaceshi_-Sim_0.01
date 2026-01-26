@@ -23,6 +23,7 @@ class NavigationController:
         self.last_manual_input = 0.0
         self.autopilot_program_name = None
         self.target_id = None
+        self.flight_plan = None
 
     def set_manual_input(self, sim_time: float):
         """Record manual input from pilot.
@@ -148,6 +149,9 @@ class NavigationController:
             "target_id": self.target_id
         }
 
+        if self.flight_plan:
+            state["flight_plan"] = self.flight_plan.to_dict()
+
         # Add autopilot state if active
         if self.autopilot and hasattr(self.autopilot, 'get_state'):
             state["autopilot_state"] = self.autopilot.get_state()
@@ -160,6 +164,14 @@ class NavigationController:
             ) if hasattr(self.ship, 'sim_time') else self.manual_override_timeout
 
         return state
+
+    def set_flight_plan(self, plan) -> Dict:
+        """Set the active flight plan for the ship."""
+        self.flight_plan = plan
+        return success_dict(
+            "Flight plan loaded",
+            plan=self.flight_plan.to_dict() if self.flight_plan else None
+        )
 
     def calculate_intercept_solution(self, target_id: Optional[str] = None, target_position: Optional[Dict] = None) -> Optional[Dict]:
         """Calculate intercept solution for manual control assistance.

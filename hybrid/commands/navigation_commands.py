@@ -30,6 +30,13 @@ def cmd_set_course(navigation, ship, params):
 
     return error_dict("NOT_IMPLEMENTED", "Course setting not yet implemented")
 
+def cmd_set_plan(navigation, ship, params):
+    """Set a queued flight plan."""
+    if navigation and hasattr(navigation, "command"):
+        return navigation.command("set_plan", params)
+
+    return error_dict("NOT_IMPLEMENTED", "Flight plan setting not yet implemented")
+
 def register_commands(dispatcher):
     """Register all navigation commands with the dispatcher."""
 
@@ -66,5 +73,15 @@ def register_commands(dispatcher):
                     description="Extra distance buffer for braking"),
         ],
         help_text="Set navigation course to destination",
+        system="navigation"
+    ))
+
+    dispatcher.register("set_plan", CommandSpec(
+        handler=cmd_set_plan,
+        args=[
+            ArgSpec("plan", "dict", required=True,
+                    description="Flight plan payload"),
+        ],
+        help_text="Queue a navigation flight plan",
         system="navigation"
     ))

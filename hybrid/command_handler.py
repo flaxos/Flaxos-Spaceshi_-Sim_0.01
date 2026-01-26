@@ -30,6 +30,7 @@ system_commands = {
     # Navigation and autopilot
     "set_course": ("navigation", "set_course"),
     "autopilot": ("navigation", "set_autopilot"),
+    "set_plan": ("navigation", "set_plan"),
     "helm_override": ("helm", "set_mode"),
     "queue_helm_command": ("helm", "queue_command"),
     "queue_helm_commands": ("helm", "queue_commands"),
