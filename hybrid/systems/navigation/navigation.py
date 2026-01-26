@@ -5,6 +5,7 @@ import logging
 from hybrid.core.event_bus import EventBus
 from hybrid.core.base_system import BaseSystem
 from hybrid.navigation.navigation_controller import NavigationController
+from hybrid.navigation.plan import FlightPlan
 from hybrid.utils.errors import success_dict, error_dict
 
 logger = logging.getLogger(__name__)
@@ -203,6 +204,8 @@ class NavigationSystem(BaseSystem):
             return self.controller.disengage_autopilot()
         elif action == "set_course":
             return self._cmd_set_course(params)
+        elif action == "set_plan":
+            return self._cmd_set_plan(params)
         elif action == "status":
             return self.get_state()
 
@@ -340,6 +343,26 @@ class NavigationSystem(BaseSystem):
             stop=stop,
             tolerance=tolerance,
         )
+
+    def _cmd_set_plan(self, params: dict):
+        """Set a queued flight plan.
+
+        Args:
+            params: Plan payload or wrapper with "plan" key
+
+        Returns:
+            dict: Result
+        """
+        plan_payload = params.get("plan") if isinstance(params, dict) else None
+        if plan_payload is None:
+            plan_payload = params
+
+        try:
+            plan = FlightPlan.from_dict(plan_payload)
+        except ValueError as exc:
+            return error_dict("INVALID_PLAN", str(exc))
+
+        return self.controller.set_flight_plan(plan)
 
     def get_state(self) -> dict:
         """Get navigation system state.

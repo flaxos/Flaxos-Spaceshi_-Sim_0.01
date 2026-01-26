@@ -269,6 +269,27 @@ class FlightComputer extends HTMLElement {
           color: var(--text-dim, #555566);
         }
 
+        .step-countdown {
+          font-size: 0.65rem;
+          color: var(--status-info, #00aaff);
+          margin-top: 2px;
+        }
+
+        .plan-options {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 10px;
+        }
+
+        .plan-options label {
+          font-size: 0.7rem;
+          color: var(--text-secondary, #888899);
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+
         /* Actions */
         .actions {
           display: flex;
@@ -429,6 +450,13 @@ class FlightComputer extends HTMLElement {
       <div class="maneuver-plan" id="maneuver-plan" style="display: none;">
         <div class="section-title" style="margin-bottom: 8px;">Maneuver Plan</div>
         <div id="maneuver-steps"></div>
+      </div>
+
+      <div class="plan-options">
+        <label>
+          <input type="checkbox" id="queue-plan" />
+          Queue plan
+        </label>
       </div>
 
       <!-- Actions -->
@@ -635,12 +663,44 @@ class FlightComputer extends HTMLElement {
 
     // Build maneuver plan
     const maneuverPlan = [
-      { action: "Point prograde", detail: `Heading: P=${pitch.toFixed(1)} Y=${yaw.toFixed(1)}` },
-      { action: `Burn at ${approachG}G`, detail: `Duration: ${this._formatTime(timeToFlip)}` },
-      { action: "Flip 180 degrees", detail: `At ${this._formatDistance(flipDistance)} from start` },
-      { action: `Brake at ${approachG}G`, detail: `Duration: ${this._formatTime(timeToFlip)}` },
-      { action: "Arrival", detail: "Zero relative velocity" }
+      {
+        action: "Point prograde",
+        detail: `Heading: P=${pitch.toFixed(1)} Y=${yaw.toFixed(1)}`,
+        trigger: { distance_remaining: range }
+      },
+      {
+        action: `Burn at ${approachG}G`,
+        detail: `Duration: ${this._formatTime(timeToFlip)}`,
+        trigger: { time_to_target: totalTime }
+      },
+      {
+        action: "Flip 180 degrees",
+        detail: `At ${this._formatDistance(flipDistance)} from start`,
+        trigger: { distance_remaining: range - flipDistance }
+      },
+      {
+        action: `Brake at ${approachG}G`,
+        detail: `Duration: ${this._formatTime(timeToFlip)}`,
+        trigger: { distance_remaining: range - flipDistance }
+      },
+      {
+        action: "Arrival",
+        detail: "Zero relative velocity",
+        trigger: { distance_remaining: 0, time_to_target: 0 }
+      }
     ];
+
+    const plan = {
+      name: "Waypoint Plan",
+      type: "waypoint",
+      source: "flight_computer",
+      target: { position: { x: targetX, y: targetY, z: targetZ } },
+      steps: maneuverPlan.map(step => ({
+        action: step.action,
+        detail: step.detail,
+        trigger: step.trigger
+      }))
+    };
 
     return {
       range,
@@ -652,6 +712,7 @@ class FlightComputer extends HTMLElement {
       heading: { pitch, yaw },
       targetPosition: { x: targetX, y: targetY, z: targetZ },
       maneuverPlan,
+      plan,
       command: {
         type: "waypoint",
         position: { x: targetX, y: targetY, z: targetZ },
@@ -724,10 +785,34 @@ class FlightComputer extends HTMLElement {
 
     // Build maneuver plan
     const maneuverPlan = [
-      { action: "Point at lead", detail: `Heading: P=${pitch.toFixed(1)} Y=${yaw.toFixed(1)}` },
-      { action: `Burn at ${interceptG}G`, detail: `Intercept in ${this._formatTime(timeToIntercept)}` },
-      { action: "Match velocity", detail: `Delta-V: ${deltaV.toFixed(1)} m/s` }
+      {
+        action: "Point at lead",
+        detail: `Heading: P=${pitch.toFixed(1)} Y=${yaw.toFixed(1)}`,
+        trigger: { distance_remaining: range }
+      },
+      {
+        action: `Burn at ${interceptG}G`,
+        detail: `Intercept in ${this._formatTime(timeToIntercept)}`,
+        trigger: { time_to_target: timeToIntercept }
+      },
+      {
+        action: "Match velocity",
+        detail: `Delta-V: ${deltaV.toFixed(1)} m/s`,
+        trigger: { distance_remaining: 0, time_to_target: 0 }
+      }
     ];
+
+    const plan = {
+      name: "Intercept Plan",
+      type: "intercept",
+      source: "flight_computer",
+      target: { contact_id: targetId },
+      steps: maneuverPlan.map(step => ({
+        action: step.action,
+        detail: step.detail,
+        trigger: step.trigger
+      }))
+    };
 
     return {
       range,
@@ -739,6 +824,7 @@ class FlightComputer extends HTMLElement {
       heading: { pitch, yaw },
       targetId,
       maneuverPlan,
+      plan,
       command: {
         type: "intercept",
         target: targetId,
@@ -773,10 +859,34 @@ class FlightComputer extends HTMLElement {
 
     // Build maneuver plan
     const maneuverPlan = [
-      { action: "Flip to retrograde", detail: `Heading: P=${retroPitch.toFixed(1)} Y=${retroYaw.toFixed(1)}` },
-      { action: `Brake at ${brakeG}G`, detail: `Duration: ${this._formatTime(burnDuration)}` },
-      { action: "Full stop", detail: `After ${this._formatDistance(stoppingDistance)}` }
+      {
+        action: "Flip to retrograde",
+        detail: `Heading: P=${retroPitch.toFixed(1)} Y=${retroYaw.toFixed(1)}`,
+        trigger: { time_to_target: burnDuration }
+      },
+      {
+        action: `Brake at ${brakeG}G`,
+        detail: `Duration: ${this._formatTime(burnDuration)}`,
+        trigger: { time_to_target: burnDuration }
+      },
+      {
+        action: "Full stop",
+        detail: `After ${this._formatDistance(stoppingDistance)}`,
+        trigger: { distance_remaining: 0, time_to_target: 0 }
+      }
     ];
+
+    const plan = {
+      name: "Flip & Burn Plan",
+      type: "flip_burn",
+      source: "flight_computer",
+      target: { stop: true },
+      steps: maneuverPlan.map(step => ({
+        action: step.action,
+        detail: step.detail,
+        trigger: step.trigger
+      }))
+    };
 
     return {
       range: stoppingDistance,
@@ -787,6 +897,7 @@ class FlightComputer extends HTMLElement {
       flipPoint: 0,
       heading: { pitch: retroPitch, yaw: retroYaw },
       maneuverPlan,
+      plan,
       command: {
         type: "maneuver",
         maneuver: "retrograde",
@@ -831,15 +942,20 @@ class FlightComputer extends HTMLElement {
     // Show maneuver plan
     if (sol.maneuverPlan && sol.maneuverPlan.length > 0) {
       maneuverPlan.style.display = "block";
-      maneuverSteps.innerHTML = sol.maneuverPlan.map((step, i) => `
-        <div class="maneuver-step">
-          <div class="step-number">${i + 1}</div>
-          <div class="step-content">
-            <div class="step-action">${step.action}</div>
-            <div class="step-detail">${step.detail}</div>
+      const liveMetrics = this._getLiveTargetMetrics(sol);
+      maneuverSteps.innerHTML = sol.maneuverPlan.map((step, i) => {
+        const countdown = this._formatTriggerCountdown(step.trigger, liveMetrics);
+        return `
+          <div class="maneuver-step">
+            <div class="step-number">${i + 1}</div>
+            <div class="step-content">
+              <div class="step-action">${step.action}</div>
+              <div class="step-detail">${step.detail}</div>
+              <div class="step-countdown">${countdown}</div>
+            </div>
           </div>
-        </div>
-      `).join("");
+        `;
+      }).join("");
     } else {
       maneuverPlan.style.display = "none";
     }
@@ -849,9 +965,20 @@ class FlightComputer extends HTMLElement {
     if (!this._computedSolution) return;
 
     const cmd = this._computedSolution.command;
+    const queuePlan = this.shadowRoot.getElementById("queue-plan")?.checked;
 
     try {
       let response;
+
+      if (queuePlan && this._computedSolution.plan) {
+        try {
+          await wsClient.sendShipCommand("set_plan", { plan: this._computedSolution.plan });
+          this._showMessage("Flight plan queued", "success");
+        } catch (error) {
+          console.error("Queue plan failed:", error);
+          this._showMessage(`Plan queue failed: ${error.message}`, "warning");
+        }
+      }
 
       switch (cmd.type) {
         case "waypoint":
@@ -896,15 +1023,118 @@ class FlightComputer extends HTMLElement {
     }
   }
 
+  _getLiveTargetMetrics(solution) {
+    const nav = stateManager.getNavigation();
+    const position = nav.position || [0, 0, 0];
+    const velocity = nav.velocity || [0, 0, 0];
+    const mode = solution?.command?.type;
+
+    if (!mode) {
+      return { distanceRemaining: null, timeToTarget: null };
+    }
+
+    if (mode === "maneuver") {
+      const gForce = solution.command?.g || 1.0;
+      const accel = gForce * G_ACCEL;
+      const speed = Math.sqrt(velocity[0]**2 + velocity[1]**2 + velocity[2]**2);
+      if (accel <= 0) {
+        return { distanceRemaining: null, timeToTarget: null };
+      }
+      return {
+        distanceRemaining: (speed * speed) / (2 * accel),
+        timeToTarget: speed / accel,
+      };
+    }
+
+    let targetPos = null;
+    let targetVel = [0, 0, 0];
+
+    if (mode === "waypoint") {
+      const target = solution.command?.position;
+      if (target) {
+        targetPos = [target.x || 0, target.y || 0, target.z || 0];
+      }
+    } else if (mode === "intercept") {
+      const contacts = stateManager.getContacts();
+      const targetId = solution.command?.target;
+      const target = contacts.find(c => (c.contact_id || c.id) === targetId);
+      if (target) {
+        targetPos = target.position || [0, 0, 0];
+        targetVel = target.velocity || [0, 0, 0];
+      }
+    }
+
+    if (!targetPos) {
+      return { distanceRemaining: null, timeToTarget: null };
+    }
+
+    const dx = targetPos[0] - position[0];
+    const dy = targetPos[1] - position[1];
+    const dz = targetPos[2] - position[2];
+    const range = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    if (range <= 0) {
+      return { distanceRemaining: 0, timeToTarget: 0 };
+    }
+
+    let closingRate = 0;
+    if (mode === "waypoint") {
+      const dirX = dx / range;
+      const dirY = dy / range;
+      const dirZ = dz / range;
+      closingRate = velocity[0] * dirX + velocity[1] * dirY + velocity[2] * dirZ;
+    } else {
+      const dvx = targetVel[0] - velocity[0];
+      const dvy = targetVel[1] - velocity[1];
+      const dvz = targetVel[2] - velocity[2];
+      closingRate = -(dx * dvx + dy * dvy + dz * dvz) / range;
+    }
+
+    const timeToTarget = closingRate > 0 ? range / closingRate : null;
+
+    return {
+      distanceRemaining: range,
+      timeToTarget,
+    };
+  }
+
+  _formatTriggerCountdown(trigger, metrics) {
+    const hasDistance = metrics.distanceRemaining !== null && metrics.distanceRemaining !== undefined;
+    const hasTime = metrics.timeToTarget !== null && metrics.timeToTarget !== undefined;
+
+    if (!trigger || (!hasDistance && !hasTime)) {
+      return "Trigger: --";
+    }
+
+    const parts = [];
+
+    if (trigger.distance_remaining !== undefined && trigger.distance_remaining !== null && hasDistance) {
+      const delta = metrics.distanceRemaining - trigger.distance_remaining;
+      const label = delta <= 0 ? "dist: NOW" : `dist: ${this._formatDistance(delta)}`;
+      parts.push(label);
+    }
+
+    if (trigger.time_to_target !== undefined && trigger.time_to_target !== null && hasTime) {
+      const delta = metrics.timeToTarget - trigger.time_to_target;
+      const label = delta <= 0 ? "time: NOW" : `time: ${this._formatTime(delta)}`;
+      parts.push(label);
+    }
+
+    if (!parts.length) {
+      return "Trigger: --";
+    }
+
+    return `Trigger: ${parts.join(" • ")}`;
+  }
+
   _formatTime(seconds) {
-    if (!seconds || !isFinite(seconds)) return "--";
+    if (seconds === null || seconds === undefined || !isFinite(seconds)) return "--";
     if (seconds < 60) return `${seconds.toFixed(1)}s`;
     if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${Math.floor(seconds % 60)}s`;
     return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
   }
 
   _formatDistance(meters) {
-    if (!meters || !isFinite(meters)) return "--";
+    if (meters === null || meters === undefined || !isFinite(meters)) return "--";
     if (Math.abs(meters) >= 1000000) return `${(meters / 1000).toFixed(0)} km`;
     if (Math.abs(meters) >= 1000) return `${(meters / 1000).toFixed(2)} km`;
     return `${meters.toFixed(1)} m`;
