@@ -61,6 +61,15 @@ def register_station_commands(
 
         return ship_entries
 
+    def _resolve_ship(target_ship_id: str):
+        ships = ship_provider() if ship_provider else []
+        if isinstance(ships, Mapping):
+            return ships.get(target_ship_id)
+        for ship in ships:
+            if getattr(ship, "id", None) == target_ship_id:
+                return ship
+        return None
+
     def cmd_register_client(client_id: str, ship_id: str, args: Dict[str, Any]) -> CommandResult:
         """
         Register a new client (called automatically on connection).
@@ -270,6 +279,97 @@ def register_station_commands(
             data={
                 "ships": ship_entries
             }
+        )
+
+    def cmd_set_power_profile(client_id: str, ship_id: str, args: Dict[str, Any]) -> CommandResult:
+        """
+        Apply an engineering power profile to the assigned ship.
+        """
+        session = station_manager.get_session(client_id)
+        if not session or not session.ship_id:
+            return CommandResult(
+                success=False,
+                message="Not assigned to a ship"
+            )
+
+        target_ship_id = args.get("ship") or ship_id or session.ship_id
+        if not target_ship_id:
+            return CommandResult(
+                success=False,
+                message="Ship ID required"
+            )
+
+        profile = args.get("profile") or args.get("mode")
+        if not profile:
+            return CommandResult(
+                success=False,
+                message="Profile name required"
+            )
+
+        ship = _resolve_ship(target_ship_id)
+        if not ship:
+            return CommandResult(
+                success=False,
+                message=f"Ship not found: {target_ship_id}"
+            )
+
+        power_management = ship.systems.get("power_management")
+        if not power_management:
+            return CommandResult(
+                success=False,
+                message="Power management system not available"
+            )
+
+        result = power_management.apply_profile(profile, ship=ship)
+        if "error" in result:
+            return CommandResult(
+                success=False,
+                message=result["error"],
+                data=result
+            )
+
+        return CommandResult(
+            success=True,
+            message=f"Power profile '{profile}' applied",
+            data=result
+        )
+
+    def cmd_get_power_profiles(client_id: str, ship_id: str, args: Dict[str, Any]) -> CommandResult:
+        """
+        List available engineering power profiles for the assigned ship.
+        """
+        session = station_manager.get_session(client_id)
+        if not session or not session.ship_id:
+            return CommandResult(
+                success=False,
+                message="Not assigned to a ship"
+            )
+
+        target_ship_id = args.get("ship") or ship_id or session.ship_id
+        if not target_ship_id:
+            return CommandResult(
+                success=False,
+                message="Ship ID required"
+            )
+
+        ship = _resolve_ship(target_ship_id)
+        if not ship:
+            return CommandResult(
+                success=False,
+                message=f"Ship not found: {target_ship_id}"
+            )
+
+        power_management = ship.systems.get("power_management")
+        if not power_management:
+            return CommandResult(
+                success=False,
+                message="Power management system not available"
+            )
+
+        return CommandResult(
+            success=True,
+            message="Power profiles retrieved",
+            data=power_management.get_profiles()
         )
 
     def cmd_heartbeat(client_id: str, ship_id: str, args: Dict[str, Any]) -> CommandResult:
@@ -657,6 +757,18 @@ def register_station_commands(
         cmd_list_ships,
         requires_ship=False,
         bypass_permission_check=True
+    )
+
+    dispatcher.register_command(
+        "set_power_profile",
+        cmd_set_power_profile,
+        station=StationType.ENGINEERING
+    )
+
+    dispatcher.register_command(
+        "get_power_profiles",
+        cmd_get_power_profiles,
+        station=StationType.ENGINEERING
     )
 
     dispatcher.register_command(

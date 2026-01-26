@@ -4,17 +4,74 @@ from hybrid.core.constants import POWER_LAYER_PRIORITIES
 from hybrid.systems.power.reactor import Reactor
 from hybrid.core.event_bus import EventBus
 
+DEFAULT_POWER_ALLOCATION = {
+    "primary": 0.5,
+    "secondary": 0.3,
+    "tertiary": 0.2,
+}
+
+DEFAULT_ENGINEERING_PROFILES = {
+    "offensive": {
+        "power_allocation": {
+            "primary": 0.6,
+            "secondary": 0.25,
+            "tertiary": 0.15,
+        },
+        "overdrive_limits": {
+            "primary": 1.2,
+            "secondary": 1.0,
+            "tertiary": 1.0,
+        },
+        "systems": {
+            "railgun": {"enabled": True, "power_draw": 60.0},
+            "pdc": {"enabled": True, "power_draw": 18.0},
+            "ecm": {"enabled": False, "power_draw": 0.0},
+            "eccm": {"enabled": False, "power_draw": 0.0},
+        },
+    },
+    "defensive": {
+        "power_allocation": {
+            "primary": 0.4,
+            "secondary": 0.4,
+            "tertiary": 0.2,
+        },
+        "overdrive_limits": {
+            "primary": 1.0,
+            "secondary": 1.2,
+            "tertiary": 1.0,
+        },
+        "systems": {
+            "railgun": {"enabled": False, "power_draw": 40.0},
+            "pdc": {"enabled": True, "power_draw": 22.0},
+            "ecm": {"enabled": True, "power_draw": 12.0},
+            "eccm": {"enabled": True, "power_draw": 10.0},
+        },
+    },
+}
+
 class PowerManagementSystem:
     def __init__(self, config):
         # config is a dict mapping layer_name → {capacity, output_rate, thermal_limit}
         # May also contain other keys like alert_threshold, system_map (ignored for now)
         self.reactors = {}
+        self.system_map = config.get("system_map", {})
+        self.power_allocation = self._normalize_allocation(
+            config.get("power_allocation", DEFAULT_POWER_ALLOCATION)
+        )
+        self.overdrive_limits = {
+            layer: float(limit)
+            for layer, limit in config.get("overdrive_limits", {}).items()
+        }
+        self.engineering_profiles = config.get("engineering_profiles", DEFAULT_ENGINEERING_PROFILES)
+        self.active_profile = None
+        self._base_system_state = {}
+        self._base_weapon_state = {}
         for layer_name, params in config.items():
             # Skip non-reactor configuration items (must be dicts)
             if not isinstance(params, dict):
                 continue
             # Skip configuration metadata that isn't reactor params
-            if layer_name in ('system_map',):
+            if layer_name in ('system_map', 'power_allocation', 'overdrive_limits', 'engineering_profiles'):
                 continue
             base = Reactor(layer_name)
             # D6: Support "output" as alias for "capacity" for backward compatibility
@@ -44,8 +101,9 @@ class PowerManagementSystem:
         for reactor in self.reactors.values():
             base = self._base_reactors.get(reactor.name, {})
             if base:
-                reactor.capacity = base["capacity"] * damage_factor
-                reactor.output_rate = base["output_rate"] * damage_factor
+                overdrive = self.overdrive_limits.get(reactor.name, 1.0)
+                reactor.capacity = base["capacity"] * damage_factor * overdrive
+                reactor.output_rate = base["output_rate"] * damage_factor * overdrive
                 reactor.thermal_limit = base["thermal_limit"]
                 reactor.available = min(reactor.available, reactor.capacity)
 
@@ -121,6 +179,10 @@ class PowerManagementSystem:
             "reactors": {},
             "total_capacity": 0.0,
             "total_available": 0.0,
+            "power_allocation": self.power_allocation,
+            "overdrive_limits": self.overdrive_limits,
+            "active_profile": self.active_profile,
+            "profiles": sorted(self.engineering_profiles.keys()),
         }
         
         for name, reactor in self.reactors.items():
@@ -137,3 +199,114 @@ class PowerManagementSystem:
             state["total_available"] += reactor_state["available"]
         
         return state
+
+    def _normalize_allocation(self, allocation):
+        if not allocation:
+            return {}
+        normalized = {key: float(value) for key, value in allocation.items()}
+        total = sum(normalized.values())
+        if total <= 0:
+            return normalized
+        return {key: value / total for key, value in normalized.items()}
+
+    def set_power_allocation(self, allocation):
+        normalized = self._normalize_allocation(allocation)
+        self.power_allocation = normalized
+        return {"status": "power_allocation_updated", "power_allocation": normalized}
+
+    def set_overdrive_limits(self, limits):
+        for layer, limit in limits.items():
+            self.overdrive_limits[layer] = float(limit)
+        return {"status": "overdrive_limits_updated", "overdrive_limits": self.overdrive_limits}
+
+    def _cache_system_state(self, ship):
+        for system_name, system in ship.systems.items():
+            if hasattr(system, "enabled") or hasattr(system, "power_draw"):
+                if system_name not in self._base_system_state:
+                    self._base_system_state[system_name] = {
+                        "enabled": getattr(system, "enabled", True),
+                        "power_draw": getattr(system, "power_draw", 0.0),
+                    }
+
+        weapons_system = ship.systems.get("weapons")
+        if weapons_system and hasattr(weapons_system, "weapons"):
+            for weapon_name, weapon in weapons_system.weapons.items():
+                if weapon_name not in self._base_weapon_state:
+                    self._base_weapon_state[weapon_name] = {
+                        "enabled": getattr(weapon, "enabled", True),
+                        "power_cost": getattr(weapon, "power_cost", 0.0),
+                    }
+
+    def _apply_system_profile(self, ship, system_name, settings):
+        weapons_system = ship.systems.get("weapons")
+        if weapons_system and hasattr(weapons_system, "weapons"):
+            weapon = weapons_system.weapons.get(system_name)
+            if weapon:
+                if "enabled" in settings:
+                    weapon.enabled = bool(settings["enabled"])
+                power_draw = settings.get("power_draw")
+                if power_draw is not None:
+                    power_cost = float(power_draw)
+                    weapon.power_cost = power_cost
+                    if hasattr(weapon, "base_power_cost"):
+                        weapon.base_power_cost = power_cost
+                return True
+
+        system = ship.systems.get(system_name)
+        if system and (hasattr(system, "enabled") or hasattr(system, "power_draw")):
+            if "enabled" in settings and hasattr(system, "enabled"):
+                system.enabled = bool(settings["enabled"])
+            power_draw = settings.get("power_draw")
+            if power_draw is not None and hasattr(system, "power_draw"):
+                system.power_draw = float(power_draw)
+            return True
+
+        return False
+
+    def apply_profile(self, profile_name, ship=None):
+        profile = self.engineering_profiles.get(profile_name)
+        if not profile:
+            return {"error": f"Unknown power profile: {profile_name}"}
+
+        if "power_allocation" in profile:
+            self.set_power_allocation(profile["power_allocation"])
+
+        if "overdrive_limits" in profile:
+            self.set_overdrive_limits(profile["overdrive_limits"])
+
+        if ship and "systems" in profile:
+            self._cache_system_state(ship)
+            for system_name, settings in profile["systems"].items():
+                self._apply_system_profile(ship, system_name, settings)
+
+        self.active_profile = profile_name
+        return {
+            "status": "power_profile_applied",
+            "profile": profile_name,
+            "power_allocation": self.power_allocation,
+            "overdrive_limits": self.overdrive_limits,
+        }
+
+    def get_profiles(self):
+        return {
+            "profiles": sorted(self.engineering_profiles.keys()),
+            "active_profile": self.active_profile,
+            "definitions": self.engineering_profiles,
+        }
+
+    def command(self, action, params):
+        if action == "set_power_profile":
+            profile = params.get("profile") or params.get("mode")
+            ship = params.get("ship")
+            if not profile:
+                return {"error": "Missing profile parameter"}
+            return self.apply_profile(profile, ship=ship)
+        if action == "get_power_profiles":
+            return self.get_profiles()
+        if action == "set_power_allocation":
+            allocation = params.get("allocation", params)
+            return self.set_power_allocation(allocation)
+        if action == "set_overdrive_limits":
+            limits = params.get("limits", params)
+            return self.set_overdrive_limits(limits)
+        return {"error": f"Unknown power management command: {action}"}

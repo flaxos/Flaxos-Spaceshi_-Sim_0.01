@@ -11,6 +11,7 @@ class Weapon:
         self.base_power_cost = power_cost
         self.max_heat = max_heat
         self.base_max_heat = max_heat
+        self.enabled = True
         self.ammo = ammo_count
         self.damage = damage  # D6: Damage per hit
         self.base_damage = damage
@@ -21,7 +22,8 @@ class Weapon:
 
     def can_fire(self, current_time):
         return (
-            (current_time - self.last_fired) >= self.cooldown_time
+            self.enabled
+            and (current_time - self.last_fired) >= self.cooldown_time
             and self.heat < self.max_heat
             and (self.ammo is None or self.ammo > 0)
         )
@@ -40,6 +42,9 @@ class Weapon:
         if damage_factor <= 0.0:
             self.event_bus.publish("weapon_cannot_fire", {"weapon": self.name, "reason": "damaged"})
             return {"ok": False, "reason": "damaged"}
+        if not self.enabled:
+            self.event_bus.publish("weapon_cannot_fire", {"weapon": self.name, "reason": "disabled"})
+            return {"ok": False, "reason": "disabled"}
         if not self.can_fire(current_time):
             self.event_bus.publish("weapon_cannot_fire", {"weapon": self.name})
             return {"ok": False, "reason": "cannot_fire"}
@@ -142,6 +147,7 @@ class WeaponSystem:
                     "heat": w.heat,
                     "max_heat": w.max_heat,
                     "ammo": w.ammo,
+                    "enabled": w.enabled,
                     "can_fire": w.can_fire(time.time())
                 }
                 for w in self.weapons.values()

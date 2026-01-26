@@ -114,6 +114,8 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
         commands={
             # Implemented engineering commands (registered with dispatcher)
             "override_bio_monitor",
+            "set_power_profile",
+            "get_power_profiles",
         },
         displays={
             "power_grid", "reactor_status", "system_status",
