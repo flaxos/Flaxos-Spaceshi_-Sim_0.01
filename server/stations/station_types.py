@@ -68,6 +68,11 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             "set_course",
             "autopilot",
             "helm_override",
+            "queue_helm_command",
+            "queue_helm_commands",
+            "clear_helm_queue",
+            "interrupt_helm_queue",
+            "helm_queue_status",
         },
         displays={
             "nav_status", "position", "velocity", "orientation",
