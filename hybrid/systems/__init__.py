@@ -30,6 +30,7 @@ def get_system_class(system_type):
         "targeting": TargetingSystem,
         "weapons": WeaponSystem,
         "rcs": RCSSystem,
+        "docking": DockingSystem,
     }
     
     return system_map.get(system_type)
@@ -47,6 +48,7 @@ from hybrid.systems.power.management import PowerManagementSystem
 from hybrid.systems.targeting.targeting_system import TargetingSystem
 from hybrid.systems.weapons.weapon_system import WeaponSystem
 from hybrid.systems.rcs_system import RCSSystem
+from hybrid.systems.docking_system import DockingSystem
 
 __all__ = [
     'PowerSystem',
@@ -59,4 +61,5 @@ __all__ = [
     'TargetingSystem',
     'WeaponSystem',
     'RCSSystem',
+    'DockingSystem',
 ]
