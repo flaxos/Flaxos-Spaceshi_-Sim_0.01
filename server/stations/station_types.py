@@ -45,9 +45,6 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
         commands={
             # Captain can issue ANY command (populated dynamically)
             "all_commands",
-            # Plus captain-specific
-            "alert_status", "abandon_ship", "self_destruct",
-            "override", "transfer_control", "set_mission",
         },
         displays={"all_displays"},
         can_override={StationType.HELM, StationType.TACTICAL, StationType.OPS,
@@ -57,21 +54,20 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
     StationType.HELM: StationDefinition(
         station_type=StationType.HELM,
         commands={
-            # Flight control
-            "set_thrust", "thrust", "heading", "roll", "pitch", "yaw",
-            "full_stop", "emergency_stop",
-            # Autopilot
-            "autopilot", "autopilot_off",
-            "autopilot_match", "autopilot_intercept",
-            "autopilot_hold", "autopilot_hold_velocity",
-            "set_course", "set_orientation",
-            # Docking
-            "dock_initiate", "dock_abort", "dock_status",
-            "undock", "request_docking",
-            # Navigation
-            "set_waypoint", "clear_waypoint", "plot_course",
-            # Helm system commands
-            "set_dampening", "set_mode",
+            # Implemented helm commands (registered with dispatcher)
+            "set_thrust",
+            "set_thrust_vector",
+            "set_orientation",
+            "set_angular_velocity",
+            "rotate",
+            "point_at",
+            "maneuver",
+            "rcs_attitude_target",
+            "rcs_angular_velocity",
+            "rcs_clear",
+            "set_course",
+            "autopilot",
+            "helm_override",
         },
         displays={
             "nav_status", "position", "velocity", "orientation",
@@ -85,19 +81,11 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
     StationType.TACTICAL: StationDefinition(
         station_type=StationType.TACTICAL,
         commands={
-            # Targeting
-            "target", "untarget", "target_next", "target_previous",
-            "target_nearest", "target_nearest_hostile",
-            "set_target", "clear_target",
-            # Weapons
-            "fire", "fire_torpedo", "fire_pdc", "fire_railgun",
-            "cease_fire", "hold_fire",
-            # PDC control
-            "pdc_mode", "pdc_auto", "pdc_manual", "pdc_off",
-            # Weapon selection
-            "select_weapon", "arm_weapon", "safe_weapon",
-            # Firing solutions
-            "compute_solution", "lock_solution",
+            # Implemented tactical commands (registered with dispatcher)
+            "lock_target",
+            "unlock_target",
+            "get_target_solution",
+            "fire_weapon",
         },
         displays={
             "weapons_status", "ammunition", "hardpoints",
@@ -110,17 +98,8 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
     StationType.OPS: StationDefinition(
         station_type=StationType.OPS,
         commands={
-            # Sensors
-            "ping_sensors", "ping", "set_sensor_mode", "sensor_focus",
-            "scan", "deep_scan",
-            # Contacts
-            "contacts", "get_contacts", "classify", "designate",
-            "track", "untrack", "track_all",
-            # Electronic warfare
-            "ecm_on", "ecm_off", "eccm_on", "eccm_off",
-            "jam", "spoof",
-            # Sensor configuration
-            "sensor_range", "sensor_sensitivity",
+            # Implemented ops commands (registered with dispatcher)
+            "ping_sensors",
         },
         displays={
             "contacts", "sensor_status", "contact_details",
@@ -133,19 +112,8 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
     StationType.ENGINEERING: StationDefinition(
         station_type=StationType.ENGINEERING,
         commands={
-            # Power management
-            "power_allocate", "power_priority", "power_emergency",
-            "reactor_level", "reactor_scram",
-            "set_power", "request_power",
-            # Damage control
-            "repair", "repair_queue", "cancel_repair",
-            "seal_compartment", "vent_compartment",
-            "damage_report",
-            # Systems
-            "power_on", "power_off", "restart_system",
-            "reroute_power", "bypass",
-            # Fuel
-            "refuel", "transfer_fuel", "jettison_fuel",
+            # Implemented engineering commands (registered with dispatcher)
+            "override_bio_monitor",
         },
         displays={
             "power_grid", "reactor_status", "system_status",
@@ -158,18 +126,7 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
 
     StationType.COMMS: StationDefinition(
         station_type=StationType.COMMS,
-        commands={
-            # Communication
-            "hail", "broadcast", "tightbeam",
-            "set_channel", "encrypt", "decrypt",
-            # Fleet
-            "fleet_order", "acknowledge", "relay",
-            "request_support", "send_telemetry",
-            # IFF
-            "iff_interrogate", "iff_respond", "iff_mode",
-            # Jamming
-            "comm_jam", "comm_jam_off",
-        },
+        commands=set(),
         displays={
             "comm_log", "channels", "fleet_status",
             "message_queue", "encryption_status",
@@ -181,25 +138,18 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
     StationType.FLEET_COMMANDER: StationDefinition(
         station_type=StationType.FLEET_COMMANDER,
         commands={
-            # Fleet formation
-            "fleet_create", "fleet_disband", "fleet_add_ship", "fleet_remove_ship",
-            "fleet_form", "fleet_break_formation", "fleet_set_formation",
-            "fleet_set_spacing", "fleet_reposition",
-            # Fleet coordination
-            "fleet_target", "fleet_clear_target", "fleet_priority_target",
-            "fleet_fire", "fleet_cease_fire", "fleet_fire_volley",
-            "fleet_maneuver", "fleet_intercept", "fleet_hold_position",
-            # Fleet assignments
-            "assign_squadron", "reassign_ship", "set_flagship",
-            "assign_sector", "assign_role",
-            # Tactical data link
-            "share_contact", "share_target", "broadcast_tactical",
-            "request_status", "fleet_sitrep",
-            # Fleet status
-            "fleet_status", "fleet_tactical", "fleet_roster",
-            "squadron_status", "threat_assessment",
-            # Can also issue COMMS and TACTICAL commands
-            "hail", "broadcast", "target", "untarget",
+            # Implemented fleet commands (registered with dispatcher)
+            "fleet_create",
+            "fleet_add_ship",
+            "fleet_form",
+            "fleet_break_formation",
+            "fleet_target",
+            "fleet_fire",
+            "fleet_cease_fire",
+            "fleet_maneuver",
+            "fleet_status",
+            "fleet_tactical",
+            "share_contact",
         },
         displays={
             # Fleet overview

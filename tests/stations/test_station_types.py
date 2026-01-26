@@ -50,28 +50,26 @@ def test_helm_commands():
     helm_cmds = get_station_commands(StationType.HELM)
     assert "set_thrust" in helm_cmds
     assert "autopilot" in helm_cmds
-    assert "heading" in helm_cmds
+    assert "set_orientation" in helm_cmds
 
 
 def test_tactical_commands():
     """Test TACTICAL station has weapons commands"""
     tactical_cmds = get_station_commands(StationType.TACTICAL)
-    assert "fire" in tactical_cmds or "fire_torpedo" in tactical_cmds
-    assert "target" in tactical_cmds
+    assert "fire_weapon" in tactical_cmds
+    assert "lock_target" in tactical_cmds
 
 
 def test_ops_commands():
     """Test OPS station has sensor commands"""
     ops_cmds = get_station_commands(StationType.OPS)
-    assert "ping_sensors" in ops_cmds or "ping" in ops_cmds
-    assert "contacts" in ops_cmds
+    assert "ping_sensors" in ops_cmds
 
 
 def test_engineering_commands():
     """Test ENGINEERING station has power management commands"""
     eng_cmds = get_station_commands(StationType.ENGINEERING)
-    power_cmds = ["power_on", "power_off", "power_allocate", "reactor_level"]
-    assert any(cmd in eng_cmds for cmd in power_cmds)
+    assert "override_bio_monitor" in eng_cmds
 
 
 def test_get_station_for_command():
@@ -80,7 +78,7 @@ def test_get_station_for_command():
     helm_station = get_station_for_command("set_thrust")
     assert helm_station == StationType.HELM or helm_station == StationType.CAPTAIN
 
-    tactical_station = get_station_for_command("target")
+    tactical_station = get_station_for_command("lock_target")
     assert tactical_station == StationType.TACTICAL or tactical_station == StationType.CAPTAIN
 
 
@@ -90,12 +88,12 @@ def test_can_station_issue_command_helm():
     assert can_station_issue_command(StationType.HELM, "autopilot")
 
     # HELM should NOT be able to fire weapons
-    assert not can_station_issue_command(StationType.HELM, "fire")
+    assert not can_station_issue_command(StationType.HELM, "fire_weapon")
 
 
 def test_can_station_issue_command_tactical():
     """Test TACTICAL can issue weapons commands"""
-    assert can_station_issue_command(StationType.TACTICAL, "target")
+    assert can_station_issue_command(StationType.TACTICAL, "lock_target")
 
     # TACTICAL should NOT be able to control helm
     assert not can_station_issue_command(StationType.TACTICAL, "set_thrust")
@@ -103,7 +101,13 @@ def test_can_station_issue_command_tactical():
 
 def test_captain_can_issue_all_commands():
     """Test CAPTAIN can issue any command"""
-    test_commands = ["set_thrust", "fire", "ping_sensors", "power_on", "autopilot"]
+    test_commands = [
+        "set_thrust",
+        "fire_weapon",
+        "ping_sensors",
+        "override_bio_monitor",
+        "autopilot",
+    ]
     for cmd in test_commands:
         assert can_station_issue_command(StationType.CAPTAIN, cmd)
 
