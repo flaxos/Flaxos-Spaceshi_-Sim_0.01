@@ -196,6 +196,11 @@
       min-height: var(--panel-height-md);
     }
 
+    .helm-requests-panel {
+      grid-column: span 3;
+      min-height: var(--panel-height-sm);
+    }
+
     .weapon-ctrl-panel {
       grid-column: span 3;
       min-height: var(--panel-height-sm);
@@ -250,6 +255,7 @@
       .micro-rcs-panel,
       .autopilot-panel,
       .flight-computer-panel,
+      .helm-requests-panel,
       .weapon-ctrl-panel,
       .systems-panel,
       .placeholder-panel {
@@ -277,6 +283,7 @@
       .micro-rcs-panel,
       .autopilot-panel,
       .flight-computer-panel,
+      .helm-requests-panel,
       .weapon-ctrl-panel,
       .systems-panel,
       .placeholder-panel {
@@ -348,6 +355,11 @@
 
       <flaxos-panel title="Flight Computer" collapsible class="flight-computer-panel">
         <flight-computer></flight-computer>
+      </flaxos-panel>
+
+      <!-- Phase 8: Inter-Station Communication -->
+      <flaxos-panel title="Helm Requests" collapsible class="helm-requests-panel">
+        <helm-requests></helm-requests>
       </flaxos-panel>
 
       <!-- Phase 4: Visual Controls -->

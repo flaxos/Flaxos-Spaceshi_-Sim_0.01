@@ -41,6 +41,9 @@ import { initMobileGestures } from "./gestures.js";
 // Phase 7: Enhanced Navigation & Multi-Crew
 import "../components/flight-computer.js";
 import { stationManager } from "./station-manager.js";
+// Phase 8: Inter-Station Communication
+import "../components/helm-requests.js";
+import { helmRequests } from "./helm-requests.js";
 
 // App state
 const app = {
@@ -236,6 +239,7 @@ window.flaxosApp = {
   stateManager,
   mobileLayout,
   stationManager,
+  helmRequests,
   sendCommand,
   showSystemMessage,
   config: app.config

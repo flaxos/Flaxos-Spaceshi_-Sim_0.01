@@ -26,7 +26,7 @@ const STATION_CONFIG = {
     icon: "helm",
     description: "Navigation and flight control",
     panels: [
-      "nav-panel", "heading-panel", "throttle-panel", "rcs-panel",
+      "helm-requests-panel", "nav-panel", "heading-panel", "throttle-panel", "rcs-panel",
       "autopilot-panel", "flight-computer-panel", "position-heading-panel"
     ],
     color: "#00aaff"
