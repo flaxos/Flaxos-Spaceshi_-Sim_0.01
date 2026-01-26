@@ -399,7 +399,9 @@ class NavigationDisplay extends HTMLElement {
     const mode = autopilot?.mode || "MANUAL";
     const target = autopilot?.target || autopilot?.target_id || null;
     const phase = autopilot?.phase || null;
-    const range = autopilot?.range || null;
+    const range = autopilot?.range ?? autopilot?.distance ?? null;
+    const closingSpeed = autopilot?.closingSpeed ?? null;
+    const etaSeconds = this._calculateEtaSeconds(range, closingSpeed, autopilot?.eta ?? null);
 
     return `
       <div class="autopilot-section ${isActive ? '' : 'inactive'}">
@@ -420,7 +422,19 @@ class NavigationDisplay extends HTMLElement {
             ${range !== null ? `
               <div class="autopilot-detail-row">
                 <span>Range:</span>
-                <span>${this._formatDistance(range)}</span>
+                <span>${this._formatRangeDistance(range)}</span>
+              </div>
+            ` : ''}
+            ${etaSeconds !== null ? `
+              <div class="autopilot-detail-row">
+                <span>ETA:</span>
+                <span>${this._formatDuration(etaSeconds)}</span>
+              </div>
+            ` : ''}
+            ${closingSpeed !== null ? `
+              <div class="autopilot-detail-row">
+                <span>Closing:</span>
+                <span>${this._formatVelocity(closingSpeed)}</span>
               </div>
             ` : ''}
           </div>
@@ -445,6 +459,17 @@ class NavigationDisplay extends HTMLElement {
     return `${sign}${abs.toFixed(1)} m`;
   }
 
+  _formatRangeDistance(meters) {
+    const abs = Math.abs(meters);
+    if (abs >= 1000000) {
+      return `${(abs / 1000).toFixed(1)} km`;
+    }
+    if (abs >= 1000) {
+      return `${(abs / 1000).toFixed(2)} km`;
+    }
+    return `${abs.toFixed(1)} m`;
+  }
+
   _formatVelocity(mps) {
     const abs = Math.abs(mps);
     const sign = mps >= 0 ? "+" : "-";
@@ -457,6 +482,36 @@ class NavigationDisplay extends HTMLElement {
   _formatAngle(degrees) {
     const sign = degrees >= 0 ? "+" : "";
     return `${sign}${degrees.toFixed(1)}`;
+  }
+
+  _calculateEtaSeconds(range, closingSpeed, fallbackEta) {
+    if (typeof fallbackEta === "number" && Number.isFinite(fallbackEta)) {
+      return fallbackEta;
+    }
+    if (typeof range !== "number" || !Number.isFinite(range)) {
+      return null;
+    }
+    if (typeof closingSpeed !== "number" || !Number.isFinite(closingSpeed)) {
+      return null;
+    }
+    if (closingSpeed <= 0) {
+      return null;
+    }
+    return range / closingSpeed;
+  }
+
+  _formatDuration(seconds) {
+    const totalSeconds = Math.max(0, Math.floor(seconds));
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const secs = totalSeconds % 60;
+    if (hours > 0) {
+      return `${hours}h ${minutes.toString().padStart(2, "0")}m ${secs.toString().padStart(2, "0")}s`;
+    }
+    if (minutes > 0) {
+      return `${minutes}m ${secs.toString().padStart(2, "0")}s`;
+    }
+    return `${secs}s`;
   }
 }
 
