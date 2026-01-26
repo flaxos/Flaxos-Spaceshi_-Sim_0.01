@@ -31,7 +31,11 @@ system_commands = {
     "set_course": ("navigation", "set_course"),
     "autopilot": ("navigation", "set_autopilot"),
     "set_plan": ("navigation", "set_plan"),
+    # Helm control authority
     "helm_override": ("helm", "set_mode"),
+    "take_manual_control": ("helm", "take_manual_control"),
+    "release_to_autopilot": ("helm", "release_to_autopilot"),
+    # Helm command queue
     "queue_helm_command": ("helm", "queue_command"),
     "queue_helm_commands": ("helm", "queue_commands"),
     "clear_helm_queue": ("helm", "clear_queue"),
