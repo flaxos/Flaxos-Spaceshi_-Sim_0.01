@@ -78,6 +78,9 @@ class Ship:
         # Create the event bus for system communication
         self.event_bus = EventBus()
 
+        # Docking state
+        self.docked_to = config.get("docked_to")
+
         # Initialize damage model
         from hybrid.systems.damage_model import DamageModel
         from hybrid.systems_schema import get_subsystem_health_schema

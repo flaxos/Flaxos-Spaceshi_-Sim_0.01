@@ -38,6 +38,8 @@ system_commands = {
     "helm_queue_status": ("helm", "queue_status"),
     "ping_sensors": ("sensors", "ping"),
     "override_bio_monitor": ("bio_monitor", "override"),
+    "request_docking": ("docking", "request_docking"),
+    "cancel_docking": ("docking", "cancel_docking"),
     "lock_target": ("targeting", "lock"),
     "unlock_target": ("targeting", "unlock"),
     "get_target_solution": ("targeting", "get_solution"),
