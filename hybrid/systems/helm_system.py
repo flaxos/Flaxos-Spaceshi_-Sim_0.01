@@ -113,6 +113,9 @@ class HelmSystem(BaseSystem):
         This is the Expanse-style realistic behavior - orientation changes
         take time as RCS thrusters fire to produce torque.
         
+        Manual controls should always work when helm is enabled.
+        Navigation computer can assist but doesn't block.
+        
         Args:
             params: Dictionary with pitch, yaw, roll values (degrees)
             
@@ -141,8 +144,13 @@ class HelmSystem(BaseSystem):
             
             self.attitude_target = {"pitch": pitch, "yaw": yaw, "roll": roll}
             
-            # Route to RCS if available
+            # Record manual input for navigation system (if nav computer is online)
             if ship:
+                nav_system = ship.systems.get("navigation")
+                if nav_system and hasattr(nav_system, "controller") and nav_system.controller:
+                    nav_system.controller.set_manual_input(getattr(ship, "sim_time", 0.0))
+                
+                # Route to RCS if available
                 rcs = ship.systems.get("rcs")
                 if rcs:
                     result = rcs.set_attitude_target(self.attitude_target)
@@ -163,6 +171,8 @@ class HelmSystem(BaseSystem):
 
     def _cmd_set_angular_velocity(self, params):
         """Set angular velocity target (rate command for RCS).
+        
+        Manual controls should always work when helm is enabled.
         
         Args:
             params: Dictionary with pitch, yaw, roll rates (degrees/second)
@@ -185,8 +195,13 @@ class HelmSystem(BaseSystem):
             # Clear attitude target (rate mode)
             self.attitude_target = None
             
-            # Route to RCS if available
+            # Record manual input for navigation system (if nav computer is online)
             if ship:
+                nav_system = ship.systems.get("navigation")
+                if nav_system and hasattr(nav_system, "controller") and nav_system.controller:
+                    nav_system.controller.set_manual_input(getattr(ship, "sim_time", 0.0))
+                
+                # Route to RCS if available
                 rcs = ship.systems.get("rcs")
                 if rcs:
                     result = rcs.set_angular_velocity_target(self.angular_velocity_target)
@@ -398,31 +413,47 @@ class HelmSystem(BaseSystem):
                 "note": "Set thrust after rotation completes"
             }
         
-        elif maneuver_type == "retrograde":
+        elif maneuver_type == "retrograde" or maneuver_type == "brake":
             # Retrograde burn: point opposite to velocity vector
-            vel_mag = math.sqrt(
-                ship.velocity["x"]**2 + 
-                ship.velocity["y"]**2 + 
-                ship.velocity["z"]**2
-            )
+            # Use nav computer if available for better calculations
+            nav_system = ship.systems.get("navigation")
+            braking_solution = None
             
-            if vel_mag < 0.001:
-                return {"error": "Ship has no velocity - cannot determine retrograde"}
+            if nav_system and hasattr(nav_system, "controller") and nav_system.controller:
+                braking_solution = nav_system.controller.calculate_braking_solution()
             
-            # Calculate retrograde direction (opposite of velocity)
-            retrograde_vec = {
-                "x": -ship.velocity["x"] / vel_mag,
-                "y": -ship.velocity["y"] / vel_mag,
-                "z": -ship.velocity["z"] / vel_mag
-            }
-            
-            # Convert to heading
-            from hybrid.navigation.relative_motion import vector_to_heading
-            retrograde_heading = vector_to_heading(retrograde_vec)
+            if braking_solution:
+                # Use nav computer's calculation
+                retrograde_heading = braking_solution.get("suggested_heading")
+                delta_v = braking_solution.get("delta_v", 0)
+                burn_duration = braking_solution.get("burn_duration")
+            else:
+                # Fallback: manual calculation
+                vel_mag = math.sqrt(
+                    ship.velocity["x"]**2 + 
+                    ship.velocity["y"]**2 + 
+                    ship.velocity["z"]**2
+                )
+                
+                if vel_mag < 0.001:
+                    return {"error": "Ship has no velocity - cannot determine retrograde"}
+                
+                # Calculate retrograde direction (opposite of velocity)
+                retrograde_vec = {
+                    "x": -ship.velocity["x"] / vel_mag,
+                    "y": -ship.velocity["y"] / vel_mag,
+                    "z": -ship.velocity["z"] / vel_mag
+                }
+                
+                # Convert to heading
+                from hybrid.navigation.relative_motion import vector_to_heading
+                retrograde_heading = vector_to_heading(retrograde_vec)
+                delta_v = vel_mag
+                burn_duration = None
             
             self.attitude_target = {
-                "pitch": retrograde_heading["pitch"],
-                "yaw": retrograde_heading["yaw"],
+                "pitch": retrograde_heading.get("pitch", 0),
+                "yaw": retrograde_heading.get("yaw", 0),
                 "roll": ship.orientation.get("roll", 0)
             }
             
@@ -441,7 +472,10 @@ class HelmSystem(BaseSystem):
             return {
                 "status": "Retrograde burn initiated",
                 "target": self.attitude_target,
-                "thrust_g": g_force
+                "thrust_g": g_force,
+                "delta_v_required": delta_v,
+                "estimated_duration": burn_duration,
+                "nav_assisted": braking_solution is not None
             }
         
         elif maneuver_type == "prograde":
@@ -467,8 +501,8 @@ class HelmSystem(BaseSystem):
             prograde_heading = vector_to_heading(prograde_vec)
             
             self.attitude_target = {
-                "pitch": prograde_heading["pitch"],
-                "yaw": prograde_heading["yaw"],
+                "pitch": prograde_heading.get("pitch", 0),
+                "yaw": prograde_heading.get("yaw", 0),
                 "roll": ship.orientation.get("roll", 0)
             }
             
@@ -490,6 +524,48 @@ class HelmSystem(BaseSystem):
                 "thrust_g": g_force
             }
         
+        elif maneuver_type == "intercept":
+            # Intercept maneuver: use nav computer to calculate solution
+            target_id = params.get("target")
+            nav_system = ship.systems.get("navigation")
+            
+            if not target_id:
+                return {"error": "Intercept maneuver requires target ID"}
+            
+            if nav_system and hasattr(nav_system, "controller") and nav_system.controller:
+                intercept_solution = nav_system.controller.calculate_intercept_solution(target_id)
+                if intercept_solution:
+                    suggested_heading = intercept_solution.get("suggested_heading", {})
+                    self.attitude_target = {
+                        "pitch": suggested_heading.get("pitch", ship.orientation.get("pitch", 0)),
+                        "yaw": suggested_heading.get("yaw", ship.orientation.get("yaw", 0)),
+                        "roll": ship.orientation.get("roll", 0)
+                    }
+                    
+                    # Route to RCS
+                    rcs = ship.systems.get("rcs")
+                    if rcs:
+                        rcs.set_attitude_target(self.attitude_target)
+                    
+                    # Optionally set thrust if G-force specified
+                    g_force = params.get("g")
+                    if g_force is not None:
+                        propulsion = ship.systems.get("propulsion")
+                        if propulsion:
+                            propulsion.set_throttle({"g": float(g_force), "_ship": ship, "ship": ship})
+                    
+                    return {
+                        "status": f"Intercept maneuver initiated (target: {target_id})",
+                        "target": self.attitude_target,
+                        "thrust_g": g_force,
+                        "intercept_time": intercept_solution.get("intercept_time"),
+                        "range": intercept_solution.get("range"),
+                        "nav_assisted": True
+                    }
+            
+            # Fallback: use point_at
+            return self._cmd_point_at({"target": target_id, "_ship": ship, "ship": ship})
+        
         else:
             return {"error": f"Unknown maneuver type: {maneuver_type}"}
 
@@ -510,11 +586,14 @@ class HelmSystem(BaseSystem):
             return {"error": f"Invalid value for 'enabled': {params['enabled']}"}
 
     def _cmd_set_thrust(self, params, ship):
-        """Set thrust - routes to propulsion with scalar throttle."""
+        """Set thrust - routes to propulsion with scalar throttle.
+        
+        NOTE: This handler is for helm-specific set_thrust calls.
+        Direct set_thrust commands route to propulsion system.
+        Manual controls should always work when helm is enabled.
+        """
         if not self.enabled:
             return {"error": "Helm system is disabled"}
-        if not self.manual_override:
-            return {"error": "Manual helm control not active"}
         if not ship:
             return {"error": "Ship reference required"}
 
@@ -524,9 +603,15 @@ class HelmSystem(BaseSystem):
         if throttle is not None:
             self.manual_throttle = max(0.0, min(1.0, float(throttle)))
             
+            # Record manual input for navigation system (if nav computer is online)
+            nav_system = ship.systems.get("navigation")
+            if nav_system and hasattr(nav_system, "controller") and nav_system.controller:
+                nav_system.controller.set_manual_input(getattr(ship, "sim_time", 0.0))
+            
+            # Always allow manual control - route directly to propulsion
             propulsion = ship.systems.get("propulsion")
             if propulsion and hasattr(propulsion, "set_throttle"):
-                result = propulsion.set_throttle({"thrust": self.manual_throttle})
+                result = propulsion.set_throttle({"thrust": self.manual_throttle, "_ship": ship, "ship": ship})
                 return {
                     "status": "Throttle updated",
                     "throttle": self.manual_throttle,
