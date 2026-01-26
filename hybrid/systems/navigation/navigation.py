@@ -29,6 +29,8 @@ class NavigationSystem(BaseSystem):
         self._last_autopilot_mode = None
         self._last_autopilot_program = None
         self._last_autopilot_phase = None
+        self._last_course_phase = None
+        self._course_completed = False
 
     def tick(self, dt: float, ship, event_bus):
         """Update navigation system and apply autopilot if active.
@@ -68,6 +70,7 @@ class NavigationSystem(BaseSystem):
         })
 
         self._publish_autopilot_events(ship, event_bus)
+        self._publish_course_events(ship, event_bus)
 
     def _publish_autopilot_events(self, ship, event_bus):
         if not self.controller:
@@ -105,6 +108,39 @@ class NavigationSystem(BaseSystem):
         self._last_autopilot_mode = current_mode
         self._last_autopilot_program = current_program
         self._last_autopilot_phase = current_phase
+
+    def _publish_course_events(self, ship, event_bus):
+        if not self.controller:
+            return
+
+        if self.controller.autopilot_program_name not in {"goto_position", "set_course", "course", "go_to_position"}:
+            self._last_course_phase = None
+            self._course_completed = False
+            return
+
+        state = self.controller.get_state()
+        autopilot_state = state.get("autopilot_state", {})
+        current_phase = autopilot_state.get("phase")
+
+        if current_phase and current_phase != self._last_course_phase:
+            event_bus.publish("course_phase_change", {
+                "ship_id": ship.id,
+                "phase": current_phase,
+                "status": autopilot_state.get("status"),
+                "destination": autopilot_state.get("destination"),
+            })
+
+        if autopilot_state.get("complete") and not self._course_completed:
+            event_bus.publish("course_complete", {
+                "ship_id": ship.id,
+                "destination": autopilot_state.get("destination"),
+                "distance": autopilot_state.get("distance"),
+            })
+            self._course_completed = True
+        elif not autopilot_state.get("complete"):
+            self._course_completed = False
+
+        self._last_course_phase = current_phase
 
     def _apply_autopilot_command(self, ship, command: dict):
         """Apply autopilot command to ship.
@@ -172,6 +208,14 @@ class NavigationSystem(BaseSystem):
 
         return super().command(action, params)
 
+    def set_autopilot(self, params: dict):
+        """Compatibility wrapper for setting autopilot program."""
+        return self.command("set_autopilot", params)
+
+    def set_course(self, params: dict):
+        """Compatibility wrapper for setting a navigation course."""
+        return self.command("set_course", params)
+
     def _cmd_set_autopilot(self, params: dict):
         """Set autopilot program.
 
@@ -215,7 +259,7 @@ class NavigationSystem(BaseSystem):
         return result
 
     def _cmd_set_course(self, params: dict):
-        """Set navigation course (not yet implemented).
+        """Set navigation course to a fixed position.
 
         Args:
             params: Course parameters
@@ -223,7 +267,59 @@ class NavigationSystem(BaseSystem):
         Returns:
             dict: Result
         """
-        return error_dict("NOT_IMPLEMENTED", "Course setting not yet implemented")
+        try:
+            x = float(params.get("x"))
+            y = float(params.get("y"))
+            z = float(params.get("z"))
+        except (TypeError, ValueError):
+            return error_dict("INVALID_COORDINATES", "Course requires numeric x, y, z values")
+
+        stop = bool(params.get("stop", True))
+        tolerance = params.get("tolerance", 50.0)
+        max_thrust = params.get("max_thrust")
+        coast_speed = params.get("coast_speed")
+        max_speed = params.get("max_speed")
+        brake_buffer = params.get("brake_buffer")
+
+        autopilot_params = {
+            "x": x,
+            "y": y,
+            "z": z,
+            "stop": stop,
+            "tolerance": tolerance,
+        }
+        if max_thrust is not None:
+            autopilot_params["max_thrust"] = max_thrust
+        if coast_speed is not None:
+            autopilot_params["coast_speed"] = coast_speed
+        if max_speed is not None:
+            autopilot_params["max_speed"] = max_speed
+        if brake_buffer is not None:
+            autopilot_params["brake_buffer"] = brake_buffer
+
+        result = self.controller.engage_autopilot("goto_position", None, autopilot_params)
+        if result.get("error"):
+            return result
+
+        event_bus = params.get("event_bus")
+        ship = params.get("ship")
+        if event_bus and ship:
+            event_bus.publish("course_set", {
+                "ship_id": ship.id,
+                "destination": {"x": x, "y": y, "z": z},
+                "stop": stop,
+                "tolerance": tolerance,
+            })
+
+        self._last_course_phase = None
+        self._course_completed = False
+
+        return success_dict(
+            "Course set",
+            destination={"x": x, "y": y, "z": z},
+            stop=stop,
+            tolerance=tolerance,
+        )
 
     def get_state(self) -> dict:
         """Get navigation system state.

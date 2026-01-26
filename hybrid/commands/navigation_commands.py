@@ -49,8 +49,11 @@ def register_commands(dispatcher):
     dispatcher.register("set_course", CommandSpec(
         handler=cmd_set_course,
         args=[
-            ArgSpec("destination", "vector3", required=True,
-                    description="Destination coordinates")
+            ArgSpec("x", "float", required=True, description="Destination X coordinate"),
+            ArgSpec("y", "float", required=True, description="Destination Y coordinate"),
+            ArgSpec("z", "float", required=True, description="Destination Z coordinate"),
+            ArgSpec("stop", "bool", required=False, default=True,
+                    description="Stop at destination (default true)")
         ],
         help_text="Set navigation course to destination",
         system="navigation"

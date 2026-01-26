@@ -8,6 +8,7 @@ from hybrid.navigation.autopilot.match_velocity import MatchVelocityAutopilot
 from hybrid.navigation.autopilot.intercept import InterceptAutopilot
 from hybrid.navigation.autopilot.hold import HoldPositionAutopilot, HoldVelocityAutopilot
 from hybrid.navigation.autopilot.formation import FormationAutopilot, EchelonFormationAutopilot
+from hybrid.navigation.autopilot.goto_position import GoToPositionAutopilot
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +21,10 @@ class AutopilotFactory:
         "match_velocity": MatchVelocityAutopilot,
         "intercept": InterceptAutopilot,
         "approach": InterceptAutopilot,  # Alias for intercept
+        "goto_position": GoToPositionAutopilot,
+        "go_to_position": GoToPositionAutopilot,
+        "set_course": GoToPositionAutopilot,
+        "course": GoToPositionAutopilot,
         "hold": HoldPositionAutopilot,
         "hold_position": HoldPositionAutopilot,
         "hold_velocity": HoldVelocityAutopilot,
@@ -94,6 +99,7 @@ class AutopilotFactory:
         help_text = {
             "match": "Match velocity with target (zero relative velocity)",
             "intercept": "Intercept moving target using lead pursuit",
+            "goto_position": "Fly to a position and stop (set_course)",
             "hold": "Hold current position (station-keeping)",
             "hold_velocity": "Hold current velocity (cruise control)",
             "formation": "Maintain position in fleet formation",
