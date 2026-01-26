@@ -315,9 +315,11 @@ def calculate_bearing(from_pos, to_pos, from_orientation=None):
         from hybrid.utils.quaternion import Quaternion
         import numpy as np
 
-        # Create quaternion from ship orientation (inverted to transform world->ship frame)
+        # Create quaternion from ship orientation
+        # Note: Negate pitch to match coordinate system convention where
+        # positive pitch = nose up, but Y-axis points left (not right)
         ship_quat = Quaternion.from_euler(
-            from_orientation.get('pitch', 0),
+            -from_orientation.get('pitch', 0),  # Negate to match convention
             from_orientation.get('yaw', 0),
             from_orientation.get('roll', 0)
         )
@@ -329,7 +331,8 @@ def calculate_bearing(from_pos, to_pos, from_orientation=None):
             diff.get('z', 0) / dist
         ])
 
-        # Transform direction vector to ship frame using inverse quaternion
+        # Transform direction vector from world frame to ship frame
+        # Using conjugate (inverse) to transform world -> ship
         ship_frame_dir = ship_quat.conjugate().rotate_vector(direction)
 
         # Calculate relative bearing from ship-frame direction

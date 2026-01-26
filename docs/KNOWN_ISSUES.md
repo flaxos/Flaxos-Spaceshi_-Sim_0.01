@@ -1,8 +1,8 @@
 # Known Issues & Limitations
 
 **Project**: Flaxos Spaceship Simulator
-**Version**: 0.2.0
-**Last Updated**: 2026-01-20
+**Version**: 0.2.1
+**Last Updated**: 2026-01-26
 
 ---
 
@@ -16,33 +16,32 @@ All critical bugs have been resolved as of Phase 2 completion.
 
 ## High Priority Issues
 
-### 1. Event streaming (`get_events`) not wired
-**Status**: 🔴 Known Limitation
-**Severity**: High (UI/event log)
-**Affected Components**: `server/station_server.py`, `server/run_server.py`, GUI event log polling
+### 1. Event streaming (`get_events`) - RESOLVED
+**Status**: ✅ RESOLVED (2026-01-26)
+**Severity**: Was High (UI/event log)
+**Affected Components**: `server/station_server.py`, `server/run_server.py`, `hybrid/simulator.py`
 
-**Description:**
-The TCP servers expose a `get_events` command, but the core simulator does not maintain an event log (`sim.event_log` / `sim.recent_events`) that the server can read. As a result, most builds return an empty event list.
+**Resolution:**
+Event streaming IS fully wired. The simulator maintains `event_log` (EventLogBuffer) and subscribes to the event bus at startup (`simulator.py:65-67`). All major subsystems publish events including:
+- Weapons: `weapon_fired`, `weapon_cannot_fire`
+- Sensors: `sensor_contact_detected`, `sensor_contact_lost`, `sensor_ping`
+- Navigation: `autopilot_engaged`, `autopilot_complete`, `autopilot_phase_change`
+- Power: `power_critical`, `power_low`, `power_state_change`
+- Propulsion: `propulsion_status_change`, `signature_spike`
+- RCS: `rcs_active`
+- Ship: `ship_damaged`, `ship_destroyed`
 
-**Impact:**
-- The web GUI event log will typically remain empty.
-- Docs/examples that rely on event types (autopilot phases, sensor detections) should instead poll telemetry via `get_state`.
-
-**Workaround:**
-- Use `get_state` polling to monitor navigation/sensors/weapons state.
+The `get_events` command returns events correctly. Previous documentation was outdated.
 
 ---
 
-### 2. Station command lists include planned/legacy names
-**Status**: ⚠️ Known Limitation
-**Severity**: Medium (API ergonomics)
-**Affected Components**: `server/stations/station_types.py`, `server/stations/station_commands.py`
+### 2. Station command lists - RESOLVED
+**Status**: ✅ RESOLVED (2026-01-26)
+**Severity**: Was Medium (API ergonomics)
+**Affected Components**: `server/stations/station_dispatch.py`
 
-**Description:**
-Station definitions contain a superset of command names (some planned, some legacy). `claim_station` / `my_status` may report commands that are not currently registered with the dispatcher, resulting in `Unknown command` at runtime.
-
-**Workaround:**
-- Prefer the explicit “implemented” commands documented in `docs/API_REFERENCE.md` and used by the web GUI command prompt.
+**Resolution:**
+The `StationAwareDispatcher.get_available_commands()` method (`station_dispatch.py:163-169`) now filters returned commands to only include those actually registered with the dispatcher. Station definitions may contain a superset of commands, but clients only see dispatchable commands.
 
 ---
 

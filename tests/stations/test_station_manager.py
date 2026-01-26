@@ -167,7 +167,7 @@ def test_captain_can_issue_any_command(manager):
 
     # CAPTAIN should be able to issue any command
     allowed1, _ = manager.can_issue_command(client_id, "test_ship_001", "set_thrust")
-    allowed2, _ = manager.can_issue_command(client_id, "test_ship_001", "fire")
+    allowed2, _ = manager.can_issue_command(client_id, "test_ship_001", "fire_weapon")  # Correct command name
     allowed3, _ = manager.can_issue_command(client_id, "test_ship_001", "ping_sensors")
     assert allowed1 is True
     assert allowed2 is True

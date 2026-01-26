@@ -1,6 +1,6 @@
 # Feature Status Report
 
-**Last Updated**: 2026-01-20
+**Last Updated**: 2026-01-26
 **Project**: Flaxos Spaceship Simulator
 **Version**: 0.2.0 (Phase 2 Complete)
 
@@ -137,7 +137,7 @@ This document tracks the implementation status of all major features in the Flax
 | Multi-client support | ✅ Complete | ✅ | Concurrent connections |
 | Station-aware server | ✅ Complete | ✅ | Permission enforcement |
 | Command routing | ✅ Complete | ✅ | Legacy + station commands |
-| Event streaming | ⚠️ Partial | - | `get_events` exists, but simulator event logging is not currently wired for clients |
+| Event streaming | ✅ Complete | ✅ | `get_events` returns events from all subsystems |
 | Telemetry streaming | ✅ Complete | ✅ | Filtered state snapshots |
 
 **Files:**
@@ -212,8 +212,8 @@ This document tracks the implementation status of all major features in the Flax
 ## Testing Summary
 
 ### Test Coverage
-- **Total Tests**: 132
-- **Passing**: 132 (100%)
+- **Total Tests**: 154
+- **Passing**: 154 (100%)
 - **Failed**: 0
 - **Skipped**: 0
 
@@ -238,7 +238,7 @@ This document tracks the implementation status of all major features in the Flax
 
 ## Known Limitations
 
-1. **Event log delivery**: `get_events` is exposed but most builds return an empty event list because simulator-side event logging is not wired
+1. ~~**Event log delivery**~~: ✅ RESOLVED - Event streaming is fully wired via `hybrid/simulator.py` event bus
 2. **NumPy Dependency**: Fleet formations require NumPy (optional but recommended)
 3. **No Replay System**: Recording exists but no replay viewer yet
 4. **Limited AI**: AI controller has basic behaviors only
