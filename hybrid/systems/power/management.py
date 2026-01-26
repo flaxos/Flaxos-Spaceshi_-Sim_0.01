@@ -304,7 +304,12 @@ class PowerManagementSystem:
         if action == "get_power_profiles":
             return self.get_profiles()
         if action == "set_power_allocation":
-            allocation = params.get("allocation", params)
+            allocation = params.get("allocation")
+            if allocation is None:
+                valid_layers = set(self.reactors.keys()) or set(DEFAULT_POWER_ALLOCATION.keys())
+                allocation = {key: value for key, value in params.items() if key in valid_layers}
+            if not allocation:
+                return {"error": "Missing allocation values"}
             return self.set_power_allocation(allocation)
         if action == "set_overdrive_limits":
             limits = params.get("limits", params)
