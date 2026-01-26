@@ -80,7 +80,14 @@ class PowerManagementSystem:
                 name=layer_name,
                 capacity=capacity,
                 output_rate=params.get("output_rate", base.output_rate),
-                thermal_limit=params.get("thermal_limit", base.thermal_limit)
+                thermal_limit=params.get("thermal_limit", base.thermal_limit),
+                fuel_capacity=params.get("fuel_capacity"),
+                fuel_level=params.get("fuel_level"),
+                fuel_consumption_rate=params.get("fuel_consumption_rate", 0.0),
+                cooling_rate=params.get("cooling_rate", 1.5),
+                heat_rate=params.get("heat_rate", 0.05),
+                heat_per_kw=params.get("heat_per_kw", 0.1),
+                overheat_output_factor=params.get("overheat_output_factor", 0.5),
             )
         self._base_reactors = {
             name: {
@@ -192,8 +199,17 @@ class PowerManagementSystem:
                 "available": getattr(reactor, 'available', reactor.capacity),
                 "output_rate": reactor.output_rate,
                 "thermal_limit": reactor.thermal_limit,
+                "temperature": getattr(reactor, "temperature", 0.0),
+                "fuel_capacity": getattr(reactor, "fuel_capacity", None),
+                "fuel_level": getattr(reactor, "fuel_level", None),
                 "status": getattr(reactor, 'status', 'nominal'),
             }
+            if reactor_state["fuel_capacity"]:
+                reactor_state["fuel_percent"] = (
+                    reactor_state["fuel_level"] / reactor_state["fuel_capacity"] * 100
+                    if reactor_state["fuel_capacity"] > 0 and reactor_state["fuel_level"] is not None
+                    else 0.0
+                )
             state["reactors"][name] = reactor_state
             state["total_capacity"] += reactor.capacity
             state["total_available"] += reactor_state["available"]

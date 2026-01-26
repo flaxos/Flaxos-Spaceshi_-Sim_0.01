@@ -27,6 +27,7 @@ import "../components/position-heading-calculator.js";
 import "../components/autopilot-control.js";
 import "../components/weapon-controls.js";
 import "../components/system-toggles.js";
+import "../components/power-management.js";
 import "../components/quick-actions.js";
 import "../components/manual-thrust.js";
 import "../components/tactical-map.js";
