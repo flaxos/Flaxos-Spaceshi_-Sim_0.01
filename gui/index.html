@@ -92,102 +92,118 @@
       }
     }
 
+    :root {
+      --panel-height-sm: clamp(220px, 26vh, 360px);
+      --panel-height-md: clamp(260px, 32vh, 440px);
+      --panel-height-lg: clamp(320px, 42vh, 560px);
+    }
+
     /* Phase 5 panels */
     .scenario-panel {
       grid-column: span 3;
-      min-height: 300px;
+      min-height: var(--panel-height-sm);
     }
 
     .mission-panel {
       grid-column: span 3;
-      min-height: 300px;
+      min-height: var(--panel-height-sm);
     }
 
     /* Phase 2 panels */
     .event-log-panel {
       grid-column: span 4;
       grid-row: span 2;
-      min-height: 300px;
-      height: clamp(300px, 45vh, 520px);
-      max-height: 520px;
+      min-height: var(--panel-height-lg);
+      height: clamp(320px, 48vh, 560px);
+      max-height: 560px;
       overflow: hidden;
     }
 
     .command-panel {
       grid-column: span 4;
-      min-height: 120px;
+      min-height: clamp(120px, 18vh, 200px);
     }
 
     /* Phase 3 panels */
     .status-panel {
       grid-column: span 3;
-      min-height: 280px;
+      min-height: var(--panel-height-sm);
     }
 
     .nav-panel {
       grid-column: span 3;
-      min-height: 280px;
+      min-height: var(--panel-height-sm);
     }
 
     .sensors-panel {
       grid-column: span 3;
-      min-height: 280px;
+      min-height: var(--panel-height-sm);
     }
 
     .tactical-panel {
       grid-column: span 4;
-      min-height: 350px;
+      min-height: var(--panel-height-md);
     }
 
     .targeting-panel {
       grid-column: span 3;
-      min-height: 250px;
+      min-height: var(--panel-height-sm);
     }
 
     .weapons-panel {
       grid-column: span 3;
-      min-height: 250px;
+      min-height: var(--panel-height-sm);
     }
 
     /* Phase 4 panels */
     .thrust-input-panel {
       grid-column: span 3;
-      min-height: 380px;
+      min-height: var(--panel-height-md);
     }
 
     .throttle-panel {
       grid-column: span 2;
-      min-height: 380px;
+      min-height: var(--panel-height-md);
     }
 
     .heading-panel {
       grid-column: span 2;
-      min-height: 300px;
+      min-height: var(--panel-height-sm);
+    }
+
+    .position-heading-panel {
+      grid-column: span 3;
+      min-height: var(--panel-height-sm);
+    }
+
+    .micro-rcs-panel {
+      grid-column: span 2;
+      min-height: var(--panel-height-sm);
     }
 
     .rcs-panel {
       grid-column: span 3;
-      min-height: 400px;
+      min-height: var(--panel-height-md);
     }
 
     .autopilot-panel {
       grid-column: span 2;
-      min-height: 280px;
+      min-height: var(--panel-height-sm);
     }
 
     .flight-computer-panel {
       grid-column: span 3;
-      min-height: 450px;
+      min-height: var(--panel-height-md);
     }
 
     .weapon-ctrl-panel {
       grid-column: span 3;
-      min-height: 320px;
+      min-height: var(--panel-height-sm);
     }
 
     .systems-panel {
       grid-column: span 3;
-      min-height: 250px;
+      min-height: var(--panel-height-sm);
     }
 
     /* Placeholder panels */
@@ -229,7 +245,9 @@
       .thrust-input-panel,
       .throttle-panel,
       .heading-panel,
+      .position-heading-panel,
       .rcs-panel,
+      .micro-rcs-panel,
       .autopilot-panel,
       .flight-computer-panel,
       .weapon-ctrl-panel,
@@ -254,7 +272,9 @@
       .thrust-input-panel,
       .throttle-panel,
       .heading-panel,
+      .position-heading-panel,
       .rcs-panel,
+      .micro-rcs-panel,
       .autopilot-panel,
       .flight-computer-panel,
       .weapon-ctrl-panel,
@@ -306,8 +326,45 @@
         <ship-status></ship-status>
       </flaxos-panel>
 
+      <flaxos-panel title="Systems" collapsible class="systems-panel">
+        <system-toggles></system-toggles>
+      </flaxos-panel>
+
       <flaxos-panel title="Navigation" collapsible class="nav-panel">
         <navigation-display></navigation-display>
+      </flaxos-panel>
+
+      <flaxos-panel title="Position → Heading" collapsible class="position-heading-panel">
+        <position-heading-calculator></position-heading-calculator>
+      </flaxos-panel>
+
+      <flaxos-panel title="Heading" collapsible class="heading-panel">
+        <heading-control></heading-control>
+      </flaxos-panel>
+
+      <flaxos-panel title="Autopilot" collapsible class="autopilot-panel">
+        <autopilot-control></autopilot-control>
+      </flaxos-panel>
+
+      <flaxos-panel title="Flight Computer" collapsible class="flight-computer-panel">
+        <flight-computer></flight-computer>
+      </flaxos-panel>
+
+      <!-- Phase 4: Visual Controls -->
+      <flaxos-panel title="Throttle" collapsible class="throttle-panel">
+        <throttle-control></throttle-control>
+      </flaxos-panel>
+
+      <flaxos-panel title="RCS / Attitude" collapsible class="rcs-panel">
+        <rcs-controls></rcs-controls>
+      </flaxos-panel>
+
+      <flaxos-panel title="Micro RCS" collapsible class="micro-rcs-panel">
+        <micro-rcs-control></micro-rcs-control>
+      </flaxos-panel>
+
+      <flaxos-panel title="Debug: Vector Thrust" collapsible class="thrust-input-panel">
+        <manual-thrust></manual-thrust>
       </flaxos-panel>
 
       <flaxos-panel title="Sensors" collapsible class="sensors-panel">
@@ -326,45 +383,8 @@
         <weapons-status></weapons-status>
       </flaxos-panel>
 
-      <!-- Phase 4: Visual Controls -->
-      <flaxos-panel title="Throttle" collapsible class="throttle-panel">
-        <throttle-control></throttle-control>
-      </flaxos-panel>
-
-      <flaxos-panel title="RCS / Attitude" collapsible class="rcs-panel">
-        <rcs-controls></rcs-controls>
-      </flaxos-panel>
-
-      <flaxos-panel title="Micro RCS" collapsible class="micro-rcs-panel">
-        <micro-rcs-control></micro-rcs-control>
-      </flaxos-panel>
-
-      <flaxos-panel title="Position → Heading" collapsible class="position-heading-panel">
-        <position-heading-calculator></position-heading-calculator>
-      </flaxos-panel>
-
-      <flaxos-panel title="Flight Computer" collapsible class="flight-computer-panel">
-        <flight-computer></flight-computer>
-      </flaxos-panel>
-
-      <flaxos-panel title="Heading" collapsible class="heading-panel">
-        <heading-control></heading-control>
-      </flaxos-panel>
-
-      <flaxos-panel title="Autopilot" collapsible class="autopilot-panel">
-        <autopilot-control></autopilot-control>
-      </flaxos-panel>
-
-      <flaxos-panel title="Debug: Vector Thrust" collapsible class="thrust-input-panel">
-        <manual-thrust></manual-thrust>
-      </flaxos-panel>
-
       <flaxos-panel title="Fire Control" collapsible class="weapon-ctrl-panel">
         <weapon-controls></weapon-controls>
-      </flaxos-panel>
-
-      <flaxos-panel title="Systems" collapsible class="systems-panel">
-        <system-toggles></system-toggles>
       </flaxos-panel>
     </main>
 
