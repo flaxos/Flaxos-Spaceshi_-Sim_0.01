@@ -175,6 +175,11 @@
       min-height: 280px;
     }
 
+    .flight-computer-panel {
+      grid-column: span 3;
+      min-height: 450px;
+    }
+
     .weapon-ctrl-panel {
       grid-column: span 3;
       min-height: 320px;
@@ -226,6 +231,7 @@
       .heading-panel,
       .rcs-panel,
       .autopilot-panel,
+      .flight-computer-panel,
       .weapon-ctrl-panel,
       .systems-panel,
       .placeholder-panel {
@@ -250,6 +256,7 @@
       .heading-panel,
       .rcs-panel,
       .autopilot-panel,
+      .flight-computer-panel,
       .weapon-ctrl-panel,
       .systems-panel,
       .placeholder-panel {
@@ -334,6 +341,10 @@
 
       <flaxos-panel title="Position → Heading" collapsible class="position-heading-panel">
         <position-heading-calculator></position-heading-calculator>
+      </flaxos-panel>
+
+      <flaxos-panel title="Flight Computer" collapsible class="flight-computer-panel">
+        <flight-computer></flight-computer>
       </flaxos-panel>
 
       <flaxos-panel title="Heading" collapsible class="heading-panel">
