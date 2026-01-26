@@ -85,7 +85,14 @@ def dispatch(runner: HybridRunner, req: dict) -> dict:
         return payload
 
     if cmd == "get_events":
-        return {"ok": True, "events": []}
+        limit = int(req.get("limit", 100))
+        if hasattr(runner.simulator, "get_recent_events"):
+            events = runner.simulator.get_recent_events(limit=limit)
+        elif hasattr(runner.simulator, "event_log"):
+            events = list(runner.simulator.event_log)[-limit:]
+        else:
+            events = []
+        return {"ok": True, "events": events, "total_events": len(events)}
 
     if cmd == "list_scenarios":
         return {"ok": True, "scenarios": runner.list_scenarios()}

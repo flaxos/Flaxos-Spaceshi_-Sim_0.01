@@ -26,12 +26,23 @@ class PowerManagementSystem:
                 thermal_limit=params.get("thermal_limit", base.thermal_limit)
             )
         self.event_bus = EventBus.get_instance()
+        self._last_reactor_status = {}
 
     def tick(self, dt, ship=None, event_bus=None):
         for reactor in self.reactors.values():
             reactor.tick(dt)
             if reactor.status == "overheated":
                 self.event_bus.publish("power_overheat", {"reactor": reactor.name})
+            previous_status = self._last_reactor_status.get(reactor.name)
+            if previous_status != reactor.status:
+                self.event_bus.publish("reactor_status", {
+                    "ship_id": getattr(ship, "id", None),
+                    "reactor": reactor.name,
+                    "status": reactor.status,
+                    "available": reactor.available,
+                    "capacity": reactor.capacity,
+                })
+                self._last_reactor_status[reactor.name] = reactor.status
 
     def request_power(self, amount, consumer):
         for layer in POWER_LAYER_PRIORITIES:

@@ -248,11 +248,14 @@ class StationServer:
             return {"ok": False, "error": "Client not registered"}
 
         # Get all events from simulator
+        limit = int(req.get("limit", 100))
         all_events = []
-        if hasattr(self.runner.simulator, "event_log"):
-            all_events = self.runner.simulator.event_log[-100:]  # Last 100 events
+        if hasattr(self.runner.simulator, "get_recent_events"):
+            all_events = self.runner.simulator.get_recent_events(limit=limit)
+        elif hasattr(self.runner.simulator, "event_log"):
+            all_events = list(self.runner.simulator.event_log)[-limit:]
         elif hasattr(self.runner.simulator, "recent_events"):
-            all_events = self.runner.simulator.recent_events[-100:]
+            all_events = self.runner.simulator.recent_events[-limit:]
 
         # If no station claimed, return message
         if not session.station:

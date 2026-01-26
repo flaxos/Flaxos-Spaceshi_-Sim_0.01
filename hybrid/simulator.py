@@ -7,8 +7,39 @@ import math
 import random
 from hybrid.ship import Ship
 from hybrid.fleet.fleet_manager import FleetManager
+from hybrid.core.event_bus import EventBus
 
 logger = logging.getLogger(__name__)
+
+class EventLogBuffer:
+    """Ring buffer for simulator events."""
+
+    def __init__(self, maxlen=1000):
+        self.maxlen = maxlen
+        self._events = []
+        self._next_id = 1
+
+    def append(self, event: dict):
+        event = dict(event)
+        event.setdefault("id", self._next_id)
+        self._next_id += 1
+        self._events.append(event)
+        if len(self._events) > self.maxlen:
+            del self._events[:-self.maxlen]
+
+    def get_recent(self, limit=100):
+        if limit is None:
+            return list(self._events)
+        return self._events[-limit:]
+
+    def __len__(self):
+        return len(self._events)
+
+    def __iter__(self):
+        return iter(self._events)
+
+    def __getitem__(self, item):
+        return self._events[item]
 
 class Simulator:
     """
@@ -29,6 +60,11 @@ class Simulator:
 
         # Initialize fleet manager
         self.fleet_manager = FleetManager(simulator=self)
+
+        # Event logging
+        self.event_log = EventLogBuffer(maxlen=1000)
+        self._event_bus = EventBus.get_instance()
+        self._event_bus.subscribe_all(self._record_event)
         
     def load_ships_from_directory(self, directory):
         """
@@ -71,6 +107,14 @@ class Simulator:
             Ship: The created ship
         """
         ship = Ship(ship_id, config)
+        if hasattr(ship, "event_bus"):
+            ship.event_bus.subscribe_all(
+                lambda event_name, payload, ship_id=ship.id: self._record_event(
+                    event_name,
+                    payload,
+                    ship_id=ship_id
+                )
+            )
         self.ships[ship_id] = ship
         return ship
         
@@ -165,6 +209,20 @@ class Simulator:
         self.time += self.dt
 
         return self.time
+
+    def _record_event(self, event_name, payload, ship_id=None):
+        payload = payload or {}
+        event_ship_id = payload.get("ship_id") or ship_id
+        self.event_log.append({
+            "type": event_name,
+            "ship_id": event_ship_id,
+            "t": self.time,
+            "timestamp": time.time(),
+            "data": payload,
+        })
+
+    def get_recent_events(self, limit=100):
+        return self.event_log.get_recent(limit)
         
     def run(self, duration=None):
         """
