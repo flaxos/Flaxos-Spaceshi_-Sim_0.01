@@ -53,7 +53,17 @@ def register_commands(dispatcher):
             ArgSpec("y", "float", required=True, description="Destination Y coordinate"),
             ArgSpec("z", "float", required=True, description="Destination Z coordinate"),
             ArgSpec("stop", "bool", required=False, default=True,
-                    description="Stop at destination (default true)")
+                    description="Stop at destination (default true)"),
+            ArgSpec("tolerance", "float", required=False,
+                    description="Arrival tolerance in meters"),
+            ArgSpec("max_thrust", "float", required=False,
+                    description="Maximum thrust scalar (0..1)"),
+            ArgSpec("coast_speed", "float", required=False,
+                    description="Coast speed target for cruise"),
+            ArgSpec("max_speed", "float", required=False,
+                    description="Maximum speed during course"),
+            ArgSpec("brake_buffer", "float", required=False,
+                    description="Extra distance buffer for braking"),
         ],
         help_text="Set navigation course to destination",
         system="navigation"
