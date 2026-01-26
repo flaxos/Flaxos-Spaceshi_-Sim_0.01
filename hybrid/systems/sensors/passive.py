@@ -24,11 +24,15 @@ class PassiveSensor:
                 - min_signature: Minimum signature to detect
         """
         self.range = config.get("passive_range", config.get("range", 100000))  # 100km default
+        self.base_range = self.range
         self.update_interval = config.get("sensor_tick_interval", config.get("update_interval", 10))
         self.min_signature = config.get("min_signature", 5.0)
 
         self.contacts: Dict[str, ContactData] = {}
         self.last_update_tick = 0
+
+    def set_range_multiplier(self, multiplier: float):
+        self.range = max(0.0, self.base_range * max(0.0, multiplier))
 
     def update(self, current_tick: int, dt: float, observer_ship, all_ships: List, sim_time: float):
         """Update passive sensor contacts.

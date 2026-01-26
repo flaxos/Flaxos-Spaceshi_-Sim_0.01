@@ -40,5 +40,27 @@
     "capacity": 0,
     "types_allowed": [],
     "active": []
+  },
+  "damage_model": {
+    "subsystems": {
+      "power": {
+        "max_health": 80.0,
+        "health": 80.0,
+        "criticality": 4.0,
+        "failure_threshold": 0.25
+      },
+      "propulsion": {
+        "max_health": 90.0,
+        "health": 90.0,
+        "criticality": 4.0,
+        "failure_threshold": 0.25
+      },
+      "sensors": {
+        "max_health": 70.0,
+        "health": 70.0,
+        "criticality": 3.0,
+        "failure_threshold": 0.2
+      }
+    }
   }
 }

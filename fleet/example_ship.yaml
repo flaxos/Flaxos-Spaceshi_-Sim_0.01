@@ -74,3 +74,26 @@ systems:
     max_sustained_g: 3.0
     max_peak_g: 8.0
     safety_override: false
+
+damage_model:
+  subsystems:
+    power:
+      max_health: 120.0
+      health: 120.0
+      criticality: 5.0
+      failure_threshold: 0.2
+    propulsion:
+      max_health: 110.0
+      health: 110.0
+      criticality: 5.0
+      failure_threshold: 0.25
+    sensors:
+      max_health: 90.0
+      health: 90.0
+      criticality: 3.0
+      failure_threshold: 0.2
+    weapons:
+      max_health: 100.0
+      health: 100.0
+      criticality: 4.0
+      failure_threshold: 0.25

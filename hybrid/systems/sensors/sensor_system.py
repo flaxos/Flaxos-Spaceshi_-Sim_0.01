@@ -51,6 +51,16 @@ class SensorSystem(BaseSystem):
             ship: Ship with this sensor
             event_bus: Event bus for publishing events
         """
+        damage_factor = 1.0
+        if ship is not None and hasattr(ship, "damage_model"):
+            damage_factor = ship.damage_model.get_degradation_factor("sensors")
+
+        if damage_factor <= 0.0:
+            return
+
+        self.passive.set_range_multiplier(damage_factor)
+        self.active.set_range_multiplier(damage_factor)
+
         if not self.enabled:
             return
 
