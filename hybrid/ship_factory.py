@@ -8,7 +8,9 @@ from hybrid.systems.sensors.sensor_system import SensorSystem
 
 
 def build_ship_systems(config):
-    power = PowerManagementSystem(config.get("power", {}))
+    power_management = PowerManagementSystem(
+        config.get("power_management", config.get("power", {}))
+    )
     weapon_cfg = config.get("weapons", {})
     weapon_system = WeaponSystem(weapon_cfg)
     hardpoints = []
@@ -29,7 +31,7 @@ def build_ship_systems(config):
     navigation = NavigationSystem(config.get("navigation", {}))
     sensors = SensorSystem(config.get("sensors", {}))
     return {
-        "power": power,
+        "power_management": power_management,
         "weapons": weapon_system,
         "hardpoints": hardpoints,
         "navigation": navigation,

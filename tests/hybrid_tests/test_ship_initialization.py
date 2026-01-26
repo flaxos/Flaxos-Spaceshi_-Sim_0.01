@@ -22,7 +22,7 @@ def test_create_simple_ship(tmp_path):
     # Load and create ship
     ship_defs = json.loads(file_path.read_text())
     ship = create_ship(ship_defs["testship"])
-    assert ship["power"] is not None
+    assert ship["power_management"] is not None
     assert ship["weapons"] is not None
     assert ship["navigation"] is not None
     assert ship["sensors"] is not None
