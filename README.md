@@ -12,8 +12,8 @@ python -m server.station_server --fleet-dir hybrid_fleet --dt 0.1 --port 8765
 # Minimal server (no stations / simplest behavior)
 # python -m server.run_server --fleet-dir hybrid_fleet --dt 0.1 --port 8765
 
-# Terminal 2: HUD
-python hybrid/gui/gui.py
+# Terminal 2: GUI client (Tkinter)
+python hybrid/gui/run_gui.py --config ships_config.json
 ```
 
 ## Web GUI Quickstart
