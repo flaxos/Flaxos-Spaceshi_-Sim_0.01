@@ -72,6 +72,8 @@ class DockingSystem(BaseSystem):
                     },
                 )
             logger.info("Ship %s docked with %s", ship.id, ship.docked_to)
+            if getattr(target_ship, "class_type", None) == "station":
+                self._handle_station_dock(ship, event_bus, target_ship)
         else:
             self.status = "approaching"
 
@@ -148,6 +150,44 @@ class DockingSystem(BaseSystem):
         self.target_ship = None
         self.status = "idle"
         return {"status": "docking_cancelled"}
+
+    def _handle_station_dock(self, ship, event_bus, target_ship):
+        repair_reports = []
+        hull_before = ship.hull_integrity
+        if ship.hull_integrity < ship.max_hull_integrity:
+            ship.hull_integrity = ship.max_hull_integrity
+
+        if hasattr(ship, "damage_model"):
+            for name, data in ship.damage_model.subsystems.items():
+                amount = data.max_health - data.health
+                if amount > 0:
+                    repair_reports.append(ship.damage_model.repair_subsystem(name, amount))
+
+        weapon_report = None
+        weapon_system = ship.systems.get("weapons")
+        if weapon_system and hasattr(weapon_system, "resupply"):
+            weapon_report = weapon_system.resupply()
+
+        if event_bus:
+            event_bus.publish(
+                "repair_complete",
+                {
+                    "ship": ship.id,
+                    "target": getattr(target_ship, "id", None),
+                    "hull_before": hull_before,
+                    "hull_after": ship.hull_integrity,
+                    "subsystems": repair_reports,
+                },
+            )
+            if weapon_report:
+                event_bus.publish(
+                    "weapon_rearmed",
+                    {
+                        "ship": ship.id,
+                        "target": getattr(target_ship, "id", None),
+                        "weapons": weapon_report.get("weapons", []),
+                    },
+                )
 
     def get_state(self):
         return {

@@ -13,6 +13,7 @@ class Weapon:
         self.base_max_heat = max_heat
         self.enabled = True
         self.ammo = ammo_count
+        self.ammo_capacity = ammo_count
         self.damage = damage  # D6: Damage per hit
         self.base_damage = damage
         self.heat = 0.0
@@ -89,6 +90,19 @@ class Weapon:
         # Passive cooldown proportional to max_heat
         self.heat = max(0.0, self.heat - dt * (self.max_heat / 10))
 
+    def resupply(self):
+        if self.ammo_capacity is None:
+            return {"ok": False, "reason": "no_ammo", "weapon": self.name}
+        previous = self.ammo
+        self.ammo = self.ammo_capacity
+        return {
+            "ok": True,
+            "weapon": self.name,
+            "previous_ammo": previous,
+            "ammo": self.ammo,
+            "capacity": self.ammo_capacity,
+        }
+
 class WeaponSystem:
     def __init__(self, config):
         # config is a dict with a "weapons" list of dicts
@@ -125,6 +139,15 @@ class WeaponSystem:
 
         for weapon in self.weapons.values():
             weapon.cool_down(dt)
+
+    def resupply(self):
+        results = []
+        for weapon in self.weapons.values():
+            results.append(weapon.resupply())
+        return {
+            "ok": True,
+            "weapons": results,
+        }
 
     def fire_weapon(self, weapon_name, power_manager, target):
         weapon = self.weapons.get(weapon_name)
