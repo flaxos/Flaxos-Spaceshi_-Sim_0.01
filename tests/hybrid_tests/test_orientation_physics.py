@@ -10,6 +10,10 @@ from hybrid.ship import Ship
 from hybrid.utils.math_utils import normalize_angle, calculate_bearing
 
 
+# Config that disables RCS to test pure physics without RCS damping
+NO_RCS_CONFIG = {"systems": {"rcs": None, "helm": None}}
+
+
 class TestOrientationBasics:
     """Test basic orientation initialization and normalization."""
 
@@ -54,8 +58,10 @@ class TestOrientationPhysicsUpdate:
         NOTE (S3): With quaternion integration, combined rotations give slightly
         different results than simple Euler addition due to rotation non-commutativity.
         This is physically more accurate. We test with looser tolerances.
+
+        Uses NO_RCS_CONFIG to disable RCS damping for pure physics testing.
         """
-        ship = Ship("test_ship", {})
+        ship = Ship("test_ship", NO_RCS_CONFIG)
         ship.angular_velocity["pitch"] = 10.0  # 10 deg/s
         ship.angular_velocity["yaw"] = 5.0     # 5 deg/s
         ship.angular_velocity["roll"] = -15.0  # -15 deg/s
@@ -79,8 +85,10 @@ class TestOrientationPhysicsUpdate:
 
         NOTE (S3): Quaternion integration handles full rotations differently than
         simple angle addition. We test that angles stay within normalized range.
+
+        Uses NO_RCS_CONFIG to disable RCS damping for pure physics testing.
         """
-        ship = Ship("test_ship", {})
+        ship = Ship("test_ship", NO_RCS_CONFIG)
         ship.angular_velocity["yaw"] = 90.0  # Moderate rotation rate
 
         # Update for 5 seconds (450 degrees total rotation)
@@ -92,8 +100,12 @@ class TestOrientationPhysicsUpdate:
         assert -180.0 <= ship.orientation["yaw"] < 180.0
 
     def test_orientation_wrapping_positive(self):
-        """Test wrapping from +180 to -180."""
-        ship = Ship("test_ship", {"orientation": {"pitch": 0, "yaw": 170, "roll": 0}})
+        """Test wrapping from +180 to -180.
+
+        Uses NO_RCS_CONFIG to disable RCS damping for pure physics testing.
+        """
+        config = {**NO_RCS_CONFIG, "orientation": {"pitch": 0, "yaw": 170, "roll": 0}}
+        ship = Ship("test_ship", config)
         ship.angular_velocity["yaw"] = 15.0
 
         ship.tick(1.0)  # yaw = 185 -> wraps to -175
@@ -102,8 +114,12 @@ class TestOrientationPhysicsUpdate:
         assert abs(ship.orientation["yaw"] - (-175.0)) < 0.1
 
     def test_orientation_wrapping_negative(self):
-        """Test wrapping from -180 to +180."""
-        ship = Ship("test_ship", {"orientation": {"pitch": 0, "yaw": -170, "roll": 0}})
+        """Test wrapping from -180 to +180.
+
+        Uses NO_RCS_CONFIG to disable RCS damping for pure physics testing.
+        """
+        config = {**NO_RCS_CONFIG, "orientation": {"pitch": 0, "yaw": -170, "roll": 0}}
+        ship = Ship("test_ship", config)
         ship.angular_velocity["yaw"] = -15.0
 
         ship.tick(1.0)  # yaw = -185 -> wraps to 175
