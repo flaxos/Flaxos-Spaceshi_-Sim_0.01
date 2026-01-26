@@ -373,7 +373,7 @@ class HeadingControl extends HTMLElement {
         yaw: this._yaw,
         roll: 0
       });
-      console.log("Heading response:", response);
+      console.log("Heading response:", JSON.stringify(response, null, 2));
       
       // Check for errors in response
       if (response?.ok === false || response?.error) {
@@ -382,12 +382,22 @@ class HeadingControl extends HTMLElement {
         this._showMessage(`Heading error: ${errorMsg}`, "error");
         // Revert on error
         this._updateFromState();
-      } else if (response?.response?.target) {
-        // Update from server response if available
-        const target = response.response.target;
-        this._pitch = target.pitch || this._pitch;
-        this._yaw = target.yaw || this._yaw;
-        this._updateVisual();
+      } else if (response?.ok === true) {
+        // Response structure: {ok: true, response: {status: "...", target: {...}}}
+        const result = response.response || response;
+        if (result?.target) {
+          // Update from server response if available
+          const target = result.target;
+          this._pitch = target.pitch || this._pitch;
+          this._yaw = target.yaw || this._yaw;
+          this._updateVisual();
+          console.log("Heading updated from response:", target);
+        } else {
+          // Command succeeded but no target in response - that's OK, state will update via polling
+          console.log("Heading command succeeded, waiting for state update");
+        }
+      } else {
+        console.warn("Unexpected heading response format:", response);
       }
     } catch (error) {
       console.error("Heading command failed:", error);

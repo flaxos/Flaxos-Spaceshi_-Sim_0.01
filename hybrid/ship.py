@@ -71,9 +71,9 @@ class Ship:
         # Flight path logging (for minimap trails)
         # Records position history: 600 samples @ 0.5s = 5 minutes of history
         self._flight_path_max_samples = 600
-        self._flight_path_sample_interval = 0.5  # seconds
+        self._flight_path_sample_interval = 0.5  # seconds (simulation time)
         self._flight_path_history = deque(maxlen=self._flight_path_max_samples)
-        self._last_flight_path_sample_time = 0.0
+        self._last_flight_path_sample_time = 0.0  # Simulation time, not real time
 
         # Create the event bus for system communication
         self.event_bus = EventBus()
@@ -179,15 +179,16 @@ class Ship:
                     logger.error(f"Error in system {system_type} tick: {e}")
 
         # Update physics after systems have updated
-        self._update_physics(dt)
+        self._update_physics(dt, sim_time=sim_time)
     
-    def _update_physics(self, dt, force=None):
+    def _update_physics(self, dt, force=None, sim_time=0.0):
         """Update ship physics for the current time step
 
         Args:
             dt (float): Time delta in seconds
             force (dict, optional): Net force vector acting on the ship. If not
                 provided, the existing acceleration is used.
+            sim_time (float, optional): Current simulation time for flight path recording
         """
         # Guard against invalid dt
         if not is_valid_number(dt) or dt <= 0:
@@ -222,8 +223,8 @@ class Ship:
         self.position["y"] += self.velocity["y"] * dt
         self.position["z"] += self.velocity["z"] * dt
 
-        # Record position in flight path history
-        self._record_flight_path(dt)
+        # Record position in flight path history (use simulation time)
+        self._record_flight_path(sim_time)
 
         # Sanitize physics state (check for NaN/Inf and clamp to reasonable bounds)
         self.position, self.velocity, self.acceleration, recovered = sanitize_physics_state(
@@ -278,27 +279,30 @@ class Ship:
         # S3: No more gimbal lock warnings! Quaternions handle all orientations perfectly.
         # The old gimbal lock warning has been removed - quaternions eliminate this issue entirely.
 
-    def _record_flight_path(self, dt):
-        """Record position in flight path history at regular intervals."""
-        current_time = time.time()
+    def _record_flight_path(self, sim_time):
+        """Record position in flight path history at regular intervals.
         
-        # Sample at regular intervals
-        if current_time - self._last_flight_path_sample_time >= self._flight_path_sample_interval:
+        Args:
+            sim_time (float): Current simulation time
+        """
+        # Sample at regular intervals (using simulation time)
+        if sim_time - self._last_flight_path_sample_time >= self._flight_path_sample_interval:
             self._flight_path_history.append({
                 "pos": {
                     "x": self.position["x"],
                     "y": self.position["y"],
                     "z": self.position["z"]
                 },
-                "t": current_time
+                "t": sim_time
             })
-            self._last_flight_path_sample_time = current_time
+            self._last_flight_path_sample_time = sim_time
 
-    def get_flight_path(self, max_age_seconds=60):
+    def get_flight_path(self, max_age_seconds=60, current_sim_time=None):
         """Get flight path positions from last N seconds.
         
         Args:
-            max_age_seconds: Maximum age of positions to include
+            max_age_seconds: Maximum age of positions to include (simulation seconds)
+            current_sim_time: Current simulation time (if None, uses last recorded time + sample_interval)
             
         Returns:
             list: List of position dicts {x, y, z} from last N seconds
@@ -306,8 +310,15 @@ class Ship:
         if not self._flight_path_history:
             return []
         
-        now = time.time()
-        cutoff_time = now - max_age_seconds
+        # Use provided sim_time or estimate from last sample + interval
+        if current_sim_time is None:
+            if self._flight_path_history:
+                # Estimate current time as last sample + one interval
+                current_sim_time = self._flight_path_history[-1]["t"] + self._flight_path_sample_interval
+            else:
+                return []
+        
+        cutoff_time = max(0, current_sim_time - max_age_seconds)
         
         return [
             entry["pos"] for entry in self._flight_path_history
@@ -390,7 +401,7 @@ class Ship:
             "angular_velocity": self.angular_velocity,
             "thrust": self.thrust,
             "navigation": nav_awareness,  # Add navigation awareness metrics
-            "flight_path": self.get_flight_path(60),  # Last 60 seconds of flight path
+            "flight_path": self.get_flight_path(60) if self._flight_path_history else [],  # Last 60 seconds of flight path
             "systems": {}
         }
         

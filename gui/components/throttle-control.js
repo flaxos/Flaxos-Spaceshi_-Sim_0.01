@@ -345,7 +345,7 @@ class ThrottleControl extends HTMLElement {
       const response = await wsClient.sendShipCommand("set_thrust", { 
         thrust: value  // Scalar 0-1
       });
-      console.log("Throttle response:", response);
+      console.log("Throttle response:", JSON.stringify(response, null, 2));
       
       // Check for errors in response
       if (response?.ok === false || response?.error) {
@@ -354,10 +354,20 @@ class ThrottleControl extends HTMLElement {
         this._showMessage(`Throttle error: ${errorMsg}`, "error");
         // Revert visual on error
         this._updateFromState();
-      } else if (response?.response?.throttle !== undefined) {
-        // Update from server response if available
-        this._currentValue = response.response.throttle;
-        this._updateVisual(this._currentValue);
+      } else if (response?.ok === true) {
+        // Response structure: {ok: true, response: {status: "...", throttle: ...}}
+        const result = response.response || response;
+        if (result?.throttle !== undefined) {
+          // Update from server response if available
+          this._currentValue = result.throttle;
+          this._updateVisual(this._currentValue);
+          console.log("Throttle updated from response:", result.throttle);
+        } else {
+          // Command succeeded but no throttle in response - that's OK, state will update via polling
+          console.log("Throttle command succeeded, waiting for state update");
+        }
+      } else {
+        console.warn("Unexpected throttle response format:", response);
       }
     } catch (error) {
       console.error("Throttle command failed:", error);
