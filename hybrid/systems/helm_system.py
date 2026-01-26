@@ -130,10 +130,31 @@ class HelmSystem(BaseSystem):
         try:
             # Get current orientation as defaults
             current = ship.orientation if ship else {"pitch": 0, "yaw": 0, "roll": 0}
-            
-            pitch = float(params.get("pitch", current.get("pitch", 0)))
-            yaw = float(params.get("yaw", current.get("yaw", 0)))
-            roll = float(params.get("roll", current.get("roll", 0)))
+
+            def _coerce_angle(value, fallback):
+                if isinstance(value, dict):
+                    if "value" in value:
+                        value = value["value"]
+                    else:
+                        return fallback
+                if value is None:
+                    return fallback
+                return float(value)
+
+            heading = params.get("heading") if isinstance(params.get("heading"), dict) else None
+            if not heading and isinstance(params.get("orientation"), dict):
+                heading = params.get("orientation")
+            if not heading:
+                for key in ("pitch", "yaw", "roll"):
+                    value = params.get(key)
+                    if isinstance(value, dict) and any(k in value for k in ("pitch", "yaw", "roll")):
+                        heading = value
+                        break
+
+            source = heading or params
+            pitch = _coerce_angle(source.get("pitch"), current.get("pitch", 0))
+            yaw = _coerce_angle(source.get("yaw"), current.get("yaw", 0))
+            roll = _coerce_angle(source.get("roll"), current.get("roll", 0))
             
             # Normalize angles
             pitch = max(-90, min(90, pitch))  # Pitch limited to -90 to 90
