@@ -32,7 +32,7 @@ class StationTelemetryFilter:
             "relative_motion": ["velocity", "position"],
             "fuel_status": ["fuel", "delta_v_remaining"],
             "autopilot_status": ["nav_mode", "autopilot_program"],
-            "helm_status": ["orientation", "angular_velocity", "velocity"],
+            "helm_status": ["orientation", "angular_velocity", "velocity", "helm_queue"],
             "propulsion_status": ["fuel", "systems"],
 
             # Tactical displays

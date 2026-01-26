@@ -25,6 +25,7 @@ from hybrid.telemetry import get_ship_telemetry, get_telemetry_snapshot
 from server.stations import StationManager
 from server.stations.station_dispatch import StationAwareDispatcher, CommandResult, register_legacy_commands
 from server.stations.station_commands import register_station_commands
+from server.stations.helm_commands import register_helm_commands
 from server.stations.fleet_commands import register_fleet_commands
 from server.telemetry.station_filter import StationTelemetryFilter
 from server.stations.crew_system import CrewManager
@@ -76,6 +77,10 @@ class StationServer:
             self.dispatcher,
             self.station_manager,
             self.crew_manager,
+            ship_provider=lambda: self.runner.simulator.ships,
+        )
+        register_helm_commands(
+            self.dispatcher,
             ship_provider=lambda: self.runner.simulator.ships,
         )
         register_legacy_commands(self.dispatcher, self.runner)

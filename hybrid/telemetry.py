@@ -58,6 +58,12 @@ def get_ship_telemetry(ship, sim_time: float = None) -> Dict[str, Any]:
         nav_mode = "autopilot" if nav_state.get("autopilot_enabled", False) else "manual"
         autopilot_program = nav_state.get("current_program")
 
+    # Get helm queue status
+    helm_queue = None
+    helm = ship.systems.get("helm")
+    if helm and hasattr(helm, "get_queue_state"):
+        helm_queue = helm.get_queue_state()
+
     # Get weapons status
     weapons_status = get_weapons_status(ship)
 
@@ -86,6 +92,7 @@ def get_ship_telemetry(ship, sim_time: float = None) -> Dict[str, Any]:
         "target_id": target_id,
         "nav_mode": nav_mode,
         "autopilot_program": autopilot_program,
+        "helm_queue": helm_queue,
         "weapons": weapons_status,
         "sensors": sensor_contacts,
         "subsystem_health": ship.damage_model.get_report() if hasattr(ship, "damage_model") else {},

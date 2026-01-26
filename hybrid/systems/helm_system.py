@@ -39,6 +39,12 @@ class HelmSystem(BaseSystem):
         self.attitude_target = None
         self.angular_velocity_target = {"pitch": 0.0, "yaw": 0.0, "roll": 0.0}
 
+        # Command queue (server-side helm sequencing)
+        self.command_queue = []
+        self.active_command = None
+        self._queue_sequence = 0
+        self._queue_tolerance = config.get("queue_tolerance_deg", 1.0)
+
         self.status = "standby"
 
     def tick(self, dt, ship, event_bus):
@@ -52,7 +58,11 @@ class HelmSystem(BaseSystem):
         if power_system and not power_system.request_power(self.power_draw * dt, "helm"):
             return
 
-        if self.manual_override or self.mode == "manual":
+        queue_active = self._process_command_queue(dt, ship)
+
+        if queue_active:
+            self.status = "executing_queue"
+        elif self.manual_override or self.mode == "manual":
             self.status = "manual_control"
             
             # Apply manual throttle to propulsion
@@ -99,6 +109,16 @@ class HelmSystem(BaseSystem):
             return self._cmd_set_mode(params)
         if action == "set_throttle":
             return self._cmd_set_throttle(params)
+        if action == "queue_command":
+            return self._cmd_queue_command(params)
+        if action == "queue_commands":
+            return self._cmd_queue_commands(params)
+        if action == "clear_queue":
+            return self._cmd_clear_queue(params)
+        if action == "interrupt_queue":
+            return self._cmd_interrupt_queue(params)
+        if action == "queue_status":
+            return self._cmd_queue_status(params)
         if action == "status":
             return self.get_state()
         if action == "power_on":
@@ -189,6 +209,90 @@ class HelmSystem(BaseSystem):
         except (ValueError, TypeError) as e:
             logger.error(f"Error setting orientation target: {e}")
             return {"error": f"Invalid orientation parameters: {e}"}
+
+    def _cmd_queue_command(self, params):
+        """Queue a single helm command for sequential execution."""
+        command = params.get("command") or params.get("action")
+        if not command:
+            return {"error": "Missing command for queue"}
+
+        if isinstance(params.get("params"), dict):
+            command_params = dict(params["params"])
+        else:
+            command_params = {
+                key: value
+                for key, value in params.items()
+                if key not in {"command", "action", "params", "_ship", "ship"}
+            }
+
+        normalized = self._normalize_queue_command(command, command_params)
+        if "error" in normalized:
+            return normalized
+
+        entry = self._enqueue_command(normalized["command"], normalized["params"])
+        return {
+            "status": "Command queued",
+            "queued": entry,
+            "queue_depth": len(self.command_queue)
+        }
+
+    def _cmd_queue_commands(self, params):
+        """Queue multiple helm commands in order."""
+        commands = params.get("commands")
+        if not isinstance(commands, list) or not commands:
+            return {"error": "commands must be a non-empty list"}
+
+        queued = []
+        for command in commands:
+            if not isinstance(command, dict):
+                return {"error": "Each queued command must be an object"}
+            action = command.get("command") or command.get("action")
+            if not action:
+                return {"error": "Queued command missing 'command' field"}
+            command_params = {
+                key: value
+                for key, value in command.items()
+                if key not in {"command", "action", "params"}
+            }
+            if isinstance(command.get("params"), dict):
+                command_params.update(command["params"])
+            normalized = self._normalize_queue_command(action, command_params)
+            if "error" in normalized:
+                return normalized
+            queued.append(self._enqueue_command(normalized["command"], normalized["params"]))
+
+        return {
+            "status": "Commands queued",
+            "queued_count": len(queued),
+            "queue_depth": len(self.command_queue)
+        }
+
+    def _cmd_clear_queue(self, params):
+        """Clear pending queue commands."""
+        cleared = len(self.command_queue)
+        self.command_queue.clear()
+        return {"status": "Queue cleared", "cleared": cleared}
+
+    def _cmd_interrupt_queue(self, params):
+        """Interrupt current command and clear queue."""
+        cleared = len(self.command_queue)
+        self.command_queue.clear()
+        active = self.active_command
+        self.active_command = None
+        ship = params.get("_ship") or params.get("ship")
+        self._stop_active_command(active, ship)
+        return {
+            "status": "Queue interrupted",
+            "cleared": cleared,
+            "active_command": self._format_queue_entry(active)
+        }
+
+    def _cmd_queue_status(self, params):
+        """Return queue status snapshot."""
+        return {
+            "status": "Queue status",
+            "queue": self.get_queue_state()
+        }
 
     def _cmd_set_angular_velocity(self, params):
         """Set angular velocity target (rate command for RCS).
@@ -697,6 +801,200 @@ class HelmSystem(BaseSystem):
     def _handle_autopilot_disengaged(self, event):
         logger.info("Autopilot disengaged")
 
+    def _normalize_queue_command(self, command, params):
+        command = str(command).lower()
+        params = dict(params or {})
+
+        if command == "rotate":
+            axis = params.get("axis", "yaw")
+            amount = params.get("amount")
+            if amount is None:
+                return {"error": "Rotate command requires 'amount'"}
+            if axis not in ["pitch", "yaw", "roll"]:
+                return {"error": f"Invalid axis: {axis}"}
+            return {
+                "command": "rotate",
+                "params": {"axis": axis, "amount": float(amount)}
+            }
+
+        if command == "wait":
+            duration = params.get("duration", params.get("seconds"))
+            if duration is None:
+                return {"error": "Wait command requires 'duration'"}
+            duration = float(duration)
+            if duration < 0:
+                return {"error": "Wait duration must be non-negative"}
+            return {
+                "command": "wait",
+                "params": {"duration": duration}
+            }
+
+        if command in ["thrust", "set_thrust", "set_throttle"]:
+            duration = params.get("duration", params.get("seconds"))
+            if duration is None:
+                return {"error": "Thrust command requires 'duration'"}
+            duration = float(duration)
+            if duration < 0:
+                return {"error": "Thrust duration must be non-negative"}
+            if "g" in params:
+                g_force = float(params["g"])
+                return {
+                    "command": "thrust",
+                    "params": {"g": g_force, "duration": duration}
+                }
+            throttle = params.get("thrust", params.get("throttle"))
+            if throttle is None:
+                return {"error": "Thrust command requires 'thrust' or 'g'"}
+            return {
+                "command": "thrust",
+                "params": {"thrust": float(throttle), "duration": duration}
+            }
+
+        return {"error": f"Unsupported queued command: {command}"}
+
+    def _enqueue_command(self, command, params):
+        self._queue_sequence += 1
+        entry = {
+            "id": self._queue_sequence,
+            "command": command,
+            "params": params,
+            "status": "queued",
+            "elapsed": 0.0
+        }
+        self.command_queue.append(entry)
+        return self._format_queue_entry(entry)
+
+    def _process_command_queue(self, dt, ship):
+        if self.manual_override or self.mode == "manual":
+            return False
+
+        if self.active_command is None and self.command_queue:
+            self.active_command = self.command_queue.pop(0)
+            self.active_command["status"] = "active"
+            self.active_command["elapsed"] = 0.0
+            self._start_command(self.active_command, ship)
+
+        if not self.active_command:
+            return False
+
+        self.active_command["elapsed"] += dt
+        if self._update_active_command(self.active_command, dt, ship):
+            self.active_command["status"] = "complete"
+            self._complete_command(self.active_command, ship)
+            self.active_command = None
+        return True
+
+    def _start_command(self, command, ship):
+        action = command["command"]
+        params = command.get("params", {})
+
+        if action == "rotate":
+            current = ship.orientation if ship else {"pitch": 0, "yaw": 0, "roll": 0}
+            axis = params["axis"]
+            amount = params["amount"]
+            target = dict(current)
+            target[axis] = current.get(axis, 0) + amount
+            target = self._normalize_attitude_target(target)
+            command["target"] = target
+            self.attitude_target = target
+            if ship:
+                rcs = ship.systems.get("rcs")
+                if rcs:
+                    rcs.set_attitude_target(target)
+
+        elif action == "thrust":
+            self._apply_thrust_command(command, ship)
+
+    def _update_active_command(self, command, dt, ship):
+        action = command["command"]
+        params = command.get("params", {})
+
+        if action == "rotate":
+            target = command.get("target")
+            if not ship or not target:
+                return True
+            return self._attitude_within_tolerance(ship.orientation, target)
+
+        if action == "wait":
+            duration = params.get("duration", 0.0)
+            return command.get("elapsed", 0.0) >= duration
+
+        if action == "thrust":
+            self._apply_thrust_command(command, ship)
+            duration = params.get("duration", 0.0)
+            return command.get("elapsed", 0.0) >= duration
+
+        return True
+
+    def _complete_command(self, command, ship):
+        if command["command"] == "thrust":
+            propulsion = ship.systems.get("propulsion") if ship else None
+            if propulsion:
+                propulsion.set_throttle({"thrust": 0.0, "_ship": ship, "ship": ship})
+            self.manual_throttle = 0.0
+
+    def _stop_active_command(self, command, ship):
+        if not command:
+            return
+        if command.get("command") == "thrust":
+            propulsion = ship.systems.get("propulsion") if ship else None
+            if propulsion:
+                propulsion.set_throttle({"thrust": 0.0, "_ship": ship, "ship": ship})
+            self.manual_throttle = 0.0
+
+    def _apply_thrust_command(self, command, ship):
+        if not ship:
+            return
+        propulsion = ship.systems.get("propulsion")
+        if not propulsion:
+            return
+        params = command.get("params", {})
+        if "g" in params:
+            result = propulsion.set_throttle({"g": params["g"], "_ship": ship, "ship": ship})
+            command["throttle_result"] = result
+        else:
+            throttle = max(0.0, min(1.0, float(params.get("thrust", 0.0))))
+            self.manual_throttle = throttle
+            result = propulsion.set_throttle({"thrust": throttle, "_ship": ship, "ship": ship})
+            command["throttle_result"] = result
+
+    def _normalize_attitude_target(self, target):
+        pitch = max(-90, min(90, target.get("pitch", 0)))
+        yaw = target.get("yaw", 0) % 360
+        if yaw > 180:
+            yaw -= 360
+        roll = max(-180, min(180, target.get("roll", 0)))
+        return {"pitch": pitch, "yaw": yaw, "roll": roll}
+
+    def _attitude_within_tolerance(self, current, target):
+        def _angle_delta(a, b):
+            delta = (a - b + 180) % 360 - 180
+            return abs(delta)
+
+        pitch_error = abs(current.get("pitch", 0) - target.get("pitch", 0))
+        yaw_error = _angle_delta(current.get("yaw", 0), target.get("yaw", 0))
+        roll_error = _angle_delta(current.get("roll", 0), target.get("roll", 0))
+        tol = self._queue_tolerance
+        return pitch_error <= tol and yaw_error <= tol and roll_error <= tol
+
+    def _format_queue_entry(self, entry):
+        if not entry:
+            return None
+        return {
+            "id": entry.get("id"),
+            "command": entry.get("command"),
+            "params": entry.get("params"),
+            "status": entry.get("status"),
+            "elapsed": entry.get("elapsed"),
+            "target": entry.get("target")
+        }
+
+    def get_queue_state(self):
+        return {
+            "active": self._format_queue_entry(self.active_command),
+            "pending": [self._format_queue_entry(entry) for entry in self.command_queue]
+        }
+
     def get_state(self):
         state = super().get_state()
         state.update({
@@ -708,5 +1006,6 @@ class HelmSystem(BaseSystem):
             "manual_throttle": self.manual_throttle,
             "attitude_target": self.attitude_target,
             "angular_velocity_target": self.angular_velocity_target,
+            "command_queue": self.get_queue_state(),
         })
         return state
