@@ -550,8 +550,16 @@ class UnifiedServer:
                             conn.sendall(err.encode("utf-8"))
                             continue
 
+                        # Extract request ID for correlation (if provided)
+                        request_id = req.pop("_request_id", None)
+
                         logger.debug(f"Request from {client_id}: {req}")
                         resp = self.dispatch(client_id, req)
+
+                        # Echo back request ID for client correlation
+                        if request_id is not None:
+                            resp["_request_id"] = request_id
+
                         conn.sendall(
                             (json.dumps(resp, default=_json_default) + "\n").encode("utf-8")
                         )

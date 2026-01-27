@@ -126,9 +126,9 @@ class WSClient extends EventTarget {
         return;
       }
 
-      // Generate unique request ID for tracking
-      const requestId = ++this._requestIdCounter;
-      const message = JSON.stringify({ cmd, ...args });
+      // Generate unique request ID for tracking and correlation
+      const requestId = `req_${++this._requestIdCounter}`;
+      const message = JSON.stringify({ cmd, _request_id: requestId, ...args });
 
       // Timeout after 15 seconds
       const timeout = setTimeout(() => {
@@ -150,17 +150,29 @@ class WSClient extends EventTarget {
   }
 
   /**
-   * Resolve the oldest pending request with a response
+   * Resolve a pending request with a response
    * Called by _handleMessage when a response is received
    * @param {object} data - Response data
    */
   _resolveNextPendingRequest(data) {
-    // Get the oldest pending request (FIFO order)
-    const iterator = this._pendingRequests.entries().next();
-    if (!iterator.done) {
-      const [requestId, { resolve, timeout }] = iterator.value;
+    // Try to match by request ID first (if server echoed it back)
+    const requestId = data._request_id;
+    if (requestId && this._pendingRequests.has(requestId)) {
+      const { resolve, timeout } = this._pendingRequests.get(requestId);
       clearTimeout(timeout);
       this._pendingRequests.delete(requestId);
+      // Remove the internal _request_id from the response data
+      const { _request_id, ...responseData } = data;
+      resolve(responseData);
+      return;
+    }
+
+    // Fallback to FIFO for backwards compatibility (legacy servers)
+    const iterator = this._pendingRequests.entries().next();
+    if (!iterator.done) {
+      const [reqId, { resolve, timeout }] = iterator.value;
+      clearTimeout(timeout);
+      this._pendingRequests.delete(reqId);
       resolve(data);
     } else {
       // No pending request - emit as general response event

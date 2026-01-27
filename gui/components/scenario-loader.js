@@ -195,15 +195,20 @@ class ScenarioLoader extends HTMLElement {
     list.innerHTML = '<div class="loading">Loading scenarios...</div>';
 
     try {
+      console.log("Fetching scenarios from server...");
       const response = await wsClient.send("list_scenarios", {});
+      console.log("list_scenarios response:", JSON.stringify(response, null, 2));
 
       if (response && response.ok !== false && Array.isArray(response.scenarios)) {
         this._scenarios = response.scenarios;
+        console.log(`Loaded ${this._scenarios.length} scenarios`);
         this._renderScenarios();
       } else {
+        console.warn("No scenarios in response:", response);
         list.innerHTML = '<div class="empty-state">No scenarios found</div>';
       }
     } catch (error) {
+      console.error("Failed to load scenarios:", error);
       list.innerHTML = `<div class="empty-state">Failed to load scenarios: ${error.message}</div>`;
     }
   }
