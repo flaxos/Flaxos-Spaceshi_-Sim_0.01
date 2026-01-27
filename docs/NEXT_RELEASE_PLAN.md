@@ -73,6 +73,33 @@ Enable targeting of specific subsystems, tying directly into the damage model.
 
 ---
 
+## 🛠️ Implementation Starting Points
+
+### Shared Foundations (Week 0–1)
+- **Schema inventory**: enumerate subsystems and add health/heat fields to the core schema.
+- **Telemetry shape**: define a consistent payload for subsystem status and heat metrics.
+- **Command/CLI hooks**: confirm where sub-targeting and damage events surface in commands.
+
+### Damage Model – Initial Tasks
+- Add subsystem health states to system definitions.
+- Create a damage application pipeline: impact → propagation → subsystem effects.
+- Add initial damage hooks for direct hit and AoE weapon types.
+
+### Heat Model – Initial Tasks
+- Add per-system heat generation in the tick loop.
+- Implement per-ship dissipation and overheat thresholds.
+- Define penalties: output throttling, cooldown delays, and auto-shutdown rules.
+
+### Sub-Targeting – Initial Tasks
+- Add a sub-target selector to the command surface.
+- Weight subsystem damage based on weapon precision and target selection.
+- Update telemetry and events to report targeted hit outcomes.
+
+### Validation – Initial Tasks
+- Add regression test stubs for damage and heat calculations.
+- Add a scenario checklist to ensure subsystem damage affects gameplay behavior.
+---
+
 ## ✅ Acceptance Criteria
 
 - Subsystem damage changes ship behavior in meaningful ways.
@@ -87,4 +114,3 @@ Enable targeting of specific subsystems, tying directly into the damage model.
 - Drones and multi-weapon mounts (S5).
 - Advanced AI doctrine (S5).
 - Replay viewer and CI/CD (S6).
-
