@@ -43,6 +43,7 @@ This starts the TCP sim server, WebSocket bridge, and GUI HTTP server, then open
 - [Feature status](docs/FEATURE_STATUS.md)
 - [Known issues](docs/KNOWN_ISSUES.md)
 - [Sprint plan](docs/NEXT_SPRINT.md)
+- [Next release plan](docs/NEXT_RELEASE_PLAN.md)
 - [Quaternion API](docs/QUATERNION_API.md)
 - [RCS configuration guide](docs/RCS_CONFIGURATION_GUIDE.md)
 - [Physics update notes](docs/PHYSICS_UPDATE.md)
