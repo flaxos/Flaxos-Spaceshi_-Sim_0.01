@@ -45,10 +45,23 @@ system_commands = {
     "override_bio_monitor": ("bio_monitor", "override"),
     "request_docking": ("docking", "request_docking"),
     "cancel_docking": ("docking", "cancel_docking"),
+    # Targeting commands (Sprint C)
     "lock_target": ("targeting", "lock"),
     "unlock_target": ("targeting", "unlock"),
     "get_target_solution": ("targeting", "get_solution"),
-    "fire_weapon": ("weapons", "fire")
+    "get_weapon_solution": ("targeting", "get_weapon_solution"),
+    "best_weapon": ("targeting", "best_weapon"),
+    # Legacy weapon system
+    "fire_weapon": ("weapons", "fire"),
+    # Combat system commands (Sprint C - truth weapons)
+    "fire_railgun": ("combat", "fire"),
+    "fire_pdc": ("combat", "fire"),
+    "fire_combat": ("combat", "fire"),
+    "fire_all": ("combat", "fire_all"),
+    "ready_weapons": ("combat", "ready_weapons"),
+    "combat_status": ("combat", "status"),
+    "weapon_status": ("combat", "weapon_status"),
+    "resupply": ("combat", "resupply"),
 }
 
 def parse_command(data):
