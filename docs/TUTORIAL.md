@@ -1,18 +1,21 @@
 # Flaxos Spaceship Sim - Tutorial Guide
 
-**Version**: 1.0
-**Last Updated**: 2026-01-19
+**Version**: 1.1
+**Last Updated**: 2026-01-26
 
 Welcome to the Flaxos Spaceship Sim! This tutorial will guide you through the basics of operating a spaceship, working with your crew, and mastering the multi-station interface.
 
 ## Table of Contents
 - [Getting Started](#getting-started)
+- [Getting Started Workflows](#getting-started-workflows)
 - [Understanding Stations](#understanding-stations)
+- [Station Roles & Responsibilities](#station-roles--responsibilities)
 - [Your First Mission](#your-first-mission)
 - [Navigation & Flight](#navigation--flight)
 - [Sensors & Contacts](#sensors--contacts)
 - [Combat Basics](#combat-basics)
 - [Multi-Crew Operations](#multi-crew-operations)
+- [Engineering & Power Management](#engineering--power-management)
 - [Advanced Topics](#advanced-topics)
 
 ---
@@ -36,6 +39,9 @@ From your project directory:
 ```bash
 # Terminal 1: Start the server (recommended: station-aware / multi-crew)
 python -m server.station_server --fleet-dir hybrid_fleet --dt 0.1 --port 8765 --host 0.0.0.0
+
+# Unified entrypoint (defaults to station mode)
+# python -m server.main --fleet-dir hybrid_fleet --dt 0.1 --port 8765 --host 0.0.0.0
 ```
 
 The server will:
@@ -122,6 +128,70 @@ print("I can use:", result['response']['available_commands'])
 ```
 I can use: ['set_thrust', 'set_orientation', 'autopilot', 'rotate', ...]
 ```
+
+---
+
+## Getting Started Workflows
+
+### Workflow A: Solo Practice (Single Laptop)
+Use this to learn quickly with a single client swapping stations.
+
+1. **Connect + assign ship**
+   ```python
+   cmd({"cmd": "assign_ship", "ship": "player_ship"})
+   ```
+2. **Claim HELM for movement**
+   ```python
+   cmd({"cmd": "claim_station", "station": "helm"})
+   ```
+3. **Fly, then release to switch**
+   ```python
+   cmd({"cmd": "release_station"})
+   cmd({"cmd": "claim_station", "station": "ops"})
+   ```
+4. **Use OPS to detect contacts**, then switch back to HELM for intercept.
+
+### Workflow B: Multi-Crew (2–4 Players)
+Run multiple clients (one per player) connected to the same ship.
+
+1. **Everyone connects and assigns the same ship**
+   ```python
+   cmd({"cmd": "assign_ship", "ship": "player_ship"})
+   ```
+2. **Each player claims a unique station**
+   ```python
+   cmd({"cmd": "claim_station", "station": "helm"})
+   cmd({"cmd": "claim_station", "station": "ops"})
+   cmd({"cmd": "claim_station", "station": "tactical"})
+   cmd({"cmd": "claim_station", "station": "engineering"})
+   ```
+3. **Use `get_state` and `get_events`** on each station to see filtered telemetry and event feeds.
+
+### Workflow C: Web GUI + Station Server
+If you prefer the web GUI, start the full stack:
+
+```bash
+python tools/start_gui_stack.py --server station
+```
+Then connect to the GUI in your browser and claim stations inside the UI.
+
+---
+
+## Station Roles & Responsibilities
+
+Use this as a quick reference for what each station does and which commands are common.
+
+| Station | Focus | Common Commands |
+|---------|-------|-----------------|
+| **Captain** | Command authority | `alert_status`, `override`, all commands |
+| **Helm** | Flight control | `set_thrust`, `set_orientation`, `autopilot`, `rotate` |
+| **Tactical** | Weapons | `lock_target`, `fire_weapon`, `set_fire_mode` |
+| **Ops** | Sensors | `ping_sensors`, `set_sensor_mode`, `scan_contact` |
+| **Engineering** | Power + systems | `get_power_state`, `set_power_profile`, `get_power_profiles`, `set_power_allocation` |
+| **Comms** | Messaging + fleet | `hail`, `send_message`, `fleet_status` |
+| **Fleet Commander** | Multi-ship control | `fleet_order`, `set_formation`, `assign_task` |
+
+> Note: Command availability depends on the station dispatcher and the ship’s installed systems. Use `my_status` or the `available_commands` list after claiming a station to confirm.
 
 ---
 
@@ -568,6 +638,51 @@ cmd({
 
 ---
 
+## Engineering & Power Management
+
+Power is modeled in **kW** with reactor warm-up, bus allocation, and battery-backed secondary systems. Engineering is responsible for keeping the ship online and balancing loadouts.
+
+### Quick Power Check
+```python
+cmd({"cmd": "claim_station", "station": "engineering"})
+state = cmd({"cmd": "get_power_state", "ship": "player_ship"})
+print(state["response"]["reactor"])
+print(state["response"]["buses"])
+```
+
+### Set a Power Profile
+```python
+cmd({"cmd": "set_power_profile", "ship": "player_ship", "profile": "offensive"})
+```
+
+### Fine-Tune Bus Allocation
+```python
+cmd({
+    "cmd": "set_power_allocation",
+    "ship": "player_ship",
+    "allocation": {"primary": 0.55, "secondary": 0.25, "tertiary": 0.20}
+})
+```
+
+### Reroute Emergency Power
+```python
+cmd({
+    "cmd": "reroute_power",
+    "ship": "player_ship",
+    "amount": 50.0,
+    "from_layer": "secondary",
+    "to_layer": "primary"
+})
+```
+
+### Engineering Checklist
+- **Primary bus**: propulsion, weapons, active sensors
+- **Secondary bus**: RCS, PDC, drones, comms (battery-backed)
+- **Tertiary bus**: life support, navigation, bio monitoring
+- If batteries drain, reduce secondary load or reallocate power to prevent blackouts.
+
+---
+
 ## Advanced Topics
 
 ### Fuel Management
@@ -593,27 +708,7 @@ cmd({"cmd": "refuel", "ship": "player_ship"})
 ```
 
 ### Power Management
-
-**System Power Control:**
-```python
-# NOTE: System power toggles are not yet standardized across all clients/servers.
-# If your server build exposes BaseSystem power controls, you can try:
-# cmd({"cmd": "power_on", "ship": "player_ship", "system": "sensors"})
-# cmd({"cmd": "power_off", "ship": "player_ship", "system": "propulsion"})
-```
-
-**Power Priority:**
-1. Life Support (always on)
-2. Reactor (power generation)
-3. Propulsion (mobility)
-4. Sensors (awareness)
-5. Weapons (offense)
-6. ECM (defense)
-
-**Battery Management:**
-- Reactor shutdown → batteries provide backup power
-- ~2-4 hours battery life at minimal systems
-- Restart reactor before batteries depleted
+See [Engineering & Power Management](#engineering--power-management) for the station workflow, bus allocation, and system toggles.
 
 ### Crew Efficiency
 

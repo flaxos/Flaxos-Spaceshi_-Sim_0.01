@@ -348,6 +348,32 @@ Get status of all stations on your ship.
 
 ---
 
+### list_ships
+List all available ships in the simulation.
+
+**Request:**
+```json
+{
+  "cmd": "list_ships"
+}
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "message": "Ships list",
+  "response": {
+    "ships": [
+      {"id": "test_ship_001", "name": "Test Ship 001"},
+      {"id": "freighter_alpha", "name": "Freighter Alpha"}
+    ]
+  }
+}
+```
+
+---
+
 ### fleet_status
 Get status of all ships and their crews.
 
@@ -663,13 +689,13 @@ Active sensor ping (high accuracy, reveals position).
 ### get_events
 Get filtered events for your station.
 
-> Note: event logging/streaming is not currently wired into the core simulator, so most builds will return an empty list here.
+Events are pulled from the simulator event log and filtered by station role and assigned ship. In station mode, you must **claim a station** first; otherwise the response is empty with a helpful message. In minimal mode, `get_events` returns the unfiltered event list.
 
 **Request:**
 ```json
 {
   "cmd": "get_events",
-  "ship": "player_ship"
+  "limit": 100
 }
 ```
 
@@ -677,10 +703,17 @@ Get filtered events for your station.
 ```json
 {
   "ok": true,
-  "events": [],
+  "events": [
+    {
+      "type": "autopilot_phase_change",
+      "ship_id": "player_ship",
+      "message": "Autopilot phase: APPROACH",
+      "t": 123.4
+    }
+  ],
   "station": "ops",
-  "total_events": 0,
-  "filtered_count": 0
+  "total_events": 42,
+  "filtered_count": 1
 }
 ```
 
@@ -972,66 +1005,32 @@ Take a rest period (reduces fatigue).
 
 ## Event System
 
-> Current status: the simulation publishes many internal events on an in-process event bus, but the TCP servers do not currently expose a reliable event log/stream to clients. As a result, `get_events` will usually return an empty list. The event lists below are **aspirational/reference** for future event delivery.
+The simulator publishes events to an in-process event bus and maintains a recent event log. TCP servers expose this log via `get_events`, with **station-based filtering** so clients only see relevant events for their role and assigned ship.
 
 ### Event Types by Station
 
-Events are filtered based on your station. Some events are visible to all stations.
+Events are filtered based on your station and assigned ship. Filtering is performed by matching event type keywords (e.g., `autopilot`, `weapon`, `sensor`, `power`). Some events are visible to all stations.
 
 #### HELM Events
-- `autopilot_engaged`
-- `autopilot_phase_change`
-- `autopilot_complete`
-- `navigation_complete`
-- `course_set`
-- `propulsion_status`
-- `docking_initiated`
+- Types containing: `autopilot`, `navigation`, `propulsion`
 
 #### TACTICAL Events
-- `weapon_fired`
-- `target_locked`
-- `target_lost`
-- `fire_solution_ready`
-- `weapon_reload_complete`
-- `pdc_engaged`
-- `threat_detected`
+- Types containing: `weapon`, `target`
 
 #### OPS Events
-- `sensor_contact_detected`
-- `sensor_contact_lost`
-- `sensor_contact_updated`
-- `active_ping_complete`
-- `detection_warning`
-- `ecm_activated`
-- `signature_change`
+- Types containing: `sensor`, `contact`
 
 #### ENGINEERING Events
-- `power_state_change`
-- `reactor_status`
-- `damage_report`
-- `repair_complete`
-- `system_failure`
-- `fuel_low`
-- `battery_critical`
+- Types containing: `power`, `reactor`, `damage`
 
 #### COMMS Events
-- `comm_received`
-- `fleet_status_update`
-- `hail_received`
-- `message_sent`
-- `iff_change`
+- Types containing: `comm`
 
 #### FLEET_COMMANDER Events
-- `fleet_formation_change`
-- `fleet_tactical_update`
-- `fleet_status_change`
-- `engagement_detected`
+- Types containing: `fleet`
 
 #### Universal Events (All Stations)
-- `critical_alert`
-- `mission_update`
-- `hint`
-- `emergency_stop`
+- Types containing: `critical`, `alert`, `warning`, `mission`
 
 ---
 
