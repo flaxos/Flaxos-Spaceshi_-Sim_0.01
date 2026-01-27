@@ -12,6 +12,11 @@ SUBSYSTEM_HEALTH_SCHEMA = {
         "criticality": 5.0,
         "failure_threshold": 0.25,
     },
+    "rcs": {
+        "max_health": 80.0,
+        "criticality": 4.0,
+        "failure_threshold": 0.2,
+    },
     "sensors": {
         "max_health": 90.0,
         "criticality": 3.0,

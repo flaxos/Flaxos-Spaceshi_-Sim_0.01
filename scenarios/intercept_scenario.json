@@ -1,0 +1,301 @@
+{
+  "name": "Intercept",
+  "description": "Sprint C Combat Scenario: Intercept and disable an enemy corvette. Win by achieving a mission kill (disable propulsion or weapons).",
+  "metadata": {
+    "author": "Sprint C - Combat Loop v1",
+    "version": "1.0",
+    "tags": ["combat", "intercept", "mission_kill", "sprint_c"],
+    "difficulty": "medium"
+  },
+  "ships": [
+    {
+      "id": "player_ship",
+      "name": "UNS Hunter",
+      "class": "frigate",
+      "faction": "unsa",
+      "mass": 2500.0,
+      "max_hull_integrity": 250.0,
+      "hull_integrity": 250.0,
+      "ai_enabled": false,
+      "position": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "velocity": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "orientation": {
+        "pitch": 0.0,
+        "yaw": 45.0,
+        "roll": 0.0
+      },
+      "systems": {
+        "propulsion": {
+          "enabled": true,
+          "power_draw": 80,
+          "mass": 350,
+          "main_drive": {
+            "thrust": {"x": 0.0, "y": 0.0, "z": 0.0},
+            "max_thrust": 400.0
+          }
+        },
+        "rcs": {
+          "enabled": true,
+          "max_torque": 50.0,
+          "attitude_rate": 15.0
+        },
+        "sensors": {
+          "enabled": true,
+          "power_draw": 25,
+          "passive": {
+            "range": 40000.0
+          },
+          "active": {
+            "scan_range": 80000.0,
+            "cooldown_time": 4.0
+          },
+          "signature_base": 1.3
+        },
+        "navigation": {
+          "enabled": true,
+          "power_draw": 10
+        },
+        "targeting": {
+          "enabled": true,
+          "lock_time": 1.5,
+          "lock_range": 80000.0
+        },
+        "combat": {
+          "enabled": true,
+          "railguns": 2,
+          "pdcs": 4
+        },
+        "weapons": {
+          "enabled": true,
+          "power_draw": 40,
+          "weapons": [
+            {
+              "name": "torpedo",
+              "power_cost": 30,
+              "max_heat": 80,
+              "ammo": 8,
+              "damage": 50.0
+            }
+          ]
+        },
+        "power_management": {
+          "primary": {"output": 150.0},
+          "secondary": {"output": 80.0},
+          "tertiary": {"output": 40.0},
+          "system_map": {
+            "propulsion": "primary",
+            "weapons": "primary",
+            "combat": "primary",
+            "sensors": "secondary",
+            "targeting": "secondary",
+            "rcs": "secondary",
+            "navigation": "tertiary"
+          }
+        }
+      },
+      "damage_model": {
+        "propulsion": {"max_health": 100.0, "health": 100.0},
+        "rcs": {"max_health": 80.0, "health": 80.0},
+        "weapons": {"max_health": 90.0, "health": 90.0},
+        "sensors": {"max_health": 70.0, "health": 70.0}
+      }
+    },
+    {
+      "id": "enemy_corvette",
+      "name": "Pirate Raider",
+      "class": "corvette",
+      "faction": "hostile",
+      "mass": 1500.0,
+      "max_hull_integrity": 150.0,
+      "hull_integrity": 150.0,
+      "ai_enabled": true,
+      "position": {
+        "x": 25000.0,
+        "y": 15000.0,
+        "z": 5000.0
+      },
+      "velocity": {
+        "x": -50.0,
+        "y": 30.0,
+        "z": 10.0
+      },
+      "orientation": {
+        "pitch": 5.0,
+        "yaw": 210.0,
+        "roll": 0.0
+      },
+      "systems": {
+        "propulsion": {
+          "enabled": true,
+          "power_draw": 50,
+          "mass": 200,
+          "main_drive": {
+            "thrust": {"x": 0.0, "y": 0.0, "z": 0.0},
+            "max_thrust": 250.0
+          }
+        },
+        "rcs": {
+          "enabled": true,
+          "max_torque": 30.0,
+          "attitude_rate": 20.0
+        },
+        "sensors": {
+          "enabled": true,
+          "power_draw": 15,
+          "passive": {
+            "range": 25000.0
+          },
+          "active": {
+            "scan_range": 50000.0,
+            "cooldown_time": 5.0
+          },
+          "signature_base": 0.9
+        },
+        "navigation": {
+          "enabled": true,
+          "power_draw": 8
+        },
+        "targeting": {
+          "enabled": true,
+          "lock_time": 2.0,
+          "lock_range": 60000.0
+        },
+        "combat": {
+          "enabled": true,
+          "railguns": 1,
+          "pdcs": 2
+        },
+        "weapons": {
+          "enabled": true,
+          "power_draw": 25,
+          "weapons": [
+            {
+              "name": "torpedo",
+              "power_cost": 25,
+              "max_heat": 60,
+              "ammo": 4,
+              "damage": 40.0
+            }
+          ]
+        },
+        "power_management": {
+          "primary": {"output": 100.0},
+          "secondary": {"output": 50.0},
+          "tertiary": {"output": 25.0},
+          "system_map": {
+            "propulsion": "primary",
+            "weapons": "primary",
+            "combat": "primary",
+            "sensors": "secondary",
+            "targeting": "secondary",
+            "rcs": "secondary",
+            "navigation": "tertiary"
+          }
+        }
+      },
+      "damage_model": {
+        "propulsion": {"max_health": 80.0, "health": 80.0},
+        "rcs": {"max_health": 60.0, "health": 60.0},
+        "weapons": {"max_health": 70.0, "health": 70.0},
+        "sensors": {"max_health": 50.0, "health": 50.0}
+      }
+    }
+  ],
+  "objectives": [
+    {
+      "id": "primary_mission_kill",
+      "type": "mission_kill",
+      "description": "Achieve mission kill on enemy corvette (disable propulsion or weapons)",
+      "target": "enemy_corvette",
+      "required": true,
+      "win_condition": true
+    },
+    {
+      "id": "secondary_destroy",
+      "type": "destroy",
+      "description": "Destroy enemy corvette (optional)",
+      "target": "enemy_corvette",
+      "required": false,
+      "bonus_points": 500
+    },
+    {
+      "id": "survival",
+      "type": "survive",
+      "description": "Survive the engagement",
+      "target": "player_ship",
+      "required": true,
+      "fail_condition": true
+    },
+    {
+      "id": "no_mission_kill",
+      "type": "avoid_mission_kill",
+      "description": "Avoid being mission killed",
+      "target": "player_ship",
+      "required": true,
+      "fail_condition": true
+    }
+  ],
+  "win_conditions": {
+    "any_of": [
+      {"objective": "primary_mission_kill"},
+      {"objective": "secondary_destroy"}
+    ],
+    "description": "Disable or destroy the enemy corvette"
+  },
+  "fail_conditions": {
+    "any_of": [
+      {"ship_destroyed": "player_ship"},
+      {"ship_mission_killed": "player_ship"}
+    ],
+    "description": "Player ship destroyed or mission killed"
+  },
+  "events": [
+    {
+      "time": 0.0,
+      "type": "message",
+      "content": "MISSION: Intercept hostile corvette 'Pirate Raider'. Disable or destroy target."
+    },
+    {
+      "time": 2.0,
+      "type": "message",
+      "content": "Target detected: Range 30km, bearing 045. Enemy is maneuvering."
+    },
+    {
+      "time": 5.0,
+      "type": "message",
+      "content": "Weapons systems online. Railguns and PDCs ready."
+    },
+    {
+      "time": 10.0,
+      "type": "message",
+      "content": "Tactical: Use railguns at range for heavy subsystem damage. PDCs for close defense."
+    }
+  ],
+  "tactical_notes": {
+    "player_advantages": [
+      "Heavier armament (2 railguns vs 1)",
+      "More hull integrity",
+      "Better sensors"
+    ],
+    "enemy_advantages": [
+      "Higher maneuverability",
+      "Lower sensor signature",
+      "Already moving, harder to intercept"
+    ],
+    "recommended_tactics": [
+      "Set intercept course to close range",
+      "Lock target and acquire firing solution",
+      "Fire railguns at range to damage propulsion/weapons",
+      "Use PDCs if enemy closes to short range",
+      "Achieve mission kill: disable propulsion OR weapons"
+    ]
+  }
+}
