@@ -95,7 +95,11 @@ def print_ship_state(state, detailed=False):
                     contact_id = contact.get("id", "Unknown")
                     distance = contact.get("distance", "Unknown")
                     method = contact.get("detection_method", "Unknown")
-                    print(f"  {contact_id} @ {distance:.1f} km [{method}]")
+                    if isinstance(distance, (int, float)):
+                        formatted_distance = f"{distance:.1f}"
+                    else:
+                        formatted_distance = str(distance)
+                    print(f"  {contact_id} @ {formatted_distance} km [{method}]")
 
 def run_cli(fleet_dir="hybrid_fleet", dt=0.1):
     """Run the simulator in CLI mode"""
