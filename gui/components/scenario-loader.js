@@ -288,7 +288,22 @@ class ScenarioLoader extends HTMLElement {
 
       if (response && response.ok !== false) {
         this._currentScenario = this._selectedScenario;
-        statusBox.textContent = `Loaded: ${this._selectedScenario} (${response.ships_loaded} ships)`;
+
+        // Build status message
+        let statusMsg = `Loaded: ${this._selectedScenario} (${response.ships_loaded} ships)`;
+        if (response.auto_assigned) {
+          statusMsg += ` - Assigned to ${response.assigned_ship}`;
+        }
+        statusBox.textContent = statusMsg;
+
+        console.log("Scenario loaded:", {
+          scenario: this._selectedScenario,
+          shipsLoaded: response.ships_loaded,
+          playerShipId: response.player_ship_id,
+          autoAssigned: response.auto_assigned,
+          assignedShip: response.assigned_ship,
+          station: response.station
+        });
 
         // Dispatch event for other components
         this.dispatchEvent(new CustomEvent("scenario-loaded", {
@@ -296,6 +311,9 @@ class ScenarioLoader extends HTMLElement {
             scenario: this._selectedScenario,
             shipsLoaded: response.ships_loaded,
             playerShipId: response.player_ship_id,
+            autoAssigned: response.auto_assigned,
+            assignedShip: response.assigned_ship,
+            station: response.station,
             mission: response.mission
           },
           bubbles: true
@@ -303,7 +321,9 @@ class ScenarioLoader extends HTMLElement {
 
         this._renderScenarios();
       } else {
-        statusBox.textContent = `Failed: ${response?.error || 'Unknown error'}`;
+        const errorMsg = response?.error || 'Unknown error';
+        statusBox.textContent = `Failed: ${errorMsg}`;
+        console.error("Scenario load failed:", errorMsg);
       }
     } catch (error) {
       statusBox.textContent = `Error: ${error.message}`;

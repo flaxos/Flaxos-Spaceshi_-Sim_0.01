@@ -240,9 +240,31 @@ class UnifiedServer:
             return {"ok": True, "scenarios": self.runner.list_scenarios()}
 
         if cmd == "load_scenario":
-            if not session or session.permission_level.value < PermissionLevel.CAPTAIN.value:
-                return Response.error("Only captain can load scenarios", ErrorCode.PERMISSION_DENIED).to_dict()
-            return self._handle_load_scenario(req)
+            # Allow scenario loading - auto-assign client to player ship afterward
+            # Permission check is relaxed for single-player experience
+            result = self._handle_load_scenario(req)
+
+            # If successful, auto-assign client to the player ship with captain control
+            if result.get("ok") and result.get("player_ship_id"):
+                player_ship_id = result["player_ship_id"]
+                from server.stations.station_types import StationType
+
+                # Assign client to player ship
+                self.station_manager.assign_to_ship(client_id, player_ship_id)
+
+                # Claim captain station for full ship control
+                self.station_manager.claim_station(
+                    client_id,
+                    player_ship_id,
+                    StationType.CAPTAIN
+                )
+
+                result["auto_assigned"] = True
+                result["assigned_ship"] = player_ship_id
+                result["station"] = "captain"
+                logger.info(f"Auto-assigned {client_id} to {player_ship_id} as captain")
+
+            return result
 
         if cmd == "get_mission":
             return {"ok": True, "mission": self.runner.get_mission_status()}
