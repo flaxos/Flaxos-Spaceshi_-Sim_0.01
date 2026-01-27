@@ -196,7 +196,7 @@ This document summarizes the completion of Phase 2 enhancements for the Flaxos S
 ### 8. Integration Testing ✓
 
 **Files Created:**
-- `test_phase2_integration.py`
+- `tests/phase2/test_phase2_integration.py`
 
 **Test Suite:**
 - 7 comprehensive integration tests
@@ -224,7 +224,7 @@ Note: 3 tests require numpy dependency (pre-existing requirement)
 ### New Files Created
 1. `server/stations/crew_system.py` (406 lines)
 2. `scenarios/fleet_combat_scenario.json` (691 lines)
-3. `test_phase2_integration.py` (416 lines)
+3. `tests/phase2/test_phase2_integration.py` (416 lines)
 4. `PHASE2_COMPLETION_SUMMARY.md` (this file)
 
 ### Modified Files
