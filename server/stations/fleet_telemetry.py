@@ -437,6 +437,36 @@ class FleetTelemetryFilter:
             elif offline_ratio >= 0.40:
                 return "damaged"
 
+        # Check PowerManagementSystem - critical if no available power or reactors overheated/depleted
+        if hasattr(ship, "systems") and "power_management" in ship.systems:
+            power_management = ship.systems["power_management"]
+            total_available = None
+            reactor_statuses = []
+
+            if hasattr(power_management, "get_state"):
+                power_state = power_management.get_state()
+                total_available = power_state.get("total_available")
+                for reactor_state in power_state.get("reactors", {}).values():
+                    reactor_statuses.append(reactor_state.get("status"))
+            else:
+                reactors = getattr(power_management, "reactors", {}) or {}
+                if reactors:
+                    total_available = sum(
+                        getattr(reactor, "available", getattr(reactor, "capacity", 0.0))
+                        for reactor in reactors.values()
+                    )
+                    reactor_statuses.extend(
+                        getattr(reactor, "status", None) for reactor in reactors.values()
+                    )
+
+            if total_available is not None and total_available <= 1.0:
+                return "critical"
+
+            if reactor_statuses and all(
+                status in ("overheated", "depleted") for status in reactor_statuses
+            ):
+                return "critical"
+
         # Check power system - if reactor is offline, ship is in trouble
         if hasattr(ship, "systems") and "power" in ship.systems:
             power_sys = ship.systems["power"]
