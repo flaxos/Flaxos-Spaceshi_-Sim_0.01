@@ -153,10 +153,15 @@ function setupGlobalEvents() {
 
   // Listen for scenario load to set player ship ID
   document.addEventListener("scenario-loaded", (e) => {
-    const { playerShipId, scenario, shipsLoaded, mission } = e.detail;
+    const { playerShipId, scenario, shipsLoaded, autoAssigned, station, mission } = e.detail;
     if (playerShipId) {
       stateManager.setPlayerShipId(playerShipId);
       console.log(`Scenario "${scenario}" loaded with ${shipsLoaded} ships, player: ${playerShipId}`);
+      if (autoAssigned) {
+        console.log(`Auto-assigned to ship ${playerShipId} as ${station || "captain"}`);
+      }
+    } else {
+      console.warn(`Scenario "${scenario}" loaded but no player ship ID received`);
     }
     showSystemMessage("success", `Scenario "${scenario}" loaded`, "Mission Ready");
   });
