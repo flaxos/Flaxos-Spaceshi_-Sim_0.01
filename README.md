@@ -61,11 +61,11 @@ See [`docs/ANDROID_AUTO_UPDATE.md`](docs/ANDROID_AUTO_UPDATE.md) for complete do
 ```bash
 pip install pyyaml flask
 
-# Optional: numpy (required for fleet formations)
+# Optional: numpy (required for fleet formations + Phase 2 integration tests)
 pip install numpy
 ```
 
-**Note**: NumPy is optional. Core functionality works without it, but fleet formation features require NumPy.
+**Note**: NumPy is optional. Core functionality works without it, but fleet formation features and the Phase 2 integration tests are skipped without NumPy.
 
 ### 2) Start the server (desktop recommended)
 Run the sim server from your desktop/laptop so it can host the simulation loop:

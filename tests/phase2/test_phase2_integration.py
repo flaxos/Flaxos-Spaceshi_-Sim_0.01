@@ -11,36 +11,47 @@ This script validates all Phase 2 enhancements:
 6. Multi-ship combat scenario loading
 """
 
-import sys
 import os
+import sys
 import logging
 
 import pytest
 
 # Add project root to path
-ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.insert(0, ROOT_DIR)
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # Check for numpy availability (optional dependency)
-try:
-    import numpy
-    HAS_NUMPY = True
-except ImportError:
-    HAS_NUMPY = False
+def has_numpy() -> bool:
+    try:
+        import numpy  # noqa: F401
+    except ImportError:
+        return False
+    return True
+
+
+HAS_NUMPY = has_numpy()
+if not HAS_NUMPY:
     logger.warning("NumPy not available - some tests will be skipped")
     logger.warning("To run all tests: pip install numpy")
 
+
+def require_numpy() -> None:
+    if not HAS_NUMPY:
+        pytest.skip("Test requires numpy (pip install numpy)")
+
+
+@pytest.mark.skipif(not HAS_NUMPY, reason="NumPy not available (pip install numpy).")
 def test_fleet_manager_integration():
     """Test that FleetManager is integrated with Simulator"""
     logger.info("=" * 60)
     logger.info("TEST 1: Fleet Manager Integration")
     logger.info("=" * 60)
 
-    if not HAS_NUMPY:
-        pytest.skip("Test requires numpy (pip install numpy)")
+    require_numpy()
 
     from hybrid.simulator import Simulator
     from hybrid.fleet.fleet_manager import FleetManager
@@ -72,14 +83,14 @@ def test_fleet_manager_integration():
     logger.info("✓ Fleet creation test passed")
 
 
+@pytest.mark.skipif(not HAS_NUMPY, reason="NumPy not available (pip install numpy).")
 def test_ai_controller_integration():
     """Test that AI Controller is integrated with Ship"""
     logger.info("\n" + "=" * 60)
     logger.info("TEST 2: AI Controller Integration")
     logger.info("=" * 60)
 
-    if not HAS_NUMPY:
-        pytest.skip("Test requires numpy (pip install numpy)")
+    require_numpy()
 
     from hybrid.ship import Ship
     from hybrid.fleet.ai_controller import AIBehavior
@@ -328,14 +339,14 @@ def test_scenario_loading():
         logger.info(f"  - {obj['type'].upper()}: {obj['description']}")
 
 
+@pytest.mark.skipif(not HAS_NUMPY, reason="NumPy not available (pip install numpy).")
 def test_simulator_tick_integration():
     """Test that simulator tick properly updates fleet manager and AI"""
     logger.info("\n" + "=" * 60)
     logger.info("TEST 7: Simulator Tick Integration")
     logger.info("=" * 60)
 
-    if not HAS_NUMPY:
-        pytest.skip("Test requires numpy (pip install numpy)")
+    require_numpy()
 
     from hybrid.simulator import Simulator
     from hybrid.fleet.ai_controller import AIBehavior
