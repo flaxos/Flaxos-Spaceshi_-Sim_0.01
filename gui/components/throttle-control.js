@@ -1,7 +1,11 @@
 /**
- * Throttle Control - Enhanced
+ * Throttle Control - Sprint B Enhanced
  * Vertical slider with direct percentage input, G-force display, and emergency stop
- * Supports precise manual % input at any value (not just increments)
+ * Now with:
+ * - Authoritative state display from server
+ * - Control authority indicator (manual vs autopilot)
+ * - Manual takeover button
+ * - Autopilot phase display
  */
 
 import { stateManager } from "../js/state-manager.js";
@@ -16,17 +20,29 @@ const G_ZONES = {
   EXTREME: { max: Infinity, label: "EXTREME", color: "#ff0000" }
 };
 
+// Control authority modes
+const CONTROL_AUTHORITY = {
+  MANUAL: "manual",
+  AUTOPILOT: "nav_autopilot",
+  QUEUE: "queue"
+};
+
 class ThrottleControl extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: "open" });
     this._unsubscribe = null;
     this._isDragging = false;
-    this._currentValue = 0;
-    this._targetValue = 0;
-    this._inputMode = "slider"; // "slider", "percent", or "g"
+    this._currentValue = 0;        // Authoritative value from server
+    this._targetValue = 0;         // Target value during drag
+    this._pendingCommand = false;  // True when waiting for server confirmation
+    this._inputMode = "slider";    // "slider", "percent", or "g"
     this._currentG = 0;
     this._maxG = 0;
+    // Control authority tracking
+    this._controlAuthority = CONTROL_AUTHORITY.MANUAL;
+    this._autopilotProgram = null;
+    this._autopilotPhase = null;
     // Store document-level event handlers for cleanup
     this._documentHandlers = [];
   }
@@ -336,7 +352,119 @@ class ThrottleControl extends HTMLElement {
         .hidden {
           display: none !important;
         }
+
+        /* Control Authority Display */
+        .control-authority {
+          width: 100%;
+          margin-bottom: 12px;
+          padding: 8px 12px;
+          background: var(--bg-input, #1a1a24);
+          border-radius: 6px;
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+
+        .authority-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+
+        .authority-label {
+          font-size: 0.65rem;
+          color: var(--text-dim, #555566);
+          text-transform: uppercase;
+        }
+
+        .authority-value {
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+          font-size: 0.75rem;
+          font-weight: 600;
+          padding: 2px 8px;
+          border-radius: 4px;
+        }
+
+        .authority-value.manual {
+          background: var(--status-info, #00aaff);
+          color: var(--bg-primary, #0a0a0f);
+        }
+
+        .authority-value.autopilot {
+          background: var(--status-nominal, #00ff88);
+          color: var(--bg-primary, #0a0a0f);
+        }
+
+        .authority-value.queue {
+          background: var(--status-warning, #ffaa00);
+          color: var(--bg-primary, #0a0a0f);
+        }
+
+        .autopilot-info {
+          font-size: 0.7rem;
+          color: var(--text-secondary, #888899);
+        }
+
+        .autopilot-phase {
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+          font-weight: 600;
+          color: var(--status-nominal, #00ff88);
+        }
+
+        .takeover-btn {
+          width: 100%;
+          padding: 8px 12px;
+          background: var(--status-info, #00aaff);
+          border: none;
+          border-radius: 4px;
+          color: var(--bg-primary, #0a0a0f);
+          font-weight: 600;
+          font-size: 0.75rem;
+          cursor: pointer;
+          margin-top: 4px;
+        }
+
+        .takeover-btn:hover {
+          filter: brightness(1.1);
+        }
+
+        .takeover-btn.release {
+          background: var(--status-warning, #ffaa00);
+        }
+
+        .pending-indicator {
+          position: absolute;
+          top: 4px;
+          right: 4px;
+          width: 8px;
+          height: 8px;
+          background: var(--status-warning, #ffaa00);
+          border-radius: 50%;
+          animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
+
+        .slider-track {
+          position: relative;
+        }
       </style>
+
+      <!-- Control Authority Display -->
+      <div class="control-authority">
+        <div class="authority-header">
+          <span class="authority-label">Control</span>
+          <span class="authority-value manual" id="authority-value">MANUAL</span>
+        </div>
+        <div class="autopilot-info" id="autopilot-info" style="display: none;">
+          <span id="autopilot-program">--</span> &bull;
+          <span class="autopilot-phase" id="autopilot-phase">--</span>
+        </div>
+        <button class="takeover-btn" id="takeover-btn">TAKE MANUAL CONTROL</button>
+      </div>
 
       <!-- Mode Toggle -->
       <div class="mode-toggle">
@@ -359,6 +487,7 @@ class ThrottleControl extends HTMLElement {
         <div class="slider-track" id="track">
           <div class="slider-fill" id="fill"></div>
           <div class="slider-handle" id="handle"></div>
+          <div class="pending-indicator hidden" id="pending-indicator"></div>
         </div>
 
         <div class="quick-buttons">
@@ -441,6 +570,12 @@ class ThrottleControl extends HTMLElement {
     const track = this.shadowRoot.getElementById("track");
     const handle = this.shadowRoot.getElementById("handle");
     const stopBtn = this.shadowRoot.getElementById("stop-btn");
+    const takeoverBtn = this.shadowRoot.getElementById("takeover-btn");
+
+    // Takeover button
+    takeoverBtn.addEventListener("click", () => {
+      this._toggleControlAuthority();
+    });
 
     // Quick buttons (slider section)
     this.shadowRoot.getElementById("slider-section").querySelectorAll(".quick-btn").forEach(btn => {
@@ -645,20 +780,117 @@ class ThrottleControl extends HTMLElement {
   _updateFromState() {
     const nav = stateManager.getNavigation();
     const ship = stateManager.getShipState();
-    const thrust = nav.thrust ?? 0;
+
+    // Get authoritative throttle from propulsion system (most accurate)
+    const propulsion = ship?.systems?.propulsion || {};
+    const helm = ship?.systems?.helm || {};
+    const navigation = ship?.systems?.navigation || {};
+
+    // Authoritative throttle value from propulsion
+    const thrust = propulsion.throttle ?? nav.thrust ?? 0;
     this._currentValue = thrust;
-    this._updateVisual(thrust);
+
+    // Only update visual if not dragging (don't override user input during drag)
+    if (!this._isDragging && !this._pendingCommand) {
+      this._updateVisual(thrust);
+    }
 
     // Get G-force from propulsion system
-    const propulsion = ship?.systems?.propulsion || {};
     this._currentG = propulsion.thrust_g || 0;
     this._maxG = propulsion.max_thrust_g || 0;
     this._updateGForceDisplay();
+
+    // Update control authority display
+    this._controlAuthority = helm.control_authority || CONTROL_AUTHORITY.MANUAL;
+    this._autopilotProgram = helm.autopilot_program || navigation.current_program || null;
+    this._autopilotPhase = helm.autopilot_phase || navigation.course?.phase || null;
+    this._updateControlAuthorityDisplay();
+  }
+
+  _updateControlAuthorityDisplay() {
+    const authorityValue = this.shadowRoot.getElementById("authority-value");
+    const autopilotInfo = this.shadowRoot.getElementById("autopilot-info");
+    const autopilotProgram = this.shadowRoot.getElementById("autopilot-program");
+    const autopilotPhase = this.shadowRoot.getElementById("autopilot-phase");
+    const takeoverBtn = this.shadowRoot.getElementById("takeover-btn");
+
+    if (!authorityValue) return;
+
+    // Remove all authority classes
+    authorityValue.classList.remove("manual", "autopilot", "queue");
+
+    switch (this._controlAuthority) {
+      case CONTROL_AUTHORITY.AUTOPILOT:
+        authorityValue.textContent = "AUTOPILOT";
+        authorityValue.classList.add("autopilot");
+        autopilotInfo.style.display = "block";
+        takeoverBtn.textContent = "TAKE MANUAL CONTROL";
+        takeoverBtn.classList.remove("release");
+        break;
+      case CONTROL_AUTHORITY.QUEUE:
+        authorityValue.textContent = "QUEUE";
+        authorityValue.classList.add("queue");
+        autopilotInfo.style.display = "none";
+        takeoverBtn.textContent = "INTERRUPT QUEUE";
+        takeoverBtn.classList.remove("release");
+        break;
+      default:
+        authorityValue.textContent = "MANUAL";
+        authorityValue.classList.add("manual");
+        autopilotInfo.style.display = "none";
+        takeoverBtn.textContent = "RELEASE TO AUTOPILOT";
+        takeoverBtn.classList.add("release");
+        break;
+    }
+
+    // Update autopilot info
+    if (this._autopilotProgram) {
+      autopilotProgram.textContent = this._autopilotProgram.toUpperCase().replace(/_/g, " ");
+    } else {
+      autopilotProgram.textContent = "--";
+    }
+
+    if (this._autopilotPhase) {
+      autopilotPhase.textContent = this._autopilotPhase;
+    } else {
+      autopilotPhase.textContent = "--";
+    }
+  }
+
+  async _toggleControlAuthority() {
+    try {
+      if (this._controlAuthority === CONTROL_AUTHORITY.MANUAL) {
+        // Release to autopilot
+        console.log("Releasing to autopilot...");
+        const response = await wsClient.sendShipCommand("release_to_autopilot", {});
+        console.log("Release response:", response);
+        if (response?.ok) {
+          this._showMessage("Released to autopilot", "success");
+        } else {
+          this._showMessage(response?.error || "Failed to release", "error");
+        }
+      } else {
+        // Take manual control
+        console.log("Taking manual control...");
+        const response = await wsClient.sendShipCommand("take_manual_control", {});
+        console.log("Takeover response:", response);
+        if (response?.ok) {
+          this._showMessage("Manual control engaged", "success");
+        } else {
+          this._showMessage(response?.error || "Failed to take control", "error");
+        }
+      }
+    } catch (error) {
+      console.error("Control authority toggle failed:", error);
+      this._showMessage(`Control toggle failed: ${error.message}`, "error");
+    }
   }
 
   async _setThrottle(value) {
     this._targetValue = value;
+    this._pendingCommand = true;
     this._updateVisual(value);
+    this._showPendingIndicator(true);
 
     try {
       // Send scalar throttle (0-1) for main drive
@@ -673,24 +905,44 @@ class ThrottleControl extends HTMLElement {
         const errorMsg = response.error || response.message || "Unknown error";
         console.error("Throttle command error:", errorMsg);
         this._showMessage(`Throttle error: ${errorMsg}`, "error");
-        // Revert visual on error
-        this._updateFromState();
+        // Revert visual to authoritative value on error
+        this._updateVisual(this._currentValue);
       } else if (response?.ok === true) {
         const result = response.response || response;
+        // Update to authoritative value from server
         if (result?.throttle !== undefined) {
           this._currentValue = result.throttle;
           this._updateVisual(this._currentValue);
-          console.log("Throttle updated from response:", result.throttle);
+          console.log("Throttle confirmed:", result.throttle);
+        }
+        // Update control authority if returned
+        if (result?.control_authority) {
+          this._controlAuthority = result.control_authority;
+          this._updateControlAuthorityDisplay();
         }
       }
     } catch (error) {
       console.error("Throttle command failed:", error);
       this._showMessage(`Throttle failed: ${error.message}`, "error");
-      this._updateFromState();
+      // Revert to authoritative value
+      this._updateVisual(this._currentValue);
+    } finally {
+      this._pendingCommand = false;
+      this._showPendingIndicator(false);
+    }
+  }
+
+  _showPendingIndicator(show) {
+    const indicator = this.shadowRoot.getElementById("pending-indicator");
+    if (indicator) {
+      indicator.classList.toggle("hidden", !show);
     }
   }
 
   async _setThrottleByG(gValue) {
+    this._pendingCommand = true;
+    this._showPendingIndicator(true);
+
     try {
       console.log("Setting throttle by G-force:", gValue);
       const response = await wsClient.sendShipCommand("set_thrust", {
@@ -702,11 +954,25 @@ class ThrottleControl extends HTMLElement {
         const errorMsg = response.error || response.message || "Unknown error";
         this._showMessage(`G-force error: ${errorMsg}`, "error");
       } else {
+        const result = response.response || response;
+        // Update to authoritative value from server
+        if (result?.throttle !== undefined) {
+          this._currentValue = result.throttle;
+          this._updateVisual(this._currentValue);
+        }
+        // Update control authority if returned
+        if (result?.control_authority) {
+          this._controlAuthority = result.control_authority;
+          this._updateControlAuthorityDisplay();
+        }
         this._showMessage(`Thrust set to ${gValue} G`, "success");
       }
     } catch (error) {
       console.error("G-force command failed:", error);
       this._showMessage(`G-force failed: ${error.message}`, "error");
+    } finally {
+      this._pendingCommand = false;
+      this._showPendingIndicator(false);
     }
   }
 

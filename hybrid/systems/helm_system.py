@@ -5,6 +5,12 @@ Expanse-style helm control:
 - Attitude commands set targets for RCS (no instant teleportation)
 - Throttle commands route to propulsion (scalar main drive)
 - Manual override allows direct rate control
+
+Control Authority Model:
+- NAV_AUTOPILOT: Navigation computer controls thrust/heading via autopilot
+- MANUAL: Pilot has direct control via helm inputs
+- QUEUE: Helm command queue is executing a sequence
+- When pilot inputs occur during autopilot, switches to manual with optional timeout
 """
 
 from hybrid.core.base_system import BaseSystem
@@ -16,25 +22,43 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+# Control authority modes
+CONTROL_AUTHORITY_MANUAL = "manual"
+CONTROL_AUTHORITY_AUTOPILOT = "nav_autopilot"
+CONTROL_AUTHORITY_QUEUE = "queue"
+
+
 class HelmSystem(BaseSystem):
-    """Manages ship control interface for thrust and orientation."""
+    """Manages ship control interface for thrust and orientation.
+
+    The helm system is the execution layer for ship control:
+    - Navigation computes desired thrust/heading
+    - Helm executes commands and tracks control authority
+    - Manual inputs from pilot always take precedence
+    """
 
     def __init__(self, config=None):
         super().__init__(config)
         config = config or {}
 
-        # Manual control
+        # Control authority tracking - who is currently controlling the ship
+        self.control_authority = config.get("control_authority", CONTROL_AUTHORITY_MANUAL)
         self.manual_override = config.get("manual_override", False)
         self.control_mode = config.get("control_mode", "standard")  # standard, precise, rapid
         self.dampening = config.get("dampening", 0.8)
 
+        # Manual override timeout (seconds before resuming autopilot if enabled)
+        self.manual_override_timeout = config.get("manual_override_timeout", 5.0)
+        self.last_manual_input_time = 0.0
+        self.resume_autopilot_after_override = config.get("resume_autopilot", True)
+
         # Integration with other systems
         self.power_draw = config.get("power_draw", 2.0)
-        self.mode = config.get("mode", "autopilot")  # autopilot or manual
-        
+        self.mode = config.get("mode", "autopilot")  # autopilot or manual (legacy)
+
         # Manual throttle (0..1 for scalar main drive)
         self.manual_throttle = config.get("manual_throttle", 0.0)
-        
+
         # Attitude target (for RCS)
         self.attitude_target = None
         self.angular_velocity_target = {"pitch": 0.0, "yaw": 0.0, "roll": 0.0}
@@ -47,10 +71,15 @@ class HelmSystem(BaseSystem):
 
         self.status = "standby"
 
+        # Track what autopilot program is active (for display)
+        self._autopilot_program = None
+        self._autopilot_phase = None
+
     def tick(self, dt, ship, event_bus):
-        """Update helm system state."""
+        """Update helm system state and control authority."""
         if not self.enabled:
             self.status = "offline"
+            self.control_authority = CONTROL_AUTHORITY_MANUAL
             return
 
         # Power request
@@ -58,18 +87,24 @@ class HelmSystem(BaseSystem):
         if power_system and not power_system.request_power(self.power_draw * dt, "helm"):
             return
 
+        # Get current simulation time
+        sim_time = getattr(ship, "sim_time", 0.0)
+
+        # Update control authority based on state
         queue_active = self._process_command_queue(dt, ship)
 
         if queue_active:
+            self.control_authority = CONTROL_AUTHORITY_QUEUE
             self.status = "executing_queue"
         elif self.manual_override or self.mode == "manual":
+            self.control_authority = CONTROL_AUTHORITY_MANUAL
             self.status = "manual_control"
-            
+
             # Apply manual throttle to propulsion
             propulsion = ship.systems.get("propulsion")
-            if propulsion and hasattr(propulsion, 'set_throttle'):
+            if propulsion and hasattr(propulsion, "set_throttle"):
                 propulsion.set_throttle({"thrust": self.manual_throttle})
-            
+
             # Apply attitude/rate targets to RCS
             rcs = ship.systems.get("rcs")
             if rcs:
@@ -77,17 +112,76 @@ class HelmSystem(BaseSystem):
                     rcs.set_attitude_target(self.attitude_target)
                 else:
                     rcs.set_angular_velocity_target(self.angular_velocity_target)
+
+            # Check if manual override should timeout and resume autopilot
+            if self.manual_override and self.resume_autopilot_after_override:
+                if sim_time - self.last_manual_input_time > self.manual_override_timeout:
+                    self._resume_autopilot(ship)
         else:
-            self.status = "standby"
+            # In autopilot mode - navigation system controls
+            self.control_authority = CONTROL_AUTHORITY_AUTOPILOT
+            self.status = "autopilot"
+
+        # Update autopilot info from navigation system
+        self._update_autopilot_info(ship)
 
         # Subscribe to navigation events (idempotent)
         event_bus.subscribe("navigation_autopilot_engaged", self._handle_autopilot_engaged)
         event_bus.subscribe("navigation_autopilot_disengaged", self._handle_autopilot_disengaged)
+        event_bus.subscribe("autopilot_phase_change", self._handle_autopilot_phase_change)
+
+    def _update_autopilot_info(self, ship):
+        """Update cached autopilot information from navigation system."""
+        nav = ship.systems.get("navigation")
+        if nav and hasattr(nav, "controller") and nav.controller:
+            controller = nav.controller
+            self._autopilot_program = controller.autopilot_program_name
+            if controller.autopilot and hasattr(controller.autopilot, "phase"):
+                self._autopilot_phase = controller.autopilot.phase
+            elif controller.autopilot and hasattr(controller.autopilot, "get_state"):
+                state = controller.autopilot.get_state()
+                self._autopilot_phase = state.get("phase")
+            else:
+                self._autopilot_phase = None
+        else:
+            self._autopilot_program = None
+            self._autopilot_phase = None
+
+    def _resume_autopilot(self, ship):
+        """Resume autopilot control after manual override timeout."""
+        logger.info(f"Manual override timeout on {ship.id}, resuming autopilot")
+        self.manual_override = False
+        self.mode = "autopilot"
+        self.control_authority = CONTROL_AUTHORITY_AUTOPILOT
+
+    def _record_manual_input(self, ship, sim_time=None):
+        """Record that pilot made a manual input - triggers manual override."""
+        if sim_time is None:
+            sim_time = getattr(ship, "sim_time", 0.0) if ship else 0.0
+
+        self.last_manual_input_time = sim_time
+        old_authority = self.control_authority
+
+        # Switch to manual control
+        if self.control_authority == CONTROL_AUTHORITY_AUTOPILOT:
+            self.manual_override = True
+            self.control_authority = CONTROL_AUTHORITY_MANUAL
+            logger.info(f"Manual override engaged on {ship.id if ship else 'unknown'}")
+
+        # Also notify navigation controller
+        if ship:
+            nav = ship.systems.get("navigation")
+            if nav and hasattr(nav, "controller") and nav.controller:
+                nav.controller.set_manual_input(sim_time)
 
     def command(self, action, params):
         """Process helm system commands."""
         if action == "helm_override":
             return self._cmd_helm_override(params)
+        if action == "take_manual_control":
+            return self._cmd_take_manual_control(params)
+        if action == "release_to_autopilot":
+            return self._cmd_release_to_autopilot(params)
         if action == "set_thrust":
             return self._cmd_set_thrust(params, params.get("_ship"))
         if action == "set_orientation":
@@ -126,6 +220,72 @@ class HelmSystem(BaseSystem):
         if action == "power_off":
             return self.power_off()
         return super().command(action, params)
+
+    def _cmd_take_manual_control(self, params):
+        """Explicitly take manual control from autopilot.
+
+        This is the pilot saying "I've got the stick" - immediately transfers
+        control authority to manual and disables autopilot resume timeout.
+        """
+        if not self.enabled:
+            return {"error": "Helm system is disabled"}
+
+        ship = params.get("_ship") or params.get("ship")
+
+        # Disable autopilot resume
+        self.resume_autopilot_after_override = False
+        self.manual_override = True
+        self.mode = "manual"
+        self.control_authority = CONTROL_AUTHORITY_MANUAL
+
+        # Disengage navigation autopilot
+        if ship:
+            nav = ship.systems.get("navigation")
+            if nav and hasattr(nav, "controller") and nav.controller:
+                nav.controller.disengage_autopilot()
+
+        logger.info(f"Manual control taken on {ship.id if ship else 'unknown'}")
+
+        return {
+            "status": "Manual control engaged",
+            "control_authority": self.control_authority,
+            "autopilot_disabled": True,
+        }
+
+    def _cmd_release_to_autopilot(self, params):
+        """Release manual control and allow autopilot to resume.
+
+        This doesn't engage autopilot directly - it just allows it to take over
+        if/when navigation commands set_course or autopilot.
+        """
+        if not self.enabled:
+            return {"error": "Helm system is disabled"}
+
+        ship = params.get("_ship") or params.get("ship")
+
+        self.manual_override = False
+        self.resume_autopilot_after_override = True
+        self.mode = "autopilot"
+
+        # Check if navigation has an active autopilot
+        if ship:
+            nav = ship.systems.get("navigation")
+            if nav and hasattr(nav, "controller") and nav.controller:
+                if nav.controller.autopilot:
+                    self.control_authority = CONTROL_AUTHORITY_AUTOPILOT
+                else:
+                    self.control_authority = CONTROL_AUTHORITY_MANUAL
+            else:
+                self.control_authority = CONTROL_AUTHORITY_MANUAL
+        else:
+            self.control_authority = CONTROL_AUTHORITY_MANUAL
+
+        logger.info(f"Released to autopilot on {ship.id if ship else 'unknown'}")
+
+        return {
+            "status": "Released to autopilot",
+            "control_authority": self.control_authority,
+        }
 
     def _cmd_set_orientation_target(self, params):
         """Set attitude target for RCS (ship will rotate to reach it).
@@ -184,13 +344,11 @@ class HelmSystem(BaseSystem):
             roll = max(-180, min(180, roll))  # Roll limited to -180 to 180
             
             self.attitude_target = {"pitch": pitch, "yaw": yaw, "roll": roll}
-            
-            # Record manual input for navigation system (if nav computer is online)
+
+            # Record manual input - triggers manual override if autopilot active
             if ship:
-                nav_system = ship.systems.get("navigation")
-                if nav_system and hasattr(nav_system, "controller") and nav_system.controller:
-                    nav_system.controller.set_manual_input(getattr(ship, "sim_time", 0.0))
-                
+                self._record_manual_input(ship, getattr(ship, "sim_time", 0.0))
+
                 # Route to RCS if available
                 rcs = ship.systems.get("rcs")
                 if rcs:
@@ -198,13 +356,15 @@ class HelmSystem(BaseSystem):
                     return {
                         "status": "Attitude target set (RCS will maneuver)",
                         "target": self.attitude_target,
-                        "rcs_response": result
+                        "control_authority": self.control_authority,
+                        "rcs_response": result,
                     }
-            
+
             return {
                 "status": "Attitude target set",
                 "target": self.attitude_target,
-                "note": "RCS not available - target stored for later"
+                "control_authority": self.control_authority,
+                "note": "RCS not available - target stored for later",
             }
         except (ValueError, TypeError) as e:
             logger.error(f"Error setting orientation target: {e}")
@@ -314,18 +474,16 @@ class HelmSystem(BaseSystem):
             self.angular_velocity_target = {
                 "pitch": float(params.get("pitch", 0.0)),
                 "yaw": float(params.get("yaw", 0.0)),
-                "roll": float(params.get("roll", 0.0))
+                "roll": float(params.get("roll", 0.0)),
             }
-            
+
             # Clear attitude target (rate mode)
             self.attitude_target = None
-            
-            # Record manual input for navigation system (if nav computer is online)
+
+            # Record manual input - triggers manual override if autopilot active
             if ship:
-                nav_system = ship.systems.get("navigation")
-                if nav_system and hasattr(nav_system, "controller") and nav_system.controller:
-                    nav_system.controller.set_manual_input(getattr(ship, "sim_time", 0.0))
-                
+                self._record_manual_input(ship, getattr(ship, "sim_time", 0.0))
+
                 # Route to RCS if available
                 rcs = ship.systems.get("rcs")
                 if rcs:
@@ -333,12 +491,14 @@ class HelmSystem(BaseSystem):
                     return {
                         "status": "Angular velocity target set",
                         "target": self.angular_velocity_target,
-                        "rcs_response": result
+                        "control_authority": self.control_authority,
+                        "rcs_response": result,
                     }
-            
+
             return {
                 "status": "Angular velocity target set",
-                "target": self.angular_velocity_target
+                "target": self.angular_velocity_target,
+                "control_authority": self.control_authority,
             }
         except (ValueError, TypeError) as e:
             logger.error(f"Error setting angular velocity: {e}")
@@ -712,10 +872,10 @@ class HelmSystem(BaseSystem):
 
     def _cmd_set_thrust(self, params, ship):
         """Set thrust - routes to propulsion with scalar throttle.
-        
+
         NOTE: This handler is for helm-specific set_thrust calls.
         Direct set_thrust commands route to propulsion system.
-        Manual controls should always work when helm is enabled.
+        Manual controls ALWAYS work when helm is enabled - pilot authority is paramount.
         """
         if not self.enabled:
             return {"error": "Helm system is disabled"}
@@ -724,15 +884,13 @@ class HelmSystem(BaseSystem):
 
         # Accept scalar 'thrust' or 'throttle'
         throttle = params.get("thrust", params.get("throttle"))
-        
+
         if throttle is not None:
             self.manual_throttle = max(0.0, min(1.0, float(throttle)))
-            
-            # Record manual input for navigation system (if nav computer is online)
-            nav_system = ship.systems.get("navigation")
-            if nav_system and hasattr(nav_system, "controller") and nav_system.controller:
-                nav_system.controller.set_manual_input(getattr(ship, "sim_time", 0.0))
-            
+
+            # Record manual input - this triggers manual override if autopilot is active
+            self._record_manual_input(ship, getattr(ship, "sim_time", 0.0))
+
             # Always allow manual control - route directly to propulsion
             propulsion = ship.systems.get("propulsion")
             if propulsion and hasattr(propulsion, "set_throttle"):
@@ -740,26 +898,38 @@ class HelmSystem(BaseSystem):
                 return {
                     "status": "Throttle updated",
                     "throttle": self.manual_throttle,
-                    "propulsion_response": result
+                    "control_authority": self.control_authority,
+                    "propulsion_response": result,
                 }
-        
-        return {"status": "Throttle updated", "throttle": self.manual_throttle}
+
+        return {
+            "status": "Throttle updated",
+            "throttle": self.manual_throttle,
+            "control_authority": self.control_authority,
+        }
 
     def _cmd_set_throttle(self, params):
         """Set throttle directly (0..1)."""
         if not self.enabled:
             return {"error": "Helm system is disabled"}
-        
+
         throttle = params.get("thrust", params.get("throttle", 0.0))
         self.manual_throttle = max(0.0, min(1.0, float(throttle)))
-        
+
         ship = params.get("_ship") or params.get("ship")
         if ship:
+            # Record manual input - triggers manual override if autopilot active
+            self._record_manual_input(ship, getattr(ship, "sim_time", 0.0))
+
             propulsion = ship.systems.get("propulsion")
             if propulsion and hasattr(propulsion, "set_throttle"):
                 propulsion.set_throttle({"thrust": self.manual_throttle})
-        
-        return {"status": "Throttle updated", "throttle": self.manual_throttle}
+
+        return {
+            "status": "Throttle updated",
+            "throttle": self.manual_throttle,
+            "control_authority": self.control_authority,
+        }
 
     def _cmd_set_dampening(self, params):
         if not self.enabled:
@@ -795,11 +965,24 @@ class HelmSystem(BaseSystem):
         return {"status": f"Helm mode set to {self.mode}", "mode": self.mode}
 
     def _handle_autopilot_engaged(self, event):
+        """Handle navigation autopilot engagement."""
         self.mode = "autopilot"
-        logger.info("Autopilot engaged, helm switching to autopilot mode")
+        self.manual_override = False
+        self.control_authority = CONTROL_AUTHORITY_AUTOPILOT
+        self._autopilot_program = event.get("program")
+        logger.info(f"Autopilot engaged: {self._autopilot_program}, helm deferring to nav")
 
     def _handle_autopilot_disengaged(self, event):
-        logger.info("Autopilot disengaged")
+        """Handle navigation autopilot disengagement."""
+        self.control_authority = CONTROL_AUTHORITY_MANUAL
+        self._autopilot_program = None
+        self._autopilot_phase = None
+        logger.info("Autopilot disengaged, helm taking manual control")
+
+    def _handle_autopilot_phase_change(self, event):
+        """Handle autopilot phase changes for status display."""
+        self._autopilot_phase = event.get("phase")
+        logger.debug(f"Autopilot phase changed to: {self._autopilot_phase}")
 
     def _normalize_queue_command(self, command, params):
         command = str(command).lower()
@@ -999,6 +1182,8 @@ class HelmSystem(BaseSystem):
         state = super().get_state()
         state.update({
             "status": self.status,
+            # Control authority - who is controlling the ship
+            "control_authority": self.control_authority,
             "manual_override": self.manual_override,
             "control_mode": self.control_mode,
             "dampening": self.dampening,
@@ -1007,5 +1192,8 @@ class HelmSystem(BaseSystem):
             "attitude_target": self.attitude_target,
             "angular_velocity_target": self.angular_velocity_target,
             "command_queue": self.get_queue_state(),
+            # Autopilot info (cached from navigation)
+            "autopilot_program": self._autopilot_program,
+            "autopilot_phase": self._autopilot_phase,
         })
         return state

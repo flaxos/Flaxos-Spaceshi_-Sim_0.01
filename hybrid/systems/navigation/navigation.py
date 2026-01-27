@@ -368,17 +368,39 @@ class NavigationSystem(BaseSystem):
         """Get navigation system state.
 
         Returns:
-            dict: Current state
+            dict: Current state with comprehensive autopilot information
         """
         state = super().get_state()
 
         if self.controller:
-            state.update(self.controller.get_state())
+            controller_state = self.controller.get_state()
+            state.update(controller_state)
+
             # Add navigation assistance data (makes manual control easier)
             if hasattr(self.controller, "get_nav_assistance"):
                 state["nav_assistance"] = self.controller.get_nav_assistance()
+
+            # Add comprehensive course info for GUI
+            autopilot_state = controller_state.get("autopilot_state", {})
+            if autopilot_state:
+                state["course"] = {
+                    "active": True,
+                    "program": controller_state.get("current_program"),
+                    "phase": autopilot_state.get("phase"),
+                    "status": autopilot_state.get("status"),
+                    "destination": autopilot_state.get("destination"),
+                    "distance": autopilot_state.get("distance"),
+                    "closing_speed": autopilot_state.get("closing_speed"),
+                    "braking_distance": autopilot_state.get("braking_distance"),
+                    "stop_at_target": autopilot_state.get("stop"),
+                    "tolerance": autopilot_state.get("tolerance"),
+                    "complete": autopilot_state.get("complete", False),
+                }
+            else:
+                state["course"] = {"active": False}
         else:
             state["mode"] = "manual"
             state["autopilot_enabled"] = False
+            state["course"] = {"active": False}
 
         return state

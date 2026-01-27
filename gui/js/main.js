@@ -45,6 +45,9 @@ import { stationManager } from "./station-manager.js";
 // Phase 8: Inter-Station Communication
 import "../components/helm-requests.js";
 import { helmRequests } from "./helm-requests.js";
+// Sprint B: Navigation loop - set_course and autopilot
+import "../components/set-course-control.js";
+import "../components/autopilot-status.js";
 
 // App state
 const app = {
