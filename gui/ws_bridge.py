@@ -214,6 +214,9 @@ class WSBridge:
             await websocket.send(error_envelope.to_wire())
             return
 
+        # Extract request ID for correlation (if present)
+        request_id = data.get("_request_id")
+
         # Handle internal commands (bridge-level, not forwarded to TCP)
         cmd = data.get("cmd") or data.get("command")
 
@@ -237,10 +240,13 @@ class WSBridge:
         await self._maybe_broadcast_tcp_status()
 
         if response is None:
-            # TCP error
+            # TCP error - include request_id if present for proper correlation
+            error_data = {"tcp_connected": False}
+            if request_id is not None:
+                error_data["_request_id"] = request_id
             error_envelope = WSEnvelope.error(
                 "TCP server unavailable",
-                {"tcp_connected": False}
+                error_data
             )
             await websocket.send(error_envelope.to_wire())
             # Notify all clients of TCP disconnect
@@ -250,10 +256,14 @@ class WSBridge:
         # Parse and wrap response using Protocol v1 envelope
         try:
             response_data = json.loads(response)
-            wrapped = WSEnvelope.response(response_data)
         except json.JSONDecodeError:
-            wrapped = WSEnvelope.response({"raw": response})
+            response_data = {"raw": response}
 
+        # Include request_id in response for client-side correlation
+        if request_id is not None:
+            response_data["_request_id"] = request_id
+
+        wrapped = WSEnvelope.response(response_data)
         await websocket.send(wrapped.to_wire())
 
     async def start(self):
