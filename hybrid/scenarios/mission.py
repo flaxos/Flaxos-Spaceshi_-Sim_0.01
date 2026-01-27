@@ -32,6 +32,7 @@ class Mission:
 
         self.tracker = ObjectiveTracker(objectives)
         self.start_time = None
+        self.last_sim_time = None
         self.shown_hints = set()
         self.hint_queue = []  # Queue of hints to be displayed to player
 
@@ -42,6 +43,7 @@ class Mission:
             sim_time: Current simulation time
         """
         self.start_time = sim_time
+        self.last_sim_time = sim_time
 
         # Set start_time on time-based objectives
         for obj in self.tracker.objectives.values():
@@ -56,6 +58,7 @@ class Mission:
             player_ship: Player's ship
         """
         # Check time limit
+        self.last_sim_time = sim.time
         if self.time_limit and self.start_time:
             elapsed = sim.time - self.start_time
             if elapsed > self.time_limit and self.tracker.mission_status == "in_progress":
@@ -136,8 +139,11 @@ class Mission:
                 logger = logging.getLogger(__name__)
                 logger.info(f"Mission hint triggered: {message}")
 
-    def get_status(self) -> Dict:
+    def get_status(self, sim_time: Optional[float] = None) -> Dict:
         """Get mission status.
+
+        Args:
+            sim_time: Current simulation time
 
         Returns:
             dict: Mission status
@@ -153,9 +159,8 @@ class Mission:
         if self.start_time:
             # Add time remaining if there's a limit
             if self.time_limit:
-                import time
-                current_time = time.time()  # This should use sim.time
-                elapsed = current_time - self.start_time if self.start_time else 0
+                current_time = sim_time if sim_time is not None else self.last_sim_time
+                elapsed = current_time - self.start_time if current_time is not None else 0
                 status["time_remaining"] = max(0, self.time_limit - elapsed)
 
         return status

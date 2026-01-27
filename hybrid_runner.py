@@ -87,7 +87,7 @@ class HybridRunner:
         """Return current mission status and metadata."""
         if not self.mission:
             return {"available": False}
-        status = self.mission.get_status()
+        status = self.mission.get_status(sim_time=self.simulator.time)
         status.update({
             "available": True,
             "briefing": self.mission.briefing,
