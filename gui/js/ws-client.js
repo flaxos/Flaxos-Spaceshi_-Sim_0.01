@@ -126,9 +126,10 @@ class WSClient extends EventTarget {
         return;
       }
 
-      // Generate unique request ID for tracking
+      // Generate unique request ID for tracking and correlation
       const requestId = ++this._requestIdCounter;
-      const message = JSON.stringify({ cmd, ...args });
+      // Include _request_id in the message for server-side correlation
+      const message = JSON.stringify({ cmd, _request_id: requestId, ...args });
 
       // Timeout after 15 seconds
       const timeout = setTimeout(() => {
@@ -136,7 +137,7 @@ class WSClient extends EventTarget {
         reject(new Error("Response timeout"));
       }, 15000);
 
-      // Store request handler with its timeout
+      // Store request handler with its timeout, keyed by requestId
       this._pendingRequests.set(requestId, { resolve, reject, timeout, cmd });
 
       try {
@@ -150,22 +151,51 @@ class WSClient extends EventTarget {
   }
 
   /**
-   * Resolve the oldest pending request with a response
+   * Resolve a pending request by its request ID
    * Called by _handleMessage when a response is received
+   * @param {number|null} requestId - The request ID from the response
    * @param {object} data - Response data
    */
-  _resolveNextPendingRequest(data) {
-    // Get the oldest pending request (FIFO order)
-    const iterator = this._pendingRequests.entries().next();
-    if (!iterator.done) {
-      const [requestId, { resolve, timeout }] = iterator.value;
+  _resolvePendingRequest(requestId, data) {
+    // Try to match by request ID first (preferred)
+    if (requestId !== null && requestId !== undefined && this._pendingRequests.has(requestId)) {
+      const { resolve, timeout } = this._pendingRequests.get(requestId);
       clearTimeout(timeout);
       this._pendingRequests.delete(requestId);
+      resolve(data);
+      return;
+    }
+
+    // Fallback: If no request ID in response, use FIFO (for backward compatibility)
+    // This handles cases where the server doesn't echo the request ID
+    const iterator = this._pendingRequests.entries().next();
+    if (!iterator.done) {
+      const [fallbackId, { resolve, timeout }] = iterator.value;
+      clearTimeout(timeout);
+      this._pendingRequests.delete(fallbackId);
       resolve(data);
     } else {
       // No pending request - emit as general response event
       this._emit("response", data);
     }
+  }
+
+  /**
+   * Reject a pending request by its request ID (for error responses)
+   * @param {number|null} requestId - The request ID from the error response
+   * @param {object} errorData - Error data
+   */
+  _rejectPendingRequest(requestId, errorData) {
+    // Try to match by request ID first
+    if (requestId !== null && requestId !== undefined && this._pendingRequests.has(requestId)) {
+      const { reject, timeout } = this._pendingRequests.get(requestId);
+      clearTimeout(timeout);
+      this._pendingRequests.delete(requestId);
+      reject(new Error(errorData?.error || "Server error"));
+      return;
+    }
+
+    // No matching request - error will be emitted as general event only
   }
 
   /**
@@ -216,11 +246,25 @@ class WSClient extends EventTarget {
         break;
 
       case "response":
-        // Route response to the next pending request in queue
-        this._resolveNextPendingRequest(payload);
+        // Extract request ID from response payload for correlation
+        const requestId = payload?._request_id;
+        // Remove _request_id from payload before passing to handler
+        if (requestId !== undefined) {
+          delete payload._request_id;
+        }
+        // Route response to the matching pending request
+        this._resolvePendingRequest(requestId, payload);
         break;
 
       case "error":
+        // Check if error has a request ID for correlation
+        const errorRequestId = payload?._request_id;
+        if (errorRequestId !== undefined) {
+          delete payload._request_id;
+        }
+        // If we can match the error to a pending request, reject it
+        this._rejectPendingRequest(errorRequestId, payload);
+        // Also emit the error event for general handling
         this._emit("server_error", payload);
         break;
 
