@@ -1,5 +1,18 @@
 # Flaxos Spaceship Sim — Full Feature Prototype
-Hard sci‑fi sim (Expanse‑inspired) with comprehensive navigation, autopilot, sensors, and combat systems. This release includes advanced autonomous navigation, passive/active sensors with contact tracking, targeting systems, and a complete command API.
+Hard sci‑fi sim (Expanse‑inspired) with comprehensive navigation, autopilot, sensors, combat systems, and **station-based multi-crew** control. This release includes advanced autonomous navigation, passive/active sensors with contact tracking, targeting systems, realistic **power management in kW**, and a complete command API.
+
+## Station Architecture & Multi-Crew
+The sim supports multiple clients on the same ship with **station roles** (Captain, Helm, Tactical, Ops, Engineering, Comms, Fleet Commander). Each station gets filtered telemetry, role-appropriate commands, and event feeds so multi-crew teams can coordinate in real time.
+
+- **Station server entrypoint:** `python -m server.station_server` (station-aware multi-crew)
+- **Unified server entrypoint:** `python -m server.main` (defaults to station mode)
+- **Minimal mode:** `python -m server.main --mode minimal` (no station filtering)
+
+## Power Management Highlights
+- Reactor warm-up and ramp output in kW
+- Primary/Secondary/Tertiary power buses with allocation ratios
+- Battery-backed secondary bus and system toggles
+- Engineering station command set for routing and monitoring
 
 ## Quickstart
 ```bash
@@ -24,6 +37,9 @@ This starts the TCP sim server, WebSocket bridge, and GUI HTTP server, then open
 
 ## Documentation
 - [Architecture overview](docs/ARCHITECTURE.md)
+- [Station architecture](STATION_ARCHITECTURE.md)
+- [API reference](docs/API_REFERENCE.md)
+- [Getting started tutorial](docs/TUTORIAL.md)
 - [Feature status](docs/FEATURE_STATUS.md)
 - [Known issues](docs/KNOWN_ISSUES.md)
 - [Sprint plan](docs/NEXT_SPRINT.md)
