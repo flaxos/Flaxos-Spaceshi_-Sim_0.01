@@ -317,29 +317,36 @@ class Ship:
 
     def get_flight_path(self, max_age_seconds=60, current_sim_time=None):
         """Get flight path positions from last N seconds.
-        
+
         Args:
             max_age_seconds: Maximum age of positions to include (simulation seconds)
             current_sim_time: Current simulation time (if None, uses last recorded time + sample_interval)
-            
+
         Returns:
             list: List of position dicts {x, y, z} from last N seconds
         """
         if not self._flight_path_history:
             return []
-        
+
+        # Make a thread-safe copy of the history to avoid "deque mutated during iteration"
+        try:
+            history_snapshot = list(self._flight_path_history)
+        except RuntimeError:
+            # If we still hit a race, return empty gracefully
+            return []
+
+        if not history_snapshot:
+            return []
+
         # Use provided sim_time or estimate from last sample + interval
         if current_sim_time is None:
-            if self._flight_path_history:
-                # Estimate current time as last sample + one interval
-                current_sim_time = self._flight_path_history[-1]["t"] + self._flight_path_sample_interval
-            else:
-                return []
-        
+            # Estimate current time as last sample + one interval
+            current_sim_time = history_snapshot[-1]["t"] + self._flight_path_sample_interval
+
         cutoff_time = max(0, current_sim_time - max_age_seconds)
-        
+
         return [
-            entry["pos"] for entry in self._flight_path_history
+            entry["pos"] for entry in history_snapshot
             if entry["t"] >= cutoff_time
         ]
 
