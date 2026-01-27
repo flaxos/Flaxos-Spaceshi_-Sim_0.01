@@ -111,9 +111,21 @@ class StateManager extends EventTarget {
       const response = await wsClient.send("get_state", params);
       if (response && response.ok !== false) {
         // Auto-detect player ship ID from first ship if not set
-        if (!this._playerShipId && response.ships && response.ships.length > 0) {
-          this._playerShipId = response.ships[0].id;
-          console.log("Auto-detected player ship ID:", this._playerShipId);
+        if (!this._playerShipId) {
+          if (response.ship) {
+            this._playerShipId = response.ship;
+          } else if (Array.isArray(response.ships) && response.ships.length > 0) {
+            this._playerShipId = response.ships[0]?.id;
+          } else if (response.ships && typeof response.ships === "object") {
+            const [firstShipId] = Object.keys(response.ships);
+            if (firstShipId) {
+              this._playerShipId = firstShipId;
+            }
+          }
+
+          if (this._playerShipId) {
+            console.log("Auto-detected player ship ID:", this._playerShipId);
+          }
         }
         this._updateState(response);
       }
@@ -261,12 +273,25 @@ class StateManager extends EventTarget {
     if (state.ship) return state.ship;
     
     // If we have a ships array, find player ship or use first
-    if (state.ships && Array.isArray(state.ships) && state.ships.length > 0) {
+    if (Array.isArray(state.ships) && state.ships.length > 0) {
       if (this._playerShipId) {
         const playerShip = state.ships.find(s => s.id === this._playerShipId);
         if (playerShip) return playerShip;
       }
       return state.ships[0];
+    }
+
+    // If we have a ships object (station telemetry), find player ship or use first key
+    if (state.ships && typeof state.ships === "object") {
+      if (this._playerShipId && state.ships[this._playerShipId]) {
+        const ship = state.ships[this._playerShipId];
+        return ship?.id ? ship : { id: this._playerShipId, ...ship };
+      }
+      const [firstShipId] = Object.keys(state.ships);
+      if (firstShipId) {
+        const ship = state.ships[firstShipId];
+        return ship?.id ? ship : { id: firstShipId, ...ship };
+      }
     }
     
     return state;
