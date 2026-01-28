@@ -27,11 +27,13 @@ class PowerSystem(BaseSystem):
         self.drawing_systems = {}
         self.status = "online"
         self._last_status = self.status
+        self._last_generated = 0.0
+        self._last_draw = 0.0
 
     def tick(self, dt, ship, event_bus):
         damage_factor = 1.0
         if ship is not None and hasattr(ship, "damage_model"):
-            damage_factor = ship.damage_model.get_degradation_factor("power")
+            damage_factor = ship.damage_model.get_combined_factor("power")
 
         self.capacity = self.base_capacity * damage_factor
         self.generation_rate = self.base_generation_rate * damage_factor
@@ -53,6 +55,8 @@ class PowerSystem(BaseSystem):
         self.stored_power = min(self.capacity, self.stored_power + generated)
 
         self.current = min(self.capacity, self.current + self.generation * dt)
+        self._last_generated = generated
+        self._last_draw = self.total_draw
         self.total_draw = 0.0
         self.drawing_systems = {}
         event_bus.publish("power_available", {"available": self.current, "capacity": self.capacity, "source": "power"})
@@ -74,6 +78,17 @@ class PowerSystem(BaseSystem):
                 "capacity": self.capacity,
             })
             self._last_status = self.status
+
+    def report_heat(self, ship, event_bus):
+        if ship is None or not hasattr(ship, "damage_model"):
+            return
+        subsystem = ship.damage_model.subsystems.get("power")
+        if not subsystem:
+            return
+        heat_amount = subsystem.heat_generation * (self._last_generated + self._last_draw)
+        if heat_amount <= 0:
+            return
+        ship.damage_model.add_heat("power", heat_amount, event_bus, ship.id)
 
     def command(self, action, params):
         if action == "power_on":

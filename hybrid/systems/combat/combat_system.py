@@ -86,7 +86,7 @@ class CombatSystem(BaseSystem):
 
         # Get weapons damage factor
         if hasattr(ship, 'damage_model'):
-            self._damage_factor = ship.damage_model.get_degradation_factor("weapons")
+            self._damage_factor = ship.damage_model.get_combined_factor("weapons")
         else:
             self._damage_factor = 1.0
 
@@ -157,6 +157,8 @@ class CombatSystem(BaseSystem):
             target_ship=target_ship,
             ship_id=self._ship_ref.id,
             damage_factor=self._damage_factor,
+            damage_model=self._ship_ref.damage_model if hasattr(self._ship_ref, "damage_model") else None,
+            event_bus=self._ship_ref.event_bus if hasattr(self._ship_ref, "event_bus") else None,
         )
 
         if result.get("ok"):

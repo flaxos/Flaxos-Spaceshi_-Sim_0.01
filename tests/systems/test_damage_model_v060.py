@@ -240,6 +240,59 @@ class TestHeatManagement:
         assert combined == pytest.approx(0.25)
 
 
+class TestSystemHeatIntegration:
+    """Integration tests for heat generation from system activity."""
+
+    def test_propulsion_generates_heat_and_overheat_penalty_applies(self):
+        """Propulsion heat should increase on thrust and reduce performance when overheated."""
+        from hybrid.ship import Ship
+
+        ship = Ship("heat_propulsion", {
+            "systems": {
+                "power": {"capacity": 200.0, "generation": 200.0},
+                "propulsion": {"max_thrust": 100.0},
+            }
+        })
+
+        propulsion = ship.systems["propulsion"]
+        propulsion.set_throttle({"throttle": 1.0})
+        ship.tick(1.0)
+
+        propulsion_heat = ship.damage_model.subsystems["propulsion"].heat
+        assert propulsion_heat > 0.0
+
+        subsystem = ship.damage_model.subsystems["propulsion"]
+        subsystem.heat = subsystem.max_heat * subsystem.overheat_threshold
+        propulsion.set_throttle({"throttle": 1.0})
+        ship.tick(1.0)
+
+        assert propulsion.max_thrust == pytest.approx(
+            propulsion.base_max_thrust * subsystem.overheat_penalty
+        )
+
+    def test_weapon_fire_generates_heat(self):
+        """Weapon fire should add heat to the weapons subsystem."""
+        from hybrid.ship import Ship
+
+        ship = Ship("heat_weapons", {
+            "systems": {
+                "power": {"capacity": 200.0, "generation": 200.0},
+                "weapons": {
+                    "weapons": [
+                        {"name": "laser", "power_cost": 5.0, "max_heat": 50.0, "damage": 10.0},
+                    ],
+                },
+            }
+        })
+
+        weapon_system = ship.systems["weapons"]
+        result = weapon_system.command("fire", {"weapon": "laser", "ship": ship})
+        assert result.get("ok")
+
+        weapons_heat = ship.damage_model.subsystems["weapons"].heat
+        assert weapons_heat > 0.0
+
+
 class TestDamageEvents:
     """Test event publishing for damage state changes."""
 

@@ -195,6 +195,11 @@ class Ship:
                     system.tick(dt, self, self.event_bus)
                 except Exception as e:
                     logger.error(f"Error in system {system_type} tick: {e}")
+            if hasattr(system, "report_heat") and callable(system.report_heat):
+                try:
+                    system.report_heat(self, self.event_bus)
+                except Exception as e:
+                    logger.error(f"Error reporting heat for system {system_type}: {e}")
 
         # v0.6.0: Dissipate heat from all subsystems
         self.damage_model.dissipate_heat(dt, self.event_bus, self.id)

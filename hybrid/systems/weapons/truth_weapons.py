@@ -392,7 +392,9 @@ class TruthWeapon:
         power_manager,
         target_ship=None,
         ship_id: str = None,
-        damage_factor: float = 1.0
+        damage_factor: float = 1.0,
+        damage_model=None,
+        event_bus=None,
     ) -> Dict:
         """Attempt to fire the weapon.
 
@@ -446,6 +448,11 @@ class TruthWeapon:
             self.ammo -= 1
 
         self.heat += 10.0 * (1.0 / max(0.5, damage_factor))
+        if damage_model is not None:
+            heat_scale = self.specs.subsystem_damage / max(1.0, self.specs.base_damage)
+            heat_amount = self.specs.power_per_shot * (1.0 + heat_scale)
+            if heat_amount > 0:
+                damage_model.add_heat("weapons", heat_amount, event_bus, ship_id)
 
         # Determine hit
         import random

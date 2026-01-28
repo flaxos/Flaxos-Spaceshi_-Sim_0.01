@@ -63,6 +63,8 @@ class PropulsionSystem(BaseSystem):
         # G-force tracking (calculated from acceleration)
         self.current_thrust_g = 0.0
         self.max_thrust_g = 0.0  # Will be calculated from max_thrust and ship mass
+        self._last_thrust_magnitude = 0.0
+        self._last_dt = 0.0
 
     def tick(self, dt, ship, event_bus):
         """Update propulsion and apply thrust.
@@ -74,7 +76,7 @@ class PropulsionSystem(BaseSystem):
         """
         damage_factor = 1.0
         if ship is not None and hasattr(ship, "damage_model"):
-            damage_factor = ship.damage_model.get_degradation_factor("propulsion")
+            damage_factor = ship.damage_model.get_combined_factor("propulsion")
 
         if damage_factor <= 0.0:
             ship.thrust = {"x": 0.0, "y": 0.0, "z": 0.0}
@@ -177,6 +179,9 @@ class PropulsionSystem(BaseSystem):
             ship.acceleration = {"x": 0.0, "y": 0.0, "z": 0.0}
             self.current_thrust_g = 0.0
             self.status = "idle"
+
+        self._last_thrust_magnitude = thrust_magnitude
+        self._last_dt = dt
         
         # Update max G-force capability (if we have ship mass)
         if hasattr(ship, 'mass') and ship.mass > 0:
@@ -190,6 +195,21 @@ class PropulsionSystem(BaseSystem):
                 "magnitude": thrust_magnitude, 
                 "source": "propulsion"
             })
+
+    def report_heat(self, ship, event_bus):
+        if not ship or not hasattr(ship, "damage_model"):
+            return
+        if self._last_thrust_magnitude <= 0 or self._last_dt <= 0:
+            return
+        subsystem = ship.damage_model.subsystems.get("propulsion")
+        if not subsystem:
+            return
+        heat_amount = subsystem.heat_generation * self._last_thrust_magnitude * self._last_dt
+        if heat_amount <= 0:
+            return
+        ship.damage_model.add_heat("propulsion", heat_amount, event_bus, ship.id)
+        self._last_thrust_magnitude = 0.0
+        self._last_dt = 0.0
 
     def _rotate_to_world(self, ship, ship_frame_vec):
         """Rotate a vector from ship frame to world frame using ship quaternion.

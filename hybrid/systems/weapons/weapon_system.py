@@ -29,7 +29,16 @@ class Weapon:
             and (self.ammo is None or self.ammo > 0)
         )
 
-    def fire(self, current_time, power_manager, target_ship=None, ship_id=None, damage_factor=1.0):
+    def fire(
+        self,
+        current_time,
+        power_manager,
+        target_ship=None,
+        ship_id=None,
+        damage_factor=1.0,
+        damage_model=None,
+        event_bus=None,
+    ):
         """Fire weapon at target.
 
         Args:
@@ -56,6 +65,10 @@ class Weapon:
         self.last_fired = current_time
         if self.ammo is not None:
             self.ammo -= 1
+        if damage_model is not None:
+            heat_amount = max(0.0, self.power_cost)
+            if heat_amount > 0:
+                damage_model.add_heat("weapons", heat_amount, event_bus, ship_id)
 
         # D6: Apply damage to target if provided
         damage_result = None
@@ -128,7 +141,7 @@ class WeaponSystem:
             event_bus: Event bus (optional)
         """
         if ship is not None and hasattr(ship, "damage_model"):
-            self.damage_factor = ship.damage_model.get_degradation_factor("weapons")
+            self.damage_factor = ship.damage_model.get_combined_factor("weapons")
         else:
             self.damage_factor = 1.0
 
@@ -149,12 +162,23 @@ class WeaponSystem:
             "weapons": results,
         }
 
-    def fire_weapon(self, weapon_name, power_manager, target):
+    def fire_weapon(self, weapon_name, power_manager, target, ship=None):
         weapon = self.weapons.get(weapon_name)
         if not weapon:
             return False
         current_time = time.time()
-        return weapon.fire(current_time, power_manager, target, ship_id=None, damage_factor=self.damage_factor)
+        damage_model = ship.damage_model if ship is not None and hasattr(ship, "damage_model") else None
+        event_bus = ship.event_bus if ship is not None and hasattr(ship, "event_bus") else None
+        ship_id = ship.id if ship is not None and hasattr(ship, "id") else None
+        return weapon.fire(
+            current_time,
+            power_manager,
+            target,
+            ship_id=ship_id,
+            damage_factor=self.damage_factor,
+            damage_model=damage_model,
+            event_bus=event_bus,
+        )
 
     def get_state(self):
         """Get weapon system state.
@@ -234,6 +258,8 @@ class WeaponSystem:
                 target_ship,
                 ship_id=ship.id,
                 damage_factor=self.damage_factor,
+                damage_model=ship.damage_model if hasattr(ship, "damage_model") else None,
+                event_bus=ship.event_bus if hasattr(ship, "event_bus") else None,
             )
 
             if fire_result.get("ok"):

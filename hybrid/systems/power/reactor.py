@@ -24,6 +24,8 @@ class Reactor:
         self.heat_rate = float(heat_rate or 0.0)
         self.heat_per_kw = float(heat_per_kw or 0.0)
         self.overheat_output_factor = float(overheat_output_factor or 0.5)
+        self.last_generated = 0.0
+        self.last_drawn = 0.0
 
     def _normalize_fuel(self, value):
         if value is None:
@@ -32,6 +34,7 @@ class Reactor:
         return value if value > 0 else None
 
     def tick(self, dt):
+        self.last_generated = 0.0
         self._cool(dt)
 
         if self._is_depleted():
@@ -45,6 +48,7 @@ class Reactor:
             generated = self._consume_fuel_for_output(generated)
             if generated > 0:
                 self.available = min(self.capacity, self.available + generated)
+                self.last_generated = generated
 
         self._apply_heat_from_output(dt)
 
@@ -61,6 +65,7 @@ class Reactor:
         if self.available >= amount:
             self.available -= amount
             self.temperature += amount * self.heat_per_kw
+            self.last_drawn += amount
             return True
         return False
 
