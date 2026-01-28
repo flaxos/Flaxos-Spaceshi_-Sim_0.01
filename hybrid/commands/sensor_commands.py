@@ -8,10 +8,19 @@ from hybrid.utils.errors import success_dict, error_dict
 def cmd_ping(sensors, ship, params):
     """Active sensor ping."""
     if sensors and hasattr(sensors, "ping"):
+        # Get all_ships from sensor, or fall back to ship's reference
+        all_ships = getattr(sensors, "all_ships", None)
+        if not all_ships:
+            # Fall back to ship's _all_ships_ref set by simulator/scenario loader
+            all_ships = getattr(ship, "_all_ships_ref", [])
+            # Update sensor's all_ships for future use
+            if all_ships:
+                sensors.all_ships = all_ships
+
         # Pass required parameters for ping
         ping_params = {
             "ship": ship,
-            "all_ships": getattr(sensors, "all_ships", []),
+            "all_ships": all_ships,
             "event_bus": ship.event_bus if hasattr(ship, "event_bus") else None
         }
         return sensors.ping(ping_params)
@@ -20,6 +29,12 @@ def cmd_ping(sensors, ship, params):
 
 def cmd_contacts(sensors, ship, params):
     """List all sensor contacts."""
+    # Ensure sensor has all_ships reference for proper operation
+    if sensors and not getattr(sensors, "all_ships", None):
+        all_ships = getattr(ship, "_all_ships_ref", [])
+        if all_ships:
+            sensors.all_ships = all_ships
+
     if sensors and hasattr(sensors, "get_contacts_list"):
         # Use the new API with proper parameters
         list_params = {

@@ -29,7 +29,8 @@ class PassiveSensor:
         self.min_signature = config.get("min_signature", 5.0)
 
         self.contacts: Dict[str, ContactData] = {}
-        self.last_update_tick = 0
+        # Initialize to negative value so first tick triggers immediate scan
+        self.last_update_tick = -self.update_interval
 
     def set_range_multiplier(self, multiplier: float):
         self.range = max(0.0, self.base_range * max(0.0, multiplier))

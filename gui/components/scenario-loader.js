@@ -13,6 +13,11 @@ class ScenarioLoader extends HTMLElement {
     this._selectedScenario = null;
     this._currentScenario = null;
     this._statusHandler = null;
+    // Debounce and loading state
+    this._isLoadingScenarios = false;
+    this._isLoadingScenario = false;
+    this._lastRefreshTime = 0;
+    this._refreshDebounceMs = 500;
   }
 
   connectedCallback() {
@@ -257,6 +262,19 @@ class ScenarioLoader extends HTMLElement {
   async _loadScenarios() {
     const list = this.shadowRoot.getElementById("scenario-list");
     const statusBox = this.shadowRoot.getElementById("status-box");
+    const refreshBtn = this.shadowRoot.getElementById("refresh-btn");
+
+    // Debounce: prevent rapid refresh clicks
+    const now = Date.now();
+    if (now - this._lastRefreshTime < this._refreshDebounceMs) {
+      return;
+    }
+    this._lastRefreshTime = now;
+
+    // Prevent concurrent scenario list requests
+    if (this._isLoadingScenarios) {
+      return;
+    }
 
     if (wsClient.status !== "connected") {
       list.innerHTML = '<div class="empty-state">Disconnected from server.</div>';
@@ -273,6 +291,8 @@ class ScenarioLoader extends HTMLElement {
       }
     }
 
+    this._isLoadingScenarios = true;
+    if (refreshBtn) refreshBtn.disabled = true;
     list.innerHTML = '<div class="loading">Loading scenarios...</div>';
 
     try {
@@ -291,6 +311,9 @@ class ScenarioLoader extends HTMLElement {
       list.innerHTML = `<div class="empty-state">Failed to load scenarios: ${error.message}</div>`;
       statusBox.textContent = `Failed to load scenarios: ${error.message}`;
       this._showMessage(`Scenario list failed: ${error.message}`, "error");
+    } finally {
+      this._isLoadingScenarios = false;
+      if (refreshBtn) refreshBtn.disabled = false;
     }
   }
 
@@ -361,6 +384,11 @@ class ScenarioLoader extends HTMLElement {
   async _loadScenario() {
     if (!this._selectedScenario) return;
 
+    // Prevent concurrent scenario loads
+    if (this._isLoadingScenario) {
+      return;
+    }
+
     const loadBtn = this.shadowRoot.getElementById("load-btn");
     const statusBox = this.shadowRoot.getElementById("status-box");
 
@@ -378,6 +406,7 @@ class ScenarioLoader extends HTMLElement {
       }
     }
 
+    this._isLoadingScenario = true;
     loadBtn.disabled = true;
     statusBox.textContent = `Loading ${this._selectedScenario}...`;
 
@@ -429,6 +458,7 @@ class ScenarioLoader extends HTMLElement {
       statusBox.textContent = `Error: ${error.message}`;
       this._showMessage(`Scenario load failed: ${error.message}`, "error");
     } finally {
+      this._isLoadingScenario = false;
       loadBtn.disabled = false;
     }
   }
