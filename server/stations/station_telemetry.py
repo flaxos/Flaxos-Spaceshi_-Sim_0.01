@@ -50,7 +50,10 @@ class StationTelemetryFilter:
             "power_grid": ["systems"],
             "reactor_status": ["systems"],
             "system_status": ["systems"],
-            "damage_report": ["systems"],
+            "damage_report": ["systems", "damage_model"],  # v0.6.0: Added damage_model
+            # v0.6.0: New heat and subsystem displays
+            "heat_status": ["damage_model"],
+            "subsystem_health": ["damage_model"],
 
             # Common displays (available to most stations)
             "basic_status": ["id", "name", "class", "faction", "timestamp"],
@@ -297,6 +300,8 @@ def create_station_specific_telemetry(
         }
 
     elif station == StationType.ENGINEERING:
+        # v0.6.0: Enhanced with damage model and heat status
+        damage_model = ship_telemetry.get("damage_model", {})
         return {
             "station": "engineering",
             "systems": ship_telemetry.get("systems"),
@@ -304,6 +309,21 @@ def create_station_specific_telemetry(
             "power": {
                 # Power data would come from power management system
                 "available": True
+            },
+            # v0.6.0: Damage and heat status
+            "damage_model": {
+                "subsystems": damage_model.get("subsystems", {}),
+                "mission_kill": damage_model.get("mission_kill", False),
+                "mobility_kill": damage_model.get("mobility_kill", False),
+                "firepower_kill": damage_model.get("firepower_kill", False),
+                "failed_subsystems": damage_model.get("failed_subsystems", []),
+                "critical_subsystems": damage_model.get("critical_subsystems", []),
+                "overheated_subsystems": damage_model.get("overheated_subsystems", []),
+            },
+            "hull": {
+                "integrity": ship_telemetry.get("hull_integrity"),
+                "max_integrity": ship_telemetry.get("max_hull_integrity"),
+                "percent": ship_telemetry.get("hull_percent"),
             }
         }
 

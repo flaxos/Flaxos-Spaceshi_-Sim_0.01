@@ -196,6 +196,9 @@ class Ship:
                 except Exception as e:
                     logger.error(f"Error in system {system_type} tick: {e}")
 
+        # v0.6.0: Dissipate heat from all subsystems
+        self.damage_model.dissipate_heat(dt, self.event_bus, self.id)
+
         # Update physics after systems have updated
         self._update_physics(dt, sim_time=sim_time)
     
@@ -486,13 +489,16 @@ class Ship:
             "heading": self.orientation.copy()  # Current heading (nose direction)
         }
 
-    def take_damage(self, amount, source=None):
+    def take_damage(self, amount, source=None, target_subsystem=None):
         """
-        Apply damage to the ship's hull.
+        Apply damage to the ship's hull and optionally to a specific subsystem.
+
+        v0.6.0: Enhanced with subsystem targeting.
 
         Args:
             amount (float): Amount of damage to apply
             source (str, optional): ID of ship/weapon that caused damage
+            target_subsystem (str, optional): Specific subsystem to damage
 
         Returns:
             dict: Damage result with current hull status
@@ -503,6 +509,16 @@ class Ship:
         previous_hull = self.hull_integrity
         self.hull_integrity = max(0.0, self.hull_integrity - amount)
 
+        # v0.6.0: Apply subsystem damage if targeted
+        subsystem_result = None
+        if target_subsystem:
+            subsystem_result = self.apply_subsystem_damage(
+                target_subsystem, amount * 0.5, source  # 50% of damage goes to subsystem
+            )
+        else:
+            # Random subsystem damage on hull hits (propagation)
+            subsystem_result = self._propagate_damage_to_subsystems(amount, source)
+
         # Publish damage event
         self.event_bus.publish("ship_damaged", {
             "ship_id": self.id,
@@ -510,7 +526,9 @@ class Ship:
             "hull_before": previous_hull,
             "hull_after": self.hull_integrity,
             "source": source,
-            "destroyed": self.is_destroyed()
+            "destroyed": self.is_destroyed(),
+            "target_subsystem": target_subsystem,
+            "subsystem_result": subsystem_result,
         })
 
         if self.is_destroyed():
@@ -526,7 +544,103 @@ class Ship:
             "hull_integrity": self.hull_integrity,
             "max_hull_integrity": self.max_hull_integrity,
             "hull_percent": (self.hull_integrity / self.max_hull_integrity * 100) if self.max_hull_integrity > 0 else 0,
-            "destroyed": self.is_destroyed()
+            "destroyed": self.is_destroyed(),
+            "subsystem_damage": subsystem_result,
+        }
+
+    def apply_subsystem_damage(self, subsystem: str, amount: float, source=None) -> dict:
+        """
+        Apply damage directly to a specific subsystem.
+
+        v0.6.0: Sub-targeting support.
+
+        Args:
+            subsystem (str): Name of the subsystem to damage
+            amount (float): Amount of damage to apply
+            source (str, optional): ID of ship/weapon that caused damage
+
+        Returns:
+            dict: Damage result with subsystem status
+        """
+        if amount <= 0:
+            return {"ok": False, "error": "Invalid damage amount"}
+
+        result = self.damage_model.apply_damage(
+            subsystem,
+            amount,
+            source=source,
+            event_bus=self.event_bus,
+            ship_id=self.id
+        )
+
+        return result
+
+    def _propagate_damage_to_subsystems(self, hull_damage: float, source=None) -> dict:
+        """
+        Propagate hull damage to random subsystems.
+
+        v0.6.0: Damage propagation model. Significant hull hits have a chance
+        to damage internal subsystems.
+
+        Args:
+            hull_damage (float): Amount of damage to the hull
+            source (str, optional): Damage source
+
+        Returns:
+            dict: Summary of subsystem damage applied
+        """
+        import random
+
+        # Only propagate if damage is significant (>5% of max hull)
+        if hull_damage < (self.max_hull_integrity * 0.05):
+            return {"propagated": False, "reason": "damage_too_small"}
+
+        # Probability of subsystem damage increases with damage amount
+        damage_ratio = min(1.0, hull_damage / self.max_hull_integrity)
+        propagation_chance = 0.3 + (damage_ratio * 0.5)  # 30-80% chance
+
+        if random.random() > propagation_chance:
+            return {"propagated": False, "reason": "chance_roll"}
+
+        # Select a random subsystem weighted by criticality
+        subsystems = list(self.damage_model.subsystems.keys())
+        if not subsystems:
+            return {"propagated": False, "reason": "no_subsystems"}
+
+        # Weight by inverse of remaining health (damaged systems more vulnerable)
+        weights = []
+        for name in subsystems:
+            sub = self.damage_model.subsystems[name]
+            # Lower health = higher weight (more vulnerable)
+            health_weight = 2.0 - (sub.health / sub.max_health)
+            # Higher criticality = higher weight
+            crit_weight = sub.criticality / 5.0
+            weights.append(health_weight * crit_weight)
+
+        total_weight = sum(weights)
+        if total_weight <= 0:
+            weights = [1.0] * len(subsystems)
+            total_weight = len(subsystems)
+
+        # Weighted random selection
+        r = random.random() * total_weight
+        cumulative = 0
+        selected_subsystem = subsystems[0]
+        for i, weight in enumerate(weights):
+            cumulative += weight
+            if r <= cumulative:
+                selected_subsystem = subsystems[i]
+                break
+
+        # Apply 20-40% of hull damage to the selected subsystem
+        subsystem_damage = hull_damage * (0.2 + random.random() * 0.2)
+        result = self.apply_subsystem_damage(selected_subsystem, subsystem_damage, source)
+
+        return {
+            "propagated": True,
+            "subsystem": selected_subsystem,
+            "damage": subsystem_damage,
+            "result": result,
         }
 
     def is_destroyed(self):
