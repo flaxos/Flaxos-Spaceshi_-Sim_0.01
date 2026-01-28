@@ -395,6 +395,7 @@ class TruthWeapon:
         damage_factor: float = 1.0,
         damage_model=None,
         event_bus=None,
+        target_subsystem: str = None,
     ) -> Dict:
         """Attempt to fire the weapon.
 
@@ -468,16 +469,18 @@ class TruthWeapon:
             effective_damage = self.specs.base_damage * damage_factor
             subsystem_damage = self.specs.subsystem_damage * damage_factor
 
+            subsystem_target = target_subsystem or self._select_subsystem_target()
+
             # Apply to target
             if hasattr(target_ship, 'take_damage'):
                 damage_result = target_ship.take_damage(
                     effective_damage,
-                    source=f"{ship_id}:{self.specs.name}"
+                    source=f"{ship_id}:{self.specs.name}",
+                    target_subsystem=subsystem_target,
                 )
 
             # Apply subsystem damage
             if hasattr(target_ship, 'damage_model'):
-                subsystem_target = self._select_subsystem_target()
                 target_ship.damage_model.apply_damage(
                     subsystem_target, subsystem_damage
                 )

@@ -47,6 +47,11 @@ def get_ship_telemetry(ship, sim_time: float = None) -> Dict[str, Any]:
 
     # Get targeting data
     target_id = getattr(ship, "target_id", None)
+    target_subsystem = getattr(ship, "target_subsystem", None)
+    targeting = ship.systems.get("targeting")
+    if targeting:
+        target_id = target_id or getattr(targeting, "locked_target", target_id)
+        target_subsystem = getattr(targeting, "target_subsystem", target_subsystem)
 
     # Get navigation mode
     nav = ship.systems.get("navigation")
@@ -90,6 +95,7 @@ def get_ship_telemetry(ship, sim_time: float = None) -> Dict[str, Any]:
         },
         "delta_v_remaining": delta_v_remaining,
         "target_id": target_id,
+        "target_subsystem": target_subsystem,
         "nav_mode": nav_mode,
         "autopilot_program": autopilot_program,
         "helm_queue": helm_queue,

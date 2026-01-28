@@ -119,7 +119,7 @@ class CombatSystem(BaseSystem):
                 sim_time=self._sim_time,
             )
 
-    def fire_weapon(self, weapon_id: str, target_ship=None) -> dict:
+    def fire_weapon(self, weapon_id: str, target_ship=None, target_subsystem: str = None) -> dict:
         """Fire a specific weapon.
 
         Args:
@@ -150,6 +150,11 @@ class CombatSystem(BaseSystem):
                 # This will be passed in via params
                 pass
 
+        if target_subsystem is None:
+            targeting = self._ship_ref.systems.get("targeting")
+            if targeting and hasattr(targeting, "target_subsystem"):
+                target_subsystem = targeting.target_subsystem
+
         # Fire!
         result = weapon.fire(
             sim_time=self._sim_time,
@@ -159,6 +164,7 @@ class CombatSystem(BaseSystem):
             damage_factor=self._damage_factor,
             damage_model=self._ship_ref.damage_model if hasattr(self._ship_ref, "damage_model") else None,
             event_bus=self._ship_ref.event_bus if hasattr(self._ship_ref, "event_bus") else None,
+            target_subsystem=target_subsystem,
         )
 
         if result.get("ok"):
@@ -273,7 +279,8 @@ class CombatSystem(BaseSystem):
                 all_ships = params.get("all_ships", {})
                 target_ship = all_ships.get(target_id)
 
-            return self.fire_weapon(weapon_id, target_ship)
+            target_subsystem = params.get("target_subsystem")
+            return self.fire_weapon(weapon_id, target_ship, target_subsystem)
 
         elif action == "fire_all":
             target_ship = None

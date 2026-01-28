@@ -54,6 +54,7 @@ class TargetingSystem(BaseSystem):
         self.lock_progress = 0.0  # 0-1 progress to full lock
         self.lock_quality = 0.0  # Lock quality (0-1)
         self.is_firing = False  # Firing state
+        self.target_subsystem = None  # Selected subsystem to target
 
         # Target tracking data
         self.target_data: Dict = {}  # Cached target position/velocity
@@ -190,6 +191,7 @@ class TargetingSystem(BaseSystem):
                     "time_of_flight": solution.time_of_flight,
                     "lead_angle": solution.lead_angle,
                     "reason": solution.reason,
+                    "target_subsystem": self.target_subsystem,
                 }
 
         # Also include basic solution data
@@ -201,14 +203,21 @@ class TargetingSystem(BaseSystem):
             "closing": rel_motion["closing"],
             "time_to_cpa": rel_motion.get("time_to_closest_approach"),
             "cpa_distance": rel_motion.get("closest_approach_distance"),
+            "target_subsystem": self.target_subsystem,
         }
 
-    def lock_target(self, contact_id: str, sim_time: float = None) -> dict:
+    def lock_target(
+        self,
+        contact_id: str,
+        sim_time: float = None,
+        target_subsystem: Optional[str] = None,
+    ) -> dict:
         """Lock onto a target.
 
         Args:
             contact_id: Contact ID to lock
             sim_time: Current simulation time
+            target_subsystem: Optional subsystem to target
 
         Returns:
             dict: Result
@@ -231,12 +240,17 @@ class TargetingSystem(BaseSystem):
                     )
 
         # Begin lock acquisition
+        previous_target = self.locked_target
         self.locked_target = contact_id
         self.lock_time = sim_time or self._sim_time
         self.lock_state = LockState.ACQUIRING
         self.lock_progress = 0.0
         self.lock_quality = 0.0
         self.firing_solutions = {}
+        if target_subsystem is not None:
+            self.target_subsystem = target_subsystem
+        elif previous_target != contact_id:
+            self.target_subsystem = None
 
         logger.info(f"Acquiring lock on: {contact_id}")
 
@@ -266,6 +280,7 @@ class TargetingSystem(BaseSystem):
         self.lock_progress = 0.0
         self.target_data = {}
         self.firing_solutions = {}
+        self.target_subsystem = None
 
         logger.info(f"Target unlocked: {prev_target}")
 
@@ -299,6 +314,7 @@ class TargetingSystem(BaseSystem):
             "target_id": self.locked_target,
             "lock_state": self.lock_state.value,
             "lock_quality": self.lock_quality,
+            "target_subsystem": self.target_subsystem,
             "range": basic.get("range", 0),
             "bearing": basic.get("bearing", {}),
             "range_rate": basic.get("range_rate", 0),
@@ -331,6 +347,7 @@ class TargetingSystem(BaseSystem):
             "ok": True,
             "weapon_id": weapon_id,
             "target_id": self.locked_target,
+            "target_subsystem": self.target_subsystem,
             **solution
         }
 
@@ -352,6 +369,34 @@ class TargetingSystem(BaseSystem):
 
         return best_weapon
 
+    def set_target_subsystem(self, subsystem: Optional[str], ship=None) -> dict:
+        """Set or clear the targeted subsystem.
+
+        Args:
+            subsystem: Subsystem name to target (None clears selection)
+            ship: Optional ship for validation
+
+        Returns:
+            dict: Result
+        """
+        if subsystem in (None, "", "none"):
+            self.target_subsystem = None
+            return success_dict("Target subsystem cleared")
+
+        ship = ship or self._ship_ref
+        if ship and hasattr(ship, "damage_model"):
+            if subsystem not in ship.damage_model.subsystems:
+                return error_dict(
+                    "INVALID_SUBSYSTEM",
+                    f"Subsystem '{subsystem}' not found"
+                )
+
+        self.target_subsystem = subsystem
+        return success_dict(
+            f"Target subsystem set: {subsystem}",
+            target_subsystem=subsystem
+        )
+
     def command(self, action: str, params: dict):
         """Handle targeting commands.
 
@@ -367,7 +412,8 @@ class TargetingSystem(BaseSystem):
             if not contact_id:
                 return error_dict("MISSING_PARAMETER", "contact_id required")
             sim_time = params.get("sim_time", self._sim_time)
-            return self.lock_target(contact_id, sim_time)
+            target_subsystem = params.get("target_subsystem")
+            return self.lock_target(contact_id, sim_time, target_subsystem)
 
         elif action == "unlock":
             return self.unlock_target()
@@ -388,6 +434,11 @@ class TargetingSystem(BaseSystem):
                 return success_dict(f"Best weapon: {best}", weapon_id=best)
             return error_dict("NO_READY_WEAPON", "No weapons ready to fire")
 
+        elif action == "set_target_subsystem":
+            target_subsystem = params.get("target_subsystem")
+            ship = params.get("ship") or self._ship_ref
+            return self.set_target_subsystem(target_subsystem, ship)
+
         elif action == "status":
             return self.get_state()
 
@@ -406,6 +457,7 @@ class TargetingSystem(BaseSystem):
             "lock_progress": self.lock_progress,
             "lock_quality": self.lock_quality,
             "is_firing": self.is_firing,
+            "target_subsystem": self.target_subsystem,
             "target_data": self.target_data if self.locked_target else None,
             "solutions": {
                 k: {
@@ -414,6 +466,7 @@ class TargetingSystem(BaseSystem):
                     "hit_probability": v.get("hit_probability"),
                     "range": v.get("range"),
                     "reason": v.get("reason"),
+                    "target_subsystem": v.get("target_subsystem"),
                 }
                 for k, v in self.firing_solutions.items()
                 if k != "_basic"
