@@ -414,43 +414,71 @@ class TestInterceptScenario:
     """Tests for intercept scenario configuration."""
 
     def test_scenario_loads(self):
-        """Test intercept scenario JSON is valid."""
-        import json
+        """Test intercept mission scenario loads with mission objectives."""
         import os
+        from hybrid.scenarios.loader import ScenarioLoader
 
         scenario_path = os.path.join(
             os.path.dirname(__file__),
-            "..", "..", "..", "scenarios", "intercept_scenario.json"
+            "..", "..", "..", "scenarios", "06_intercept_mission.yaml"
         )
 
-        with open(scenario_path) as f:
-            scenario = json.load(f)
+        scenario = ScenarioLoader.load(scenario_path)
 
-        assert scenario["name"] == "Intercept"
+        assert scenario["name"] == "Intercept: Mission Kill"
         assert len(scenario["ships"]) == 2
         assert scenario["ships"][0]["id"] == "player_ship"
         assert scenario["ships"][1]["id"] == "enemy_corvette"
+        assert scenario["mission"] is not None
+        assert scenario["mission"].name == "Intercept and Disable"
 
-    def test_scenario_win_conditions(self):
-        """Test scenario has proper win/fail conditions."""
-        import json
+    def test_mission_win_fail_conditions(self):
+        """Test mission system reports win/fail based on mission kill status."""
         import os
+        from hybrid.scenarios.loader import ScenarioLoader
+        from hybrid.ship import Ship
 
         scenario_path = os.path.join(
             os.path.dirname(__file__),
-            "..", "..", "..", "scenarios", "intercept_scenario.json"
+            "..", "..", "..", "scenarios", "06_intercept_mission.yaml"
         )
 
-        with open(scenario_path) as f:
-            scenario = json.load(f)
+        scenario = ScenarioLoader.load(scenario_path)
+        player_config = next(ship for ship in scenario["ships"] if ship["id"] == "player_ship")
+        enemy_config = next(ship for ship in scenario["ships"] if ship["id"] == "enemy_corvette")
 
-        # Check win conditions exist
-        assert "win_conditions" in scenario
-        assert "fail_conditions" in scenario
+        player_ship = Ship("player_ship", player_config)
+        enemy_ship = Ship("enemy_corvette", enemy_config)
 
-        # Check objectives
-        objectives = {obj["id"]: obj for obj in scenario["objectives"]}
-        assert "primary_mission_kill" in objectives
-        assert objectives["primary_mission_kill"]["win_condition"]
-        assert "survival" in objectives
-        assert objectives["survival"]["fail_condition"]
+        class DummySim:
+            def __init__(self, ships):
+                self.ships = ships
+                self.time = 0.0
+
+        sim = DummySim({"player_ship": player_ship, "enemy_corvette": enemy_ship})
+        mission = scenario["mission"]
+        mission.start(sim.time)
+
+        enemy_ship.damage_model.apply_damage("propulsion", 999.0)
+        mission.update(sim, player_ship)
+
+        assert mission.tracker.mission_status == "success"
+
+        scenario_failure = ScenarioLoader.load(scenario_path)
+        failing_player_config = next(
+            ship for ship in scenario_failure["ships"] if ship["id"] == "player_ship"
+        )
+        failing_enemy_config = next(
+            ship for ship in scenario_failure["ships"] if ship["id"] == "enemy_corvette"
+        )
+
+        failing_player = Ship("player_ship", failing_player_config)
+        failing_enemy = Ship("enemy_corvette", failing_enemy_config)
+        sim_failure = DummySim({"player_ship": failing_player, "enemy_corvette": failing_enemy})
+        mission_failure = scenario_failure["mission"]
+        mission_failure.start(sim_failure.time)
+
+        failing_player.damage_model.apply_damage("weapons", 999.0)
+        mission_failure.update(sim_failure, failing_player)
+
+        assert mission_failure.tracker.mission_status == "failure"

@@ -13,6 +13,8 @@ class ObjectiveType(Enum):
     """Types of mission objectives."""
     REACH_RANGE = "reach_range"
     DESTROY_TARGET = "destroy_target"
+    MISSION_KILL = "mission_kill"
+    AVOID_MISSION_KILL = "avoid_mission_kill"
     SURVIVE_TIME = "survive_time"
     PROTECT_SHIP = "protect_ship"
     DOCK_WITH = "dock_with"
@@ -53,7 +55,7 @@ class Objective:
         self.completion_time = None
         self.failure_reason = None
 
-    def check(self, sim, player_ship) -> bool:
+    def check(self, sim, player_ship, tracker=None) -> bool:
         """Check if objective is completed.
 
         Args:
@@ -73,6 +75,10 @@ class Objective:
             return self._check_reach_range(sim, player_ship)
         elif self.type == ObjectiveType.DESTROY_TARGET:
             return self._check_destroy_target(sim, player_ship)
+        elif self.type == ObjectiveType.MISSION_KILL:
+            return self._check_mission_kill(sim, player_ship)
+        elif self.type == ObjectiveType.AVOID_MISSION_KILL:
+            return self._check_avoid_mission_kill(sim, player_ship, tracker)
         elif self.type == ObjectiveType.SURVIVE_TIME:
             return self._check_survive_time(sim, player_ship)
         elif self.type == ObjectiveType.PROTECT_SHIP:
@@ -135,6 +141,94 @@ class Objective:
         target_ship = sim.ships[target_id]
         if hasattr(target_ship, "hull_integrity"):
             self.progress = 1.0 - (target_ship.hull_integrity / target_ship.max_hull_integrity)
+
+        return False
+
+    def _check_mission_kill(self, sim, player_ship) -> bool:
+        """Check if target has suffered a mission kill."""
+        target_id = self.params.get("target")
+
+        target_ship = sim.ships.get(target_id)
+        if not target_ship:
+            self.status = ObjectiveStatus.COMPLETED
+            self.completion_time = sim.time
+            self.progress = 1.0
+            logger.info(f"Objective {self.id} completed: {target_id} removed from simulation")
+            return True
+
+        if hasattr(target_ship, "is_destroyed") and target_ship.is_destroyed():
+            self.status = ObjectiveStatus.COMPLETED
+            self.completion_time = sim.time
+            self.progress = 1.0
+            logger.info(f"Objective {self.id} completed: {target_id} destroyed")
+            return True
+
+        damage_model = getattr(target_ship, "damage_model", None)
+        if damage_model:
+            self.progress = max(
+                0.0,
+                max(
+                    1.0 - damage_model.get_degradation_factor("propulsion"),
+                    1.0 - damage_model.get_degradation_factor("rcs"),
+                    1.0 - damage_model.get_degradation_factor("weapons"),
+                ),
+            )
+
+            if damage_model.is_mission_kill():
+                self.status = ObjectiveStatus.COMPLETED
+                self.completion_time = sim.time
+                self.progress = 1.0
+                logger.info(f"Objective {self.id} completed: {target_id} mission kill")
+                return True
+
+        if hasattr(target_ship, "hull_integrity") and target_ship.hull_integrity <= 0:
+            self.status = ObjectiveStatus.COMPLETED
+            self.completion_time = sim.time
+            self.progress = 1.0
+            logger.info(f"Objective {self.id} completed: {target_id} hull destroyed")
+            return True
+
+        return False
+
+    def _check_avoid_mission_kill(self, sim, player_ship, tracker) -> bool:
+        """Check if target avoids mission kill until other objectives complete."""
+        target_id = self.params.get("target")
+
+        target_ship = sim.ships.get(target_id)
+        if not target_ship:
+            self.status = ObjectiveStatus.FAILED
+            self.failure_reason = f"Target {target_id} not found"
+            return False
+
+        if hasattr(target_ship, "is_destroyed") and target_ship.is_destroyed():
+            self.status = ObjectiveStatus.FAILED
+            self.failure_reason = f"{target_id} destroyed"
+            return False
+
+        damage_model = getattr(target_ship, "damage_model", None)
+        if damage_model and damage_model.is_mission_kill():
+            self.status = ObjectiveStatus.FAILED
+            self.failure_reason = f"{target_id} mission killed"
+            return False
+
+        if hasattr(target_ship, "hull_integrity") and target_ship.hull_integrity <= 0:
+            self.status = ObjectiveStatus.FAILED
+            self.failure_reason = f"{target_id} hull destroyed"
+            return False
+
+        if tracker:
+            other_required = [
+                obj for obj in tracker.objectives.values()
+                if obj.required and obj.id != self.id
+            ]
+            if other_required and all(
+                obj.status == ObjectiveStatus.COMPLETED for obj in other_required
+            ):
+                self.status = ObjectiveStatus.COMPLETED
+                self.completion_time = sim.time
+                self.progress = 1.0
+                logger.info(f"Objective {self.id} completed: {target_id} survived mission")
+                return True
 
         return False
 
@@ -363,7 +457,7 @@ class ObjectiveTracker:
 
         # Check all objectives
         for obj in self.objectives.values():
-            obj.check(sim, player_ship)
+            obj.check(sim, player_ship, tracker=self)
 
         # Evaluate win/loss conditions
         self._evaluate_mission_status(sim)
