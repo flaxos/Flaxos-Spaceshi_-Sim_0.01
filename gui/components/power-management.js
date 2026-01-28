@@ -94,6 +94,21 @@ class PowerManagement extends HTMLElement {
           color: var(--text-secondary, #888);
         }
 
+        .allocation-feedback {
+          margin-top: 6px;
+          font-size: 0.75rem;
+          min-height: 1em;
+          color: var(--status-critical, #ff4444);
+        }
+
+        .allocation-feedback.success {
+          color: var(--status-nominal, #00ff88);
+        }
+
+        .allocation-feedback.warning {
+          color: var(--status-warning, #ffaa00);
+        }
+
         .apply-btn {
           padding: 8px 14px;
           border-radius: 8px;
@@ -194,6 +209,7 @@ class PowerManagement extends HTMLElement {
           <span id="allocation-total">Total: 0%</span>
           <button class="apply-btn" id="apply-btn">Apply Allocation</button>
         </div>
+        <div class="allocation-feedback" id="allocation-feedback"></div>
       </div>
 
       <div class="section">
@@ -314,6 +330,7 @@ class PowerManagement extends HTMLElement {
     });
 
     if (total <= 0) {
+      this._setAllocationFeedback("Allocation must be greater than 0% total.", "warning");
       return;
     }
 
@@ -322,9 +339,16 @@ class PowerManagement extends HTMLElement {
       allocation[bus] = (raw[bus] || 0) / total;
     });
 
-    wsClient.sendShipCommand("set_power_allocation", { allocation }).catch((error) => {
-      console.error("Failed to set power allocation:", error);
-    });
+    this._setAllocationFeedback("Sending allocation…", "");
+    wsClient.sendShipCommand("set_power_allocation", { allocation })
+      .then(() => {
+        this._setAllocationFeedback("Allocation updated.", "success");
+        this._showMessage("Power allocation updated.", "success");
+      })
+      .catch((error) => {
+        this._setAllocationFeedback(`Failed to update allocation: ${error.message}`, "warning");
+        this._showMessage(`Power allocation failed: ${error.message}`, "error");
+      });
   }
 
   _getAllocation() {
@@ -369,6 +393,23 @@ class PowerManagement extends HTMLElement {
   _updateDisplay() {
     this._renderAllocation();
     this._renderReactors();
+  }
+
+  _setAllocationFeedback(message, variant) {
+    const feedback = this.shadowRoot.getElementById("allocation-feedback");
+    if (!feedback) return;
+    feedback.textContent = message || "";
+    feedback.classList.remove("success", "warning");
+    if (variant) {
+      feedback.classList.add(variant);
+    }
+  }
+
+  _showMessage(text, type) {
+    const systemMessages = document.getElementById("system-messages");
+    if (systemMessages?.show) {
+      systemMessages.show({ type, text });
+    }
   }
 }
 

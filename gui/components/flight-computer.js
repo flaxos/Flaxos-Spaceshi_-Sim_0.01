@@ -602,6 +602,7 @@ class FlightComputer extends HTMLElement {
       statusEl.className = "solution-status invalid";
       statusEl.textContent = "ERROR";
       this.shadowRoot.getElementById("execute-btn").disabled = true;
+      this._showMessage(`Flight computer error: ${error.message}`, "error");
     }
 
     this._updateSolutionDisplay();

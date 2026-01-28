@@ -12,12 +12,21 @@ class ScenarioLoader extends HTMLElement {
     this._scenarios = [];
     this._selectedScenario = null;
     this._currentScenario = null;
+    this._statusHandler = null;
   }
 
   connectedCallback() {
     this.render();
     this._setupInteraction();
+    this._bindConnectionStatus();
     this._loadScenarios();
+  }
+
+  disconnectedCallback() {
+    if (this._statusHandler) {
+      wsClient.removeEventListener("status_change", this._statusHandler);
+      this._statusHandler = null;
+    }
   }
 
   render() {
@@ -90,6 +99,24 @@ class ScenarioLoader extends HTMLElement {
         .scenario-error {
           color: var(--status-critical, #ff4444);
           font-style: italic;
+        }
+
+        .connection-hint {
+          margin-bottom: 10px;
+          padding: 8px 10px;
+          border-radius: 6px;
+          font-size: 0.75rem;
+          background: rgba(255, 170, 0, 0.12);
+          color: var(--status-warning, #ffaa00);
+        }
+
+        .connection-hint.connected {
+          display: none;
+        }
+
+        .connection-hint.connecting {
+          background: rgba(0, 170, 255, 0.12);
+          color: var(--status-info, #00aaff);
         }
 
         .buttons {
@@ -165,6 +192,7 @@ class ScenarioLoader extends HTMLElement {
       </style>
 
       <div class="section-title">Available Missions</div>
+      <div class="connection-hint connected" id="connection-hint"></div>
       <div class="scenario-list" id="scenario-list">
         <div class="loading">Loading scenarios...</div>
       </div>
@@ -190,8 +218,61 @@ class ScenarioLoader extends HTMLElement {
     });
   }
 
+  _bindConnectionStatus() {
+    this._statusHandler = (event) => {
+      this._updateConnectionHint(event.detail.status);
+    };
+    wsClient.addEventListener("status_change", this._statusHandler);
+    this._updateConnectionHint(wsClient.status);
+  }
+
+  _updateConnectionHint(status = wsClient.status) {
+    const hint = this.shadowRoot.getElementById("connection-hint");
+    if (!hint) return;
+
+    hint.classList.remove("connected", "connecting", "disconnected");
+    if (status === "connected") {
+      hint.classList.add("connected");
+      hint.textContent = "";
+      return;
+    }
+
+    if (status === "connecting") {
+      hint.classList.add("connecting");
+      hint.textContent = "Connecting to server…";
+      return;
+    }
+
+    hint.classList.add("disconnected");
+    hint.textContent = "Disconnected from server; can’t load scenarios yet.";
+  }
+
+  _showMessage(text, type) {
+    const systemMessages = document.getElementById("system-messages");
+    if (systemMessages?.show) {
+      systemMessages.show({ type, text });
+    }
+  }
+
   async _loadScenarios() {
     const list = this.shadowRoot.getElementById("scenario-list");
+    const statusBox = this.shadowRoot.getElementById("status-box");
+
+    if (wsClient.status !== "connected") {
+      list.innerHTML = '<div class="empty-state">Disconnected from server.</div>';
+      statusBox.textContent = "Disconnected from server.";
+      this._updateConnectionHint(wsClient.status);
+      this._showMessage("Cannot load scenarios while disconnected.", "warning");
+      try {
+        await wsClient.connect();
+      } catch (error) {
+        this._showMessage(`Connection failed: ${error.message}`, "error");
+      }
+      if (wsClient.status !== "connected") {
+        return;
+      }
+    }
+
     list.innerHTML = '<div class="loading">Loading scenarios...</div>';
 
     try {
@@ -201,10 +282,15 @@ class ScenarioLoader extends HTMLElement {
         this._scenarios = response.scenarios;
         this._renderScenarios();
       } else {
+        const errorMsg = response?.error || "No scenarios found";
         list.innerHTML = '<div class="empty-state">No scenarios found</div>';
+        statusBox.textContent = `Failed to load scenarios: ${errorMsg}`;
+        this._showMessage(`Scenario list failed: ${errorMsg}`, "error");
       }
     } catch (error) {
       list.innerHTML = `<div class="empty-state">Failed to load scenarios: ${error.message}</div>`;
+      statusBox.textContent = `Failed to load scenarios: ${error.message}`;
+      this._showMessage(`Scenario list failed: ${error.message}`, "error");
     }
   }
 
@@ -278,6 +364,20 @@ class ScenarioLoader extends HTMLElement {
     const loadBtn = this.shadowRoot.getElementById("load-btn");
     const statusBox = this.shadowRoot.getElementById("status-box");
 
+    if (wsClient.status !== "connected") {
+      statusBox.textContent = "Disconnected from server.";
+      this._updateConnectionHint(wsClient.status);
+      this._showMessage("Cannot load scenario while disconnected.", "warning");
+      try {
+        await wsClient.connect();
+      } catch (error) {
+        this._showMessage(`Connection failed: ${error.message}`, "error");
+      }
+      if (wsClient.status !== "connected") {
+        return;
+      }
+    }
+
     loadBtn.disabled = true;
     statusBox.textContent = `Loading ${this._selectedScenario}...`;
 
@@ -323,10 +423,11 @@ class ScenarioLoader extends HTMLElement {
       } else {
         const errorMsg = response?.error || 'Unknown error';
         statusBox.textContent = `Failed: ${errorMsg}`;
-        console.error("Scenario load failed:", errorMsg);
+        this._showMessage(`Scenario load failed: ${errorMsg}`, "error");
       }
     } catch (error) {
       statusBox.textContent = `Error: ${error.message}`;
+      this._showMessage(`Scenario load failed: ${error.message}`, "error");
     } finally {
       loadBtn.disabled = false;
     }
