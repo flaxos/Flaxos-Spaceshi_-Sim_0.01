@@ -354,6 +354,61 @@ class TestCombatIntegration:
         assert hasattr(target, "damage_model")
         assert hasattr(target, "hull_integrity")
 
+    def test_targeted_subsystem_damage_via_command(self):
+        """Test that targeted subsystem damage is applied from commands."""
+        from hybrid.ship import Ship
+        from hybrid.command_handler import execute_command
+
+        attacker_config = {
+            "id": "attacker",
+            "position": {"x": 0, "y": 0, "z": 0},
+            "velocity": {"x": 0, "y": 0, "z": 0},
+            "systems": {
+                "weapons": {
+                    "weapons": [
+                        {
+                            "name": "test_laser",
+                            "power_cost": 1.0,
+                            "max_heat": 100.0,
+                            "damage": 12.0,
+                        }
+                    ]
+                },
+                "targeting": {},
+                "power_management": {
+                    "primary": {"output": 50},
+                    "secondary": {"output": 25},
+                },
+            },
+        }
+        target_config = {
+            "id": "target",
+            "position": {"x": 1000, "y": 0, "z": 0},
+            "velocity": {"x": 0, "y": 0, "z": 0},
+        }
+
+        attacker = Ship("attacker", attacker_config)
+        target = Ship("target", target_config)
+        all_ships = {"attacker": attacker, "target": target}
+
+        power_manager = attacker.systems["power_management"]
+        for reactor in power_manager.reactors.values():
+            reactor.available = reactor.capacity
+
+        execute_command(attacker, "lock_target", {"contact_id": "target"})
+        execute_command(attacker, "set_target_subsystem", {"target_subsystem": "sensors"})
+
+        starting_health = target.damage_model.subsystems["sensors"].health
+        result = execute_command(
+            attacker,
+            "fire_weapon",
+            {"weapon": "test_laser"},
+            all_ships=all_ships,
+        )
+
+        assert result["ok"]
+        assert target.damage_model.subsystems["sensors"].health < starting_health
+
 
 class TestInterceptScenario:
     """Tests for intercept scenario configuration."""

@@ -40,15 +40,34 @@ def cmd_contacts(sensors, ship, params):
 def cmd_target(ship, params):
     """Lock a target."""
     contact_id = params.get("contact_id")
+    target_subsystem = params.get("target_subsystem")
 
     # Check if ship has targeting system
     targeting = ship.systems.get("targeting")
     if targeting and hasattr(targeting, "lock_target"):
-        return targeting.lock_target(contact_id)
+        result = targeting.lock_target(contact_id)
+        if target_subsystem is not None and hasattr(targeting, "set_target_subsystem"):
+            subsystem_result = targeting.set_target_subsystem(target_subsystem, ship)
+            result["target_subsystem"] = subsystem_result.get("target_subsystem")
+            if not subsystem_result.get("ok"):
+                result["target_subsystem_error"] = subsystem_result.get("error")
+        return result
 
     # Fallback: store target on ship for now
     ship.target_id = contact_id
+    if target_subsystem is not None:
+        ship.target_subsystem = target_subsystem
     return success_dict(f"Target locked: {contact_id}", target=contact_id)
+
+def cmd_target_subsystem(ship, params):
+    """Set targeted subsystem."""
+    target_subsystem = params.get("target_subsystem")
+    targeting = ship.systems.get("targeting")
+    if targeting and hasattr(targeting, "set_target_subsystem"):
+        return targeting.set_target_subsystem(target_subsystem, ship)
+
+    ship.target_subsystem = target_subsystem
+    return success_dict("Target subsystem set", target_subsystem=target_subsystem)
 
 def cmd_untarget(ship, params):
     """Unlock current target."""
@@ -83,9 +102,29 @@ def register_commands(dispatcher):
         handler=cmd_target,
         args=[
             ArgSpec("contact_id", "str", required=True,
-                    description="Contact ID to lock as target")
+                    description="Contact ID to lock as target"),
+            ArgSpec("target_subsystem", "str", required=False,
+                    description="Subsystem to target (optional)")
         ],
         help_text="Lock a target by contact ID"
+    ))
+
+    dispatcher.register("target_subsystem", CommandSpec(
+        handler=cmd_target_subsystem,
+        args=[
+            ArgSpec("target_subsystem", "str", required=True,
+                    description="Subsystem to target")
+        ],
+        help_text="Set subsystem targeting for the locked target"
+    ))
+
+    dispatcher.register("set_target_subsystem", CommandSpec(
+        handler=cmd_target_subsystem,
+        args=[
+            ArgSpec("target_subsystem", "str", required=True,
+                    description="Subsystem to target")
+        ],
+        help_text="Set subsystem targeting for the locked target"
     ))
 
     dispatcher.register("untarget", CommandSpec(

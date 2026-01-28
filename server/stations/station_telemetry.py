@@ -38,8 +38,8 @@ class StationTelemetryFilter:
             # Tactical displays
             "weapons_status": ["weapons"],
             "ammunition": ["weapons"],
-            "target_info": ["target_id"],
-            "targeting_status": ["target_id"],
+            "target_info": ["target_id", "target_subsystem"],
+            "targeting_status": ["target_id", "target_subsystem"],
 
             # Operations displays
             "contacts": ["sensors"],

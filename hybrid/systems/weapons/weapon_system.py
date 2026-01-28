@@ -38,6 +38,7 @@ class Weapon:
         damage_factor=1.0,
         damage_model=None,
         event_bus=None,
+        target_subsystem=None,
     ):
         """Fire weapon at target.
 
@@ -74,7 +75,11 @@ class Weapon:
         damage_result = None
         effective_damage = self.damage * damage_factor
         if target_ship and hasattr(target_ship, 'take_damage'):
-            damage_result = target_ship.take_damage(effective_damage, source=self.name)
+            damage_result = target_ship.take_damage(
+                effective_damage,
+                source=self.name,
+                target_subsystem=target_subsystem,
+            )
 
         # Extract target ID (handle both Ship objects and string IDs)
         target_id = None
@@ -162,7 +167,7 @@ class WeaponSystem:
             "weapons": results,
         }
 
-    def fire_weapon(self, weapon_name, power_manager, target, ship=None):
+    def fire_weapon(self, weapon_name, power_manager, target, ship=None, target_subsystem=None):
         weapon = self.weapons.get(weapon_name)
         if not weapon:
             return False
@@ -178,6 +183,7 @@ class WeaponSystem:
             damage_factor=self.damage_factor,
             damage_model=damage_model,
             event_bus=event_bus,
+            target_subsystem=target_subsystem,
         )
 
     def get_state(self):
@@ -235,12 +241,17 @@ class WeaponSystem:
             # D6: Resolve target ship for damage application
             target_id = params.get("target")
             target_ship = None
+            target_subsystem = params.get("target_subsystem")
 
             # If no explicit target, try to get locked target from targeting system
             if not target_id:
                 targeting = ship.systems.get("targeting")
                 if targeting and hasattr(targeting, "locked_target"):
                     target_id = targeting.locked_target
+            if target_subsystem is None:
+                targeting = ship.systems.get("targeting")
+                if targeting and hasattr(targeting, "target_subsystem"):
+                    target_subsystem = targeting.target_subsystem
 
             # Resolve target ID to ship object
             if target_id:
@@ -260,6 +271,7 @@ class WeaponSystem:
                 damage_factor=self.damage_factor,
                 damage_model=ship.damage_model if hasattr(ship, "damage_model") else None,
                 event_bus=ship.event_bus if hasattr(ship, "event_bus") else None,
+                target_subsystem=target_subsystem,
             )
 
             if fire_result.get("ok"):
@@ -268,6 +280,7 @@ class WeaponSystem:
                     "message": f"Weapon '{weapon_name}' fired",
                     "weapon": weapon_name,
                     "target": target_id,
+                    "target_subsystem": target_subsystem,
                     "heat": weapon.heat,
                     "ammo_remaining": weapon.ammo,
                     "damage": fire_result.get("damage"),
