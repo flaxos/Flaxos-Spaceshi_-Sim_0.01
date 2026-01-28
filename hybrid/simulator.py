@@ -188,6 +188,7 @@ class Simulator:
 
         for ship in all_ships:
             try:
+                ship._all_ships_ref = all_ships
                 ship.tick(self.dt, all_ships, self.time)
             except Exception as e:
                 logger.error(f"Error in ship {ship.id} tick: {e}")
