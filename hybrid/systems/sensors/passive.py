@@ -76,12 +76,10 @@ class PassiveSensor:
             # Calculate detection probability
             accuracy = calculate_detection_accuracy(distance, signature, self.range)
 
-            # Passive detection has additional probability factor
-            detection_probability = min(0.95, accuracy ** 2)  # Squared for lower passive detection
-
-            # Random detection check
-            import random
-            if random.random() > detection_probability:
+            # Deterministic detection based on accuracy threshold
+            # This prevents contact flickering caused by random detection failures
+            min_detection_accuracy = 0.3  # Minimum accuracy to detect
+            if accuracy < min_detection_accuracy:
                 continue
 
             # Create contact with noise
