@@ -103,7 +103,7 @@ class PowerManagementSystem:
     def tick(self, dt, ship=None, event_bus=None):
         damage_factor = 1.0
         if ship is not None and hasattr(ship, "damage_model"):
-            damage_factor = ship.damage_model.get_degradation_factor("power")
+            damage_factor = ship.damage_model.get_combined_factor("power")
 
         for reactor in self.reactors.values():
             base = self._base_reactors.get(reactor.name, {})
@@ -127,6 +127,22 @@ class PowerManagementSystem:
                     "capacity": reactor.capacity,
                 })
                 self._last_reactor_status[reactor.name] = reactor.status
+
+    def report_heat(self, ship, event_bus):
+        if ship is None or not hasattr(ship, "damage_model"):
+            return
+        subsystem = ship.damage_model.subsystems.get("power")
+        if not subsystem:
+            return
+        total_output = 0.0
+        for reactor in self.reactors.values():
+            total_output += getattr(reactor, "last_generated", 0.0)
+            total_output += getattr(reactor, "last_drawn", 0.0)
+            reactor.last_drawn = 0.0
+        if total_output <= 0:
+            return
+        heat_amount = subsystem.heat_generation * total_output
+        ship.damage_model.add_heat("power", heat_amount, event_bus, ship.id)
 
     def request_power(self, amount, consumer):
         for layer in POWER_LAYER_PRIORITIES:
