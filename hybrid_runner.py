@@ -12,7 +12,7 @@ class HybridRunner:
     def __init__(self, fleet_dir="hybrid_fleet", dt=0.1):
         """
         Initialize the hybrid runner
-        
+
         Args:
             fleet_dir (str): Directory containing ship JSON files
             dt (float): Simulation time step in seconds
@@ -31,7 +31,11 @@ class HybridRunner:
         self.mission = None
         self.last_mission_status = None
         self.player_ship_id = None
-        
+
+        # Scenario loading state - prevents concurrent loads
+        self._loading_scenario = False
+        self._current_scenario_path = None
+
         # Create fleet_state directory if it doesn't exist
         os.makedirs(os.path.join(self.root_dir, "fleet_state"), exist_ok=True)
 
@@ -129,6 +133,7 @@ class HybridRunner:
         self.state_cache = {}
         self.last_update_time = 0
         self.last_mission_status = None
+        self._current_scenario_path = None
         self.simulator.fleet_manager = FleetManager(simulator=self.simulator)
 
     def _select_player_ship(self, ships_data):
@@ -138,7 +143,18 @@ class HybridRunner:
         return ships_data[0].get("id") if ships_data else None
 
     def _load_scenario_file(self, scenario_path):
+        # Prevent concurrent scenario loads
+        if self._loading_scenario:
+            print(f"Scenario load already in progress, ignoring request for: {scenario_path}")
+            return 0
+
+        # Skip if same scenario is already loaded and simulation is running
+        if self._current_scenario_path == scenario_path and self.running:
+            print(f"Scenario already loaded: {scenario_path}")
+            return len(self.simulator.ships)
+
         try:
+            self._loading_scenario = True
             was_running = self.running
             if was_running:
                 self.stop()
@@ -163,6 +179,12 @@ class HybridRunner:
                 self.simulator.add_ship(ship_id, ship_data)
                 ship_count += 1
 
+            # Initialize all_ships reference on each ship immediately after adding
+            # This ensures sensors can detect contacts even before the first tick
+            all_ships = list(self.simulator.ships.values())
+            for ship in all_ships:
+                ship._all_ships_ref = all_ships
+
             fleets = scenario_data.get("config", {}).get("fleets") if isinstance(scenario_data.get("config"), dict) else scenario_data.get("fleets")
             if fleets:
                 for fleet in fleets:
@@ -184,6 +206,9 @@ class HybridRunner:
                 self.mission.start(self.simulator.time)
                 self.last_mission_status = self.mission.tracker.mission_status
 
+            # Store current scenario path for deduplication
+            self._current_scenario_path = scenario_path
+
             if was_running:
                 self.start()
 
@@ -192,6 +217,8 @@ class HybridRunner:
         except Exception as e:
             print(f"Error loading scenario: {e}")
             return 0
+        finally:
+            self._loading_scenario = False
     
     def start(self):
         """Start the simulation in a background thread"""
