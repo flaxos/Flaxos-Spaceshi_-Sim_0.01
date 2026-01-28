@@ -46,20 +46,27 @@ class SensorSystem(BaseSystem):
     def tick(self, dt: float, ship, event_bus):
         """Update sensor system.
 
+        v0.6.0: Uses combined factor (damage + heat) for range.
+
         Args:
             dt: Time delta
             ship: Ship with this sensor
             event_bus: Event bus for publishing events
         """
-        damage_factor = 1.0
+        # v0.6.0: Get combined factor (damage + heat)
+        combined_factor = 1.0
+        self._subsystem_overheated = False
         if ship is not None and hasattr(ship, "damage_model"):
-            damage_factor = ship.damage_model.get_degradation_factor("sensors")
+            combined_factor = ship.damage_model.get_combined_factor("sensors")
+            subsystem = ship.damage_model.subsystems.get("sensors")
+            self._subsystem_overheated = subsystem.is_overheated() if subsystem else False
 
-        if damage_factor <= 0.0:
+        if combined_factor <= 0.0:
             return
 
-        self.passive.set_range_multiplier(damage_factor)
-        self.active.set_range_multiplier(damage_factor)
+        # Apply combined factor to sensor ranges
+        self.passive.set_range_multiplier(combined_factor)
+        self.active.set_range_multiplier(combined_factor)
 
         if not self.enabled:
             return
@@ -162,6 +169,8 @@ class SensorSystem(BaseSystem):
     def ping(self, params: dict = None):
         """Execute active sensor ping.
 
+        v0.6.0: Adds heat to sensor subsystem and checks for overheat.
+
         Args:
             params: Optional parameters
 
@@ -176,6 +185,10 @@ class SensorSystem(BaseSystem):
         if not ship:
             return error_dict("NO_SHIP_REFERENCE", "Ship reference required for ping")
 
+        # v0.6.0: Check subsystem overheat (sensors degraded when overheated)
+        if getattr(self, '_subsystem_overheated', False):
+            return error_dict("SENSORS_OVERHEATED", "Sensor subsystem overheated - active ping unavailable")
+
         # Need all_ships list (convert from dict if necessary)
         all_ships_param = self.all_ships or params.get("all_ships", [])
         # D6: Handle both dict and list formats for all_ships
@@ -187,7 +200,15 @@ class SensorSystem(BaseSystem):
         # Need event bus
         event_bus = params.get("event_bus") or EventBus.get_instance()
 
-        return self.active.ping(ship, all_ships, self.sim_time, event_bus)
+        result = self.active.ping(ship, all_ships, self.sim_time, event_bus)
+
+        # v0.6.0: Add heat to sensors subsystem on successful ping
+        if result.get("ok") and hasattr(ship, "damage_model"):
+            subsystem = ship.damage_model.subsystems.get("sensors")
+            if subsystem:
+                ship.damage_model.add_heat("sensors", subsystem.heat_generation, event_bus, ship.id)
+
+        return result
 
     def get_contacts(self) -> dict:
         """Get all current contacts.
@@ -242,13 +263,18 @@ class SensorSystem(BaseSystem):
     def get_state(self) -> dict:
         """Get sensor system state.
 
+        v0.6.0: Includes subsystem overheat status.
+
         Returns:
             dict: Current state
         """
         state = super().get_state()
 
         all_contacts = self.contact_tracker.get_all_contacts(self.sim_time)
-        can_ping = self.active.can_ping(self.sim_time)
+        subsystem_overheated = getattr(self, '_subsystem_overheated', False)
+
+        # v0.6.0: can_ping is false if subsystem is overheated
+        can_ping = self.active.can_ping(self.sim_time) and not subsystem_overheated
         ping_cooldown = self.active.get_cooldown_remaining(self.sim_time)
 
         # Convert contacts to serializable format
@@ -275,7 +301,9 @@ class SensorSystem(BaseSystem):
             "contact_count": len(contacts_list),
             "can_ping": can_ping,
             "ping_cooldown_remaining": ping_cooldown,
-            "ping_cooldown_total": self.active.cooldown
+            "ping_cooldown_total": self.active.cooldown,
+            # v0.6.0: Subsystem heat status
+            "subsystem_overheated": subsystem_overheated,
         })
 
         return state

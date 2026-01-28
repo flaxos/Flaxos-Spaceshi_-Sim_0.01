@@ -66,27 +66,31 @@ class PropulsionSystem(BaseSystem):
 
     def tick(self, dt, ship, event_bus):
         """Update propulsion and apply thrust.
-        
+
         Hard-sci model:
         1. Throttle sets force magnitude along ship's +X axis (forward)
         2. Ship quaternion rotates this into world frame
         3. F=ma gives acceleration in world frame
-        """
-        damage_factor = 1.0
-        if ship is not None and hasattr(ship, "damage_model"):
-            damage_factor = ship.damage_model.get_degradation_factor("propulsion")
 
-        if damage_factor <= 0.0:
+        v0.6.0: Heat generation and overheat penalties.
+        """
+        # v0.6.0: Get combined factor (damage + heat)
+        combined_factor = 1.0
+        if ship is not None and hasattr(ship, "damage_model"):
+            combined_factor = ship.damage_model.get_combined_factor("propulsion")
+
+        if combined_factor <= 0.0:
             ship.thrust = {"x": 0.0, "y": 0.0, "z": 0.0}
             ship.acceleration = {"x": 0.0, "y": 0.0, "z": 0.0}
             self.thrust_world = {"x": 0.0, "y": 0.0, "z": 0.0}
             self.status = "failed"
             return
 
-        self.max_thrust = self.base_max_thrust * damage_factor
-        self.efficiency = self.base_efficiency * max(0.1, damage_factor)
-        self.power_draw = self.base_power_draw * (1.0 + (1.0 - damage_factor))
-        self.power_draw_per_thrust = self.base_power_draw_per_thrust * (1.0 + (1.0 - damage_factor))
+        # Apply combined factor to performance
+        self.max_thrust = self.base_max_thrust * combined_factor
+        self.efficiency = self.base_efficiency * max(0.1, combined_factor)
+        self.power_draw = self.base_power_draw * (1.0 + (1.0 - combined_factor))
+        self.power_draw_per_thrust = self.base_power_draw_per_thrust * (1.0 + (1.0 - combined_factor))
 
         if not self.enabled:
             ship.thrust = {"x": 0.0, "y": 0.0, "z": 0.0}
@@ -133,7 +137,15 @@ class PropulsionSystem(BaseSystem):
         # Store world-frame thrust for telemetry
         self.thrust_world = {"x": thrust_world_x, "y": thrust_world_y, "z": thrust_world_z}
         ship.thrust = dict(self.thrust_world)
-        
+
+        # v0.6.0: Generate heat based on thrust output
+        if thrust_magnitude > 0 and hasattr(ship, "damage_model"):
+            subsystem = ship.damage_model.subsystems.get("propulsion")
+            if subsystem:
+                # Heat generated proportional to thrust (scaled by heat_generation rate)
+                heat_amount = (thrust_magnitude / self.base_max_thrust) * subsystem.heat_generation * dt
+                ship.damage_model.add_heat("propulsion", heat_amount, event_bus, ship.id)
+
         # Calculate G-force from acceleration magnitude (will be updated after acceleration is set)
         # We'll update this after acceleration is calculated
 

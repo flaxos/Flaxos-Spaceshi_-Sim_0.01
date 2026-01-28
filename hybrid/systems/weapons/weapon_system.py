@@ -122,15 +122,22 @@ class WeaponSystem:
     def tick(self, dt, ship=None, event_bus=None):
         """Update weapon system.
 
+        v0.6.0: Uses combined factor (damage + heat) for performance.
+
         Args:
             dt: Time delta
             ship: Ship with this weapon system (optional)
             event_bus: Event bus (optional)
         """
+        # v0.6.0: Get combined factor (damage + heat)
         if ship is not None and hasattr(ship, "damage_model"):
-            self.damage_factor = ship.damage_model.get_degradation_factor("weapons")
+            self.damage_factor = ship.damage_model.get_combined_factor("weapons")
+            # Track subsystem overheated status
+            subsystem = ship.damage_model.subsystems.get("weapons")
+            self._subsystem_overheated = subsystem.is_overheated() if subsystem else False
         else:
             self.damage_factor = 1.0
+            self._subsystem_overheated = False
 
         for weapon in self.weapons.values():
             weapon.max_heat = weapon.base_max_heat * max(0.25, self.damage_factor)
@@ -149,19 +156,54 @@ class WeaponSystem:
             "weapons": results,
         }
 
-    def fire_weapon(self, weapon_name, power_manager, target):
+    def fire_weapon(self, weapon_name, power_manager, target, ship=None, event_bus=None):
+        """Fire a weapon.
+
+        v0.6.0: Adds heat to subsystem and checks for subsystem overheat.
+        """
         weapon = self.weapons.get(weapon_name)
         if not weapon:
             return False
+
+        # v0.6.0: Check subsystem overheat (weapons cannot fire when overheated)
+        if getattr(self, '_subsystem_overheated', False):
+            self.event_bus.publish("weapon_cannot_fire", {
+                "weapon": weapon_name,
+                "reason": "subsystem_overheated"
+            })
+            return {"ok": False, "reason": "subsystem_overheated"}
+
         current_time = time.time()
-        return weapon.fire(current_time, power_manager, target, ship_id=None, damage_factor=self.damage_factor)
+        result = weapon.fire(current_time, power_manager, target, ship_id=ship.id if ship else None, damage_factor=self.damage_factor)
+
+        # v0.6.0: Add heat to weapons subsystem on successful fire
+        if result.get("ok") and ship and hasattr(ship, "damage_model"):
+            subsystem = ship.damage_model.subsystems.get("weapons")
+            if subsystem:
+                ship.damage_model.add_heat("weapons", subsystem.heat_generation, event_bus, ship.id)
+
+        return result
 
     def get_state(self):
         """Get weapon system state.
 
+        v0.6.0: Includes subsystem overheat status.
+
         Returns:
             dict: Weapon system state
         """
+        subsystem_overheated = getattr(self, '_subsystem_overheated', False)
+
+        # v0.6.0: Determine status including overheat
+        if self.damage_factor <= 0.0:
+            status = "failed"
+        elif subsystem_overheated:
+            status = "overheated"
+        elif self.damage_factor < 1.0:
+            status = "degraded"
+        else:
+            status = "online"
+
         return {
             "enabled": True,
             "weapons": [
@@ -171,12 +213,14 @@ class WeaponSystem:
                     "max_heat": w.max_heat,
                     "ammo": w.ammo,
                     "enabled": w.enabled,
-                    "can_fire": w.can_fire(time.time())
+                    "can_fire": w.can_fire(time.time()) and not subsystem_overheated
                 }
                 for w in self.weapons.values()
             ],
-            "status": "failed" if self.damage_factor <= 0.0 else "degraded" if self.damage_factor < 1.0 else "online",
+            "status": status,
             "degradation_factor": self.damage_factor,
+            # v0.6.0: Subsystem heat status
+            "subsystem_overheated": subsystem_overheated,
         }
 
     def command(self, action: str, params: dict):
@@ -202,6 +246,13 @@ class WeaponSystem:
             ship = params.get("ship")
             if not ship:
                 return {"error": "Ship reference required"}
+
+            # v0.6.0: Check subsystem overheat (weapons cannot fire when overheated)
+            if getattr(self, '_subsystem_overheated', False):
+                return {
+                    "error": "Weapons subsystem overheated - cannot fire",
+                    "reason": "subsystem_overheated"
+                }
 
             # Get power manager from ship
             power_manager = ship.systems.get("power") or ship.systems.get("power_management")
@@ -237,6 +288,12 @@ class WeaponSystem:
             )
 
             if fire_result.get("ok"):
+                # v0.6.0: Add heat to weapons subsystem on successful fire
+                if hasattr(ship, "damage_model"):
+                    subsystem = ship.damage_model.subsystems.get("weapons")
+                    if subsystem:
+                        ship.damage_model.add_heat("weapons", subsystem.heat_generation, ship.event_bus, ship.id)
+
                 return {
                     "ok": True,
                     "message": f"Weapon '{weapon_name}' fired",
