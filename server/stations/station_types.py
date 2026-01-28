@@ -66,6 +66,7 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             "rcs_angular_velocity",
             "rcs_clear",
             "set_course",
+            "set_plan",
             "autopilot",
             "helm_override",
             "queue_helm_command",
@@ -124,6 +125,7 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             "override_bio_monitor",
             "set_power_profile",
             "get_power_profiles",
+            "set_power_allocation",
         },
         displays={
             "power_grid", "reactor_status", "system_status",

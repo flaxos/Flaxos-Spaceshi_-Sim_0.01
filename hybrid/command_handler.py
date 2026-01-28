@@ -43,6 +43,7 @@ system_commands = {
     "helm_queue_status": ("helm", "queue_status"),
     "ping_sensors": ("sensors", "ping"),
     "override_bio_monitor": ("bio_monitor", "override"),
+    "set_power_allocation": ("power_management", "set_power_allocation"),
     "request_docking": ("docking", "request_docking"),
     "cancel_docking": ("docking", "cancel_docking"),
     # Targeting commands (Sprint C)
