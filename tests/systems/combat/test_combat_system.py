@@ -133,7 +133,8 @@ class TestDamageModel:
         result = model.apply_damage("propulsion", 30.0, source="railgun")
         assert result["ok"]
         assert result["health"] == 70.0
-        assert result["status"] == "degraded"
+        # v0.6.0: Status names changed from "degraded" to "damaged"
+        assert result["status"] == "damaged"
 
     def test_subsystem_failure(self):
         """Test subsystem failure threshold."""
