@@ -181,6 +181,8 @@ class Ship:
             all_ships (list, optional): List of all ships in simulation
             sim_time (float): Current simulation time
         """
+        self._all_ships_ref = all_ships or []
+
         # Update AI controller if enabled
         if self.ai_enabled and self.ai_controller:
             try:
