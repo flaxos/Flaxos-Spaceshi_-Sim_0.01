@@ -245,8 +245,10 @@ def register_legacy_commands(dispatcher: StationAwareDispatcher, runner):
     """
     # Import here to avoid circular dependency
     from hybrid.command_handler import system_commands
+    from .station_types import get_station_for_command
 
     # Register all system commands from the legacy system
+    registered_commands = set()
     for command_name, (system, action) in system_commands.items():
         handler = create_legacy_command_wrapper(runner, command_name)
         dispatcher.register_command(
@@ -254,6 +256,32 @@ def register_legacy_commands(dispatcher: StationAwareDispatcher, runner):
             handler=handler,
             # Station will be auto-detected from station_types.py
         )
+        registered_commands.add(command_name)
         logger.debug(f"Registered legacy command: {command_name}")
 
-    logger.info(f"Registered {len(system_commands)} legacy commands")
+    # Register ship-level command handlers that should be station-routed
+    ship_command_names = set()
+    for ship in runner.simulator.ships.values():
+        ship_command_names.update(getattr(ship, "command_handlers", {}).keys())
+
+    extra_commands = sorted(
+        command
+        for command in ship_command_names
+        if command not in registered_commands and get_station_for_command(command)
+    )
+    for command_name in extra_commands:
+        handler = create_legacy_command_wrapper(runner, command_name)
+        dispatcher.register_command(
+            command=command_name,
+            handler=handler,
+            # Station will be auto-detected from station_types.py
+        )
+        registered_commands.add(command_name)
+        logger.debug(f"Registered legacy ship command: {command_name}")
+
+    logger.info(
+        "Registered %d legacy commands (%d system, %d ship-level)",
+        len(registered_commands),
+        len(system_commands),
+        len(extra_commands),
+    )
