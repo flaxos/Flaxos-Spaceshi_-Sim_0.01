@@ -181,7 +181,14 @@ class Ship:
             all_ships (list, optional): List of all ships in simulation
             sim_time (float): Current simulation time
         """
-        self._all_ships_ref = all_ships or []
+        if all_ships is None:
+            resolved_all_ships = [self]
+        elif isinstance(all_ships, dict):
+            resolved_all_ships = list(all_ships.values())
+        else:
+            resolved_all_ships = all_ships
+        self._all_ships_ref = resolved_all_ships
+        self.sim_time = sim_time
 
         # Update AI controller if enabled
         if self.ai_enabled and self.ai_controller:
