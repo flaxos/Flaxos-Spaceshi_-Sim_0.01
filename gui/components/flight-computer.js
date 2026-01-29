@@ -290,6 +290,21 @@ class FlightComputer extends HTMLElement {
           gap: 6px;
         }
 
+        .plan-feedback {
+          margin: 6px 0 12px;
+          font-size: 0.7rem;
+          min-height: 1em;
+          color: var(--status-critical, #ff4444);
+        }
+
+        .plan-feedback.success {
+          color: var(--status-nominal, #00ff88);
+        }
+
+        .plan-feedback.warning {
+          color: var(--status-warning, #ffaa00);
+        }
+
         /* Actions */
         .actions {
           display: flex;
@@ -458,6 +473,7 @@ class FlightComputer extends HTMLElement {
           Queue plan
         </label>
       </div>
+      <div class="plan-feedback" id="plan-feedback"></div>
 
       <!-- Actions -->
       <div class="actions">
@@ -975,10 +991,13 @@ class FlightComputer extends HTMLElement {
         try {
           await wsClient.sendShipCommand("set_plan", { plan: this._computedSolution.plan });
           this._showMessage("Flight plan queued", "success");
+          this._setPlanFeedback("Flight plan queued.", "success");
         } catch (error) {
-          console.error("Queue plan failed:", error);
           this._showMessage(`Plan queue failed: ${error.message}`, "warning");
+          this._setPlanFeedback(`Plan queue failed: ${error.message}`, "warning");
         }
+      } else {
+        this._setPlanFeedback("", "");
       }
 
       switch (cmd.type) {
@@ -1145,6 +1164,16 @@ class FlightComputer extends HTMLElement {
     const systemMessages = document.getElementById("system-messages");
     if (systemMessages?.show) {
       systemMessages.show({ type, text });
+    }
+  }
+
+  _setPlanFeedback(message, variant) {
+    const feedback = this.shadowRoot.getElementById("plan-feedback");
+    if (!feedback) return;
+    feedback.textContent = message || "";
+    feedback.classList.remove("success", "warning");
+    if (variant) {
+      feedback.classList.add(variant);
     }
   }
 }
