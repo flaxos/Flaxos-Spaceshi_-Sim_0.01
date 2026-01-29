@@ -49,6 +49,7 @@ class PassiveSensor:
         if current_tick - self.last_update_tick < self.update_interval:
             return
 
+        initial_scan = self.last_update_tick < 0
         self.last_update_tick = current_tick
 
         # Scan for contacts
@@ -79,10 +80,11 @@ class PassiveSensor:
             # Passive detection has additional probability factor
             detection_probability = min(0.95, accuracy ** 2)  # Squared for lower passive detection
 
-            # Random detection check
-            import random
-            if random.random() > detection_probability:
-                continue
+            # Random detection check (skip on initial scan to populate contacts immediately)
+            if not initial_scan:
+                import random
+                if random.random() > detection_probability:
+                    continue
 
             # Create contact with noise
             noisy_position = add_detection_noise(target_ship.position, accuracy)
