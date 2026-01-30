@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Quaternion API documentation in `docs/QUATERNION_API.md`.
 - RCS configuration guide for ship thruster YAML in `docs/RCS_CONFIGURATION_GUIDE.md`.
 - Physics update documentation for Sprint S3 in `docs/PHYSICS_UPDATE.md`.
+- Subsystem damage model foundation (v0.6.0 Phase 1 damage core foundation, commit `5abe7ae`).
+- Heat management system foundation (v0.6.0 Phase 1 damage core foundation, commit `5abe7ae`; heat generation wiring pending).
 
 ### Fixed
 - Captain station claims now auto-elevate permissions for override actions.
@@ -26,8 +28,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Planned
 - Quaternion-based attitude system (Sprint S3)
 - RCS thruster torque calculations (Sprint S3)
-- Subsystem damage model (Sprint S4)
-- Heat management system (Sprint S4)
 - Advanced AI behaviors (Sprint S5)
 - Replay viewer (Sprint S6)
 
