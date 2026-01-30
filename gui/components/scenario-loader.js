@@ -173,6 +173,22 @@ class ScenarioLoader extends HTMLElement {
           color: var(--text-secondary, #888899);
         }
 
+        .status-box.info {
+          color: var(--status-info, #00aaff);
+        }
+
+        .status-box.warning {
+          color: var(--status-warning, #ffaa00);
+        }
+
+        .status-box.error {
+          color: var(--status-critical, #ff4444);
+        }
+
+        .status-box.success {
+          color: var(--status-nominal, #00ff88);
+        }
+
         .loading {
           text-align: center;
           padding: 24px;
@@ -252,6 +268,16 @@ class ScenarioLoader extends HTMLElement {
     hint.textContent = "Disconnected from server; can’t load scenarios yet.";
   }
 
+  _setStatus(message, variant = "") {
+    const statusBox = this.shadowRoot.getElementById("status-box");
+    if (!statusBox) return;
+    statusBox.textContent = message || "";
+    statusBox.classList.remove("info", "warning", "error", "success");
+    if (variant) {
+      statusBox.classList.add(variant);
+    }
+  }
+
   _showMessage(text, type) {
     const systemMessages = document.getElementById("system-messages");
     if (systemMessages?.show) {
@@ -261,7 +287,6 @@ class ScenarioLoader extends HTMLElement {
 
   async _loadScenarios() {
     const list = this.shadowRoot.getElementById("scenario-list");
-    const statusBox = this.shadowRoot.getElementById("status-box");
     const refreshBtn = this.shadowRoot.getElementById("refresh-btn");
 
     // Debounce: prevent rapid refresh clicks
@@ -278,7 +303,7 @@ class ScenarioLoader extends HTMLElement {
 
     if (wsClient.status !== "connected") {
       list.innerHTML = '<div class="empty-state">Disconnected from server.</div>';
-      statusBox.textContent = "Disconnected from server.";
+      this._setStatus("Disconnected from server.", "warning");
       this._updateConnectionHint(wsClient.status);
       this._showMessage("Cannot load scenarios while disconnected.", "warning");
       try {
@@ -287,6 +312,7 @@ class ScenarioLoader extends HTMLElement {
         this._showMessage(`Connection failed: ${error.message}`, "error");
       }
       if (wsClient.status !== "connected") {
+        this._setStatus("Unable to load scenarios while disconnected.", "error");
         return;
       }
     }
@@ -304,12 +330,12 @@ class ScenarioLoader extends HTMLElement {
       } else {
         const errorMsg = response?.error || "No scenarios found";
         list.innerHTML = '<div class="empty-state">No scenarios found</div>';
-        statusBox.textContent = `Failed to load scenarios: ${errorMsg}`;
+        this._setStatus(`Failed to load scenarios: ${errorMsg}`, "error");
         this._showMessage(`Scenario list failed: ${errorMsg}`, "error");
       }
     } catch (error) {
       list.innerHTML = `<div class="empty-state">Failed to load scenarios: ${error.message}</div>`;
-      statusBox.textContent = `Failed to load scenarios: ${error.message}`;
+      this._setStatus(`Failed to load scenarios: ${error.message}`, "error");
       this._showMessage(`Scenario list failed: ${error.message}`, "error");
     } finally {
       this._isLoadingScenarios = false;
@@ -390,10 +416,9 @@ class ScenarioLoader extends HTMLElement {
     }
 
     const loadBtn = this.shadowRoot.getElementById("load-btn");
-    const statusBox = this.shadowRoot.getElementById("status-box");
 
     if (wsClient.status !== "connected") {
-      statusBox.textContent = "Disconnected from server.";
+      this._setStatus("Disconnected from server.", "warning");
       this._updateConnectionHint(wsClient.status);
       this._showMessage("Cannot load scenario while disconnected.", "warning");
       try {
@@ -402,13 +427,14 @@ class ScenarioLoader extends HTMLElement {
         this._showMessage(`Connection failed: ${error.message}`, "error");
       }
       if (wsClient.status !== "connected") {
+        this._setStatus("Unable to load scenario while disconnected.", "error");
         return;
       }
     }
 
     this._isLoadingScenario = true;
     loadBtn.disabled = true;
-    statusBox.textContent = `Loading ${this._selectedScenario}...`;
+    this._setStatus(`Loading ${this._selectedScenario}...`, "info");
 
     try {
       const response = await wsClient.send("load_scenario", {
@@ -423,7 +449,7 @@ class ScenarioLoader extends HTMLElement {
         if (response.auto_assigned) {
           statusMsg += ` - Assigned to ${response.assigned_ship}`;
         }
-        statusBox.textContent = statusMsg;
+        this._setStatus(statusMsg, "success");
 
         console.log("Scenario loaded:", {
           scenario: this._selectedScenario,
@@ -451,11 +477,11 @@ class ScenarioLoader extends HTMLElement {
         this._renderScenarios();
       } else {
         const errorMsg = response?.error || 'Unknown error';
-        statusBox.textContent = `Failed: ${errorMsg}`;
+        this._setStatus(`Failed: ${errorMsg}`, "error");
         this._showMessage(`Scenario load failed: ${errorMsg}`, "error");
       }
     } catch (error) {
-      statusBox.textContent = `Error: ${error.message}`;
+      this._setStatus(`Error: ${error.message}`, "error");
       this._showMessage(`Scenario load failed: ${error.message}`, "error");
     } finally {
       this._isLoadingScenario = false;
