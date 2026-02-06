@@ -1,24 +1,23 @@
 # handlers.py
 
-def find_ship(ship_id, sectors):
-    for sector_coords, sector in sectors.items():
-        print(f"[DEBUG] Checking sector {sector_coords}")
-        ships = sector.get("ships", {})
-        if ship_id in ships:
-            print(f"[DEBUG] Found ship '{ship_id}' in sector {sector_coords}")
-            return ships[ship_id]
-    print(f"[DEBUG] Ship '{ship_id}' not found in any sector")
-    return None
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 
 def truncate(d, decimals=2):
     return {k: round(v, decimals) for k, v in d.items()}
 
+
 def find_ship(ship_id, sectors):
     for sector_coords, sector in sectors.items():
+        logger.debug("Checking sector %s", sector_coords)
         ships = sector.get("ships", {})
         if ship_id in ships:
+            logger.debug("Found ship '%s' in sector %s", ship_id, sector_coords)
             return ships[ship_id]
+    logger.debug("Ship '%s' not found in any sector", ship_id)
     return None
 
 def handle_command(request: dict, sectors: dict) -> dict:
