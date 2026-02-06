@@ -7,6 +7,7 @@ commands are only executed if the client has the appropriate station claim.
 
 from typing import Dict, Any, Callable, Optional, Tuple, Mapping, Union
 from dataclasses import dataclass
+import inspect
 import logging
 
 from .station_manager import StationManager
@@ -221,9 +222,14 @@ def create_legacy_command_wrapper(
 
             # Build command_data dict for legacy system
             command_data = {"command": command_name, **args}
+            command_data.setdefault("ship", ship.id)
 
             # Route through legacy system
-            response = route_command(ship, command_data, all_ships)
+            route_signature = inspect.signature(route_command)
+            if len(route_signature.parameters) >= 3:
+                response = route_command(ship, command_data, all_ships)
+            else:
+                response = route_command(ship, command_data)
 
             # Convert legacy response format to CommandResult
             if isinstance(response, dict):

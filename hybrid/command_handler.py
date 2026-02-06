@@ -55,6 +55,7 @@ system_commands = {
     "best_weapon": ("targeting", "best_weapon"),
     "set_target_subsystem": ("targeting", "set_target_subsystem"),
     # Legacy weapon system
+    "fire": ("weapons", "fire"),
     "fire_weapon": ("weapons", "fire"),
     # Combat system commands (Sprint C - truth weapons)
     "fire_railgun": ("combat", "fire"),

@@ -55,7 +55,7 @@ class Reactor:
         # If overheated, mark status and throttle output
         if self.temperature > self.thermal_limit:
             self.status = "overheated"
-            self.available = min(self.available, self.capacity * self.overheat_output_factor)
+            self.available *= self.overheat_output_factor
         elif self.status == "overheated" and self.temperature <= self.thermal_limit * 0.9:
             self.status = "nominal"
         elif self.status == "nominal":
