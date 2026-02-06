@@ -44,6 +44,7 @@ system_commands = {
     "ping_sensors": ("sensors", "ping"),
     "override_bio_monitor": ("bio_monitor", "override"),
     "set_power_allocation": ("power_management", "set_power_allocation"),
+    "get_draw_profile": ("power_management", "get_draw_profile"),
     "request_docking": ("docking", "request_docking"),
     "cancel_docking": ("docking", "cancel_docking"),
     # Targeting commands (Sprint C)
