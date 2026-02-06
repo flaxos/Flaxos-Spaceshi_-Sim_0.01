@@ -106,11 +106,11 @@ def test_secondary_recovery_uses_hysteresis_and_restores_high_criticality_first(
     pm.tick(0.0, ship=ship)
     assert all(system.enabled is False for system in ship.systems.values())
 
-    pm.reactors["secondary"].available = 40.0  # below warning recovery (0.45), no restore
+    pm.reactors["secondary"].available = 25.0  # below critical recovery (0.3), no restore
     pm.tick(0.0, ship=ship)
     assert all(system.enabled is False for system in ship.systems.values())
 
-    pm.reactors["secondary"].available = 50.0  # above warning recovery, restore
+    pm.reactors["secondary"].available = 35.0  # above critical recovery, restore
     pm.tick(0.0, ship=ship)
     assert all(system.enabled is True for system in ship.systems.values())
 

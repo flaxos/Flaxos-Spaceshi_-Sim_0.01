@@ -57,13 +57,7 @@ DEFAULT_SECONDARY_SHEDDING_POLICY = {
     "enabled": True,
 }
 
-DEFAULT_SECONDARY_CRITICALITY = {
-    "comms": 15,
-    "drone_bay": 20,
-    "drones": 20,
-    "pdc": 55,
-    "rcs": 70,
-}
+DEFAULT_SECONDARY_CRITICALITY = 50
 
 class PowerManagementSystem:
     def __init__(self, config):
@@ -91,6 +85,7 @@ class PowerManagementSystem:
         self._secondary_system_metadata = self._build_secondary_system_metadata()
         self._shed_systems = {}
         self._last_battery_band = "nominal"
+        self._shed_level = "nominal"
         self.active_profile = None
         self._base_system_state = {}
         self._base_weapon_state = {}
@@ -240,6 +235,7 @@ class PowerManagementSystem:
                 **self.secondary_shedding,
                 "shed_systems": sorted(self._shed_systems.keys()),
                 "battery_band": self._last_battery_band,
+                "shed_level": self._shed_level,
             },
         }
         
@@ -282,7 +278,7 @@ class PowerManagementSystem:
                 criticality = None
 
             if criticality is None:
-                criticality = DEFAULT_SECONDARY_CRITICALITY.get(system_name, 50)
+                criticality = DEFAULT_SECONDARY_CRITICALITY
             metadata[system_name] = {"criticality": int(criticality)}
 
         return metadata
@@ -343,6 +339,11 @@ class PowerManagementSystem:
             })
             self._last_battery_band = band
 
+        if band == "critical":
+            self._shed_level = "critical"
+        elif band == "warning" and self._shed_level != "critical":
+            self._shed_level = "warning"
+
         target_shed = self._target_shed_count(band)
         while len(self._shed_systems) < target_shed:
             candidates = self._find_sheddable_systems(ship)
@@ -362,7 +363,7 @@ class PowerManagementSystem:
         self._recover_shed_systems(ship, charge_ratio)
 
     def _recovery_threshold(self):
-        if self._last_battery_band == "critical":
+        if self._shed_level == "critical":
             return self.secondary_shedding["critical_recovery_threshold"]
         return self.secondary_shedding["warning_recovery_threshold"]
 
@@ -384,6 +385,8 @@ class PowerManagementSystem:
                 "charge_ratio": charge_ratio,
             })
             del self._shed_systems[system_name]
+
+        self._shed_level = "nominal"
 
     def _normalize_allocation(self, allocation):
         if not allocation:
