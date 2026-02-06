@@ -5,7 +5,7 @@ Wraps existing command handlers with station permission checks to ensure
 commands are only executed if the client has the appropriate station claim.
 """
 
-from typing import Dict, Any, Callable, Optional, Tuple
+from typing import Dict, Any, Callable, Optional, Tuple, Mapping, Union
 from dataclasses import dataclass
 import logging
 
@@ -176,7 +176,23 @@ class StationAwareDispatcher:
         }
 
 
-def create_legacy_command_wrapper(runner, command_name: str) -> CommandHandler:
+ShipMapProvider = Union[Callable[[], Mapping[str, Any]], Mapping[str, Any]]
+
+
+def _resolve_ship_map(provider: Optional[ShipMapProvider], runner) -> Mapping[str, Any]:
+    """Resolve the current ship map from a provider or runner fallback."""
+    if callable(provider):
+        return provider()
+    if provider is not None:
+        return provider
+    return runner.simulator.ships
+
+
+def create_legacy_command_wrapper(
+    runner,
+    command_name: str,
+    ship_map_provider: Optional[ShipMapProvider] = None,
+) -> CommandHandler:
     """
     Create a wrapper for legacy command handlers that work with the old system.
 
@@ -193,8 +209,10 @@ def create_legacy_command_wrapper(runner, command_name: str) -> CommandHandler:
             # Import here to avoid circular dependency
             from hybrid.command_handler import route_command
 
+            all_ships = _resolve_ship_map(ship_map_provider, runner)
+
             # Get the ship
-            ship = runner.simulator.ships.get(ship_id)
+            ship = all_ships.get(ship_id)
             if not ship:
                 return CommandResult(
                     success=False,
@@ -205,7 +223,7 @@ def create_legacy_command_wrapper(runner, command_name: str) -> CommandHandler:
             command_data = {"command": command_name, **args}
 
             # Route through legacy system
-            response = route_command(ship, command_data)
+            response = route_command(ship, command_data, all_ships)
 
             # Convert legacy response format to CommandResult
             if isinstance(response, dict):
@@ -254,10 +272,16 @@ def register_legacy_commands(dispatcher: StationAwareDispatcher, runner):
     from hybrid.command_handler import system_commands
     from .station_types import get_station_for_command
 
+    ship_map_provider = lambda: runner.simulator.ships
+
     # Register all system commands from the legacy system
     registered_commands = set()
     for command_name, (system, action) in system_commands.items():
-        handler = create_legacy_command_wrapper(runner, command_name)
+        handler = create_legacy_command_wrapper(
+            runner,
+            command_name,
+            ship_map_provider=ship_map_provider,
+        )
         dispatcher.register_command(
             command=command_name,
             handler=handler,
@@ -277,7 +301,11 @@ def register_legacy_commands(dispatcher: StationAwareDispatcher, runner):
         if command not in registered_commands and get_station_for_command(command)
     )
     for command_name in extra_commands:
-        handler = create_legacy_command_wrapper(runner, command_name)
+        handler = create_legacy_command_wrapper(
+            runner,
+            command_name,
+            ship_map_provider=ship_map_provider,
+        )
         dispatcher.register_command(
             command=command_name,
             handler=handler,
