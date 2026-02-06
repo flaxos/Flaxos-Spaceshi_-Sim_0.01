@@ -313,14 +313,7 @@ def register_station_commands(
                 message=f"Ship not found: {target_ship_id}"
             )
 
-        power_management = ship.systems.get("power_management")
-        if not power_management:
-            return CommandResult(
-                success=False,
-                message="Power management system not available"
-            )
-
-        result = power_management.apply_profile(profile, ship=ship)
+        result = ship.command("set_power_profile", {"profile": profile})
         if "error" in result:
             return CommandResult(
                 success=False,
@@ -331,6 +324,43 @@ def register_station_commands(
         return CommandResult(
             success=True,
             message=f"Power profile '{profile}' applied",
+            data=result
+        )
+
+    def _cmd_power_passthrough(client_id: str, ship_id: str, args: Dict[str, Any], command_name: str, success_message: str) -> CommandResult:
+        session = station_manager.get_session(client_id)
+        if not session or not session.ship_id:
+            return CommandResult(
+                success=False,
+                message="Not assigned to a ship"
+            )
+
+        target_ship_id = args.get("ship") or ship_id or session.ship_id
+        if not target_ship_id:
+            return CommandResult(
+                success=False,
+                message="Ship ID required"
+            )
+
+        ship = _resolve_ship(target_ship_id)
+        if not ship:
+            return CommandResult(
+                success=False,
+                message=f"Ship not found: {target_ship_id}"
+            )
+
+        payload = {k: v for k, v in args.items() if k != "ship"}
+        result = ship.command(command_name, payload)
+        if "error" in result:
+            return CommandResult(
+                success=False,
+                message=result["error"],
+                data=result
+            )
+
+        return CommandResult(
+            success=True,
+            message=success_message,
             data=result
         )
 
@@ -359,17 +389,48 @@ def register_station_commands(
                 message=f"Ship not found: {target_ship_id}"
             )
 
-        power_management = ship.systems.get("power_management")
-        if not power_management:
+        result = ship.command("get_power_profiles", {})
+        if "error" in result:
             return CommandResult(
                 success=False,
-                message="Power management system not available"
+                message=result["error"],
+                data=result
             )
 
         return CommandResult(
             success=True,
             message="Power profiles retrieved",
-            data=power_management.get_profiles()
+            data=result
+        )
+
+    def cmd_set_power_allocation(client_id: str, ship_id: str, args: Dict[str, Any]) -> CommandResult:
+        """Set engineering power allocation for the assigned ship."""
+        return _cmd_power_passthrough(
+            client_id,
+            ship_id,
+            args,
+            command_name="set_power_allocation",
+            success_message="Power allocation updated",
+        )
+
+    def cmd_get_power_telemetry(client_id: str, ship_id: str, args: Dict[str, Any]) -> CommandResult:
+        """Get detailed engineering telemetry for the assigned ship."""
+        return _cmd_power_passthrough(
+            client_id,
+            ship_id,
+            args,
+            command_name="get_power_telemetry",
+            success_message="Power telemetry retrieved",
+        )
+
+    def cmd_get_draw_profile(client_id: str, ship_id: str, args: Dict[str, Any]) -> CommandResult:
+        """Get grouped draw profile for enabled systems by configured power bus."""
+        return _cmd_power_passthrough(
+            client_id,
+            ship_id,
+            args,
+            command_name="get_draw_profile",
+            success_message="Power draw profile retrieved",
         )
 
     def cmd_heartbeat(client_id: str, ship_id: str, args: Dict[str, Any]) -> CommandResult:
@@ -768,6 +829,24 @@ def register_station_commands(
     dispatcher.register_command(
         "get_power_profiles",
         cmd_get_power_profiles,
+        station=StationType.ENGINEERING
+    )
+
+    dispatcher.register_command(
+        "set_power_allocation",
+        cmd_set_power_allocation,
+        station=StationType.ENGINEERING
+    )
+
+    dispatcher.register_command(
+        "get_power_telemetry",
+        cmd_get_power_telemetry,
+        station=StationType.ENGINEERING
+    )
+
+    dispatcher.register_command(
+        "get_draw_profile",
+        cmd_get_draw_profile,
         station=StationType.ENGINEERING
     )
 

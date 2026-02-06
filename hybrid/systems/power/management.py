@@ -326,6 +326,87 @@ class PowerManagementSystem:
             "definitions": self.engineering_profiles,
         }
 
+
+    def _iter_power_consumers(self, ship):
+        if not ship:
+            return
+        for system_name, system in ship.systems.items():
+            if system_name == "power_management":
+                continue
+            if hasattr(system, "power_draw"):
+                yield system_name, system, float(getattr(system, "power_draw", 0.0))
+
+        weapons_system = ship.systems.get("weapons")
+        if weapons_system and hasattr(weapons_system, "weapons"):
+            for weapon_name, weapon in weapons_system.weapons.items():
+                draw = float(getattr(weapon, "power_cost", getattr(weapon, "power_draw", 0.0)))
+                yield weapon_name, weapon, draw
+
+    def _resolve_bus_name(self, system_name):
+        return self.system_map.get(system_name, "unassigned")
+
+    def _build_draw_profile(self, ship):
+        buses = {}
+        total_draw_kw = 0.0
+        for system_name, system, draw_kw in self._iter_power_consumers(ship):
+            if not bool(getattr(system, "enabled", True)):
+                continue
+            bus = self._resolve_bus_name(system_name)
+            bus_entry = buses.setdefault(bus, {"draw_kw": 0.0, "systems": {}})
+            bus_entry["draw_kw"] += draw_kw
+            bus_entry["systems"][system_name] = draw_kw
+            total_draw_kw += draw_kw
+
+        return {
+            "draw_by_bus": buses,
+            "total_draw_kw": total_draw_kw,
+        }
+
+    def get_power_telemetry(self, ship=None):
+        state = self.get_state()
+        draw_profile = self._build_draw_profile(ship)
+        allocation = state.get("power_allocation", {})
+        total_available = state.get("total_available", 0.0)
+
+        supply_by_bus = {
+            bus: total_available * ratio
+            for bus, ratio in allocation.items()
+        }
+
+        return {
+            "allocation": allocation,
+            "reactors": state.get("reactors", {}),
+            "total_capacity_kw": state.get("total_capacity", 0.0),
+            "total_available_kw": total_available,
+            "supply_by_bus_kw": supply_by_bus,
+            "draw_by_bus_kw": {
+                bus: data.get("draw_kw", 0.0)
+                for bus, data in draw_profile["draw_by_bus"].items()
+            },
+            "active_profile": state.get("active_profile"),
+        }
+
+    def set_system_power_state(self, ship, system_name, enabled):
+        if ship is None:
+            return {"error": "Ship context required"}
+
+        if system_name == "power_management":
+            return {"error": "power_management cannot be toggled"}
+
+        system = ship.systems.get(system_name)
+        if not system:
+            return {"error": f"System '{system_name}' not found"}
+
+        if not hasattr(system, "enabled"):
+            return {"error": f"System '{system_name}' does not support toggling"}
+
+        system.enabled = bool(enabled)
+        return {
+            "status": "system_power_state_updated",
+            "system": system_name,
+            "enabled": bool(system.enabled),
+        }
+
     def command(self, action, params):
         if action == "set_power_profile":
             profile = params.get("profile") or params.get("mode")
@@ -346,4 +427,16 @@ class PowerManagementSystem:
         if action == "set_overdrive_limits":
             limits = params.get("limits", params)
             return self.set_overdrive_limits(limits)
+        if action == "set_system_power_state":
+            system_name = params.get("system")
+            enabled = params.get("enabled")
+            if not system_name:
+                return {"error": "Missing system parameter"}
+            if enabled is None:
+                return {"error": "Missing enabled parameter"}
+            return self.set_system_power_state(params.get("ship"), system_name, enabled)
+        if action == "get_power_telemetry":
+            return self.get_power_telemetry(ship=params.get("ship"))
+        if action == "get_draw_profile":
+            return self._build_draw_profile(ship=params.get("ship"))
         return {"error": f"Unknown power management command: {action}"}

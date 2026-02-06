@@ -721,6 +721,56 @@ Events are pulled from the simulator event log and filtered by station role and 
 
 ## Engineering & Power Management
 
+### Command Contract (Power Commands)
+All power-control commands are routed through the same `PowerManagementSystem.command()` entrypoint in ship command handling. GUI and CLI clients should use identical payloads.
+
+| Command | Required fields | Notes |
+|---|---|---|
+| `set_power_profile` | `profile` | Applies configured engineering profile data. |
+| `set_power_allocation` | `allocation` (object of bus->ratio) | Bus keys remain data-driven from ship/schema config. |
+| `get_power_profiles` | none | Returns `profiles`, `active_profile`, and profile `definitions`. |
+| `get_power_telemetry` | none | Returns allocation/supply/draw snapshots in kW. |
+| `get_draw_profile` | none | Returns enabled-system draw grouped by configured bus mapping. |
+| `toggle_system_power` | `system`, `enabled` | Toggles any system with an `enabled` flag via power command routing. |
+
+---
+
+### set_power_allocation
+Set bus allocation ratios for the active ship power-management system.
+
+**Station:** ENGINEERING
+
+**Request:**
+```json
+{
+  "cmd": "set_power_allocation",
+  "ship": "player_ship",
+  "allocation": {
+    "primary": 0.5,
+    "secondary": 0.3,
+    "tertiary": 0.2
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "message": "Power allocation updated",
+  "response": {
+    "status": "power_allocation_updated",
+    "power_allocation": {
+      "primary": 0.5,
+      "secondary": 0.3,
+      "tertiary": 0.2
+    }
+  }
+}
+```
+
+---
+
 ### set_power_profile
 Apply a predefined engineering power profile (offensive/defensive) to update power allocation, overdrive limits, and weapon/system enablement.
 
@@ -806,6 +856,71 @@ List available engineering profiles and the current active profile.
 
 ---
 
+
+### get_power_telemetry
+Return current power telemetry in physical units (kW), including allocation, available supply per bus, and draw per bus.
+
+**Station:** ENGINEERING
+
+**Request:**
+```json
+{
+  "cmd": "get_power_telemetry",
+  "ship": "player_ship"
+}
+```
+
+**Response (shape):**
+```json
+{
+  "ok": true,
+  "response": {
+    "allocation": {"primary": 0.5, "secondary": 0.3, "tertiary": 0.2},
+    "reactors": {"primary": {"capacity": 1000.0, "available": 800.0}},
+    "total_capacity_kw": 1750.0,
+    "total_available_kw": 1300.0,
+    "supply_by_bus_kw": {"primary": 650.0, "secondary": 390.0, "tertiary": 260.0},
+    "draw_by_bus_kw": {"primary": 120.0, "secondary": 45.0, "tertiary": 30.0},
+    "active_profile": "offensive"
+  }
+}
+```
+
+---
+
+### get_draw_profile
+Return enabled-system draw grouped by bus mapping (`system_map`) from ship config/schema.
+
+**Station:** ENGINEERING
+
+**Request:**
+```json
+{
+  "cmd": "get_draw_profile",
+  "ship": "player_ship"
+}
+```
+
+**Response (shape):**
+```json
+{
+  "ok": true,
+  "response": {
+    "draw_by_bus": {
+      "primary": {
+        "draw_kw": 120.0,
+        "systems": {
+          "propulsion": 80.0,
+          "railgun": 40.0
+        }
+      }
+    },
+    "total_draw_kw": 165.0
+  }
+}
+```
+
+---
 ## Weapons & Combat
 
 ### fire_weapon

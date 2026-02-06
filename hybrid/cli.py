@@ -15,6 +15,13 @@ from hybrid_runner import HybridRunner
 
 from hybrid.simulator import Simulator
 from hybrid.command_handler import handle_command_request
+from hybrid.power_command_service import (
+    get_draw_profile_command,
+    get_power_profiles_command,
+    get_power_telemetry_command,
+    set_power_allocation_command,
+    set_power_profile_command,
+)
 
 # Setup logging
 logging.basicConfig(
@@ -164,10 +171,14 @@ def run_cli(fleet_dir="hybrid_fleet", dt=0.1):
             print("4. Toggle autopilot")
             print("5. Ping sensors")
             print("6. Set power profile")
-            print("7. Custom command")
-            print("8. Switch ship")
-            print("9. Save states")
-            print("10. Exit")
+            print("7. Set power allocation")
+            print("8. Get power profiles")
+            print("9. Get power telemetry")
+            print("10. Get draw profile")
+            print("11. Custom command")
+            print("12. Switch ship")
+            print("13. Save states")
+            print("14. Exit")
             
             try:
                 choice = input("\nEnter command: ")
@@ -208,35 +219,58 @@ def run_cli(fleet_dir="hybrid_fleet", dt=0.1):
                     print("Result:", json.dumps(result, indent=2))
                     
                 elif choice == "6":
-                    profile = input("Power profile (offensive/defensive): ").strip()
+                    profile = input("Power profile name: ").strip()
                     if not profile:
                         print("Profile name required")
                         continue
-                    result = runner.send_command(
-                        selected_ship,
-                        "set_power_profile",
-                        {"profile": profile}
-                    )
+                    cmd, payload = set_power_profile_command(profile)
+                    result = runner.send_command(selected_ship, cmd, payload)
                     print("Result:", json.dumps(result, indent=2))
 
                 elif choice == "7":
+                    raw = input("Allocation JSON (e.g. {\"primary\":0.5,\"secondary\":0.3,\"tertiary\":0.2}): ").strip()
+                    try:
+                        allocation = json.loads(raw)
+                    except json.JSONDecodeError:
+                        print("Invalid allocation JSON")
+                        continue
+                    cmd, payload = set_power_allocation_command(allocation)
+                    result = runner.send_command(selected_ship, cmd, payload)
+                    print("Result:", json.dumps(result, indent=2))
+
+                elif choice == "8":
+                    cmd, payload = get_power_profiles_command()
+                    result = runner.send_command(selected_ship, cmd, payload)
+                    print("Result:", json.dumps(result, indent=2))
+
+                elif choice == "9":
+                    cmd, payload = get_power_telemetry_command()
+                    result = runner.send_command(selected_ship, cmd, payload)
+                    print("Result:", json.dumps(result, indent=2))
+
+                elif choice == "10":
+                    cmd, payload = get_draw_profile_command()
+                    result = runner.send_command(selected_ship, cmd, payload)
+                    print("Result:", json.dumps(result, indent=2))
+
+                elif choice == "11":
                     # Custom command
                     cmd = input("Command: ")
                     args_str = input("Args (JSON): ")
-                    
+
                     try:
                         args = json.loads(args_str)
                         result = runner.send_command(selected_ship, cmd, args)
                         print("Result:", json.dumps(result, indent=2))
                     except json.JSONDecodeError:
                         print("Invalid JSON args")
-                        
-                elif choice == "8":
+
+                elif choice == "12":
                     # Switch ship
                     print("\nAvailable ships:")
                     for i, ship_id in enumerate(ship_ids):
                         print(f"{i+1}. {ship_id}")
-                        
+
                     try:
                         choice = int(input("\nSelect a ship (number): "))
                         if 1 <= choice <= len(ship_ids):
@@ -246,17 +280,17 @@ def run_cli(fleet_dir="hybrid_fleet", dt=0.1):
                             print("Invalid selection")
                     except ValueError:
                         print("Invalid input, please enter a number")
-                        
-                elif choice == "9":
+
+                elif choice == "13":
                     # Save states
                     result = runner.save_states()
                     print("Result:", json.dumps(result, indent=2))
-                    
-                elif choice == "10":
+
+                elif choice == "14":
                     # Exit
                     print("Exiting...")
                     break
-                    
+
                 else:
                     print("Invalid command")
                     

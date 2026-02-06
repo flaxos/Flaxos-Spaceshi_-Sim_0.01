@@ -40,6 +40,11 @@ import argparse
 import tkinter as tk
 from tkinter import ttk, scrolledtext, messagebox
 
+from hybrid.power_command_service import (
+    get_power_telemetry_command,
+    toggle_system_command,
+)
+
 SERVER_TIMEOUT = 3
 
 # --- SERVER COMMANDS ---
@@ -51,9 +56,12 @@ COMMANDS = [
     "get_orientation",
     "helm_override",
     "ping_sensors",
-    "power_on",
-    "power_off",
-    "get_power_state",
+    "toggle_system_power",
+    "get_power_telemetry",
+    "get_power_profiles",
+    "set_power_profile",
+    "set_power_allocation",
+    "get_draw_profile",
     "fire_weapon",
     # Add future commands here
 ]
@@ -296,21 +304,18 @@ class ShipGUI(tk.Tk):
 
     def on_power_toggle(self):
         ship_id = self.current_ship.get()
-        systems = self.ships.get(ship_id, {}).get("systems", {})
-        if "power" not in systems:
-            messagebox.showerror("Power", "Power system toggle is unavailable for this ship")
-            return
-        payload = {"ship": ship_id, "system": "power"}
-        cmd = "power_on" if self.power_mode_var.get() else "power_off"
+        cmd, payload = toggle_system_command("power", self.power_mode_var.get())
+        payload["ship"] = ship_id
         resp = send_command_to_server(self.host, self.port, cmd, payload)
         self.log_debug(f">> {cmd} {payload}\n<< {resp}")
         data = self._parse_response(resp)
         self.power_state.set(str(data))
 
     def on_get_power_status(self):
-        payload = {"ship": self.current_ship.get()}
-        resp = send_command_to_server(self.host, self.port, "get_power_state", payload)
-        self.log_debug(f">> get_power_state {payload}\n<< {resp}")
+        cmd, payload = get_power_telemetry_command()
+        payload["ship"] = self.current_ship.get()
+        resp = send_command_to_server(self.host, self.port, cmd, payload)
+        self.log_debug(f">> {cmd} {payload}\n<< {resp}")
         data = self._parse_response(resp)
         self.power_state.set(json.dumps(data))
 
@@ -442,7 +447,7 @@ def run_headless(args, ships):
         if cli.target: payload['target'] = cli.target
         if cli.mode: payload['mode'] = cli.mode
         if cli.state: payload['state'] = cli.state
-        if cli.cmd in {"power_on", "power_off"} and "system" not in payload:
+        if cli.cmd == "toggle_system_power" and "system" not in payload:
             payload["system"] = "power"
     resp = send_command_to_server(args.host, args.port, cli.cmd, payload)
     print(f">> {cli.cmd} {payload}\n<< {resp}")

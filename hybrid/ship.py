@@ -116,6 +116,9 @@ class Ship:
             "set_power_profile": self._cmd_set_power_profile,
             "get_power_profiles": self._cmd_get_power_profiles,
             "set_overdrive_limits": self._cmd_set_overdrive_limits,
+            "toggle_system_power": self._cmd_toggle_system_power,
+            "get_power_telemetry": self._cmd_get_power_telemetry,
+            "get_draw_profile": self._cmd_get_draw_profile,
             "get_subsystem_health": self._cmd_get_subsystem_health,
             "repair_subsystem": self._cmd_repair_subsystem,
         }
@@ -374,6 +377,12 @@ class Ship:
         if params is None:
             params = {}
             
+        # Check ship's command handlers first.
+        # Some ship-level commands include a "system" parameter for target selection,
+        # so they must not be pre-empted by direct system dispatch.
+        if command_type in self.command_handlers:
+            return self.command_handlers[command_type](params)
+
         # Check if this is a system-specific command
         if "system" in params:
             system_type = params["system"]
@@ -383,19 +392,15 @@ class Ship:
                 if "command" in params:
                     system_cmd = params["command"]
                     system_params = params.get("params", {})
-                    
+
                     if hasattr(system, "command") and callable(system.command):
                         return system.command(system_cmd, system_params)
                     else:
                         return {"error": f"System {system_type} does not support commands"}
-                        
+
                 # Otherwise, pass the command to the system's command handler
                 elif hasattr(system, "command") and callable(system.command):
                     return system.command(command_type, params)
-        
-        # Check ship's command handlers
-        if command_type in self.command_handlers:
-            return self.command_handlers[command_type](params)
             
         # Try to find a system that can handle this command
         for system_type, system in self.systems.items():
@@ -800,48 +805,57 @@ class Ship:
             return {"error": "Power management system not available"}
         return pm.get_state()
 
-    def _cmd_set_power_allocation(self, params):
-        """Set power allocation ratios for the power management system."""
+    def _power_management_command(self, action, params=None):
         pm = self.systems.get("power_management")
         if not pm:
             return {"error": "Power management system not available"}
-        allocation = params.get("allocation", {})
-        if not allocation:
-            allocation = {
-                key: params.get(key)
-                for key in ("primary", "secondary", "tertiary")
-                if params.get(key) is not None
-            }
-        if not allocation:
-            return {"error": "Missing allocation values"}
-        return pm.set_power_allocation(allocation)
+        command_params = dict(params or {})
+        command_params.setdefault("ship", self)
+        return pm.command(action, command_params)
+
+    def _cmd_set_power_allocation(self, params):
+        """Set power allocation ratios for the power management system."""
+        return self._power_management_command("set_power_allocation", params)
 
     def _cmd_set_power_profile(self, params):
         """Apply a named power profile."""
-        pm = self.systems.get("power_management")
-        if not pm:
-            return {"error": "Power management system not available"}
-        profile = params.get("profile") or params.get("mode")
-        if not profile:
-            return {"error": "Missing profile parameter"}
-        return pm.apply_profile(profile, ship=self)
+        return self._power_management_command("set_power_profile", params)
 
     def _cmd_get_power_profiles(self, params):
-        """Return available power profiles."""
-        pm = self.systems.get("power_management")
-        if not pm:
-            return {"error": "Power management system not available"}
-        return pm.get_profiles()
+        """Return available engineering power profiles."""
+        return self._power_management_command("get_power_profiles", params)
 
     def _cmd_set_overdrive_limits(self, params):
         """Set overdrive limits for power buses."""
-        pm = self.systems.get("power_management")
-        if not pm:
-            return {"error": "Power management system not available"}
-        limits = params.get("limits", params)
-        if not limits:
-            return {"error": "Missing limits"}
-        return pm.set_overdrive_limits(limits)
+        return self._power_management_command("set_overdrive_limits", params)
+
+    def _cmd_toggle_system_power(self, params):
+        """Enable/disable a ship system through power-management command routing."""
+        system_name = params.get("system")
+        if not system_name:
+            return {"error": "Missing system parameter"}
+        if system_name not in self.systems:
+            return {"error": f"System '{system_name}' not found"}
+
+        enabled = params.get("enabled")
+        if enabled is None:
+            enabled = not bool(getattr(self.systems[system_name], "enabled", True))
+
+        return self._power_management_command(
+            "set_system_power_state",
+            {
+                "system": system_name,
+                "enabled": bool(enabled),
+            },
+        )
+
+    def _cmd_get_power_telemetry(self, params):
+        """Return power telemetry including per-bus draw and supply."""
+        return self._power_management_command("get_power_telemetry", params)
+
+    def _cmd_get_draw_profile(self, params):
+        """Return summarized draw profile grouped by bus."""
+        return self._power_management_command("get_draw_profile", params)
 
     def enable_ai(self, behavior=None, params=None):
         """
