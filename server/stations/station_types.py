@@ -94,6 +94,7 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             "unlock_target",
             "get_target_solution",
             "set_target_subsystem",
+            "fire",
             "fire_weapon",
         },
         displays={
