@@ -210,8 +210,15 @@ def create_legacy_command_wrapper(runner, command_name: str) -> CommandHandler:
             # Convert legacy response format to CommandResult
             if isinstance(response, dict):
                 # Legacy responses have various formats, try to normalize
-                success = response.get("status") != "error"
-                message = response.get("status", response.get("message", "OK"))
+                has_error_key = "error" in response
+                is_error_status = response.get("status") == "error"
+                success = not (has_error_key or is_error_status)
+
+                if success:
+                    message = response.get("message") or response.get("status") or "OK"
+                else:
+                    message = response.get("error") or "Command failed"
+
                 return CommandResult(
                     success=success,
                     message=str(message),
