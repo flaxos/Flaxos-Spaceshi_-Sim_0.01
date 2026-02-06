@@ -49,6 +49,22 @@ DEFAULT_ENGINEERING_PROFILES = {
     },
 }
 
+DEFAULT_SECONDARY_SHEDDING_POLICY = {
+    "warning_threshold": 0.35,
+    "critical_threshold": 0.2,
+    "warning_recovery_threshold": 0.45,
+    "critical_recovery_threshold": 0.3,
+    "enabled": True,
+}
+
+DEFAULT_SECONDARY_CRITICALITY = {
+    "comms": 15,
+    "drone_bay": 20,
+    "drones": 20,
+    "pdc": 55,
+    "rcs": 70,
+}
+
 class PowerManagementSystem:
     def __init__(self, config):
         # config is a dict mapping layer_name → {capacity, output_rate, thermal_limit}
@@ -63,6 +79,18 @@ class PowerManagementSystem:
             for layer, limit in config.get("overdrive_limits", {}).items()
         }
         self.engineering_profiles = config.get("engineering_profiles", DEFAULT_ENGINEERING_PROFILES)
+        policy = dict(DEFAULT_SECONDARY_SHEDDING_POLICY)
+        policy.update(config.get("secondary_shedding", {}))
+        self.secondary_shedding = {
+            "enabled": bool(policy.get("enabled", True)),
+            "warning_threshold": float(policy.get("warning_threshold", DEFAULT_SECONDARY_SHEDDING_POLICY["warning_threshold"])),
+            "critical_threshold": float(policy.get("critical_threshold", DEFAULT_SECONDARY_SHEDDING_POLICY["critical_threshold"])),
+            "warning_recovery_threshold": float(policy.get("warning_recovery_threshold", DEFAULT_SECONDARY_SHEDDING_POLICY["warning_recovery_threshold"])),
+            "critical_recovery_threshold": float(policy.get("critical_recovery_threshold", DEFAULT_SECONDARY_SHEDDING_POLICY["critical_recovery_threshold"])),
+        }
+        self._secondary_system_metadata = self._build_secondary_system_metadata()
+        self._shed_systems = {}
+        self._last_battery_band = "nominal"
         self.active_profile = None
         self._base_system_state = {}
         self._base_weapon_state = {}
@@ -71,7 +99,7 @@ class PowerManagementSystem:
             if not isinstance(params, dict):
                 continue
             # Skip configuration metadata that isn't reactor params
-            if layer_name in ('system_map', 'power_allocation', 'overdrive_limits', 'engineering_profiles'):
+            if layer_name in ('system_map', 'power_allocation', 'overdrive_limits', 'engineering_profiles', 'secondary_shedding'):
                 continue
             base = Reactor(layer_name)
             # D6: Support "output" as alias for "capacity" for backward compatibility
@@ -127,6 +155,8 @@ class PowerManagementSystem:
                     "capacity": reactor.capacity,
                 })
                 self._last_reactor_status[reactor.name] = reactor.status
+
+        self._handle_secondary_load_shedding(ship)
 
     def report_heat(self, ship, event_bus):
         if ship is None or not hasattr(ship, "damage_model"):
@@ -206,6 +236,11 @@ class PowerManagementSystem:
             "overdrive_limits": self.overdrive_limits,
             "active_profile": self.active_profile,
             "profiles": sorted(self.engineering_profiles.keys()),
+            "secondary_shedding": {
+                **self.secondary_shedding,
+                "shed_systems": sorted(self._shed_systems.keys()),
+                "battery_band": self._last_battery_band,
+            },
         }
         
         for name, reactor in self.reactors.items():
@@ -231,6 +266,124 @@ class PowerManagementSystem:
             state["total_available"] += reactor_state["available"]
         
         return state
+
+    def _build_secondary_system_metadata(self):
+        metadata = {}
+        for system_name, details in self.system_map.items():
+            if isinstance(details, dict):
+                bus = details.get("bus") or details.get("layer")
+                if bus != "secondary":
+                    continue
+                criticality = details.get("criticality", details.get("priority"))
+            else:
+                bus = details
+                if bus != "secondary":
+                    continue
+                criticality = None
+
+            if criticality is None:
+                criticality = DEFAULT_SECONDARY_CRITICALITY.get(system_name, 50)
+            metadata[system_name] = {"criticality": int(criticality)}
+
+        return metadata
+
+    def _get_secondary_charge_ratio(self):
+        secondary = self.reactors.get("secondary")
+        if not secondary:
+            return None
+        capacity = float(getattr(secondary, "capacity", 0.0) or 0.0)
+        if capacity <= 0:
+            return 0.0
+        available = float(getattr(secondary, "available", 0.0))
+        return max(0.0, min(1.0, available / capacity))
+
+    def _battery_band(self, charge_ratio):
+        if charge_ratio is None:
+            return "nominal"
+        if charge_ratio <= self.secondary_shedding["critical_threshold"]:
+            return "critical"
+        if charge_ratio <= self.secondary_shedding["warning_threshold"]:
+            return "warning"
+        return "nominal"
+
+    def _find_sheddable_systems(self, ship):
+        systems = []
+        if ship is None:
+            return systems
+        for system_name, metadata in self._secondary_system_metadata.items():
+            system = ship.systems.get(system_name)
+            if not system or not hasattr(system, "enabled"):
+                continue
+            if system_name in self._shed_systems:
+                continue
+            if not getattr(system, "enabled", False):
+                continue
+            systems.append((metadata["criticality"], system_name, system))
+        systems.sort(key=lambda item: item[0])
+        return systems
+
+    def _target_shed_count(self, band):
+        candidates = len(self._secondary_system_metadata)
+        if band == "critical":
+            return candidates
+        if band == "warning":
+            return max(1, (candidates + 1) // 2) if candidates else 0
+        return 0
+
+    def _handle_secondary_load_shedding(self, ship):
+        if not self.secondary_shedding["enabled"]:
+            return
+        charge_ratio = self._get_secondary_charge_ratio()
+        band = self._battery_band(charge_ratio)
+        if band != self._last_battery_band:
+            self.event_bus.publish("secondary_battery_band", {
+                "ship_id": getattr(ship, "id", None),
+                "band": band,
+                "charge_ratio": charge_ratio,
+            })
+            self._last_battery_band = band
+
+        target_shed = self._target_shed_count(band)
+        while len(self._shed_systems) < target_shed:
+            candidates = self._find_sheddable_systems(ship)
+            if not candidates:
+                break
+            criticality, system_name, system = candidates[0]
+            system.enabled = False
+            self._shed_systems[system_name] = criticality
+            self.event_bus.publish("secondary_load_shed", {
+                "ship_id": getattr(ship, "id", None),
+                "system": system_name,
+                "criticality": criticality,
+                "charge_ratio": charge_ratio,
+                "band": band,
+            })
+
+        self._recover_shed_systems(ship, charge_ratio)
+
+    def _recovery_threshold(self):
+        if self._last_battery_band == "critical":
+            return self.secondary_shedding["critical_recovery_threshold"]
+        return self.secondary_shedding["warning_recovery_threshold"]
+
+    def _recover_shed_systems(self, ship, charge_ratio):
+        if ship is None or charge_ratio is None or not self._shed_systems:
+            return
+        threshold = self._recovery_threshold()
+        if charge_ratio < threshold:
+            return
+
+        for system_name, criticality in sorted(self._shed_systems.items(), key=lambda item: item[1], reverse=True):
+            system = ship.systems.get(system_name)
+            if system and hasattr(system, "enabled"):
+                system.enabled = True
+            self.event_bus.publish("secondary_load_restored", {
+                "ship_id": getattr(ship, "id", None),
+                "system": system_name,
+                "criticality": criticality,
+                "charge_ratio": charge_ratio,
+            })
+            del self._shed_systems[system_name]
 
     def _normalize_allocation(self, allocation):
         if not allocation:
