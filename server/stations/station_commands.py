@@ -372,6 +372,44 @@ def register_station_commands(
             data=power_management.get_profiles()
         )
 
+    def cmd_get_draw_profile(client_id: str, ship_id: str, args: Dict[str, Any]) -> CommandResult:
+        """
+        Return engineering draw profile (supply/requested/delta by power bus).
+        """
+        session = station_manager.get_session(client_id)
+        if not session or not session.ship_id:
+            return CommandResult(
+                success=False,
+                message="Not assigned to a ship"
+            )
+
+        target_ship_id = args.get("ship") or ship_id or session.ship_id
+        if not target_ship_id:
+            return CommandResult(
+                success=False,
+                message="Ship ID required"
+            )
+
+        ship = _resolve_ship(target_ship_id)
+        if not ship:
+            return CommandResult(
+                success=False,
+                message=f"Ship not found: {target_ship_id}"
+            )
+
+        power_management = ship.systems.get("power_management")
+        if not power_management:
+            return CommandResult(
+                success=False,
+                message="Power management system not available"
+            )
+
+        return CommandResult(
+            success=True,
+            message="Power draw profile retrieved",
+            data=power_management.get_draw_profile(ship=ship)
+        )
+
     def cmd_heartbeat(client_id: str, ship_id: str, args: Dict[str, Any]) -> CommandResult:
         """
         Heartbeat to keep session alive.
@@ -768,6 +806,12 @@ def register_station_commands(
     dispatcher.register_command(
         "get_power_profiles",
         cmd_get_power_profiles,
+        station=StationType.ENGINEERING
+    )
+
+    dispatcher.register_command(
+        "get_draw_profile",
+        cmd_get_draw_profile,
         station=StationType.ENGINEERING
     )
 

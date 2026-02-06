@@ -126,6 +126,7 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             "set_power_profile",
             "get_power_profiles",
             "set_power_allocation",
+            "get_draw_profile",
         },
         displays={
             "power_grid", "reactor_status", "system_status",

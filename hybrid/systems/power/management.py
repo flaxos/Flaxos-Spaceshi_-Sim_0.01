@@ -100,6 +100,106 @@ class PowerManagementSystem:
         self.event_bus = EventBus.get_instance()
         self._last_reactor_status = {}
 
+    def _iter_enabled_consumers(self, ship):
+        if ship is None or not hasattr(ship, "systems"):
+            return
+
+        for system_name, system in ship.systems.items():
+            if system_name == "power_management":
+                continue
+
+            if hasattr(system, "weapons") and isinstance(getattr(system, "weapons"), dict):
+                for weapon_name, weapon in system.weapons.items():
+                    if not getattr(weapon, "enabled", True):
+                        continue
+                    draw = float(getattr(weapon, "power_cost", 0.0) or 0.0)
+                    if draw <= 0:
+                        continue
+                    consumer_name = f"{system_name}.{weapon_name}"
+                    yield consumer_name, weapon_name, draw
+                continue
+
+            if not getattr(system, "enabled", True):
+                continue
+
+            draw = float(getattr(system, "power_draw", 0.0) or 0.0)
+            if draw <= 0:
+                continue
+
+            yield system_name, system_name, draw
+
+    def _resolve_bus_for_system(self, full_name, short_name):
+        return (
+            self.system_map.get(full_name)
+            or self.system_map.get(short_name)
+            or "unassigned"
+        )
+
+    def get_draw_profile(self, ship=None):
+        buses = set(self.reactors.keys()) | set(self.power_allocation.keys()) | {"unassigned"}
+        profile = {
+            bus: {
+                "available_kw": 0.0,
+                "requested_kw": 0.0,
+                "delta_kw": 0.0,
+                "status": "balanced",
+                "systems": [],
+                "top_consumers": [],
+            }
+            for bus in sorted(buses)
+        }
+
+        for bus_name, reactor in self.reactors.items():
+            profile.setdefault(bus_name, {
+                "available_kw": 0.0,
+                "requested_kw": 0.0,
+                "delta_kw": 0.0,
+                "status": "balanced",
+                "systems": [],
+                "top_consumers": [],
+            })
+            profile[bus_name]["available_kw"] = float(getattr(reactor, "available", reactor.capacity))
+
+        if ship is not None:
+            for consumer_name, short_name, draw in self._iter_enabled_consumers(ship):
+                bus = self._resolve_bus_for_system(consumer_name, short_name)
+                if bus not in profile:
+                    profile[bus] = {
+                        "available_kw": 0.0,
+                        "requested_kw": 0.0,
+                        "delta_kw": 0.0,
+                        "status": "balanced",
+                        "systems": [],
+                        "top_consumers": [],
+                    }
+                profile[bus]["requested_kw"] += draw
+                profile[bus]["systems"].append({
+                    "name": consumer_name,
+                    "draw_kw": draw,
+                })
+
+        for bus_data in profile.values():
+            bus_data["systems"].sort(key=lambda item: item["draw_kw"], reverse=True)
+            bus_data["top_consumers"] = bus_data["systems"][:3]
+            bus_data["delta_kw"] = bus_data["available_kw"] - bus_data["requested_kw"]
+            if bus_data["delta_kw"] > 0:
+                bus_data["status"] = "surplus"
+            elif bus_data["delta_kw"] < 0:
+                bus_data["status"] = "deficit"
+
+        total_available = sum(bus_data["available_kw"] for bus_data in profile.values())
+        total_requested = sum(bus_data["requested_kw"] for bus_data in profile.values())
+
+        return {
+            "active_profile": self.active_profile,
+            "buses": profile,
+            "totals": {
+                "available_kw": total_available,
+                "requested_kw": total_requested,
+                "delta_kw": total_available - total_requested,
+            },
+        }
+
     def tick(self, dt, ship=None, event_bus=None):
         damage_factor = 1.0
         if ship is not None and hasattr(ship, "damage_model"):
@@ -346,4 +446,6 @@ class PowerManagementSystem:
         if action == "set_overdrive_limits":
             limits = params.get("limits", params)
             return self.set_overdrive_limits(limits)
+        if action == "get_draw_profile":
+            return self.get_draw_profile(ship=params.get("ship"))
         return {"error": f"Unknown power management command: {action}"}
