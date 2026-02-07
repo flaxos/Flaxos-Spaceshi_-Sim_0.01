@@ -39,6 +39,9 @@ This starts the TCP sim server, WebSocket bridge, and GUI HTTP server, then open
 - [Architecture overview](docs/ARCHITECTURE.md)
 - [Station architecture](STATION_ARCHITECTURE.md)
 - [API reference](docs/API_REFERENCE.md)
+- [Gate Horizons integration](docs/INTEGRATION_GATE_HORIZONS.md)
+- [Drift guardrails](docs/DRIFT_GUARDRAILS.md)
+- [AI agent rules](docs/AI_AGENT_RULES.md)
 - [Getting started tutorial](docs/TUTORIAL.md)
 - [Feature status](docs/FEATURE_STATUS.md)
 - [Known issues](docs/KNOWN_ISSUES.md)
@@ -47,6 +50,29 @@ This starts the TCP sim server, WebSocket bridge, and GUI HTTP server, then open
 - [Quaternion API](docs/QUATERNION_API.md)
 - [RCS configuration guide](docs/RCS_CONFIGURATION_GUIDE.md)
 - [Physics update notes](docs/PHYSICS_UPDATE.md)
+
+## Role in the Gate Horizons universe
+Flaxos Spaceship Sim is the real-time, physics-first tactical mission runtime for ship encounters in the Gate Horizons universe. It simulates RCS attitude control and Epstein main-drive thrust, runs the encounter at real-time cadence, and reports outcomes via a strict contract so the strategic layer can move on. It is not the strategic layer itself. This repo stays focused on mission execution, ship systems, and tactical outcomes only. Gate Horizons handles the months-scale planning, wormhole travel, and wider campaign logic. The contract name and JSON artefacts are fixed now to prevent drift. 
+
+### Operating modes
+**Standalone sandbox/multi-station game**
+- Run scenarios, skirmishes, and training missions locally.
+- Multi-crew stations and AI can be used for co-op or solo play.
+
+**Encounter Runner (Gate Horizons contract runtime)**
+- Loads an encounter definition (`EncounterSpec.json`) to spawn actors, initial states, objectives, and rules.
+- Runs the mission in real time with the existing physics model.
+- Emits a mission result (`ResultSpec.json`) that the meta game can consume.
+
+### Contract-only integration boundary
+This repo integrates with Gate Horizons via contract-only artefacts:
+- **Input:** `EncounterSpec.json` (spawn list, initial state, objectives, rules, scenario metadata)
+- **Output:** `ResultSpec.json` (outcomes, resource usage, losses, mission flags, timelines)
+
+No direct coupling to Gate Horizons internal state or data models is permitted. If a detail is not in the encounter contract, it does not belong inside this runtime.
+
+### Timescale alignment
+Gate Horizons operates at a strategic timescale (months across gates and wormholes). Flaxos runs the tactical real-time simulation of a local encounter. The split is intentional: strategic decisions stay outside; tactical execution and physics stay here.
 
 ## Android/Pydroid UAT (TCP JSON)
 The sim server speaks **newline-delimited JSON over TCP** (one JSON object per line). The Android UI can run in Pydroid and connect over your LAN.
