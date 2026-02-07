@@ -15,6 +15,16 @@
 - No shields, inertial dampers, or hand-waved armour unless already in canon.
 - No “magical tech” additions to justify gameplay without an explicit, documented basis.
 
+## Drift types (watch list)
+- **Magic tech creep:** adding non-canonical capabilities to make missions easier or more cinematic.
+- **Interface creep:** expanding integration beyond `EncounterSpec.json`/`ResultSpec.json`.
+- **LLM creep:** accepting model-invented lore, tech, or rules not grounded in the canon pack.
+
+## Controls
+- Treat Gate Horizons `canon/CANON.md` and `canon/STYLE_BIBLE.md` as the constraints for lore and aesthetics.
+- Keep integration contract-only: no hidden state, no side channels, no shared runtime hooks.
+- Document any new assumption explicitly and keep it scoped to the tactical layer.
+
 ## Contract-only boundary
 - **Input:** `EncounterSpec.json`
 - **Output:** `ResultSpec.json`
