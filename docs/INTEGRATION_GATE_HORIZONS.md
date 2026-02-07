@@ -3,6 +3,19 @@
 ## Purpose
 This document defines the **contract-only integration boundary** between Flaxos Spaceship Sim and the Gate Horizons meta game. Flaxos is the real-time, physics-first tactical runtime. Gate Horizons is the strategic layer that operates at months-scale travel and campaign planning. The interface between them is limited to JSON artefacts so each system can evolve without tight coupling.
 
+## Operating modes
+**Standalone sandbox/scenarios**
+- Local skirmishes, training missions, and multi-station play.
+- No upstream dependency on Gate Horizons; this sim is fully runnable on its own.
+
+**Linked encounter runner (future)**
+- Gate Horizons supplies the encounter definition and consumes the outcome report.
+- Flaxos executes the encounter at real-time cadence and reports results via the contract.
+
+## Timescale separation
+- **Real-time tactical:** Flaxos simulates RCS attitude control and Epstein thrust per tick.
+- **Months-scale strategic:** Gate Horizons handles gate travel, campaign planning, and encounter generation.
+
 ## Encounter Runner Mode (conceptual)
 In Encounter Runner mode, Flaxos accepts a complete, immutable encounter description and executes it as a real-time tactical mission using the existing RCS + Epstein drive model. Flaxos does not resolve campaign state, faction lore, or economy. It simply simulates the encounter, records outcomes, and returns a result report.
 

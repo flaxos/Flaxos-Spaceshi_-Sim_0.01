@@ -52,7 +52,19 @@ This starts the TCP sim server, WebSocket bridge, and GUI HTTP server, then open
 - [Physics update notes](docs/PHYSICS_UPDATE.md)
 
 ## Role in the Gate Horizons universe
-Flaxos Spaceship Sim is the real-time, physics-first tactical mission runtime for ship encounters in the Gate Horizons universe. It simulates RCS attitude control and Epstein main-drive thrust, runs the encounter at real-time cadence, and reports outcomes via a strict contract so the strategic layer can move on. It is not the strategic layer itself. This repo stays focused on mission execution, ship systems, and tactical outcomes only. Gate Horizons handles the months-scale planning, wormhole travel, and wider campaign logic. The contract name and JSON artefacts are fixed now to prevent drift. 
+Flaxos Spaceship Sim is the real-time, physics-first tactical mission runtime for ship encounters in the Gate Horizons universe. It simulates RCS attitude control and Epstein main-drive thrust, runs the encounter at real-time cadence, and reports outcomes via a strict contract so the strategic layer can move on. It is not the strategic layer itself, and it does not own campaign logic or canon. The contract name and JSON artefacts are fixed now to prevent drift.
+
+- This repo is the **real-time tactical mission engine** (RCS + Epstein drive).
+- Gate Horizons is the **strategic meta layer** (months-scale travel via gates/wormholes, lore, canon, encounter generation).
+- Integration is **contract-only**: `EncounterSpec.json` in, `ResultSpec.json` out (conceptual only; do not implement).
+
+### Canon & Style References (Gate Horizons)
+- [Gate Horizons canon pack (repo root)](https://github.com/Flaxos/gate-horizons-canon-pack)
+- [canon/CANON.md](https://github.com/Flaxos/gate-horizons-canon-pack/blob/main/canon/CANON.md)
+- [canon/STYLE_BIBLE.md](https://github.com/Flaxos/gate-horizons-canon-pack/blob/main/canon/STYLE_BIBLE.md)
+- [canon/STORYBOARD.md](https://github.com/Flaxos/gate-horizons-canon-pack/blob/main/canon/STORYBOARD.md)
+- [canon/IMAGE_PROMPT_TEMPLATE.md](https://github.com/Flaxos/gate-horizons-canon-pack/blob/main/canon/IMAGE_PROMPT_TEMPLATE.md)
+- [canon/AI_AGENT_RULES.md](https://github.com/Flaxos/gate-horizons-canon-pack/blob/main/canon/AI_AGENT_RULES.md)
 
 ### Operating modes
 **Standalone sandbox/multi-station game**
