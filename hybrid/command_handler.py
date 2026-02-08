@@ -107,9 +107,13 @@ def route_command(ship, command_data, all_ships=None):
         if not cmd:
             return {"error": "Missing command parameter"}
 
-        # Validate ship
-        if ship_id != ship.id:
-            return {"error": f"Command sent to wrong ship. Expected {ship.id}, got {ship_id}"}
+        # Validate ship when provided; default to the target ship if omitted
+        if ship_id:
+            if ship_id != ship.id:
+                return {"error": f"Command sent to wrong ship. Expected {ship.id}, got {ship_id}"}
+        else:
+            command_data["ship"] = ship.id
+            ship_id = ship.id
 
         # Execute command
         response = execute_command(ship, cmd, command_data, all_ships)
