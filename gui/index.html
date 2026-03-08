@@ -98,20 +98,135 @@
       --panel-height-lg: clamp(320px, 42vh, 560px);
     }
 
-    /* Phase 5 panels */
-    .scenario-panel {
-      grid-column: span 3;
-      min-height: var(--panel-height-sm);
+    /* ===== View System ===== */
+    .view-container {
+      display: none;
     }
 
-    .mission-panel {
-      grid-column: span 3;
-      min-height: var(--panel-height-sm);
+    .view-container.active {
+      display: block;
     }
 
-    /* Phase 2 panels */
-    .event-log-panel {
+    .view-grid {
+      display: grid;
+      gap: var(--space-sm, 8px);
+      padding: var(--space-sm, 8px);
+      grid-template-columns: repeat(12, 1fr);
+      grid-auto-rows: minmax(clamp(140px, 18vh, 240px), auto);
+    }
+
+    /* Keep interface-grid for backward compatibility but hide it */
+    #interface-grid {
+      display: none;
+    }
+
+    /* ===== Panel sizing within views ===== */
+
+    /* Helm view panels */
+    .helm-fc-panel {
+      grid-column: span 6;
+      min-height: var(--panel-height-md);
+    }
+
+    .helm-contacts-panel {
+      grid-column: span 6;
+      min-height: var(--panel-height-md);
+    }
+
+    .helm-nav-panel {
       grid-column: span 4;
+      min-height: var(--panel-height-sm);
+    }
+
+    .helm-autopilot-panel {
+      grid-column: span 4;
+      min-height: var(--panel-height-sm);
+    }
+
+    .helm-autopilot-status-panel {
+      grid-column: span 4;
+      min-height: var(--panel-height-sm);
+    }
+
+    .helm-throttle-panel {
+      grid-column: span 3;
+      min-height: var(--panel-height-md);
+    }
+
+    .helm-heading-panel {
+      grid-column: span 3;
+      min-height: var(--panel-height-sm);
+    }
+
+    .helm-course-panel {
+      grid-column: span 3;
+      min-height: var(--panel-height-sm);
+    }
+
+    .helm-rcs-panel {
+      grid-column: span 3;
+      min-height: var(--panel-height-sm);
+    }
+
+    .helm-old-fc-panel {
+      grid-column: span 6;
+      min-height: var(--panel-height-md);
+    }
+
+    .helm-requests-panel {
+      grid-column: span 6;
+      min-height: var(--panel-height-sm);
+    }
+
+    /* Tactical view panels */
+    .tac-sensors-panel {
+      grid-column: span 6;
+      min-height: var(--panel-height-md);
+    }
+
+    .tac-map-panel {
+      grid-column: span 6;
+      min-height: var(--panel-height-md);
+    }
+
+    .tac-targeting-panel {
+      grid-column: span 4;
+      min-height: var(--panel-height-sm);
+    }
+
+    .tac-weapons-panel {
+      grid-column: span 4;
+      min-height: var(--panel-height-sm);
+    }
+
+    .tac-fire-ctrl-panel {
+      grid-column: span 4;
+      min-height: var(--panel-height-sm);
+    }
+
+    /* Engineering view panels */
+    .eng-status-panel {
+      grid-column: span 4;
+      min-height: var(--panel-height-md);
+    }
+
+    .eng-systems-panel {
+      grid-column: span 4;
+      min-height: var(--panel-height-md);
+    }
+
+    .eng-power-panel {
+      grid-column: span 4;
+      min-height: var(--panel-height-md);
+    }
+
+    .eng-nav-panel {
+      grid-column: span 6;
+      min-height: var(--panel-height-sm);
+    }
+
+    .eng-log-panel {
+      grid-column: span 6;
       grid-row: span 2;
       min-height: var(--panel-height-lg);
       height: clamp(320px, 48vh, 560px);
@@ -119,187 +234,70 @@
       overflow: hidden;
     }
 
-    .command-panel {
+    .eng-pos-heading-panel {
       grid-column: span 4;
+      min-height: var(--panel-height-sm);
+    }
+
+    .eng-micro-rcs-panel {
+      grid-column: span 4;
+      min-height: var(--panel-height-sm);
+    }
+
+    .eng-thrust-panel {
+      grid-column: span 4;
+      min-height: var(--panel-height-sm);
+    }
+
+    /* Mission view panels */
+    .mis-scenario-panel {
+      grid-column: span 6;
+      min-height: var(--panel-height-sm);
+    }
+
+    .mis-objectives-panel {
+      grid-column: span 6;
+      min-height: var(--panel-height-sm);
+    }
+
+    .mis-command-panel {
+      grid-column: span 12;
       min-height: clamp(120px, 18vh, 200px);
     }
 
-    /* Phase 3 panels */
-    .status-panel {
-      grid-column: span 3;
-      min-height: var(--panel-height-sm);
-    }
-
-    .nav-panel {
-      grid-column: span 3;
-      min-height: var(--panel-height-sm);
-    }
-
-    .sensors-panel {
-      grid-column: span 3;
-      min-height: var(--panel-height-sm);
-    }
-
-    .tactical-panel {
-      grid-column: span 4;
+    .mis-log-panel {
+      grid-column: span 12;
       min-height: var(--panel-height-md);
+      max-height: 400px;
+      overflow: hidden;
     }
 
-    .targeting-panel {
-      grid-column: span 3;
-      min-height: var(--panel-height-sm);
-    }
-
-    .weapons-panel {
-      grid-column: span 3;
-      min-height: var(--panel-height-sm);
-    }
-
-    /* Phase 4 panels */
-    .thrust-input-panel {
-      grid-column: span 3;
-      min-height: var(--panel-height-md);
-    }
-
-    .throttle-panel {
-      grid-column: span 2;
-      min-height: var(--panel-height-md);
-    }
-
-    .heading-panel {
-      grid-column: span 2;
-      min-height: var(--panel-height-sm);
-    }
-
-    .position-heading-panel {
-      grid-column: span 3;
-      min-height: var(--panel-height-sm);
-    }
-
-    .micro-rcs-panel {
-      grid-column: span 2;
-      min-height: var(--panel-height-sm);
-    }
-
-    .rcs-panel {
-      grid-column: span 3;
-      min-height: var(--panel-height-md);
-    }
-
-    .autopilot-panel {
-      grid-column: span 2;
-      min-height: var(--panel-height-sm);
-    }
-
-    .flight-computer-panel {
-      grid-column: span 3;
-      min-height: var(--panel-height-md);
-    }
-
-    .helm-requests-panel {
-      grid-column: span 3;
-      min-height: var(--panel-height-sm);
-    }
-
-    .weapon-ctrl-panel {
-      grid-column: span 3;
-      min-height: var(--panel-height-sm);
-    }
-
-    .systems-panel {
-      grid-column: span 3;
-      min-height: var(--panel-height-sm);
-    }
-
-    .power-panel {
-      grid-column: span 3;
-      min-height: var(--panel-height-sm);
-    }
-
-    /* Placeholder panels */
-    .placeholder-panel {
-      grid-column: span 3;
-      min-height: 200px;
-    }
-
-    .placeholder-content {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100%;
-      color: var(--text-dim);
-      text-align: center;
-      gap: 8px;
-    }
-
-    .placeholder-content .phase {
-      font-size: 0.7rem;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      opacity: 0.6;
-    }
-
-    /* Tablet breakpoint */
+    /* ===== Tablet breakpoint ===== */
     @media (max-width: 1200px) {
-      .scenario-panel,
-      .mission-panel,
-      .event-log-panel,
-      .command-panel,
-      .status-panel,
-      .nav-panel,
-      .sensors-panel,
-      .tactical-panel,
-      .targeting-panel,
-      .weapons-panel,
-      .thrust-input-panel,
-      .throttle-panel,
-      .heading-panel,
-      .position-heading-panel,
-      .rcs-panel,
-      .micro-rcs-panel,
-      .autopilot-panel,
-      .flight-computer-panel,
-      .helm-requests-panel,
-      .weapon-ctrl-panel,
-      .systems-panel,
-      .power-panel,
-      .placeholder-panel {
-        grid-column: span 6;
+      .view-grid {
+        grid-template-columns: repeat(6, 1fr);
+      }
+
+      .view-grid > flaxos-panel {
+        grid-column: span 6 !important;
       }
     }
 
-    /* Mobile breakpoint */
+    /* ===== Mobile breakpoint ===== */
     @media (max-width: 768px) {
-      .scenario-panel,
-      .mission-panel,
-      .event-log-panel,
-      .command-panel,
-      .status-panel,
-      .nav-panel,
-      .sensors-panel,
-      .tactical-panel,
-      .targeting-panel,
-      .weapons-panel,
-      .thrust-input-panel,
-      .throttle-panel,
-      .heading-panel,
-      .position-heading-panel,
-      .rcs-panel,
-      .micro-rcs-panel,
-      .autopilot-panel,
-      .flight-computer-panel,
-      .helm-requests-panel,
-      .weapon-ctrl-panel,
-      .systems-panel,
-      .power-panel,
-      .placeholder-panel {
-        grid-column: span 12;
+      .view-grid {
+        grid-template-columns: 1fr;
       }
 
-      .event-log-panel {
-        grid-row: span 1;
+      .view-grid > flaxos-panel {
+        grid-column: span 1 !important;
+        grid-row: span 1 !important;
+      }
+
+      .eng-log-panel {
         min-height: 200px;
+        height: auto;
+        max-height: 300px;
       }
     }
   </style>
@@ -311,113 +309,174 @@
       <connection-status></connection-status>
     </header>
 
+    <!-- Status Bar (always visible) -->
+    <status-bar id="status-bar"></status-bar>
+
+    <!-- View Tabs -->
+    <view-tabs id="view-tabs" active="helm"></view-tabs>
+
     <!-- System Messages (Toast Notifications) -->
     <system-messages id="system-messages"></system-messages>
 
-    <!-- Main Interface Grid -->
-    <main id="interface-grid">
-      <!-- Phase 5: Scenarios & Mission -->
-      <flaxos-panel title="Scenarios" collapsible class="scenario-panel">
-        <scenario-loader></scenario-loader>
-      </flaxos-panel>
+    <!-- ===== HELM VIEW ===== -->
+    <div class="view-container active" id="view-helm">
+      <div class="view-grid">
+        <!-- Flight Computer Panel (new, for server-side flight computer) -->
+        <flaxos-panel title="Flight Computer" collapsible class="helm-fc-panel">
+          <flight-computer-panel></flight-computer-panel>
+        </flaxos-panel>
 
-      <flaxos-panel title="Mission" collapsible class="mission-panel">
-        <mission-objectives></mission-objectives>
-      </flaxos-panel>
+        <!-- Compact contact list -->
+        <flaxos-panel title="Contacts" collapsible class="helm-contacts-panel">
+          <sensor-contacts id="sensor-contacts"></sensor-contacts>
+        </flaxos-panel>
 
-      <!-- Phase 2: Event Log -->
-      <flaxos-panel title="Event Log" collapsible class="event-log-panel">
-        <event-log id="event-log"></event-log>
-      </flaxos-panel>
+        <!-- Navigation -->
+        <flaxos-panel title="Navigation" collapsible class="helm-nav-panel">
+          <navigation-display></navigation-display>
+        </flaxos-panel>
 
-      <!-- Phase 2: Command Prompt -->
-      <flaxos-panel title="Command" class="command-panel">
-        <command-prompt id="command-prompt"></command-prompt>
-      </flaxos-panel>
+        <!-- Autopilot -->
+        <flaxos-panel title="Autopilot" collapsible class="helm-autopilot-panel">
+          <autopilot-control></autopilot-control>
+        </flaxos-panel>
 
-      <!-- Phase 3: Status Displays -->
-      <flaxos-panel title="Ship Status" collapsible class="status-panel">
-        <ship-status></ship-status>
-      </flaxos-panel>
+        <!-- Autopilot Status -->
+        <flaxos-panel title="Autopilot Status" collapsible class="helm-autopilot-status-panel">
+          <autopilot-status></autopilot-status>
+        </flaxos-panel>
 
-      <flaxos-panel title="Systems" collapsible class="systems-panel">
-        <system-toggles></system-toggles>
-      </flaxos-panel>
+        <!-- Manual Controls -->
+        <flaxos-panel title="Throttle" collapsible class="helm-throttle-panel">
+          <throttle-control></throttle-control>
+        </flaxos-panel>
 
-      <flaxos-panel title="Power Management" collapsible class="power-panel">
-        <power-management></power-management>
-      </flaxos-panel>
+        <flaxos-panel title="Heading" collapsible class="helm-heading-panel">
+          <heading-control></heading-control>
+        </flaxos-panel>
 
-      <flaxos-panel title="Navigation" collapsible class="nav-panel">
-        <navigation-display></navigation-display>
-      </flaxos-panel>
+        <flaxos-panel title="Set Course" collapsible class="helm-course-panel">
+          <set-course-control></set-course-control>
+        </flaxos-panel>
 
-      <flaxos-panel title="Position → Heading" collapsible class="position-heading-panel">
-        <position-heading-calculator></position-heading-calculator>
-      </flaxos-panel>
+        <flaxos-panel title="RCS / Attitude" collapsible class="helm-rcs-panel">
+          <rcs-controls></rcs-controls>
+        </flaxos-panel>
 
-      <flaxos-panel title="Heading" collapsible class="heading-panel">
-        <heading-control></heading-control>
-      </flaxos-panel>
+        <!-- Client-side flight computer (existing, with waypoint/intercept/flip-burn) -->
+        <flaxos-panel title="Flight Computer (Local)" collapsible class="helm-old-fc-panel">
+          <flight-computer></flight-computer>
+        </flaxos-panel>
 
-      <flaxos-panel title="Autopilot" collapsible class="autopilot-panel">
-        <autopilot-control></autopilot-control>
-      </flaxos-panel>
+        <!-- Helm Requests -->
+        <flaxos-panel title="Helm Requests" collapsible class="helm-requests-panel">
+          <helm-requests></helm-requests>
+        </flaxos-panel>
+      </div>
+    </div>
 
-      <flaxos-panel title="Autopilot Status" collapsible class="autopilot-panel">
-        <autopilot-status></autopilot-status>
-      </flaxos-panel>
+    <!-- ===== TACTICAL VIEW ===== -->
+    <div class="view-container" id="view-tactical">
+      <div class="view-grid">
+        <!-- Full contacts list -->
+        <flaxos-panel title="Sensors" collapsible class="tac-sensors-panel">
+          <sensor-contacts></sensor-contacts>
+        </flaxos-panel>
 
-      <flaxos-panel title="Set Course" collapsible class="nav-panel">
-        <set-course-control></set-course-control>
-      </flaxos-panel>
+        <!-- Tactical Map -->
+        <flaxos-panel title="Tactical Map" collapsible class="tac-map-panel">
+          <tactical-map></tactical-map>
+        </flaxos-panel>
 
-      <flaxos-panel title="Flight Computer" collapsible class="flight-computer-panel">
-        <flight-computer></flight-computer>
-      </flaxos-panel>
+        <!-- Targeting -->
+        <flaxos-panel title="Targeting" collapsible class="tac-targeting-panel">
+          <targeting-display></targeting-display>
+        </flaxos-panel>
 
-      <!-- Phase 8: Inter-Station Communication -->
-      <flaxos-panel title="Helm Requests" collapsible class="helm-requests-panel">
-        <helm-requests></helm-requests>
-      </flaxos-panel>
+        <!-- Weapons -->
+        <flaxos-panel title="Weapons" collapsible class="tac-weapons-panel">
+          <weapons-status></weapons-status>
+        </flaxos-panel>
 
-      <!-- Phase 4: Visual Controls -->
-      <flaxos-panel title="Throttle" collapsible class="throttle-panel">
-        <throttle-control></throttle-control>
-      </flaxos-panel>
+        <!-- Fire Control -->
+        <flaxos-panel title="Fire Control" collapsible class="tac-fire-ctrl-panel">
+          <weapon-controls></weapon-controls>
+        </flaxos-panel>
+      </div>
+    </div>
 
-      <flaxos-panel title="RCS / Attitude" collapsible class="rcs-panel">
-        <rcs-controls></rcs-controls>
-      </flaxos-panel>
+    <!-- ===== ENGINEERING VIEW ===== -->
+    <div class="view-container" id="view-engineering">
+      <div class="view-grid">
+        <!-- Ship Status -->
+        <flaxos-panel title="Ship Status" collapsible class="eng-status-panel">
+          <ship-status></ship-status>
+        </flaxos-panel>
 
-      <flaxos-panel title="Micro RCS" collapsible class="micro-rcs-panel">
-        <micro-rcs-control></micro-rcs-control>
-      </flaxos-panel>
+        <!-- System Toggles -->
+        <flaxos-panel title="Systems" collapsible class="eng-systems-panel">
+          <system-toggles></system-toggles>
+        </flaxos-panel>
 
-      <flaxos-panel title="Debug: Vector Thrust" collapsible class="thrust-input-panel">
-        <manual-thrust></manual-thrust>
-      </flaxos-panel>
+        <!-- Power Management -->
+        <flaxos-panel title="Power Management" collapsible class="eng-power-panel">
+          <power-management></power-management>
+        </flaxos-panel>
 
-      <flaxos-panel title="Sensors" collapsible class="sensors-panel">
-        <sensor-contacts id="sensor-contacts"></sensor-contacts>
-      </flaxos-panel>
+        <!-- Navigation readouts -->
+        <flaxos-panel title="Navigation" collapsible class="eng-nav-panel">
+          <navigation-display></navigation-display>
+        </flaxos-panel>
 
-      <flaxos-panel title="Tactical Map" collapsible class="tactical-panel">
-        <tactical-map></tactical-map>
-      </flaxos-panel>
+        <!-- Event Log -->
+        <flaxos-panel title="Event Log" collapsible class="eng-log-panel">
+          <event-log id="event-log"></event-log>
+        </flaxos-panel>
 
-      <flaxos-panel title="Targeting" collapsible class="targeting-panel">
-        <targeting-display></targeting-display>
-      </flaxos-panel>
+        <!-- Position/Heading Calculator -->
+        <flaxos-panel title="Position / Heading" collapsible class="eng-pos-heading-panel">
+          <position-heading-calculator></position-heading-calculator>
+        </flaxos-panel>
 
-      <flaxos-panel title="Weapons" collapsible class="weapons-panel">
-        <weapons-status></weapons-status>
-      </flaxos-panel>
+        <!-- Micro RCS -->
+        <flaxos-panel title="Micro RCS" collapsible class="eng-micro-rcs-panel">
+          <micro-rcs-control></micro-rcs-control>
+        </flaxos-panel>
 
-      <flaxos-panel title="Fire Control" collapsible class="weapon-ctrl-panel">
-        <weapon-controls></weapon-controls>
-      </flaxos-panel>
-    </main>
+        <!-- Debug: Vector Thrust -->
+        <flaxos-panel title="Debug: Vector Thrust" collapsible class="eng-thrust-panel">
+          <manual-thrust></manual-thrust>
+        </flaxos-panel>
+      </div>
+    </div>
+
+    <!-- ===== MISSION VIEW ===== -->
+    <div class="view-container" id="view-mission">
+      <div class="view-grid">
+        <!-- Scenario Loader -->
+        <flaxos-panel title="Scenarios" collapsible class="mis-scenario-panel">
+          <scenario-loader></scenario-loader>
+        </flaxos-panel>
+
+        <!-- Mission Objectives -->
+        <flaxos-panel title="Mission" collapsible class="mis-objectives-panel">
+          <mission-objectives></mission-objectives>
+        </flaxos-panel>
+
+        <!-- Command Prompt -->
+        <flaxos-panel title="Command" class="mis-command-panel">
+          <command-prompt id="command-prompt"></command-prompt>
+        </flaxos-panel>
+
+        <!-- Event Log (mission events) -->
+        <flaxos-panel title="Event Log" collapsible class="mis-log-panel">
+          <event-log></event-log>
+        </flaxos-panel>
+      </div>
+    </div>
+
+    <!-- Legacy interface grid (hidden, kept for backward compatibility) -->
+    <main id="interface-grid"></main>
 
     <!-- Quick Actions Bar -->
     <quick-actions id="quick-actions"></quick-actions>
@@ -425,6 +484,24 @@
 
   <!-- Main Script -->
   <script type="module" src="js/main.js"></script>
+
+  <!-- View Switching Logic -->
+  <script type="module">
+    const viewTabs = document.getElementById("view-tabs");
+    const views = {
+      helm: document.getElementById("view-helm"),
+      tactical: document.getElementById("view-tactical"),
+      engineering: document.getElementById("view-engineering"),
+      mission: document.getElementById("view-mission"),
+    };
+
+    viewTabs.addEventListener("view-change", (e) => {
+      const activeView = e.detail.view;
+      Object.entries(views).forEach(([id, el]) => {
+        el.classList.toggle("active", id === activeView);
+      });
+    });
+  </script>
 
   <!-- Event Logging Script -->
   <script type="module">

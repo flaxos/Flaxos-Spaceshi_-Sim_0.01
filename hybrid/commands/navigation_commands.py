@@ -44,7 +44,7 @@ def register_commands(dispatcher):
         handler=cmd_autopilot,
         args=[
             ArgSpec("program", "str", required=True,
-                    choices=["match", "intercept", "approach", "hold", "off"],
+                    choices=["match", "intercept", "approach", "hold", "orbit", "evasive", "jink", "off"],
                     description="Autopilot program to run"),
             ArgSpec("target", "str", required=False,
                     description="Target contact ID (required for match/intercept)")

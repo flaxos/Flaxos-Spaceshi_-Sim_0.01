@@ -48,6 +48,10 @@ import { helmRequests } from "./helm-requests.js";
 // Sprint B: Navigation loop - set_course and autopilot
 import "../components/set-course-control.js";
 import "../components/autopilot-status.js";
+// View-based layout
+import "../components/view-tabs.js";
+import "../components/status-bar.js";
+import "../components/flight-computer-panel.js";
 
 // App state
 const app = {
@@ -212,7 +216,15 @@ function enableDebugLogging() {
  * Handle keyboard shortcuts
  */
 function handleKeyboardShortcut(event) {
-  // Escape - close modals, clear focus
+  // Don't capture when typing in inputs
+  const tag = event.target.tagName?.toLowerCase();
+  const isInput = tag === "input" || tag === "textarea" || tag === "select";
+  const isComposedInput = event.composedPath().some(el => {
+    const t = el.tagName?.toLowerCase();
+    return t === "input" || t === "textarea" || t === "select";
+  });
+
+  // Escape - always handle: close modals, clear focus
   if (event.key === "Escape") {
     document.activeElement?.blur();
   }
@@ -225,6 +237,36 @@ function handleKeyboardShortcut(event) {
       enableDebugLogging();
     }
     console.log(`Debug mode: ${app.config.debugMode ? "ON" : "OFF"}`);
+  }
+
+  // Skip remaining shortcuts if in an input field
+  if (isInput || isComposedInput) return;
+
+  // T - Select/cycle targets
+  if (event.key === "T" || event.key === "t") {
+    event.preventDefault();
+    const sensorContacts = document.querySelector("sensor-contacts");
+    if (sensorContacts) {
+      const contacts = stateManager.getContacts();
+      if (contacts && contacts.length > 0) {
+        const currentId = sensorContacts.getSelectedContact?.() || null;
+        let nextIndex = 0;
+        if (currentId) {
+          const currentIndex = contacts.findIndex(c => (c.contact_id || c.id) === currentId);
+          nextIndex = (currentIndex + 1) % contacts.length;
+        }
+        const nextId = contacts[nextIndex].contact_id || contacts[nextIndex].id;
+        sensorContacts._selectContact?.(nextId);
+      }
+    }
+  }
+
+  // F - Fire selected weapon
+  if (event.key === "F" || event.key === "f") {
+    event.preventDefault();
+    wsClient.sendShipCommand("fire", {}).catch(err => {
+      console.warn("Fire command failed:", err.message);
+    });
   }
 }
 
