@@ -16,12 +16,26 @@ logger = logging.getLogger(__name__)
 
 
 class LockState(Enum):
-    """Target lock state progression."""
-    NONE = "none"  # No target
-    CONTACT = "contact"  # Target detected, not locked
-    ACQUIRING = "acquiring"  # Lock in progress
-    LOCKED = "locked"  # Full lock, solution available
-    LOST = "lost"  # Lock lost, reacquiring
+    """Target lock state progression.
+
+    Follows the design spec targeting pipeline:
+        contact -> track -> lock -> firing solution -> fire
+
+    States:
+        NONE: No target designated.
+        CONTACT: Target detected by sensors, not yet being tracked.
+        TRACKING: Actively building a track on the target. Track quality
+            degrades with range and target acceleration.
+        ACQUIRING: Lock acquisition in progress (refining track to lock).
+        LOCKED: Full lock achieved, firing solutions available.
+        LOST: Lock was held but has been lost; system will attempt reacquisition.
+    """
+    NONE = "none"
+    CONTACT = "contact"
+    TRACKING = "tracking"
+    ACQUIRING = "acquiring"
+    LOCKED = "locked"
+    LOST = "lost"
 
 
 class TargetingSystem(BaseSystem):
@@ -48,13 +62,18 @@ class TargetingSystem(BaseSystem):
         self.max_lock_range = config.get("lock_range", 100000.0)
 
         # Current target state
-        self.locked_target = None  # Contact ID of locked target
-        self.lock_state = LockState.NONE
-        self.lock_time = 0.0  # Time target was locked
-        self.lock_progress = 0.0  # 0-1 progress to full lock
-        self.lock_quality = 0.0  # Lock quality (0-1)
-        self.is_firing = False  # Firing state
-        self.target_subsystem = None  # Selected subsystem to target
+        self.locked_target: Optional[str] = None  # Contact ID of locked target
+        self.lock_state: LockState = LockState.NONE
+        self.lock_time: float = 0.0  # Time target was locked
+        self.lock_progress: float = 0.0  # 0-1 progress to full lock
+        self.lock_quality: float = 0.0  # Lock quality (0-1)
+        self.is_firing: bool = False  # Firing state
+        self.target_subsystem: Optional[str] = None  # Selected subsystem to target
+
+        # Track quality (design spec: degrades with range and target acceleration)
+        self.track_quality: float = 0.0  # 0-1 quality of the track
+        self.track_time: float = 0.0  # Time spent tracking this target
+        self.track_min_quality_for_lock: float = config.get("track_min_quality", 0.6)
 
         # Target tracking data
         self.target_data: Dict = {}  # Cached target position/velocity
@@ -91,8 +110,20 @@ class TargetingSystem(BaseSystem):
         if self.locked_target:
             self._update_lock(dt, ship, event_bus)
 
-    def _update_lock(self, dt: float, ship, event_bus):
-        """Update lock state for current target."""
+    def _update_lock(self, dt: float, ship, event_bus) -> None:
+        """Update lock state for current target.
+
+        Implements the targeting pipeline:
+            contact -> track -> lock -> firing solution -> fire
+
+        Track quality degrades with range and target acceleration per design spec.
+        Sensor damage degrades all targeting stages.
+
+        Args:
+            dt: Time delta in seconds.
+            ship: Ship with this targeting system.
+            event_bus: Event bus for publishing events.
+        """
         sensors = ship.systems.get("sensors")
         if not sensors:
             self._degrade_lock(dt, "no_sensors")
@@ -104,6 +135,7 @@ class TargetingSystem(BaseSystem):
             return
 
         # Update target data from contact
+        prev_velocity = self.target_data.get("velocity", {"x": 0, "y": 0, "z": 0})
         self.target_data = {
             "position": getattr(contact, 'position', contact.get('position', {})),
             "velocity": getattr(contact, 'velocity', contact.get('velocity', {"x": 0, "y": 0, "z": 0})),
@@ -120,8 +152,61 @@ class TargetingSystem(BaseSystem):
             self._degrade_lock(dt, "out_of_range")
             return
 
+        # --- Track quality calculation (design spec) ---
+        # Track quality degrades with range and target acceleration.
+        # Sensor damage degrades everything.
+        target_vel = self.target_data["velocity"]
+        accel_x = (target_vel.get("x", 0) - prev_velocity.get("x", 0)) / max(dt, 0.001)
+        accel_y = (target_vel.get("y", 0) - prev_velocity.get("y", 0)) / max(dt, 0.001)
+        accel_z = (target_vel.get("z", 0) - prev_velocity.get("z", 0)) / max(dt, 0.001)
+        target_accel_magnitude = (accel_x**2 + accel_y**2 + accel_z**2) ** 0.5
+
+        # Range penalty: quality drops linearly from 1.0 at 0m to 0.2 at max_lock_range
+        range_factor = max(0.2, 1.0 - 0.8 * (range_to_target / self.max_lock_range))
+
+        # Acceleration penalty: high-G maneuvers degrade track
+        # 10 m/s^2 (~1G) = no penalty, 100 m/s^2 (~10G) = 50% penalty
+        accel_factor = max(0.3, 1.0 - target_accel_magnitude / 200.0)
+
+        # Sensor damage penalty
+        ideal_track_quality = range_factor * accel_factor * self._sensor_factor
+        ideal_track_quality *= self.target_data["confidence"]
+
+        # Smooth track quality toward ideal (builds up over time)
+        self.track_quality = self.track_quality * 0.85 + ideal_track_quality * 0.15
+        self.track_time += dt
+
+        # Store track quality in target data for firing solution confidence
+        self.target_data["track_quality"] = self.track_quality
+
         # Update lock state
-        if self.lock_state == LockState.ACQUIRING:
+        if self.lock_state == LockState.TRACKING:
+            # Build track quality; promote to ACQUIRING once sufficient
+            if self.track_quality >= self.track_min_quality_for_lock:
+                self.lock_state = LockState.ACQUIRING
+                self.lock_progress = 0.0
+                logger.info(
+                    f"Track quality sufficient ({self.track_quality:.2f}), "
+                    f"acquiring lock on {self.locked_target}"
+                )
+                event_bus.publish("target_track_established", {
+                    "ship_id": ship.id,
+                    "target_id": self.locked_target,
+                    "track_quality": self.track_quality,
+                    "range": range_to_target,
+                })
+
+        elif self.lock_state == LockState.ACQUIRING:
+            # If track quality drops below threshold, revert to TRACKING
+            if self.track_quality < self.track_min_quality_for_lock * 0.8:
+                self.lock_state = LockState.TRACKING
+                self.lock_progress = 0.0
+                logger.info(
+                    f"Track quality degraded ({self.track_quality:.2f}), "
+                    f"reverting to tracking on {self.locked_target}"
+                )
+                return
+
             # Progress lock acquisition
             lock_rate = 1.0 / self.lock_acquisition_time
             lock_rate *= self._sensor_factor  # Degraded sensors lock slower
@@ -143,13 +228,23 @@ class TargetingSystem(BaseSystem):
             # Smooth transition
             self.lock_quality = self.lock_quality * 0.9 + target_quality * 0.1
 
+            # If track quality drops severely, lose lock
+            if self.track_quality < self.track_min_quality_for_lock * 0.5:
+                self.lock_state = LockState.LOST
+                logger.warning(
+                    f"Lock lost on {self.locked_target}: track quality degraded "
+                    f"({self.track_quality:.2f})"
+                )
+                return
+
             # Update firing solutions
             self._update_firing_solutions(ship, contact, rel_motion)
 
         elif self.lock_state == LockState.LOST:
-            # Try to reacquire
-            self.lock_state = LockState.ACQUIRING
-            self.lock_progress = 0.5  # Faster reacquisition
+            # Try to reacquire - go back to TRACKING
+            self.lock_state = LockState.TRACKING
+            self.track_quality *= 0.5  # Partial track retention
+            self.lock_progress = 0.0
 
     def _degrade_lock(self, dt: float, reason: str):
         """Degrade lock when contact is lost or out of range."""
@@ -182,10 +277,12 @@ class TargetingSystem(BaseSystem):
                     target_vel=self.target_data["velocity"],
                     target_id=self.locked_target,
                     sim_time=self._sim_time,
+                    track_quality=self.track_quality,
                 )
                 self.firing_solutions[weapon_id] = {
                     "valid": solution.valid,
                     "ready": solution.ready_to_fire,
+                    "confidence": solution.confidence,
                     "hit_probability": solution.hit_probability,
                     "range": solution.range_to_target,
                     "time_of_flight": solution.time_of_flight,
@@ -239,25 +336,28 @@ class TargetingSystem(BaseSystem):
                         f"Contact '{contact_id}' not found in sensors"
                     )
 
-        # Begin lock acquisition
+        # Begin targeting pipeline: contact -> track -> lock -> solution -> fire
         previous_target = self.locked_target
         self.locked_target = contact_id
         self.lock_time = sim_time or self._sim_time
-        self.lock_state = LockState.ACQUIRING
+        self.lock_state = LockState.TRACKING  # Start at tracking stage
         self.lock_progress = 0.0
         self.lock_quality = 0.0
+        self.track_quality = 0.0
+        self.track_time = 0.0
         self.firing_solutions = {}
         if target_subsystem is not None:
             self.target_subsystem = target_subsystem
         elif previous_target != contact_id:
             self.target_subsystem = None
 
-        logger.info(f"Acquiring lock on: {contact_id}")
+        logger.info(f"Tracking target: {contact_id}")
 
         return success_dict(
-            f"Acquiring lock on: {contact_id}",
+            f"Tracking target: {contact_id}",
             target=contact_id,
             lock_state=self.lock_state.value,
+            track_quality=self.track_quality,
             lock_progress=self.lock_progress
         )
 
@@ -278,6 +378,8 @@ class TargetingSystem(BaseSystem):
         self.lock_state = LockState.NONE
         self.lock_quality = 0.0
         self.lock_progress = 0.0
+        self.track_quality = 0.0
+        self.track_time = 0.0
         self.target_data = {}
         self.firing_solutions = {}
         self.target_subsystem = None
@@ -454,6 +556,7 @@ class TargetingSystem(BaseSystem):
         state.update({
             "locked_target": self.locked_target,
             "lock_state": self.lock_state.value,
+            "track_quality": self.track_quality,
             "lock_progress": self.lock_progress,
             "lock_quality": self.lock_quality,
             "is_firing": self.is_firing,
@@ -463,6 +566,7 @@ class TargetingSystem(BaseSystem):
                 k: {
                     "valid": v.get("valid"),
                     "ready": v.get("ready"),
+                    "confidence": v.get("confidence"),
                     "hit_probability": v.get("hit_probability"),
                     "range": v.get("range"),
                     "reason": v.get("reason"),

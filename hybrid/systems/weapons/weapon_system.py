@@ -1,27 +1,62 @@
 # hybrid/systems/weapons/weapon_system.py
+"""Legacy weapon system providing basic weapon management.
+
+The newer TruthWeapon system in truth_weapons.py provides physics-based
+ballistics. This module is retained for backward compatibility and simpler
+weapon configurations.
+"""
 
 import time
+from typing import Dict, List, Optional
 from hybrid.core.constants import DEFAULT_COOLDOWN_TIME, DEFAULT_WEAPON_HEAT_INCREMENT
 from hybrid.core.event_bus import EventBus
 
-class Weapon:
-    def __init__(self, name, power_cost, max_heat, ammo_count=None, damage=10.0):
-        self.name = name
-        self.power_cost = power_cost
-        self.base_power_cost = power_cost
-        self.max_heat = max_heat
-        self.base_max_heat = max_heat
-        self.enabled = True
-        self.ammo = ammo_count
-        self.ammo_capacity = ammo_count
-        self.damage = damage  # D6: Damage per hit
-        self.base_damage = damage
-        self.heat = 0.0
-        self.last_fired = 0.0
-        self.cooldown_time = DEFAULT_COOLDOWN_TIME
-        self.event_bus = EventBus.get_instance()
 
-    def can_fire(self, current_time):
+class Weapon:
+    """A single weapon instance with heat, ammo, and cooldown tracking."""
+
+    def __init__(
+        self,
+        name: str,
+        power_cost: float,
+        max_heat: float,
+        ammo_count: Optional[int] = None,
+        damage: float = 10.0,
+    ) -> None:
+        """Initialize a weapon.
+
+        Args:
+            name: Display name of the weapon.
+            power_cost: Power units consumed per shot.
+            max_heat: Maximum heat capacity before lockout.
+            ammo_count: Ammunition capacity (None for unlimited).
+            damage: Base damage per hit.
+        """
+        self.name: str = name
+        self.power_cost: float = power_cost
+        self.base_power_cost: float = power_cost
+        self.max_heat: float = max_heat
+        self.base_max_heat: float = max_heat
+        self.enabled: bool = True
+        self.ammo: Optional[int] = ammo_count
+        self.ammo_capacity: Optional[int] = ammo_count
+        self.damage: float = damage
+        self.base_damage: float = damage
+        self.heat: float = 0.0
+        self.last_fired: float = 0.0
+        self.cooldown_time: float = DEFAULT_COOLDOWN_TIME
+        self.event_bus: EventBus = EventBus.get_instance()
+
+    def can_fire(self, current_time: float) -> bool:
+        """Check whether the weapon can fire right now.
+
+        Args:
+            current_time: Current simulation or wall-clock time.
+
+        Returns:
+            True if the weapon is enabled, cooled down, under heat cap,
+            and has ammunition.
+        """
         return (
             self.enabled
             and (current_time - self.last_fired) >= self.cooldown_time
@@ -31,24 +66,29 @@ class Weapon:
 
     def fire(
         self,
-        current_time,
+        current_time: float,
         power_manager,
         target_ship=None,
-        ship_id=None,
-        damage_factor=1.0,
+        ship_id: Optional[str] = None,
+        damage_factor: float = 1.0,
         damage_model=None,
         event_bus=None,
-        target_subsystem=None,
-    ):
+        target_subsystem: Optional[str] = None,
+    ) -> dict:
         """Fire weapon at target.
 
         Args:
-            current_time: Current time
-            power_manager: Power management system
-            target_ship: Target Ship object (optional, for damage application)
+            current_time: Current time.
+            power_manager: Power management system for power draw.
+            target_ship: Target Ship object (optional, for damage application).
+            ship_id: ID of the firing ship.
+            damage_factor: Weapon degradation multiplier (0-1).
+            damage_model: DamageModel for heat reporting.
+            event_bus: EventBus for publishing events.
+            target_subsystem: Specific subsystem to target on the target ship.
 
         Returns:
-            dict: Fire result with damage info
+            dict: Fire result with damage info.
         """
         if damage_factor <= 0.0:
             self.event_bus.publish("weapon_cannot_fire", {"weapon": self.name, "reason": "damaged"})
@@ -104,11 +144,20 @@ class Weapon:
             "damage_result": damage_result
         }
 
-    def cool_down(self, dt):
-        # Passive cooldown proportional to max_heat
+    def cool_down(self, dt: float) -> None:
+        """Passively cool the weapon over time.
+
+        Args:
+            dt: Time delta in seconds.
+        """
         self.heat = max(0.0, self.heat - dt * (self.max_heat / 10))
 
-    def resupply(self):
+    def resupply(self) -> dict:
+        """Resupply ammunition to full capacity.
+
+        Returns:
+            dict: Resupply result including previous and new ammo counts.
+        """
         if self.ammo_capacity is None:
             return {"ok": False, "reason": "no_ammo", "weapon": self.name}
         previous = self.ammo
@@ -121,21 +170,29 @@ class Weapon:
             "capacity": self.ammo_capacity,
         }
 
+
 class WeaponSystem:
-    def __init__(self, config):
-        # config is a dict with a "weapons" list of dicts
-        self.weapons = {}
+    """Manages a collection of legacy Weapon instances on a ship."""
+
+    def __init__(self, config: dict) -> None:
+        """Initialize weapon system from configuration.
+
+        Args:
+            config: Dict with a ``weapons`` key containing a list of weapon
+                configuration dicts (each with name, power_cost, max_heat, etc.).
+        """
+        self.weapons: Dict[str, Weapon] = {}
         for wcfg in config.get("weapons", []):
             weapon = Weapon(
                 name=wcfg["name"],
                 power_cost=wcfg["power_cost"],
                 max_heat=wcfg["max_heat"],
                 ammo_count=wcfg.get("ammo"),
-                damage=wcfg.get("damage", 10.0)  # D6: Default 10 damage if not specified
+                damage=wcfg.get("damage", 10.0)
             )
             self.weapons[wcfg["name"]] = weapon
-        self.event_bus = EventBus.get_instance()
-        self.damage_factor = 1.0
+        self.event_bus: EventBus = EventBus.get_instance()
+        self.damage_factor: float = 1.0
 
     def tick(self, dt, ship=None, event_bus=None):
         """Update weapon system.
@@ -158,7 +215,12 @@ class WeaponSystem:
         for weapon in self.weapons.values():
             weapon.cool_down(dt)
 
-    def resupply(self):
+    def resupply(self) -> dict:
+        """Resupply all weapons.
+
+        Returns:
+            dict: Per-weapon resupply results.
+        """
         results = []
         for weapon in self.weapons.values():
             results.append(weapon.resupply())
@@ -167,7 +229,26 @@ class WeaponSystem:
             "weapons": results,
         }
 
-    def fire_weapon(self, weapon_name, power_manager, target, ship=None, target_subsystem=None):
+    def fire_weapon(
+        self,
+        weapon_name: str,
+        power_manager,
+        target,
+        ship=None,
+        target_subsystem: Optional[str] = None,
+    ) -> dict:
+        """Fire a named weapon.
+
+        Args:
+            weapon_name: Name of the weapon to fire.
+            power_manager: Power system for power draw.
+            target: Target ship object or ID.
+            ship: Firing ship (for damage model / event context).
+            target_subsystem: Specific subsystem to target.
+
+        Returns:
+            dict: Fire result, or False if weapon not found.
+        """
         weapon = self.weapons.get(weapon_name)
         if not weapon:
             return False

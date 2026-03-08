@@ -9,23 +9,23 @@ class TestTruthWeapons:
     """Tests for Railgun and PDC truth weapons."""
 
     def test_railgun_specs(self):
-        """Test railgun specifications are correct."""
+        """Test railgun specifications match design doc (UNE-440)."""
         from hybrid.systems.weapons.truth_weapons import RAILGUN_SPECS
 
-        assert RAILGUN_SPECS.name == "Railgun"
-        assert RAILGUN_SPECS.muzzle_velocity == 5000.0  # 5 km/s
-        assert RAILGUN_SPECS.effective_range == 75000.0  # 75 km
+        assert RAILGUN_SPECS.name == "UNE-440 Railgun"
+        assert RAILGUN_SPECS.muzzle_velocity == 20000.0  # 20 km/s (design spec)
+        assert RAILGUN_SPECS.effective_range == 500000.0  # 500 km (design spec)
         assert RAILGUN_SPECS.base_damage == 35.0
         assert RAILGUN_SPECS.cycle_time == 5.0  # 5 second cycle
         assert RAILGUN_SPECS.ammo_capacity == 20
 
     def test_pdc_specs(self):
-        """Test PDC specifications are correct."""
+        """Test PDC specifications match design doc (Narwhal-III)."""
         from hybrid.systems.weapons.truth_weapons import PDC_SPECS
 
-        assert PDC_SPECS.name == "PDC"
-        assert PDC_SPECS.muzzle_velocity == 1200.0  # 1.2 km/s
-        assert PDC_SPECS.effective_range == 5000.0  # 5 km
+        assert PDC_SPECS.name == "Narwhal-III PDC"
+        assert PDC_SPECS.muzzle_velocity == 3000.0  # 3 km/s (design spec)
+        assert PDC_SPECS.effective_range == 5000.0  # 5 km (design spec)
         assert PDC_SPECS.base_damage == 5.0
         assert PDC_SPECS.cycle_time == 0.1  # Fast fire rate
         assert PDC_SPECS.ammo_capacity == 2000
@@ -36,7 +36,7 @@ class TestTruthWeapons:
 
         railgun = create_railgun("test_railgun")
         assert railgun.mount_id == "test_railgun"
-        assert railgun.specs.name == "Railgun"
+        assert railgun.specs.name == "UNE-440 Railgun"
         assert railgun.ammo == 20
         assert railgun.enabled
 
@@ -46,7 +46,7 @@ class TestTruthWeapons:
 
         pdc = create_pdc("test_pdc")
         assert pdc.mount_id == "test_pdc"
-        assert pdc.specs.name == "PDC"
+        assert pdc.specs.name == "Narwhal-III PDC"
         assert pdc.ammo == 2000
         assert pdc.enabled
 
@@ -68,9 +68,9 @@ class TestTruthWeapons:
 
         assert solution.valid
         assert solution.range_to_target == 10000.0
-        assert solution.in_range  # Within 75km
-        # Time of flight: 10000m / 5000m/s = 2 seconds
-        assert abs(solution.time_of_flight - 2.0) < 0.1
+        assert solution.in_range  # Within 500km
+        # Time of flight: 10000m / 20000m/s = 0.5 seconds
+        assert abs(solution.time_of_flight - 0.5) < 0.1
 
     def test_firing_solution_moving_target(self):
         """Test lead calculation for moving target."""
@@ -244,7 +244,7 @@ class TestTargetingSystem:
         result = targeting.lock_target("target_1", sim_time=0.0)
 
         assert result["ok"]
-        assert targeting.lock_state == LockState.ACQUIRING
+        assert targeting.lock_state == LockState.TRACKING  # Pipeline starts at tracking
         assert targeting.locked_target == "target_1"
 
     def test_unlock_target(self):
