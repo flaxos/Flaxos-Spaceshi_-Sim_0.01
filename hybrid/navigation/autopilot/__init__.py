@@ -7,6 +7,8 @@ from .intercept import InterceptAutopilot
 from .hold import HoldPositionAutopilot
 from .formation import FormationAutopilot, EchelonFormationAutopilot
 from .goto_position import GoToPositionAutopilot
+from .orbit import OrbitAutopilot
+from .evasive import EvasiveAutopilot
 from .factory import AutopilotFactory
 
 __all__ = [
@@ -17,5 +19,7 @@ __all__ = [
     'FormationAutopilot',
     'EchelonFormationAutopilot',
     'GoToPositionAutopilot',
+    'OrbitAutopilot',
+    'EvasiveAutopilot',
     'AutopilotFactory'
 ]

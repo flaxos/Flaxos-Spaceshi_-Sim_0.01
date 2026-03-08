@@ -142,6 +142,7 @@ class Ship:
         essential_systems = {
             "helm": {},      # Helm for manual control interface
             "rcs": {},       # RCS for attitude control (torque-based rotation)
+            "flight_computer": {},  # Flight computer for high-level manoeuvre commands
         }
         
         # Merge config with defaults (config takes precedence)
