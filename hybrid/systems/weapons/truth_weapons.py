@@ -63,14 +63,14 @@ class WeaponSpecs:
 
 # Pre-defined weapon specifications
 RAILGUN_SPECS = WeaponSpecs(
-    name="Railgun",
+    name="UNE-440 Railgun",
     weapon_type=WeaponType.KINETIC,
     damage_type=DamageType.KINETIC_PENETRATOR,
-    muzzle_velocity=5000.0,  # 5 km/s - tungsten penetrator
-    effective_range=75000.0,  # 75 km effective range
+    muzzle_velocity=20000.0,  # 20 km/s - tungsten penetrator (design spec)
+    effective_range=500000.0,  # 500 km effective range (design spec)
     min_range=500.0,  # Need some distance to track
     base_damage=35.0,  # Heavy hull damage
-    subsystem_damage=25.0,  # Significant subsystem damage
+    subsystem_damage=25.0,  # 1 subsystem per hit (design spec: high-skill penetrator)
     armor_penetration=1.5,  # Good vs armor
     cycle_time=5.0,  # 5 seconds between shots
     burst_count=1,
@@ -84,13 +84,13 @@ RAILGUN_SPECS = WeaponSpecs(
 )
 
 PDC_SPECS = WeaponSpecs(
-    name="PDC",
+    name="Narwhal-III PDC",
     weapon_type=WeaponType.KINETIC,
     damage_type=DamageType.KINETIC_FRAGMENTATION,
-    muzzle_velocity=1200.0,  # 1.2 km/s - fast autocannon
-    effective_range=5000.0,  # 5 km effective range
+    muzzle_velocity=3000.0,  # 3 km/s - fast autocannon (design spec)
+    effective_range=5000.0,  # 5 km effective range (design spec)
     min_range=50.0,  # Very close engagement
-    base_damage=5.0,  # Light damage per round
+    base_damage=5.0,  # Light damage per round (ablative damage)
     subsystem_damage=3.0,  # Can chip away at subsystems
     armor_penetration=0.5,  # Poor vs heavy armor
     cycle_time=0.1,  # 10 rounds/second
@@ -99,9 +99,9 @@ PDC_SPECS = WeaponSpecs(
     ammo_capacity=2000,  # Large ammo supply
     power_per_shot=2.0,  # Low power per shot
     charge_time=0.0,  # No charge needed
-    base_accuracy=0.7,  # Moderate accuracy
+    base_accuracy=0.7,  # Moderate accuracy (auto-turret)
     accuracy_falloff=0.6,  # Accuracy drops at range
-    tracking_speed=120.0,  # Fast tracking (point defense)
+    tracking_speed=120.0,  # Fast tracking (point defense / auto-turret)
 )
 
 
@@ -118,6 +118,7 @@ class FiringSolution:
     time_of_flight: float = 0.0  # Projectile flight time (s)
 
     # Engagement quality
+    confidence: float = 0.0  # 0-1 overall solution confidence (design spec)
     hit_probability: float = 0.0  # 0-1 chance to hit
     in_range: bool = False  # Within weapon effective range
     in_arc: bool = False  # Within weapon firing arc
@@ -203,11 +204,14 @@ class TruthWeapon:
         target_pos: Dict[str, float],
         target_vel: Dict[str, float],
         target_id: str,
-        sim_time: float
+        sim_time: float,
+        track_quality: float = 1.0,
     ) -> FiringSolution:
         """Calculate firing solution for a target.
 
         Uses lead prediction to calculate where to aim to hit a moving target.
+        Incorporates track quality from the targeting system to compute an
+        overall solution confidence score (design spec requirement).
 
         Args:
             shooter_pos: Shooter position {x, y, z}
@@ -216,9 +220,11 @@ class TruthWeapon:
             target_vel: Target velocity {x, y, z}
             target_id: Target identifier
             sim_time: Current simulation time
+            track_quality: Track quality from targeting system (0-1).
+                Degrades with range and target acceleration. Defaults to 1.0.
 
         Returns:
-            FiringSolution with engagement data
+            FiringSolution with engagement data including confidence score.
         """
         solution = FiringSolution(target_id=target_id)
 
@@ -339,6 +345,13 @@ class TruthWeapon:
         lateral_factor = max(0.5, 1.0 - lateral_vel / 500.0)  # 500 m/s = 50% reduction
 
         solution.hit_probability = max(0.05, min(0.95, range_accuracy * lateral_factor))
+
+        # Compute overall solution confidence (design spec: firing solutions
+        # have confidence scores). Confidence combines track quality, range
+        # accuracy, and tracking convergence.
+        solution.confidence = max(0.0, min(1.0,
+            track_quality * range_accuracy * lateral_factor
+        ))
 
         # Check turret tracking
         turret_error = math.sqrt(
@@ -516,25 +529,34 @@ class TruthWeapon:
         }
 
     def _select_subsystem_target(self) -> str:
-        """Select which subsystem to damage based on weapon type."""
+        """Select which subsystem to damage based on weapon type.
+
+        Subsystem targets match design spec: drive (propulsion), RCS,
+        sensors, weapons, reactor (power).
+
+        Returns:
+            str: Name of the subsystem hit.
+        """
         import random
 
-        # Weights based on damage type
+        # Weights based on damage type — all five spec subsystems represented
         if self.specs.damage_type == DamageType.KINETIC_PENETRATOR:
-            # Railgun: tends to hit deep systems
+            # Railgun: penetrator reaches deep systems
             weights = {
-                "propulsion": 0.35,
-                "power": 0.25,
-                "weapons": 0.25,
+                "propulsion": 0.30,
+                "power": 0.20,
+                "weapons": 0.20,
+                "rcs": 0.15,
                 "sensors": 0.15,
             }
         else:
             # PDC/fragmentation: tends to hit external systems
             weights = {
-                "sensors": 0.35,
-                "rcs": 0.30,
-                "weapons": 0.25,
-                "propulsion": 0.10,
+                "sensors": 0.30,
+                "rcs": 0.25,
+                "weapons": 0.20,
+                "propulsion": 0.15,
+                "power": 0.10,
             }
 
         roll = random.random()
@@ -574,6 +596,7 @@ class TruthWeapon:
                 "valid": self.current_solution.valid if self.current_solution else False,
                 "target_id": self.current_solution.target_id if self.current_solution else None,
                 "range": self.current_solution.range_to_target if self.current_solution else 0,
+                "confidence": self.current_solution.confidence if self.current_solution else 0,
                 "hit_probability": self.current_solution.hit_probability if self.current_solution else 0,
                 "ready_to_fire": self.current_solution.ready_to_fire if self.current_solution else False,
                 "reason": self.current_solution.reason if self.current_solution else "",

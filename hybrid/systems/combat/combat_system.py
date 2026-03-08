@@ -109,6 +109,7 @@ class CombatSystem(BaseSystem):
 
         # Calculate solutions for each truth weapon
         target_data = targeting.target_data
+        track_quality = getattr(targeting, 'track_quality', 1.0)
         for weapon_id, weapon in self.truth_weapons.items():
             weapon.calculate_solution(
                 shooter_pos=ship.position,
@@ -117,6 +118,7 @@ class CombatSystem(BaseSystem):
                 target_vel=target_data.get("velocity", {"x": 0, "y": 0, "z": 0}),
                 target_id=targeting.locked_target,
                 sim_time=self._sim_time,
+                track_quality=track_quality,
             )
 
     def fire_weapon(self, weapon_id: str, target_ship=None, target_subsystem: str = None) -> dict:
