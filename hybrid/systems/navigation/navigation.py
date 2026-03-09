@@ -164,26 +164,25 @@ class NavigationSystem(BaseSystem):
             propulsion.set_throttle({"thrust": thrust_value, "_ship": ship, "ship": ship})
 
         # Apply heading via RCS through helm (attitude target, not instant teleport)
+        # Mark as autopilot-originated so helm doesn't trigger manual override
         if heading:
+            attitude = {
+                "pitch": heading.get("pitch", ship.orientation.get("pitch", 0)),
+                "yaw": heading.get("yaw", ship.orientation.get("yaw", 0)),
+                "roll": heading.get("roll", ship.orientation.get("roll", 0)),
+            }
             helm = ship.systems.get("helm")
             if helm and hasattr(helm, "_cmd_set_orientation_target"):
-                # Use helm's orientation target command
                 helm._cmd_set_orientation_target({
-                    "pitch": heading.get("pitch", ship.orientation.get("pitch", 0)),
-                    "yaw": heading.get("yaw", ship.orientation.get("yaw", 0)),
-                    "roll": heading.get("roll", ship.orientation.get("roll", 0)),
+                    **attitude,
                     "_ship": ship,
-                    "ship": ship
+                    "ship": ship,
+                    "_from_autopilot": True,
                 })
             else:
-                # Fallback: direct RCS control
                 rcs = ship.systems.get("rcs")
                 if rcs and hasattr(rcs, "set_attitude_target"):
-                    rcs.set_attitude_target({
-                        "pitch": heading.get("pitch", ship.orientation.get("pitch", 0)),
-                        "yaw": heading.get("yaw", ship.orientation.get("yaw", 0)),
-                        "roll": heading.get("roll", ship.orientation.get("roll", 0))
-                    })
+                    rcs.set_attitude_target(attitude)
 
     def command(self, action: str, params: dict):
         """Handle navigation commands.

@@ -345,8 +345,11 @@ class HelmSystem(BaseSystem):
             
             self.attitude_target = {"pitch": pitch, "yaw": yaw, "roll": roll}
 
-            # Record manual input - triggers manual override if autopilot active
-            if ship:
+            # Only record manual input if this is from the pilot, not the autopilot.
+            # Autopilot-originated heading commands must NOT trigger manual override,
+            # otherwise the autopilot disengages itself every tick.
+            from_autopilot = params.get("_from_autopilot", False)
+            if ship and not from_autopilot:
                 self._record_manual_input(ship, getattr(ship, "sim_time", 0.0))
 
                 # Route to RCS if available
@@ -359,6 +362,11 @@ class HelmSystem(BaseSystem):
                         "control_authority": self.control_authority,
                         "rcs_response": result,
                     }
+            elif ship:
+                # Autopilot command - route to RCS without triggering override
+                rcs = ship.systems.get("rcs")
+                if rcs:
+                    rcs.set_attitude_target(self.attitude_target)
 
             return {
                 "status": "Attitude target set",
