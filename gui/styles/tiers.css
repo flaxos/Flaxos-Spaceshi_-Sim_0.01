@@ -1,0 +1,63 @@
+/* tiers.css — Panel visibility rules per control tier.
+ *
+ * The tier-selector component sets one of these classes on <body>:
+ *   .tier-raw       — manual flight, raw vectors
+ *   .tier-arcade    — balanced (DEFAULT)
+ *   .tier-autopilot — order-based, ship handles execution
+ *
+ * Panels are custom elements wrapped in <flaxos-panel>. We use :has()
+ * to hide the parent panel so we don't leave empty chrome on screen.
+ */
+
+/* --- Tier accent colors ------------------------------------------------- */
+
+body.tier-raw       { --tier-accent: #ff4444; }
+body.tier-arcade    { --tier-accent: #4488ff; }
+body.tier-autopilot { --tier-accent: #00ff88; }
+
+/* Status bar picks up the accent */
+.status-bar,
+.bridge-controls {
+  border-bottom: 2px solid var(--tier-accent, #4488ff);
+}
+
+/* --- Smooth transitions on all panels ----------------------------------- */
+
+flaxos-panel {
+  transition: opacity 0.2s ease, max-height 0.3s ease;
+}
+
+/* --- RAW tier: hide automation, show manual controls -------------------- */
+
+body.tier-raw flaxos-panel:has(> autopilot-control)  { display: none; }
+body.tier-raw flaxos-panel:has(> set-course-control)  { display: none; }
+body.tier-raw flaxos-panel:has(> helm-queue-panel)    { display: none; }
+body.tier-raw flaxos-panel:has(> autopilot-status)    { display: none; }
+body.tier-raw flaxos-panel:has(> docking-panel)       { display: none; }
+
+/* --- ARCADE tier: hide overly-manual controls --------------------------- */
+
+body.tier-arcade flaxos-panel:has(> micro-rcs-control) { display: none; }
+body.tier-arcade flaxos-panel:has(> manual-thrust)     { display: none; }
+
+/* --- AUTOPILOT tier: hide direct-flight controls, show order panels ----- */
+
+body.tier-autopilot flaxos-panel:has(> throttle-control)  { display: none; }
+body.tier-autopilot flaxos-panel:has(> heading-control)   { display: none; }
+body.tier-autopilot flaxos-panel:has(> rcs-controls)      { display: none; }
+body.tier-autopilot flaxos-panel:has(> micro-rcs-control) { display: none; }
+body.tier-autopilot flaxos-panel:has(> manual-thrust)     { display: none; }
+
+/* --- Tutorial highlight glow -------------------------------------------- */
+
+@keyframes tutorial-pulse {
+  0%, 100% { box-shadow: 0 0 8px 2px var(--status-info, #4488ff); }
+  50%      { box-shadow: 0 0 16px 4px var(--status-info, #4488ff); }
+}
+
+flaxos-panel.tutorial-highlight {
+  animation: tutorial-pulse 1.5s ease-in-out infinite;
+  border-color: var(--status-info, #4488ff) !important;
+  z-index: 10;
+  position: relative;
+}

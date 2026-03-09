@@ -73,6 +73,8 @@ import "../components/fleet-orders.js";
 import "../components/fleet-fire-control.js";
 import "../components/shared-contacts.js";
 import "../components/fleet-tactical-display.js";
+// Tutorial System
+import "../components/tutorial-overlay.js";
 
 // App state
 const app = {
@@ -175,6 +177,20 @@ function setupGlobalEvents() {
 
   // Keyboard shortcuts
   document.addEventListener("keydown", handleKeyboardShortcut);
+
+  // Tutorial highlight: glow the panel containing the highlighted component
+  document.addEventListener("tutorial-highlight", (e) => {
+    // Remove any existing highlight
+    document.querySelectorAll("flaxos-panel.tutorial-highlight").forEach(
+      p => p.classList.remove("tutorial-highlight")
+    );
+    const selector = e.detail?.selector;
+    if (selector) {
+      const el = document.querySelector(selector);
+      const panel = el?.closest("flaxos-panel");
+      if (panel) panel.classList.add("tutorial-highlight");
+    }
+  });
 
   // Listen for scenario load to set player ship ID
   document.addEventListener("scenario-loaded", (e) => {
