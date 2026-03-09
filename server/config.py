@@ -20,7 +20,7 @@ class ServerMode(Enum):
 # Default port assignments
 DEFAULT_TCP_PORT = 8765      # Main simulation server
 DEFAULT_WS_PORT = 8080       # WebSocket bridge
-DEFAULT_HTTP_PORT = 3000     # GUI static file server
+DEFAULT_HTTP_PORT = 3100     # GUI static file server
 DEFAULT_MOBILE_PORT = 5000   # Mobile UI (Flask)
 
 # Default host bindings

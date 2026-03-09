@@ -7,6 +7,11 @@ import { stateManager } from "../js/state-manager.js";
 
 const MAP_SCALE_OPTIONS = [1000, 5000, 10000, 50000, 100000]; // meters per screen radius
 
+const WEAPON_RANGES = {
+  PDC: 5000,        // 5km in meters
+  RAILGUN: 500000,  // 500km in meters
+};
+
 class TacticalMap extends HTMLElement {
   constructor() {
     super();
@@ -16,6 +21,7 @@ class TacticalMap extends HTMLElement {
     this._showVelocityVectors = true;
     this._showHeading = true;
     this._showGrid = true;
+    this._showWeaponArcs = false;
     this._selectedContact = null;
     this._canvas = null;
     this._ctx = null;
@@ -201,6 +207,7 @@ class TacticalMap extends HTMLElement {
           <button class="control-btn" id="toggle-vectors" title="Velocity Vectors">V</button>
           <button class="control-btn" id="toggle-heading" title="Heading Indicator">H</button>
           <button class="control-btn" id="toggle-grid" title="Grid">G</button>
+          <button class="control-btn" id="toggle-weapon-arcs" title="Weapon Arcs">W</button>
         </div>
       </div>
 
@@ -325,6 +332,13 @@ class TacticalMap extends HTMLElement {
       this._draw();
     });
 
+    const weaponArcsBtn = this.shadowRoot.getElementById("toggle-weapon-arcs");
+    weaponArcsBtn.addEventListener("click", () => {
+      this._showWeaponArcs = !this._showWeaponArcs;
+      weaponArcsBtn.classList.toggle("active", this._showWeaponArcs);
+      this._draw();
+    });
+
     // Canvas click for contact selection
     this._canvas.addEventListener("click", (e) => {
       this._handleCanvasClick(e);
@@ -373,10 +387,15 @@ class TacticalMap extends HTMLElement {
     // Draw range rings
     this._drawRangeRings(ctx, centerX, centerY, scale, pixelsPerMeter);
 
+    // Draw weapon engagement envelopes (before contacts so blips draw on top)
+    if (this._showWeaponArcs) {
+      this._drawWeaponArcs(ctx, centerX, centerY, scale, pixelsPerMeter);
+    }
+
     // Draw contacts
     const contacts = stateManager.getContacts() || [];
     contacts.forEach(contact => {
-      this._drawContact(ctx, contact, playerPos, centerX, centerY, pixelsPerMeter, playerVel);
+      this._drawContact(ctx, contact, playerPos, centerX, centerY, pixelsPerMeter, playerVel, scale);
     });
 
     // Draw player ship (always at center)
@@ -436,6 +455,52 @@ class TacticalMap extends HTMLElement {
         ctx.fillText(label, centerX + radius + 4, centerY - 4);
       }
     });
+  }
+
+  _drawWeaponArcs(ctx, centerX, centerY, scale, pixelsPerMeter) {
+    const pdcRadiusPx = WEAPON_RANGES.PDC * pixelsPerMeter;
+    const railgunRadiusPx = WEAPON_RANGES.RAILGUN * pixelsPerMeter;
+
+    // Only draw if the ring would be at least a few pixels (visible on screen)
+    const MIN_VISIBLE_RADIUS = 4;
+
+    // PDC engagement zone — semi-transparent red filled circle
+    if (pdcRadiusPx >= MIN_VISIBLE_RADIUS && WEAPON_RANGES.PDC <= scale * 2) {
+      ctx.fillStyle = "rgba(255, 68, 68, 0.05)";
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, pdcRadiusPx, 0, Math.PI * 2);
+      ctx.fill();
+
+      // PDC range ring
+      ctx.strokeStyle = "rgba(255, 68, 68, 0.4)";
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, pdcRadiusPx, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Label
+      ctx.fillStyle = "rgba(255, 68, 68, 0.6)";
+      ctx.font = "10px 'JetBrains Mono', monospace";
+      ctx.fillText("PDC 5km", centerX + pdcRadiusPx + 4, centerY - 4);
+    }
+
+    // Railgun engagement zone — amber ring outline only (no fill, too large)
+    if (railgunRadiusPx >= MIN_VISIBLE_RADIUS && WEAPON_RANGES.RAILGUN <= scale * 2) {
+      ctx.strokeStyle = "rgba(255, 170, 0, 0.35)";
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([8, 6]);
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, railgunRadiusPx, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Label
+      ctx.fillStyle = "rgba(255, 170, 0, 0.6)";
+      ctx.font = "10px 'JetBrains Mono', monospace";
+      ctx.fillText("RAILGUN 500km", centerX + railgunRadiusPx + 4, centerY - 4);
+    }
   }
 
   _drawPlayerShip(ctx, centerX, centerY, heading, velocity, pixelsPerMeter) {
@@ -513,7 +578,7 @@ class TacticalMap extends HTMLElement {
     ctx.restore();
   }
 
-  _drawContact(ctx, contact, playerPos, centerX, centerY, pixelsPerMeter, playerVel) {
+  _drawContact(ctx, contact, playerPos, centerX, centerY, pixelsPerMeter, playerVel, scale) {
     // Calculate relative position
     const contactPos = contact.position || { x: 0, y: 0, z: 0 };
     const relX = (contactPos.x - playerPos.x) * pixelsPerMeter;
@@ -572,6 +637,29 @@ class TacticalMap extends HTMLElement {
     ctx.fillStyle = color;
     ctx.font = "10px 'JetBrains Mono', monospace";
     ctx.fillText(label, screenX + 8, screenY + 4);
+
+    // Weapon engagement ring around contacts within range
+    if (this._showWeaponArcs) {
+      const dx = contactPos.x - playerPos.x;
+      const dz = contactPos.z - playerPos.z;
+      const distance = Math.sqrt(dx * dx + dz * dz);
+
+      if (distance <= WEAPON_RANGES.PDC) {
+        // Within PDC range — red ring
+        ctx.strokeStyle = "rgba(255, 68, 68, 0.8)";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(screenX, screenY, 10, 0, Math.PI * 2);
+        ctx.stroke();
+      } else if (distance <= WEAPON_RANGES.RAILGUN) {
+        // Within railgun range but outside PDC — amber ring
+        ctx.strokeStyle = "rgba(255, 170, 0, 0.8)";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(screenX, screenY, 10, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
 
     // Store screen position for click detection
     contact._screenX = screenX;

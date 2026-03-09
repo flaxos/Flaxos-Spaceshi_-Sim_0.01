@@ -178,6 +178,21 @@
       min-height: var(--panel-height-sm);
     }
 
+    .helm-queue-panel {
+      grid-column: span 4;
+      min-height: var(--panel-height-sm);
+    }
+
+    .helm-docking-panel {
+      grid-column: span 4;
+      min-height: var(--panel-height-sm);
+    }
+
+    .helm-deltav-panel {
+      grid-column: span 4;
+      min-height: var(--panel-height-sm);
+    }
+
     /* Tactical view panels */
     .tac-sensors-panel {
       grid-column: span 6;
@@ -202,6 +217,16 @@
     .tac-fire-ctrl-panel {
       grid-column: span 4;
       min-height: var(--panel-height-sm);
+    }
+
+    .tac-subsystem-panel {
+      grid-column: span 4;
+      min-height: var(--panel-height-sm);
+    }
+
+    .tac-threat-panel {
+      grid-column: span 8;
+      min-height: var(--panel-height-md);
     }
 
     /* Engineering view panels */
@@ -247,6 +272,35 @@
     .eng-thrust-panel {
       grid-column: span 4;
       min-height: var(--panel-height-sm);
+    }
+
+    /* Ops view panels */
+    .ops-sensors-panel {
+      grid-column: span 12;
+      min-height: var(--panel-height-md);
+    }
+
+    .ops-map-panel {
+      grid-column: span 6;
+      min-height: var(--panel-height-md);
+    }
+
+    .ops-log-panel {
+      grid-column: span 6;
+      min-height: var(--panel-height-md);
+      max-height: 400px;
+      overflow: hidden;
+    }
+
+    /* Fleet view panels */
+    .fleet-roster-panel {
+      grid-column: span 6;
+      min-height: var(--panel-height-md);
+    }
+
+    .fleet-tactical-panel {
+      grid-column: span 6;
+      min-height: var(--panel-height-md);
     }
 
     /* Mission view panels */
@@ -312,6 +366,12 @@
     <!-- Status Bar (always visible) -->
     <status-bar id="status-bar"></status-bar>
 
+    <!-- Station & Tier Controls -->
+    <div id="bridge-controls" style="display: flex; align-items: center; gap: 8px; padding: 4px 8px; background: var(--bg-panel, #12121a); border-bottom: 1px solid var(--border-default, #2a2a3a);">
+      <station-selector></station-selector>
+      <tier-selector></tier-selector>
+    </div>
+
     <!-- View Tabs -->
     <view-tabs id="view-tabs" active="helm"></view-tabs>
 
@@ -372,6 +432,21 @@
         <flaxos-panel title="Helm Requests" collapsible class="helm-requests-panel">
           <helm-requests></helm-requests>
         </flaxos-panel>
+
+        <!-- Helm Queue -->
+        <flaxos-panel title="Helm Queue" collapsible class="helm-queue-panel">
+          <helm-queue-panel></helm-queue-panel>
+        </flaxos-panel>
+
+        <!-- Docking -->
+        <flaxos-panel title="Docking" collapsible class="helm-docking-panel">
+          <docking-panel></docking-panel>
+        </flaxos-panel>
+
+        <!-- Delta-V Budget -->
+        <flaxos-panel title="Delta-V Budget" collapsible class="helm-deltav-panel">
+          <delta-v-display></delta-v-display>
+        </flaxos-panel>
       </div>
     </div>
 
@@ -402,6 +477,36 @@
         <flaxos-panel title="Fire Control" collapsible class="tac-fire-ctrl-panel">
           <weapon-controls></weapon-controls>
         </flaxos-panel>
+
+        <!-- Subsystem Targeting -->
+        <flaxos-panel title="Subsystem Target" collapsible class="tac-subsystem-panel">
+          <subsystem-selector></subsystem-selector>
+        </flaxos-panel>
+
+        <!-- Threat Board -->
+        <flaxos-panel title="Threat Board" collapsible class="tac-threat-panel">
+          <threat-board></threat-board>
+        </flaxos-panel>
+      </div>
+    </div>
+
+    <!-- ===== OPS VIEW ===== -->
+    <div class="view-container" id="view-ops">
+      <div class="view-grid">
+        <!-- Full sensor contacts display -->
+        <flaxos-panel title="Sensors" collapsible class="ops-sensors-panel">
+          <sensor-contacts></sensor-contacts>
+        </flaxos-panel>
+
+        <!-- Tactical Map -->
+        <flaxos-panel title="Tactical Map" collapsible class="ops-map-panel">
+          <tactical-map></tactical-map>
+        </flaxos-panel>
+
+        <!-- Event Log (sensor events) -->
+        <flaxos-panel title="Sensor Log" collapsible class="ops-log-panel">
+          <event-log></event-log>
+        </flaxos-panel>
       </div>
     </div>
 
@@ -421,6 +526,21 @@
         <!-- Power Management -->
         <flaxos-panel title="Power Management" collapsible class="eng-power-panel">
           <power-management></power-management>
+        </flaxos-panel>
+
+        <!-- Power Profiles -->
+        <flaxos-panel title="Power Profiles" collapsible class="eng-profiles-panel">
+          <power-profile-selector></power-profile-selector>
+        </flaxos-panel>
+
+        <!-- Power Draw -->
+        <flaxos-panel title="Power Draw" collapsible class="eng-draw-panel">
+          <power-draw-display></power-draw-display>
+        </flaxos-panel>
+
+        <!-- Crew Status -->
+        <flaxos-panel title="Crew" collapsible class="eng-crew-panel">
+          <crew-panel></crew-panel>
         </flaxos-panel>
 
         <!-- Navigation readouts -->
@@ -446,6 +566,41 @@
         <!-- Debug: Vector Thrust -->
         <flaxos-panel title="Debug: Vector Thrust" collapsible class="eng-thrust-panel">
           <manual-thrust></manual-thrust>
+        </flaxos-panel>
+      </div>
+    </div>
+
+    <!-- ===== FLEET VIEW ===== -->
+    <div class="view-container" id="view-fleet">
+      <div class="view-grid">
+        <!-- Fleet Tactical Display -->
+        <flaxos-panel title="Fleet Tactical" collapsible class="fleet-tactical-panel">
+          <fleet-tactical-display></fleet-tactical-display>
+        </flaxos-panel>
+
+        <!-- Squadron Roster -->
+        <flaxos-panel title="Squadron Roster" collapsible class="fleet-roster-panel">
+          <fleet-roster></fleet-roster>
+        </flaxos-panel>
+
+        <!-- Formation Control -->
+        <flaxos-panel title="Formation Control" collapsible class="fleet-formation-panel">
+          <formation-control></formation-control>
+        </flaxos-panel>
+
+        <!-- Fleet Orders -->
+        <flaxos-panel title="Fleet Orders" collapsible class="fleet-orders-panel">
+          <fleet-orders></fleet-orders>
+        </flaxos-panel>
+
+        <!-- Fleet Fire Control -->
+        <flaxos-panel title="Fire Control" collapsible class="fleet-fire-panel">
+          <fleet-fire-control></fleet-fire-control>
+        </flaxos-panel>
+
+        <!-- Shared Contacts / Data Link -->
+        <flaxos-panel title="Tactical Data Link" collapsible class="fleet-contacts-panel">
+          <shared-contacts></shared-contacts>
         </flaxos-panel>
       </div>
     </div>
@@ -491,7 +646,9 @@
     const views = {
       helm: document.getElementById("view-helm"),
       tactical: document.getElementById("view-tactical"),
+      ops: document.getElementById("view-ops"),
       engineering: document.getElementById("view-engineering"),
+      fleet: document.getElementById("view-fleet"),
       mission: document.getElementById("view-mission"),
     };
 
