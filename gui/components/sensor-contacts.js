@@ -555,7 +555,7 @@ class SensorContacts extends HTMLElement {
 
   _renderContactRow(contact) {
     const id = contact.contact_id || contact.id || "???";
-    const classification = contact.classification || contact.class || "UNKNOWN";
+    const classification = contact.name || contact.classification || contact.class || "UNKNOWN";
     const bearing = contact.bearing ?? "---";
     const range = contact.range ?? contact.distance ?? 0;
     const rangeRate = contact.range_rate ?? contact.closure ?? 0;

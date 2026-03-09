@@ -138,6 +138,7 @@ class SensorSystem(BaseSystem):
             "distance": contact.distance,
             "signature": contact.signature,
             "classification": contact.classification,
+            "name": getattr(contact, "name", None),
         }
 
     def command(self, action: str, params: dict):
@@ -263,7 +264,8 @@ class SensorSystem(BaseSystem):
                 "bearing": contact.bearing,
                 "distance": contact.distance,
                 "signature": contact.signature,
-                "classification": contact.classification
+                "classification": contact.classification,
+                "name": getattr(contact, "name", None),
             }
             for contact_id, contact in all_contacts.items()
         ]

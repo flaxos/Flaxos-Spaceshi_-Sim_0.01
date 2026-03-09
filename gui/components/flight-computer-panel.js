@@ -570,7 +570,7 @@ class FlightComputerPanel extends HTMLElement {
       const id = contact.contact_id || contact.id;
       const option = document.createElement("option");
       option.value = id;
-      option.textContent = `${id} (${contact.classification || "UNKNOWN"})`;
+      option.textContent = `${id} — ${contact.name || contact.classification || "UNKNOWN"}`;
       select.appendChild(option);
     });
 
