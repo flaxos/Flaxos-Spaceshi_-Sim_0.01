@@ -108,7 +108,15 @@ class PassiveSensor:
 
             detected[target_ship.id] = contact
 
-        # Update contacts
+        # Merge new detections with existing contacts (don't drop on failed re-detect)
+        # Failed re-detection degrades confidence rather than removing the contact
+        for existing_id, existing_contact in self.contacts.items():
+            if existing_id not in detected:
+                # Contact not re-detected this scan — degrade confidence
+                existing_contact.confidence *= 0.8
+                if existing_contact.confidence > 0.1:
+                    detected[existing_id] = existing_contact
+
         self.contacts = detected
 
         logger.debug(f"Passive sensor on {observer_ship.id}: {len(detected)} contacts")
