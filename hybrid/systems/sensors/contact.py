@@ -20,6 +20,7 @@ class ContactData:
     distance: Optional[float] = None  # Distance from observer
     signature: Optional[float] = None  # Thermal/EM signature strength
     classification: Optional[str] = None  # Ship class if known
+    name: Optional[str] = None  # Ship name if identified
 
     def is_stale(self, current_time: float, stale_threshold: float = 60.0) -> bool:
         """Check if contact is stale.
@@ -80,15 +81,25 @@ class ContactTracker:
         self.contacts[stable_id] = contact_data
 
     def get_contact(self, contact_id: str) -> Optional[ContactData]:
-        """Get a contact by ID.
+        """Get a contact by stable ID or original ship ID.
 
         Args:
-            contact_id: Stable contact ID
+            contact_id: Stable contact ID (e.g. C001) or original ship ID
 
         Returns:
             ContactData or None
         """
-        return self.contacts.get(contact_id)
+        # Try stable contact ID first
+        contact = self.contacts.get(contact_id)
+        if contact:
+            return contact
+
+        # Fall back to looking up by original ship ID
+        stable_id = self.id_mapping.get(contact_id)
+        if stable_id:
+            return self.contacts.get(stable_id)
+
+        return None
 
     def get_all_contacts(self, current_time: float, include_stale: bool = False) -> Dict[str, ContactData]:
         """Get all contacts.

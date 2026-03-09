@@ -102,7 +102,8 @@ class PassiveSensor:
                 bearing=bearing,
                 distance=distance,
                 signature=signature,
-                classification=self._classify_contact(target_ship, accuracy)
+                classification=self._classify_contact(target_ship, accuracy),
+                name=getattr(target_ship, "name", None) if accuracy > 0.5 else None,
             )
 
             detected[target_ship.id] = contact

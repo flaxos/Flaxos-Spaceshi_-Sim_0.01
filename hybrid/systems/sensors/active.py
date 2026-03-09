@@ -134,7 +134,8 @@ class ActiveSensor:
                 bearing=bearing,
                 distance=distance,
                 signature=signature,
-                classification=target_ship.class_type if accuracy > 0.8 else "Unknown"
+                classification=target_ship.class_type if accuracy > 0.8 else "Unknown",
+                name=getattr(target_ship, "name", None) if accuracy > 0.5 else None,
             )
 
             detected[target_ship.id] = contact

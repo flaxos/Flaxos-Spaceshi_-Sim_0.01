@@ -12,15 +12,54 @@ const CHECK_POLL_MS = 1500;
 const AUTO_ADVANCE_MS = 1000;
 
 // -- Check helpers --------------------------------------------------------
-const _ms = () => stateManager.getState("mission");
-const missionActive = () => { const m = _ms(); if (!m) return false; const s = m.mission_status || m.status; return s === "active" || s === "in_progress" || s === "loaded"; };
-const missionComplete = () => { const m = _ms(); if (!m) return false; const s = m.mission_status || m.status; return s === "success" || s === "complete" || s === "completed"; };
+// Mission state: poll via wsClient since stateManager doesn't track mission
+let _missionCache = null;
+let _missionPollTime = 0;
+const _pollMission = async () => {
+  const now = Date.now();
+  if (now - _missionPollTime < 2000 && _missionCache) return _missionCache;
+  try {
+    _missionCache = await wsClient.send("get_mission", {});
+    _missionPollTime = now;
+  } catch { /* ignore */ }
+  return _missionCache;
+};
+// Sync checks (use cached mission data)
+const missionActive = () => {
+  if (!_missionCache) { _pollMission(); return false; }
+  const s = _missionCache.mission_status || _missionCache.status;
+  return s === "active" || s === "in_progress" || s === "loaded" || !!_missionCache.name;
+};
+const missionComplete = () => {
+  if (!_missionCache) return false;
+  const s = _missionCache.mission_status || _missionCache.status;
+  return s === "success" || s === "complete" || s === "completed";
+};
 const helmActive = () => document.querySelector("#view-helm")?.classList.contains("active") ?? false;
 const hasTarget = () => !!stateManager.getTargeting()?.target_id;
-const autopilotActive = () => { const n = stateManager.getNavigation(); return n?.autopilot?.enabled === true || n?.autopilot?.mode === "intercept"; };
-const targetDist = () => { const n = stateManager.getNavigation(); return n?.autopilot?.distance ?? n?.autopilot?.range ?? Infinity; };
-const shipSpeed = () => { const v = stateManager.getNavigation()?.velocity || [0,0,0]; return Math.sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2]); };
-const courseActive = () => { const n = stateManager.getNavigation(); return n?.autopilot?.mode === "course" || n?.autopilot?.enabled === true; };
+const autopilotActive = () => {
+  const ship = stateManager.getShipState();
+  const nav = ship?.systems?.navigation || {};
+  const ap = nav.autopilot_state || nav.autopilot || {};
+  return ap.enabled === true || ap.active === true || (ap.mode && ap.mode !== "off" && ap.mode !== "manual");
+};
+const targetDist = () => {
+  const ship = stateManager.getShipState();
+  const nav = ship?.systems?.navigation || {};
+  const ap = nav.autopilot_state || nav.autopilot || {};
+  return ap.distance ?? ap.range ?? Infinity;
+};
+const shipSpeed = () => {
+  const nav = stateManager.getNavigation();
+  const v = nav?.velocity || [0, 0, 0];
+  return Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+};
+const courseActive = () => {
+  const ship = stateManager.getShipState();
+  const nav = ship?.systems?.navigation || {};
+  const ap = nav.autopilot_state || nav.autopilot || {};
+  return ap.mode === "course" || ap.mode === "goto_position" || ap.enabled === true;
+};
 
 const TRACKS = {
   autopilot: {
