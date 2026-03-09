@@ -13,8 +13,10 @@ SUBSYSTEM_HEALTH_SCHEMA = {
         "criticality": 5.0,
         "failure_threshold": 0.2,
         # v0.6.0: Heat settings (reactor generates and manages heat)
+        # Calibrated so normal load (~50kW) reaches ~40% heat at equilibrium.
+        # Sustained overdrive or combat load can push into overheat territory.
         "max_heat": 150.0,           # Maximum heat capacity (°C above ambient)
-        "heat_generation": 2.0,      # Heat generated per kW output (°C/kW/s)
+        "heat_generation": 0.05,     # Heat per unit energy throughput (°C/kJ)
         "heat_dissipation": 3.0,     # Passive cooling rate (°C/s)
         "overheat_threshold": 0.85,  # Fraction of max_heat that triggers overheat
         "overheat_penalty": 0.5,     # Output multiplier when overheated
@@ -25,8 +27,10 @@ SUBSYSTEM_HEALTH_SCHEMA = {
         "criticality": 5.0,
         "failure_threshold": 0.25,
         # v0.6.0: Heat settings (main drive generates significant heat)
+        # Calibrated so full thrust reaches ~60% heat at equilibrium.
+        # Sustained burn at max thrust can push toward overheat.
         "max_heat": 200.0,           # Drives run hot
-        "heat_generation": 1.5,      # Heat per Newton-second of thrust
+        "heat_generation": 0.015,    # Heat per Newton-second of thrust
         "heat_dissipation": 2.5,     # Passive cooling rate
         "overheat_threshold": 0.90,  # Higher tolerance for drives
         "overheat_penalty": 0.6,     # Thrust reduction when overheated
