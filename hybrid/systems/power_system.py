@@ -29,6 +29,7 @@ class PowerSystem(BaseSystem):
         self._last_status = self.status
         self._last_generated = 0.0
         self._last_draw = 0.0
+        self._last_dt = 0.0
 
     def tick(self, dt, ship, event_bus):
         damage_factor = 1.0
@@ -57,6 +58,7 @@ class PowerSystem(BaseSystem):
         self.current = min(self.capacity, self.current + self.generation * dt)
         self._last_generated = generated
         self._last_draw = self.total_draw
+        self._last_dt = dt
         self.total_draw = 0.0
         self.drawing_systems = {}
         event_bus.publish("power_available", {"available": self.current, "capacity": self.capacity, "source": "power"})
@@ -85,7 +87,9 @@ class PowerSystem(BaseSystem):
         subsystem = ship.damage_model.subsystems.get("power")
         if not subsystem:
             return
-        heat_amount = subsystem.heat_generation * (self._last_generated + self._last_draw)
+        # _last_generated is already dt-scaled (energy), _last_draw is raw power (kW)
+        # Convert draw to energy by multiplying by dt
+        heat_amount = subsystem.heat_generation * (self._last_generated + self._last_draw * self._last_dt)
         if heat_amount <= 0:
             return
         ship.damage_model.add_heat("power", heat_amount, event_bus, ship.id)

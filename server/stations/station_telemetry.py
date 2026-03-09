@@ -31,7 +31,7 @@ class StationTelemetryFilter:
             "orientation": ["orientation", "angular_velocity"],
             "relative_motion": ["velocity", "position"],
             "fuel_status": ["fuel", "delta_v_remaining"],
-            "autopilot_status": ["nav_mode", "autopilot_program"],
+            "autopilot_status": ["nav_mode", "autopilot_program", "autopilot_state", "course"],
             "helm_status": ["orientation", "angular_velocity", "velocity", "helm_queue"],
             "propulsion_status": ["fuel", "systems"],
 
@@ -276,6 +276,8 @@ def create_station_specific_telemetry(
             "autopilot": {
                 "mode": ship_telemetry.get("nav_mode"),
                 "program": ship_telemetry.get("autopilot_program"),
+                "autopilot_state": ship_telemetry.get("autopilot_state"),
+                "course": ship_telemetry.get("course"),
             }
         }
 

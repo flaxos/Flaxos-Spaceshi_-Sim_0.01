@@ -307,13 +307,16 @@ class AutopilotStatus extends HTMLElement {
     const ship = stateManager.getShipState();
     const navigation = ship?.systems?.navigation || {};
     const helm = ship?.systems?.helm || {};
+    // Station-filtered view nests under ship.autopilot
+    const ap = ship?.autopilot || {};
 
-    this._mode = navigation.mode || helm.mode || "manual";
-    this._program = navigation.current_program || helm.autopilot_program || null;
-    this._status = navigation.autopilot_state?.status || null;
+    // Check all possible paths: top-level, station-filtered, nested systems
+    this._mode = ship?.nav_mode || ap.mode || navigation.mode || helm.mode || "manual";
+    this._program = ship?.autopilot_program || ap.program || navigation.current_program || helm.autopilot_program || null;
+    this._status = ship?.autopilot_state?.status || ap.autopilot_state?.status || navigation.autopilot_state?.status || null;
 
-    // Get course info
-    this._courseInfo = navigation.course || navigation.autopilot_state || null;
+    // Get course info from any available path
+    this._courseInfo = ship?.course || ap.course || navigation.course || ship?.autopilot_state || ap.autopilot_state || navigation.autopilot_state || null;
     if (this._courseInfo) {
       this._phase = this._courseInfo.phase || null;
     }

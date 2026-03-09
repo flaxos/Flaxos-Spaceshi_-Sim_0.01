@@ -99,6 +99,7 @@ class PowerManagementSystem:
         }
         self.event_bus = EventBus.get_instance()
         self._last_reactor_status = {}
+        self._last_dt = 0.0
 
     def _iter_enabled_consumers(self, ship):
         if ship is None or not hasattr(ship, "systems"):
@@ -201,6 +202,7 @@ class PowerManagementSystem:
         }
 
     def tick(self, dt, ship=None, event_bus=None):
+        self._last_dt = dt
         damage_factor = 1.0
         if ship is not None and hasattr(ship, "damage_model"):
             damage_factor = ship.damage_model.get_combined_factor("power")
@@ -234,14 +236,16 @@ class PowerManagementSystem:
         subsystem = ship.damage_model.subsystems.get("power")
         if not subsystem:
             return
-        total_output = 0.0
+        total_energy = 0.0
         for reactor in self.reactors.values():
-            total_output += getattr(reactor, "last_generated", 0.0)
-            total_output += getattr(reactor, "last_drawn", 0.0)
+            # last_generated is already dt-scaled (energy)
+            total_energy += getattr(reactor, "last_generated", 0.0)
+            # last_drawn is raw power (kW), convert to energy with dt
+            total_energy += getattr(reactor, "last_drawn", 0.0) * self._last_dt
             reactor.last_drawn = 0.0
-        if total_output <= 0:
+        if total_energy <= 0:
             return
-        heat_amount = subsystem.heat_generation * total_output
+        heat_amount = subsystem.heat_generation * total_energy
         ship.damage_model.add_heat("power", heat_amount, event_bus, ship.id)
 
     def request_power(self, amount, consumer):
