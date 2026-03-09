@@ -1,8 +1,8 @@
 /**
  * Tier Selector Component
- * Lets the player switch between three control tiers: Raw, Arcade, Autopilot.
+ * Lets the player switch between three control tiers: Raw, Arcade, CPU Assist.
  * Persists selection in localStorage and exposes it via window.controlTier,
- * a body CSS class (tier-raw, tier-arcade, tier-autopilot), and a
+ * a body CSS class (tier-raw, tier-arcade, tier-cpu-assist), and a
  * bubbling "tier-change" CustomEvent.
  */
 
@@ -10,7 +10,7 @@ const STORAGE_KEY = "flaxos-control-tier";
 const TIERS = [
   { id: "raw",       label: "RAW" },
   { id: "arcade",    label: "ARCADE" },
-  { id: "autopilot", label: "AUTOPILOT" },
+  { id: "cpu-assist", label: "CPU ASSIST" },
 ];
 const DEFAULT_TIER = "arcade";
 
@@ -147,8 +147,8 @@ class TierSelector extends HTMLElement {
           box-shadow: inset 0 0 12px rgba(74, 158, 255, 0.12);
         }
 
-        /* --- AUTOPILOT: clean minimal aesthetic --- */
-        .tier-btn[data-tier="autopilot"].active {
+        /* --- CPU ASSIST: clean minimal aesthetic --- */
+        .tier-btn[data-tier="cpu-assist"].active {
           background: rgba(224, 224, 224, 0.06);
           color: var(--text-primary, #e0e0e0);
         }
@@ -174,7 +174,7 @@ class TierSelector extends HTMLElement {
           box-shadow: 0 0 4px var(--hud-primary, #4a9eff);
         }
 
-        .tier-btn[data-tier="autopilot"].active::after {
+        .tier-btn[data-tier="cpu-assist"].active::after {
           background: var(--text-primary, #e0e0e0);
         }
 

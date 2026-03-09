@@ -304,7 +304,30 @@ class HeadingControl extends HTMLElement {
         .hidden {
           display: none !important;
         }
+
+        /* Status line for autopilot/disabled state */
+        .autopilot-status {
+          width: 100%;
+          margin-bottom: 12px;
+          padding: 8px 12px;
+          background: rgba(0, 255, 136, 0.08);
+          border: 1px solid var(--status-nominal, #00ff88);
+          border-radius: 6px;
+          font-size: 0.7rem;
+          color: var(--status-nominal, #00ff88);
+          text-align: center;
+          display: none;
+        }
+
+        .autopilot-status.visible {
+          display: block;
+        }
       </style>
+
+      <!-- Autopilot status line -->
+      <div class="autopilot-status" id="autopilot-status">
+        Autopilot controlling heading &mdash; disengage to steer manually
+      </div>
 
       <!-- Mode Toggle -->
       <div class="mode-toggle">
@@ -587,6 +610,25 @@ class HeadingControl extends HTMLElement {
       const rSign = this._roll >= 0 ? "+" : "";
       currentDisplay.textContent = `P: ${pSign}${this._pitch.toFixed(1)} | Y: ${this._yaw.toFixed(1)} | R: ${rSign}${this._roll.toFixed(1)}`;
     }
+
+    // Show/hide autopilot status and set tooltips on controls
+    const autopilot = nav.autopilot;
+    const isAutopilotActive = autopilot && autopilot.mode && autopilot.mode !== "off" && autopilot.mode !== "manual";
+    const statusEl = this.shadowRoot.getElementById("autopilot-status");
+    const applyBtn = this.shadowRoot.getElementById("apply-btn");
+    const tooltipMsg = "Autopilot controlling heading \u2014 disengage to steer manually";
+
+    if (statusEl) {
+      statusEl.classList.toggle("visible", !!isAutopilotActive);
+    }
+    if (applyBtn) {
+      applyBtn.title = isAutopilotActive ? tooltipMsg : "";
+    }
+    // Set title on slider tracks so hovering shows feedback
+    const pitchTrack = this.shadowRoot.getElementById("pitch-track");
+    const yawTrack = this.shadowRoot.getElementById("yaw-track");
+    if (pitchTrack) pitchTrack.title = isAutopilotActive ? tooltipMsg : "";
+    if (yawTrack) yawTrack.title = isAutopilotActive ? tooltipMsg : "";
   }
 
   async _applyHeading() {

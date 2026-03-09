@@ -6,10 +6,10 @@
  * - Control authority indicator (manual vs autopilot)
  * - Manual takeover button
  * - Autopilot phase display
- * - Tier awareness (raw/arcade/autopilot):
+ * - Tier awareness (raw/arcade/cpu-assist):
  *   - Raw: m/s² display, Newtons readout, green-on-black monospace, "MAIN DRIVE" label
  *   - Arcade: percentage slider + G-force display (original behavior)
- *   - Autopilot: read-only thrust display, hidden controls, takeover button only
+ *   - CPU Assist: read-only thrust display, hidden controls, takeover button only
  * Listens for `tier-change` events on document; reads `window.controlTier` at init.
  */
 
@@ -474,6 +474,22 @@ class ThrottleControl extends HTMLElement {
           position: relative;
         }
 
+        /* Tooltip status line shown below controls when they are disabled */
+        .control-tooltip {
+          width: 100%;
+          margin-top: 8px;
+          padding: 6px 10px;
+          font-size: 0.7rem;
+          color: var(--text-dim, #555566);
+          text-align: center;
+          font-style: italic;
+          display: none;
+        }
+
+        .control-tooltip.visible {
+          display: block;
+        }
+
         /* Thrust constraint info line */
         .thrust-constraint {
           width: 100%;
@@ -616,7 +632,7 @@ class ThrottleControl extends HTMLElement {
           color: #006622;
         }
 
-        /* Autopilot tier styles */
+        /* CPU Assist tier styles */
         .autopilot-readonly {
           width: 100%;
           margin-top: 12px;
@@ -647,27 +663,27 @@ class ThrottleControl extends HTMLElement {
           margin-top: 8px;
         }
 
-        :host(.tier-autopilot) .autopilot-readonly {
+        :host(.tier-cpu-assist) .autopilot-readonly {
           display: block;
         }
 
-        :host(.tier-autopilot) .mode-toggle {
+        :host(.tier-cpu-assist) .mode-toggle {
           display: none;
         }
 
-        :host(.tier-autopilot) .throttle-container {
+        :host(.tier-cpu-assist) .throttle-container {
           display: none;
         }
 
-        :host(.tier-autopilot) .manual-input-section {
+        :host(.tier-cpu-assist) .manual-input-section {
           display: none !important;
         }
 
-        :host(.tier-autopilot) .current-value {
+        :host(.tier-cpu-assist) .current-value {
           display: none;
         }
 
-        :host(.tier-autopilot) .stop-btn {
+        :host(.tier-cpu-assist) .stop-btn {
           display: none;
         }
       </style>
@@ -799,6 +815,9 @@ class ThrottleControl extends HTMLElement {
         <div class="readonly-value" id="autopilot-thrust-value">0.00 m/s&sup2; (0%)</div>
         <div class="readonly-program" id="autopilot-program-display"></div>
       </div>
+
+      <!-- Tooltip status line for disabled controls -->
+      <div class="control-tooltip" id="control-tooltip"></div>
 
       <button class="stop-btn" id="stop-btn">EMERGENCY STOP</button>
 
@@ -1137,6 +1156,32 @@ class ThrottleControl extends HTMLElement {
     } else {
       autopilotPhase.textContent = "--";
     }
+
+    // Update tooltip/title on slider track and status text for disabled controls
+    const track = this.shadowRoot.getElementById("track");
+    const tooltip = this.shadowRoot.getElementById("control-tooltip");
+    const isAutopilotTier = this._currentTier === "cpu-assist";
+    const isAutopilotAuthority = this._controlAuthority === CONTROL_AUTHORITY.AUTOPILOT;
+
+    if (isAutopilotTier) {
+      if (track) track.title = "CPU Assist active \u2014 disable autopilot to control manually";
+      if (tooltip) {
+        tooltip.textContent = "CPU Assist active \u2014 disable autopilot to control manually";
+        tooltip.classList.add("visible");
+      }
+    } else if (isAutopilotAuthority) {
+      if (track) track.title = "Autopilot controlling thrust \u2014 disengage autopilot first";
+      if (tooltip) {
+        tooltip.textContent = "Autopilot controlling thrust \u2014 disengage autopilot first";
+        tooltip.classList.add("visible");
+      }
+    } else {
+      if (track) track.title = "";
+      if (tooltip) {
+        tooltip.textContent = "";
+        tooltip.classList.remove("visible");
+      }
+    }
   }
 
   /**
@@ -1146,7 +1191,7 @@ class ThrottleControl extends HTMLElement {
    */
   _applyTierStyle() {
     // Toggle host-level tier classes
-    this.classList.remove("tier-raw", "tier-arcade", "tier-autopilot");
+    this.classList.remove("tier-raw", "tier-arcade", "tier-cpu-assist");
     this.classList.add(`tier-${this._currentTier}`);
 
     // Update scale labels for raw tier (show m/s² marks instead of %)
@@ -1206,9 +1251,9 @@ class ThrottleControl extends HTMLElement {
     pctEl.textContent = `${(this._currentValue * 100).toFixed(1)}%`;
   }
 
-  /** Update autopilot tier read-only thrust display */
+  /** Update CPU Assist tier read-only thrust display */
   _updateAutopilotReadonly() {
-    if (this._currentTier !== "autopilot") return;
+    if (this._currentTier !== "cpu-assist") return;
 
     const thrustVal = this.shadowRoot.getElementById("autopilot-thrust-value");
     const programDisp = this.shadowRoot.getElementById("autopilot-program-display");

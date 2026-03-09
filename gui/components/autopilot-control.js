@@ -193,6 +193,16 @@ class AutopilotControl extends HTMLElement {
         .status-value.active {
           color: var(--status-info, #00aaff);
         }
+
+        /* Inline status hint below engage button */
+        .engage-hint {
+          margin-top: 6px;
+          font-size: 0.7rem;
+          color: var(--text-dim, #555566);
+          text-align: center;
+          font-style: italic;
+          min-height: 1.2em;
+        }
       </style>
 
       <div class="section-title">Mode</div>
@@ -209,6 +219,7 @@ class AutopilotControl extends HTMLElement {
         <button class="action-btn engage-btn" id="engage-btn">ENGAGE</button>
         <button class="action-btn disengage-btn" id="disengage-btn">DISENGAGE</button>
       </div>
+      <div class="engage-hint" id="engage-hint"></div>
 
       <div class="status-box">
         <div class="status-row">
@@ -291,8 +302,27 @@ class AutopilotControl extends HTMLElement {
 
   _updateEngageButton() {
     const engageBtn = this.shadowRoot.getElementById("engage-btn");
+    const hintEl = this.shadowRoot.getElementById("engage-hint");
     const needsTarget = ["intercept", "match"].includes(this._selectedMode);
-    engageBtn.disabled = needsTarget && !this._selectedTarget;
+    const isDisabled = needsTarget && !this._selectedTarget;
+    engageBtn.disabled = isDisabled;
+
+    // Check if autopilot is already active
+    const nav = stateManager.getNavigation();
+    const autopilot = nav.autopilot;
+    const isActive = autopilot && autopilot.mode && autopilot.mode !== "off" && autopilot.mode !== "manual";
+
+    // Set title attribute and hint text based on state
+    if (isDisabled) {
+      engageBtn.title = "Select a target contact first";
+      if (hintEl) hintEl.textContent = "Select a target contact first";
+    } else if (isActive) {
+      engageBtn.title = "Autopilot already active \u2014 DISENGAGE first";
+      if (hintEl) hintEl.textContent = "Autopilot already active \u2014 DISENGAGE first";
+    } else {
+      engageBtn.title = "";
+      if (hintEl) hintEl.textContent = "";
+    }
   }
 
   _updateDisplay() {
