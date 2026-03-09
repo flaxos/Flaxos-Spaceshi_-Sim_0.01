@@ -62,12 +62,11 @@ class InterceptAutopilot(BaseAutopilot):
         Returns:
             dict: Thrust command or None
         """
-        # Get target
+        # Get target (base class handles log-once via _target_warned)
         target = self.get_target()
         if not target:
             self.status = "error"
             self.error_message = f"Target {self.target_id} not found"
-            logger.warning(f"Intercept: Target {self.target_id} not in sensor contacts")
             return None
 
         # Calculate relative motion

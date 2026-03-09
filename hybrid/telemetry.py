@@ -182,7 +182,9 @@ def get_sensor_contacts(ship) -> Dict[str, Any]:
                 "bearing": bearing,
                 "confidence": contact_value(contact, "confidence", 0.5),
                 "last_update": contact_value(contact, "last_update", 0),
-                "detection_method": contact_value(contact, "detection_method", "passive")
+                "detection_method": contact_value(contact, "detection_method", "passive"),
+                "name": contact_value(contact, "name", None),
+                "classification": contact_value(contact, "classification", None),
             })
 
     # Get active contacts
@@ -202,7 +204,9 @@ def get_sensor_contacts(ship) -> Dict[str, Any]:
                 "bearing": bearing,
                 "confidence": contact_value(contact, "confidence", 0.9),
                 "last_update": contact_value(contact, "last_update", 0),
-                "detection_method": contact_value(contact, "detection_method", "active")
+                "detection_method": contact_value(contact, "detection_method", "active"),
+                "name": contact_value(contact, "name", None),
+                "classification": contact_value(contact, "classification", None),
             })
 
     # Sort by distance

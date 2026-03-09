@@ -1,8 +1,11 @@
 # hybrid/navigation/autopilot/base.py
 """Base autopilot class."""
 
+import logging
 from abc import ABC, abstractmethod
 from typing import Dict, Optional
+
+logger = logging.getLogger(__name__)
 
 class BaseAutopilot(ABC):
     """Abstract base class for all autopilot programs."""
@@ -20,6 +23,7 @@ class BaseAutopilot(ABC):
         self.params = params or {}
         self.status = "initializing"
         self.error_message = None
+        self._target_warned = False
 
     @abstractmethod
     def compute(self, dt: float, sim_time: float) -> Optional[Dict]:
@@ -37,17 +41,36 @@ class BaseAutopilot(ABC):
     def get_target(self):
         """Get target ship or contact.
 
+        Resolves target by:
+        1. Sensor contact (by stable ID like C001 or original ship ID)
+        2. Direct ship lookup in _all_ships_ref (fallback for raw ship IDs)
+
         Returns:
             Target object or None
         """
         if not self.target_id:
             return None
 
-        # Try to get from sensors
+        # Try sensor contacts first (handles both C001 and target_station via id_mapping)
         sensors = self.ship.systems.get("sensors")
         if sensors and hasattr(sensors, "get_contact"):
-            return sensors.get_contact(self.target_id)
+            contact = sensors.get_contact(self.target_id)
+            if contact:
+                self._target_warned = False
+                return contact
 
+        # Fallback: look up directly in all_ships (handles raw ship IDs like target_station)
+        all_ships = getattr(self.ship, "_all_ships_ref", [])
+        for ship in all_ships:
+            if getattr(ship, "id", None) == self.target_id:
+                if not self._target_warned:
+                    logger.info(f"Autopilot: target '{self.target_id}' found via direct ship lookup (not in sensor contacts)")
+                    self._target_warned = True
+                return ship
+
+        if not self._target_warned:
+            logger.warning(f"Autopilot: target '{self.target_id}' not found in sensors or ships")
+            self._target_warned = True
         return None
 
     def get_state(self) -> Dict:

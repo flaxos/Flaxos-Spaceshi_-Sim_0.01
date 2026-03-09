@@ -169,7 +169,8 @@ class ContactTracker:
                 "age": age,
                 "stale": contact.is_stale(current_time, self.stale_threshold),
                 "detection_method": contact.detection_method,
-                "classification": contact.classification or "Unknown"
+                "classification": contact.classification or "Unknown",
+                "name": contact.name,
             })
 
         # Sort by distance
