@@ -30,6 +30,19 @@ class TierSelector extends HTMLElement {
   connectedCallback() {
     this._render();
     this._applyTier();
+    // Listen for tutorial track changes to auto-switch tier
+    this._onTutorialTier = (e) => {
+      const tier = e.detail?.tier;
+      if (tier) this.tier = tier;
+    };
+    document.addEventListener("tutorial-tier-request", this._onTutorialTier);
+  }
+
+  disconnectedCallback() {
+    if (this._onTutorialTier) {
+      document.removeEventListener("tutorial-tier-request", this._onTutorialTier);
+      this._onTutorialTier = null;
+    }
   }
 
   attributeChangedCallback(name, oldValue, newValue) {
