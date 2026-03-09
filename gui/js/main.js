@@ -52,6 +52,27 @@ import "../components/autopilot-status.js";
 import "../components/view-tabs.js";
 import "../components/status-bar.js";
 import "../components/flight-computer-panel.js";
+// Phase 9: Station & Control Tier System
+import "../components/station-selector.js";
+import "../components/tier-selector.js";
+// Phase 10: Helm Completion
+import "../components/helm-queue-panel.js";
+import "../components/docking-panel.js";
+import "../components/delta-v-display.js";
+// Phase 11: Tactical Completion
+import "../components/subsystem-selector.js";
+import "../components/threat-board.js";
+// Phase 12: Engineering & Power
+import "../components/power-profile-selector.js";
+import "../components/power-draw-display.js";
+import "../components/crew-panel.js";
+// Phase 13: Fleet Commander Console
+import "../components/fleet-roster.js";
+import "../components/formation-control.js";
+import "../components/fleet-orders.js";
+import "../components/fleet-fire-control.js";
+import "../components/shared-contacts.js";
+import "../components/fleet-tactical-display.js";
 
 // App state
 const app = {

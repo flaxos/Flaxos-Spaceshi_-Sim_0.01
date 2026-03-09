@@ -65,6 +65,23 @@ class TCPConnection:
                 )
                 self.connected = True
                 logger.info(f"Connected to TCP server at {self.host}:{self.port}")
+
+                # Station mode sends a welcome message on connect —
+                # consume it so it doesn't pollute the first send_receive.
+                try:
+                    welcome = await asyncio.wait_for(
+                        self.reader.readline(), timeout=2.0
+                    )
+                    if welcome:
+                        welcome_data = json.loads(welcome.decode("utf-8"))
+                        logger.info(
+                            f"TCP welcome: {welcome_data.get('message', 'ok')} "
+                            f"(mode={welcome_data.get('mode', 'unknown')})"
+                        )
+                except (asyncio.TimeoutError, json.JSONDecodeError):
+                    # Minimal mode doesn't send a welcome — timeout is fine
+                    pass
+
                 return True
             except (ConnectionRefusedError, asyncio.TimeoutError, OSError) as e:
                 logger.warning(f"TCP connection failed: {e}")

@@ -6,6 +6,11 @@
  * - Control authority indicator (manual vs autopilot)
  * - Manual takeover button
  * - Autopilot phase display
+ * - Tier awareness (raw/arcade/autopilot):
+ *   - Raw: m/s² display, Newtons readout, green-on-black monospace, "MAIN DRIVE" label
+ *   - Arcade: percentage slider + G-force display (original behavior)
+ *   - Autopilot: read-only thrust display, hidden controls, takeover button only
+ * Listens for `tier-change` events on document; reads `window.controlTier` at init.
  */
 
 import { stateManager } from "../js/state-manager.js";
@@ -43,6 +48,11 @@ class ThrottleControl extends HTMLElement {
     this._controlAuthority = CONTROL_AUTHORITY.MANUAL;
     this._autopilotProgram = null;
     this._autopilotPhase = null;
+    // Tier awareness
+    this._currentTier = window.controlTier || "arcade";
+    this._maxThrustAccel = 0;  // m/s² at 100% throttle
+    this._maxThrustForceN = 0; // Newtons at 100% throttle
+    this._shipMassKg = 0;
     // Store document-level event handlers for cleanup
     this._documentHandlers = [];
   }
@@ -51,11 +61,23 @@ class ThrottleControl extends HTMLElement {
     this.render();
     this._subscribe();
     this._setupInteraction();
+    // Listen for tier changes
+    this._onTierChange = (e) => {
+      this._currentTier = e.detail?.tier || "arcade";
+      this._applyTierStyle();
+    };
+    document.addEventListener("tier-change", this._onTierChange);
+    // Apply initial tier
+    this._applyTierStyle();
   }
 
   disconnectedCallback() {
     if (this._unsubscribe) {
       this._unsubscribe();
+    }
+    // Clean up tier listener
+    if (this._onTierChange) {
+      document.removeEventListener("tier-change", this._onTierChange);
     }
     // Clean up document-level event listeners
     for (const { event, handler, options } of this._documentHandlers) {
@@ -451,6 +473,203 @@ class ThrottleControl extends HTMLElement {
         .slider-track {
           position: relative;
         }
+
+        /* Thrust constraint info line */
+        .thrust-constraint {
+          width: 100%;
+          margin-top: 8px;
+          padding: 6px 10px;
+          font-size: 0.65rem;
+          color: var(--text-dim, #555566);
+          text-align: center;
+          border-top: 1px solid var(--border-default, #2a2a3a);
+        }
+
+        /* Raw tier: prominent constraint display */
+        :host(.tier-raw) .thrust-constraint {
+          color: #00cc44;
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+          font-size: 0.7rem;
+          border-top-color: #003300;
+        }
+
+        /* Raw tier styles */
+        .raw-readout {
+          width: 100%;
+          margin-top: 12px;
+          padding: 12px;
+          background: #000000;
+          border: 1px solid #003300;
+          border-radius: 4px;
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+          display: none;
+        }
+
+        .raw-readout-line {
+          display: flex;
+          justify-content: space-between;
+          align-items: baseline;
+          padding: 3px 0;
+          color: #00cc44;
+          font-size: 0.8rem;
+        }
+
+        .raw-readout-line .label {
+          color: #006622;
+          font-size: 0.65rem;
+          text-transform: uppercase;
+        }
+
+        .raw-readout-line .value {
+          font-size: 1.0rem;
+          font-weight: 600;
+        }
+
+        .raw-drive-label {
+          width: 100%;
+          text-align: center;
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+          font-size: 0.65rem;
+          color: #006622;
+          text-transform: uppercase;
+          letter-spacing: 0.1em;
+          margin-bottom: 8px;
+          padding: 4px 8px;
+          border: 1px solid #003300;
+          background: #000000;
+          display: none;
+        }
+
+        /* Raw tier host-level overrides */
+        :host(.tier-raw) {
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+        }
+
+        :host(.tier-raw) .raw-readout {
+          display: block;
+        }
+
+        :host(.tier-raw) .raw-drive-label {
+          display: block;
+        }
+
+        :host(.tier-raw) .g-force-display {
+          display: none;
+        }
+
+        :host(.tier-raw) .current-value .value-display {
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+          color: #00cc44;
+        }
+
+        :host(.tier-raw) .current-value .value-label {
+          color: #006622;
+        }
+
+        :host(.tier-raw) .slider-fill {
+          background: linear-gradient(to top, #004400, #00cc44);
+        }
+
+        :host(.tier-raw) .slider-handle {
+          background: #00cc44;
+        }
+
+        :host(.tier-raw) .slider-handle:hover {
+          background: #00ff55;
+        }
+
+        :host(.tier-raw) .slider-handle.dragging {
+          background: #00ff55;
+        }
+
+        :host(.tier-raw) .scale-mark {
+          color: #006622;
+        }
+
+        :host(.tier-raw) .mode-btn.active {
+          background: #00cc44;
+          border-color: #00cc44;
+          color: #000000;
+        }
+
+        :host(.tier-raw) .quick-btn.active {
+          background: #00cc44;
+          border-color: #00cc44;
+          color: #000000;
+        }
+
+        :host(.tier-raw) .apply-btn {
+          background: #00cc44;
+          color: #000000;
+        }
+
+        :host(.tier-raw) .input-row input {
+          color: #00cc44;
+          border-color: #003300;
+        }
+
+        :host(.tier-raw) .input-row input:focus {
+          border-color: #00cc44;
+        }
+
+        :host(.tier-raw) .input-row .unit {
+          color: #006622;
+        }
+
+        /* Autopilot tier styles */
+        .autopilot-readonly {
+          width: 100%;
+          margin-top: 12px;
+          padding: 16px;
+          background: var(--bg-input, #1a1a24);
+          border-radius: 8px;
+          text-align: center;
+          display: none;
+        }
+
+        .autopilot-readonly .readonly-label {
+          font-size: 0.65rem;
+          color: var(--text-dim, #555566);
+          text-transform: uppercase;
+          margin-bottom: 8px;
+        }
+
+        .autopilot-readonly .readonly-value {
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+          font-size: 1.3rem;
+          color: var(--status-nominal, #00ff88);
+          font-weight: 600;
+        }
+
+        .autopilot-readonly .readonly-program {
+          font-size: 0.7rem;
+          color: var(--text-secondary, #888899);
+          margin-top: 8px;
+        }
+
+        :host(.tier-autopilot) .autopilot-readonly {
+          display: block;
+        }
+
+        :host(.tier-autopilot) .mode-toggle {
+          display: none;
+        }
+
+        :host(.tier-autopilot) .throttle-container {
+          display: none;
+        }
+
+        :host(.tier-autopilot) .manual-input-section {
+          display: none !important;
+        }
+
+        :host(.tier-autopilot) .current-value {
+          display: none;
+        }
+
+        :host(.tier-autopilot) .stop-btn {
+          display: none;
+        }
       </style>
 
       <!-- Control Authority Display -->
@@ -465,6 +684,9 @@ class ThrottleControl extends HTMLElement {
         </div>
         <button class="takeover-btn" id="takeover-btn">TAKE MANUAL CONTROL</button>
       </div>
+
+      <!-- Raw Tier: Drive Label -->
+      <div class="raw-drive-label">MAIN DRIVE &mdash; FORWARD AXIS ONLY</div>
 
       <!-- Mode Toggle -->
       <div class="mode-toggle">
@@ -552,10 +774,36 @@ class ThrottleControl extends HTMLElement {
 
       <div class="current-value">
         <div class="value-display" id="value-display">0%</div>
-        <div class="value-label">Current Thrust</div>
+        <div class="value-label" id="value-label">Current Thrust</div>
+      </div>
+
+      <!-- Raw Tier: Monospace Readout -->
+      <div class="raw-readout" id="raw-readout">
+        <div class="raw-readout-line">
+          <span class="label">Accel</span>
+          <span class="value" id="raw-accel">0.00 m/s&sup2;</span>
+        </div>
+        <div class="raw-readout-line">
+          <span class="label">Force</span>
+          <span class="value" id="raw-force">0 N</span>
+        </div>
+        <div class="raw-readout-line">
+          <span class="label">Throttle</span>
+          <span class="value" id="raw-throttle-pct">0.0%</span>
+        </div>
+      </div>
+
+      <!-- Autopilot Tier: Read-only Display -->
+      <div class="autopilot-readonly" id="autopilot-readonly">
+        <div class="readonly-label">Autopilot controlling thrust</div>
+        <div class="readonly-value" id="autopilot-thrust-value">0.00 m/s&sup2; (0%)</div>
+        <div class="readonly-program" id="autopilot-program-display"></div>
       </div>
 
       <button class="stop-btn" id="stop-btn">EMERGENCY STOP</button>
+
+      <!-- Thrust constraint info (all tiers) -->
+      <div class="thrust-constraint">Main drive: forward axis only. Use RCS to reorient.</div>
     `;
   }
 
@@ -734,13 +982,23 @@ class ThrottleControl extends HTMLElement {
     const percent = value * 100;
     fill.style.height = `${percent}%`;
     handle.style.bottom = `calc(${percent}% - 6px)`;
-    display.textContent = `${percent.toFixed(1)}%`;
+
+    // Raw tier: show m/s² as primary display; arcade: show percentage
+    if (this._currentTier === "raw" && this._maxThrustAccel > 0) {
+      const accel = value * this._maxThrustAccel;
+      display.textContent = `${accel.toFixed(2)} m/s\u00B2`;
+    } else {
+      display.textContent = `${percent.toFixed(1)}%`;
+    }
 
     // Update quick button states
     this.shadowRoot.querySelectorAll(".quick-btn[data-value]").forEach(btn => {
       const btnValue = parseInt(btn.dataset.value, 10);
       btn.classList.toggle("active", Math.abs(btnValue - percent) < 1);
     });
+
+    // Keep raw readout in sync during drags
+    this._updateRawReadout();
   }
 
   _updateGForceDisplay() {
@@ -800,6 +1058,30 @@ class ThrottleControl extends HTMLElement {
     this._maxG = propulsion.max_thrust_g || 0;
     this._updateGForceDisplay();
 
+    // Extract propulsion data for tier-aware displays
+    // max_thrust_accel: acceleration at 100% throttle in m/s²
+    // max_thrust_force: force at 100% throttle in Newtons
+    const prevMaxAccel = this._maxThrustAccel;
+    this._maxThrustAccel = propulsion.max_thrust_accel || (this._maxG * 9.81) || 0;
+    this._maxThrustForceN = propulsion.max_thrust_force || 0;
+    this._shipMassKg = ship?.mass || propulsion.ship_mass || 0;
+
+    // If we have force but not accel (or vice versa), derive the missing one
+    if (this._maxThrustForceN > 0 && this._maxThrustAccel === 0 && this._shipMassKg > 0) {
+      this._maxThrustAccel = this._maxThrustForceN / this._shipMassKg;
+    } else if (this._maxThrustAccel > 0 && this._maxThrustForceN === 0 && this._shipMassKg > 0) {
+      this._maxThrustForceN = this._maxThrustAccel * this._shipMassKg;
+    }
+
+    // Re-apply tier scale labels if max accel changed (e.g. first state update)
+    if (prevMaxAccel !== this._maxThrustAccel) {
+      this._applyTierStyle();
+    }
+
+    // Update tier-specific readouts
+    this._updateRawReadout();
+    this._updateAutopilotReadonly();
+
     // Update control authority display
     this._controlAuthority = helm.control_authority || CONTROL_AUTHORITY.MANUAL;
     this._autopilotProgram = helm.autopilot_program || navigation.current_program || null;
@@ -854,6 +1136,93 @@ class ThrottleControl extends HTMLElement {
       autopilotPhase.textContent = this._autopilotPhase;
     } else {
       autopilotPhase.textContent = "--";
+    }
+  }
+
+  /**
+   * Apply tier-specific visibility and formatting.
+   * Toggles CSS classes on :host and updates scale labels for raw tier.
+   * Does not re-render -- just adjusts what's shown.
+   */
+  _applyTierStyle() {
+    // Toggle host-level tier classes
+    this.classList.remove("tier-raw", "tier-arcade", "tier-autopilot");
+    this.classList.add(`tier-${this._currentTier}`);
+
+    // Update scale labels for raw tier (show m/s² marks instead of %)
+    const scaleMarks = this.shadowRoot.querySelectorAll(".scale-mark");
+    if (this._currentTier === "raw" && this._maxThrustAccel > 0) {
+      const steps = [1.0, 0.8, 0.6, 0.4, 0.2, 0.0];
+      scaleMarks.forEach((mark, i) => {
+        const accel = (steps[i] * this._maxThrustAccel).toFixed(1);
+        mark.textContent = `${accel}`;
+      });
+    } else if (this._currentTier !== "raw") {
+      const pctSteps = ["100%", "80%", "60%", "40%", "20%", "0%"];
+      scaleMarks.forEach((mark, i) => {
+        mark.textContent = pctSteps[i];
+      });
+    }
+
+    // Update value label text
+    const valueLabel = this.shadowRoot.getElementById("value-label");
+    if (valueLabel) {
+      valueLabel.textContent = this._currentTier === "raw"
+        ? "Main Drive Acceleration"
+        : "Current Thrust";
+    }
+
+    // Update the raw readout values with current state
+    this._updateRawReadout();
+
+    // Update autopilot readonly display
+    this._updateAutopilotReadonly();
+  }
+
+  /** Update raw tier monospace readout with current propulsion data */
+  _updateRawReadout() {
+    if (this._currentTier !== "raw") return;
+
+    const accelEl = this.shadowRoot.getElementById("raw-accel");
+    const forceEl = this.shadowRoot.getElementById("raw-force");
+    const pctEl = this.shadowRoot.getElementById("raw-throttle-pct");
+
+    if (!accelEl) return;
+
+    const currentAccel = this._currentValue * this._maxThrustAccel;
+    const currentForceN = this._currentValue * this._maxThrustForceN;
+
+    accelEl.textContent = `${currentAccel.toFixed(2)} m/s\u00B2`;
+
+    // Format force with appropriate unit
+    if (currentForceN >= 1e6) {
+      forceEl.textContent = `${(currentForceN / 1e6).toFixed(2)} MN`;
+    } else if (currentForceN >= 1e3) {
+      forceEl.textContent = `${(currentForceN / 1e3).toFixed(1)} kN`;
+    } else {
+      forceEl.textContent = `${currentForceN.toFixed(0)} N`;
+    }
+
+    pctEl.textContent = `${(this._currentValue * 100).toFixed(1)}%`;
+  }
+
+  /** Update autopilot tier read-only thrust display */
+  _updateAutopilotReadonly() {
+    if (this._currentTier !== "autopilot") return;
+
+    const thrustVal = this.shadowRoot.getElementById("autopilot-thrust-value");
+    const programDisp = this.shadowRoot.getElementById("autopilot-program-display");
+
+    if (!thrustVal) return;
+
+    const currentAccel = this._currentValue * this._maxThrustAccel;
+    const pct = (this._currentValue * 100).toFixed(0);
+    thrustVal.textContent = `${currentAccel.toFixed(1)} m/s\u00B2 (${pct}%)`;
+
+    if (this._autopilotProgram) {
+      programDisp.textContent = `Program: ${this._autopilotProgram.toUpperCase().replace(/_/g, " ")}`;
+    } else {
+      programDisp.textContent = "";
     }
   }
 

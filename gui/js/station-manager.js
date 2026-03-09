@@ -16,7 +16,10 @@ const STATION_CONFIG = {
     panels: [
       "scenario-panel", "mission-panel", "status-panel", "nav-panel",
       "sensors-panel", "tactical-panel", "targeting-panel", "weapons-panel",
-      "autopilot-panel", "event-log-panel"
+      "weapon-ctrl-panel", "autopilot-panel", "event-log-panel",
+      "helm-requests-panel", "heading-panel", "throttle-panel", "rcs-panel",
+      "flight-computer-panel", "position-heading-panel", "command-panel",
+      "systems-panel", "thrust-input-panel"
     ],
     color: "#ffd700"
   },
@@ -24,44 +27,34 @@ const STATION_CONFIG = {
     id: "helm",
     label: "Helm",
     icon: "helm",
-    description: "Navigation and flight control",
+    description: "Navigation, flight control, and course plotting",
     panels: [
       "helm-requests-panel", "nav-panel", "heading-panel", "throttle-panel", "rcs-panel",
-      "autopilot-panel", "flight-computer-panel", "position-heading-panel"
+      "autopilot-panel", "flight-computer-panel", "position-heading-panel",
+      "tactical-panel"
     ],
     color: "#00aaff"
-  },
-  NAVIGATION: {
-    id: "navigation",
-    label: "Navigation",
-    icon: "nav",
-    description: "Tactical map and course plotting",
-    panels: [
-      "nav-panel", "tactical-panel", "sensors-panel", "flight-computer-panel",
-      "position-heading-panel", "autopilot-panel"
-    ],
-    color: "#00ff88"
   },
   TACTICAL: {
     id: "tactical",
     label: "Tactical",
     icon: "tactical",
-    description: "Sensors, targeting, and weapons",
+    description: "Targeting, weapons, and fire control",
     panels: [
       "sensors-panel", "tactical-panel", "targeting-panel", "weapons-panel",
       "weapon-ctrl-panel"
     ],
     color: "#ff4444"
   },
-  WEAPONS: {
-    id: "weapons",
-    label: "Weapons",
-    icon: "weapons",
-    description: "Fire control and weapons systems",
+  OPS: {
+    id: "ops",
+    label: "Ops",
+    icon: "ops",
+    description: "Sensors, contacts, and electronic warfare",
     panels: [
-      "weapons-panel", "weapon-ctrl-panel", "targeting-panel", "tactical-panel"
+      "sensors-panel", "tactical-panel", "event-log-panel"
     ],
-    color: "#ff6600"
+    color: "#00ff88"
   },
   ENGINEERING: {
     id: "engineering",
@@ -73,8 +66,8 @@ const STATION_CONFIG = {
     ],
     color: "#ffaa00"
   },
-  COMMUNICATIONS: {
-    id: "communications",
+  COMMS: {
+    id: "comms",
     label: "Comms",
     icon: "comms",
     description: "Communications and mission objectives",
@@ -82,6 +75,16 @@ const STATION_CONFIG = {
       "event-log-panel", "command-panel", "mission-panel", "sensors-panel"
     ],
     color: "#aa00ff"
+  },
+  FLEET_COMMANDER: {
+    id: "fleet_commander",
+    label: "Fleet Commander",
+    icon: "fleet",
+    description: "Multi-ship coordination and fleet tactics",
+    panels: [
+      "tactical-panel", "event-log-panel", "command-panel", "sensors-panel"
+    ],
+    color: "#00ffcc"
   }
 };
 
