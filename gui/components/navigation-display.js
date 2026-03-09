@@ -1,7 +1,7 @@
 /**
  * Navigation Display
  * Shows position, velocity, heading, thrust, autopilot.
- * Tier-aware: renders differently for raw, arcade, and autopilot control tiers.
+ * Tier-aware: renders differently for raw, arcade, and cpu-assist control tiers.
  */
 
 import { stateManager } from "../js/state-manager.js";
@@ -309,7 +309,7 @@ class NavigationDisplay extends HTMLElement {
           text-align: right;
         }
 
-        /* --- Autopilot tier minimal style --- */
+        /* --- CPU Assist tier minimal style --- */
         .autopilot-minimal {
           text-align: center;
         }
@@ -402,7 +402,7 @@ class NavigationDisplay extends HTMLElement {
     `;
 
     // Apply tier class to host element for CSS scoping
-    this.classList.remove("tier-raw", "tier-arcade", "tier-autopilot");
+    this.classList.remove("tier-raw", "tier-arcade", "tier-cpu-assist");
     this.classList.add(`tier-${this._currentTier}`);
   }
 
@@ -454,8 +454,8 @@ class NavigationDisplay extends HTMLElement {
       case "raw":
         content.innerHTML = this._renderRaw(data);
         break;
-      case "autopilot":
-        content.innerHTML = this._renderAutopilotTier(data);
+      case "cpu-assist":
+        content.innerHTML = this._renderCpuAssistTier(data);
         break;
       case "arcade":
       default:
@@ -594,9 +594,9 @@ class NavigationDisplay extends HTMLElement {
     `;
   }
 
-  // ---------- Autopilot tier: minimal with prominent AP status ----------
+  // ---------- CPU Assist tier: minimal with prominent AP status ----------
 
-  _renderAutopilotTier(data) {
+  _renderCpuAssistTier(data) {
     const { heading, velMagnitude, autopilot } = data;
 
     const isActive = autopilot && autopilot.mode && autopilot.mode !== "off" && autopilot.mode !== "manual";

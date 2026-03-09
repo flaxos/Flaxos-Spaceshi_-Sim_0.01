@@ -1,21 +1,21 @@
 /* tiers.css — Panel visibility rules per control tier.
  *
  * The tier-selector component sets one of these classes on <body>:
- *   .tier-raw       — manual flight, raw vectors
- *   .tier-arcade    — balanced (DEFAULT)
- *   .tier-autopilot — order-based, ship handles execution
+ *   .tier-raw        — manual flight, raw vectors
+ *   .tier-arcade     — balanced (DEFAULT)
+ *   .tier-cpu-assist — order-based, ship handles execution
  *
- * Panels are custom elements wrapped in <flaxos-panel>. We use :has()
- * to hide the parent panel so we don't leave empty chrome on screen.
+ * Panels use view-specific class names (helm-*, eng-*) so hiding
+ * targets the right panel in the right view without :has() issues.
  */
 
 /* --- Tier accent colors ------------------------------------------------- */
 
-body.tier-raw       { --tier-accent: #ff4444; }
-body.tier-arcade    { --tier-accent: #4488ff; }
-body.tier-autopilot { --tier-accent: #00ff88; }
+body.tier-raw        { --tier-accent: #ff4444; }
+body.tier-arcade     { --tier-accent: #4488ff; }
+body.tier-cpu-assist { --tier-accent: #00ff88; }
 
-/* Status bar picks up the accent */
+/* Status bar and bridge controls pick up the accent */
 .status-bar,
 .bridge-controls {
   border-bottom: 2px solid var(--tier-accent, #4488ff);
@@ -27,26 +27,57 @@ flaxos-panel {
   transition: opacity 0.2s ease, max-height 0.3s ease;
 }
 
-/* --- RAW tier: hide automation, show manual controls -------------------- */
+/* --- RAW tier: manual only, hide automation & queues -------------------- */
 
-body.tier-raw flaxos-panel:has(> autopilot-control)  { display: none; }
-body.tier-raw flaxos-panel:has(> set-course-control)  { display: none; }
-body.tier-raw flaxos-panel:has(> helm-queue-panel)    { display: none; }
-body.tier-raw flaxos-panel:has(> autopilot-status)    { display: none; }
-body.tier-raw flaxos-panel:has(> docking-panel)       { display: none; }
+body.tier-raw .helm-fc-panel,
+body.tier-raw .helm-old-fc-panel,
+body.tier-raw .helm-autopilot-panel,
+body.tier-raw .helm-autopilot-status-panel,
+body.tier-raw .helm-course-panel,
+body.tier-raw .helm-requests-panel,
+body.tier-raw .helm-queue-panel,
+body.tier-raw .helm-docking-panel { display: none; }
 
-/* --- ARCADE tier: hide overly-manual controls --------------------------- */
+body.tier-raw .eng-profiles-panel,
+body.tier-raw .eng-draw-panel,
+body.tier-raw .eng-crew-panel,
+body.tier-raw .eng-nav-panel,
+body.tier-raw .eng-log-panel,
+body.tier-raw .eng-pos-heading-panel { display: none; }
 
-body.tier-arcade flaxos-panel:has(> micro-rcs-control) { display: none; }
-body.tier-arcade flaxos-panel:has(> manual-thrust)     { display: none; }
+/* --- ARCADE tier: guided, hide expert & low-level controls -------------- */
 
-/* --- AUTOPILOT tier: hide direct-flight controls, show order panels ----- */
+body.tier-arcade .helm-old-fc-panel,
+body.tier-arcade .helm-requests-panel,
+body.tier-arcade .helm-queue-panel,
+body.tier-arcade .helm-rcs-panel,
+body.tier-arcade .helm-micro-rcs-panel,
+body.tier-arcade .helm-docking-panel { display: none; }
 
-body.tier-autopilot flaxos-panel:has(> throttle-control)  { display: none; }
-body.tier-autopilot flaxos-panel:has(> heading-control)   { display: none; }
-body.tier-autopilot flaxos-panel:has(> rcs-controls)      { display: none; }
-body.tier-autopilot flaxos-panel:has(> micro-rcs-control) { display: none; }
-body.tier-autopilot flaxos-panel:has(> manual-thrust)     { display: none; }
+body.tier-arcade .eng-draw-panel,
+body.tier-arcade .eng-crew-panel,
+body.tier-arcade .eng-micro-rcs-panel,
+body.tier-arcade .eng-thrust-panel,
+body.tier-arcade .eng-pos-heading-panel,
+body.tier-arcade .eng-nav-panel { display: none; }
+
+/* --- CPU ASSIST tier: minimal, order-based ------------------------------ */
+
+body.tier-cpu-assist .helm-throttle-panel,
+body.tier-cpu-assist .helm-heading-panel,
+body.tier-cpu-assist .helm-rcs-panel,
+body.tier-cpu-assist .helm-old-fc-panel,
+body.tier-cpu-assist .helm-requests-panel,
+body.tier-cpu-assist .helm-docking-panel { display: none; }
+
+body.tier-cpu-assist .eng-systems-panel,
+body.tier-cpu-assist .eng-power-panel,
+body.tier-cpu-assist .eng-draw-panel,
+body.tier-cpu-assist .eng-crew-panel,
+body.tier-cpu-assist .eng-nav-panel,
+body.tier-cpu-assist .eng-pos-heading-panel,
+body.tier-cpu-assist .eng-micro-rcs-panel,
+body.tier-cpu-assist .eng-thrust-panel { display: none; }
 
 /* --- Tutorial highlight glow -------------------------------------------- */
 

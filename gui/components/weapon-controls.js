@@ -240,6 +240,16 @@ class WeaponControls extends HTMLElement {
           border-color: var(--text-secondary, #888899);
           color: var(--text-secondary, #888899);
         }
+
+        /* Inline status hint below fire button */
+        .fire-hint {
+          margin-top: 6px;
+          font-size: 0.7rem;
+          color: var(--text-dim, #555566);
+          text-align: center;
+          font-style: italic;
+          min-height: 1.2em;
+        }
       </style>
 
       <div class="weapon-group target-lock-row">
@@ -258,6 +268,7 @@ class WeaponControls extends HTMLElement {
         <div class="warning-box hidden" id="no-lock-warning">
           ⚠ No target lock — torpedoes will fire dumb
         </div>
+        <div class="fire-hint" id="fire-hint"></div>
       </div>
 
       <div class="weapon-group">
@@ -319,13 +330,42 @@ class WeaponControls extends HTMLElement {
     const noLockWarning = this.shadowRoot.getElementById("no-lock-warning");
     noLockWarning.classList.toggle("hidden", hasLock);
 
-    // Update torpedo count
+    // Update torpedo count and fire button tooltips
     const torpedoData = weapons.torpedoes || weapons.torpedo || {};
     const torpedoCount = torpedoData.loaded ?? torpedoData.count ?? 10;
     const torpedoBtn = this.shadowRoot.getElementById("torpedo-btn");
     const countSpan = this.shadowRoot.getElementById("torpedo-count");
+    const fireHint = this.shadowRoot.getElementById("fire-hint");
     countSpan.textContent = `(${torpedoCount})`;
     torpedoBtn.disabled = torpedoCount <= 0;
+
+    // Check if weapons subsystem is destroyed
+    const shipState = stateManager.getShipState();
+    const weaponsSys = shipState?.systems?.weapons || shipState?.subsystems?.weapons || {};
+    const weaponsDestroyed = weaponsSys.status === "destroyed" || weaponsSys.health === 0;
+
+    // Set tooltip and hint based on weapon/targeting state
+    if (weaponsDestroyed) {
+      torpedoBtn.title = "Weapons system destroyed";
+      torpedoBtn.disabled = true;
+      if (fireHint) fireHint.textContent = "Weapons system destroyed";
+    } else if (torpedoCount <= 0) {
+      torpedoBtn.title = "No torpedoes remaining";
+      if (fireHint) fireHint.textContent = "No torpedoes remaining";
+    } else if (!hasLock) {
+      torpedoBtn.title = "No target locked \u2014 select and lock a target first";
+      if (fireHint) fireHint.textContent = "No target locked \u2014 torpedo will fire dumb";
+    } else {
+      torpedoBtn.title = "";
+      if (fireHint) fireHint.textContent = "";
+    }
+
+    // Tooltip on lock button when no contact is selected
+    if (!hasLock) {
+      lockBtn.title = "Select a contact from the sensor list, then click to lock";
+    } else {
+      lockBtn.title = "Click to unlock current target";
+    }
 
     // Update PDC status
     const pdcData = weapons.pdc || weapons.point_defense || {};

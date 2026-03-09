@@ -210,6 +210,16 @@ class SetCourseControl extends HTMLElement {
           cursor: not-allowed;
         }
 
+        /* Inline status hint below set course button */
+        .course-hint {
+          margin-top: 6px;
+          font-size: 0.7rem;
+          color: var(--text-dim, #555566);
+          text-align: center;
+          font-style: italic;
+          min-height: 1.2em;
+        }
+
         .cancel-btn {
           padding: 12px 16px;
           background: var(--status-critical, #ff4444);
@@ -317,6 +327,7 @@ class SetCourseControl extends HTMLElement {
         <button class="set-course-btn" id="set-course-btn">SET COURSE</button>
         <button class="cancel-btn hidden" id="cancel-btn">CANCEL</button>
       </div>
+      <div class="course-hint" id="course-hint"></div>
 
       <!-- Quick Destinations -->
       <div class="quick-section">
@@ -349,6 +360,7 @@ class SetCourseControl extends HTMLElement {
         this.shadowRoot.getElementById("coord-x").value = x;
         this.shadowRoot.getElementById("coord-y").value = y;
         this.shadowRoot.getElementById("coord-z").value = z;
+        this._updateCourseButtonTooltip();
       });
     });
 
@@ -360,7 +372,41 @@ class SetCourseControl extends HTMLElement {
           this._setCourse();
         }
       });
+      // Update tooltip when inputs change
+      input.addEventListener("input", () => {
+        this._updateCourseButtonTooltip();
+      });
     });
+
+    // Set initial tooltip state
+    this._updateCourseButtonTooltip();
+  }
+
+  /** Update SET COURSE button title and hint based on coordinate input state */
+  _updateCourseButtonTooltip() {
+    const x = parseFloat(this.shadowRoot.getElementById("coord-x").value) || 0;
+    const y = parseFloat(this.shadowRoot.getElementById("coord-y").value) || 0;
+    const z = parseFloat(this.shadowRoot.getElementById("coord-z").value) || 0;
+    const setCourseBtn = this.shadowRoot.getElementById("set-course-btn");
+    const hintEl = this.shadowRoot.getElementById("course-hint");
+    const allZero = x === 0 && y === 0 && z === 0;
+
+    // Check current ship position to see if destination is the same
+    const ship = stateManager.getShipState();
+    const pos = ship?.position || {};
+    const atOrigin = allZero && (pos.x || 0) === 0 && (pos.y || 0) === 0 && (pos.z || 0) === 0;
+
+    if (allZero && !atOrigin) {
+      // Coordinates are all zero but ship is not at origin -- that's a valid course to origin
+      setCourseBtn.title = "";
+      if (hintEl) hintEl.textContent = "";
+    } else if (allZero) {
+      setCourseBtn.title = "Enter destination coordinates or select a target";
+      if (hintEl) hintEl.textContent = "Enter destination coordinates or select a target";
+    } else {
+      setCourseBtn.title = "";
+      if (hintEl) hintEl.textContent = "";
+    }
   }
 
   _updateFromState() {
