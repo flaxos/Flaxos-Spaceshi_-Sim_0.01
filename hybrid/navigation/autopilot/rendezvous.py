@@ -1,10 +1,19 @@
 # hybrid/navigation/autopilot/rendezvous.py
 """Rendezvous autopilot - flip-and-burn trajectory to arrive at a target
-with near-zero relative velocity.  Burn -> flip -> brake -> stationkeep.
+with near-zero relative velocity.
+
+Phases:
+    burn    -> flip -> brake -> approach -> stationkeep
 
 The braking trigger accounts for the distance the ship travels during the
 flip (when main drive is off but inertia keeps closing), which prevents
 the overshoot bug that a naive v^2/2a margin can't cover.
+
+The *approach* phase sits between brake and stationkeep.  Once the ship
+has bled most of its closing speed but is still too far for stationkeep,
+approach uses proportional thrust to creep in without rebuilding excessive
+velocity.  This eliminates the oscillation where aggressive profiles
+would overshoot, re-burn, overshoot again and never converge.
 """
 
 import logging
@@ -29,6 +38,7 @@ NAV_PROFILES: Dict[str, Dict] = {
         "max_thrust": 1.0,
         "brake_margin": 1.1,
         "flip_safety_factor": 1.0,
+        "approach_range": 10_000.0,      # metres — enter approach phase within this range
         "description": "Full burn, minimal safety margin. Fastest but risks overshoot.",
         "risk_level": "high",
     },
@@ -36,6 +46,7 @@ NAV_PROFILES: Dict[str, Dict] = {
         "max_thrust": 0.8,
         "brake_margin": 1.3,
         "flip_safety_factor": 1.5,
+        "approach_range": 5_000.0,
         "description": "Moderate thrust and safety. Good balance of speed and control.",
         "risk_level": "medium",
     },
@@ -43,6 +54,7 @@ NAV_PROFILES: Dict[str, Dict] = {
         "max_thrust": 0.5,
         "brake_margin": 1.6,
         "flip_safety_factor": 2.0,
+        "approach_range": 2_000.0,
         "description": "Half thrust, generous margins. Slowest but very precise.",
         "risk_level": "low",
     },
@@ -56,6 +68,8 @@ class RendezvousAutopilot(BaseAutopilot):
         burn        - Accelerate toward target.
         flip        - Rotate 180 degrees to face retrograde.
         brake       - Decelerate toward target.
+        approach    - Proportional-thrust creep to close remaining distance
+                      without rebuilding dangerous speed.
         stationkeep - Hold position via MatchVelocityAutopilot.
     """
 
@@ -64,6 +78,7 @@ class RendezvousAutopilot(BaseAutopilot):
     STATIONKEEP_RANGE = 100.0       # metres
     STATIONKEEP_SPEED = 1.0         # m/s relative
     FLIP_TOLERANCE_DEG = 10.0       # degrees
+    APPROACH_SPEED_LIMIT = 50.0     # m/s — mini-brake in approach if exceeded
 
     def __init__(self, ship, target_id: Optional[str] = None,
                  params: Optional[Dict] = None):
@@ -95,6 +110,8 @@ class RendezvousAutopilot(BaseAutopilot):
             "stationkeep_range", self.STATIONKEEP_RANGE))
         self.stationkeep_speed: float = float(self.params.get(
             "stationkeep_speed", self.STATIONKEEP_SPEED))
+        self.approach_range: float = float(self.params.get(
+            "approach_range", profile.get("approach_range", 5_000.0)))
 
         self.phase: str = "burn"
         self._match_ap: Optional[MatchVelocityAutopilot] = None
@@ -198,7 +215,29 @@ class RendezvousAutopilot(BaseAutopilot):
                 self.phase = "brake"
         elif self.phase == "brake":
             if closing_speed <= 0 and current_range > self.stationkeep_range:
-                logger.info("Rendezvous: BRAKE -> BURN (lost closing speed)")
+                # Only re-burn if we're far away.  If within approach_range
+                # the full burn-flip-brake cycle would just oscillate, so
+                # switch to gentle proportional approach instead.
+                if current_range > self.approach_range:
+                    logger.info(
+                        "Rendezvous: BRAKE -> BURN (lost closing speed, "
+                        "range %.0f m > approach_range %.0f m)",
+                        current_range, self.approach_range)
+                    self.phase = "burn"
+                else:
+                    logger.info(
+                        "Rendezvous: BRAKE -> APPROACH (range %.0f m "
+                        "within approach_range %.0f m, rel_speed %.1f m/s)",
+                        current_range, self.approach_range, rel_speed)
+                    self.phase = "approach"
+        elif self.phase == "approach":
+            # Approach can also transition to stationkeep (handled at top)
+            # or back to brake if we somehow built too much speed and
+            # overshot approach_range
+            if current_range > self.approach_range * 1.5:
+                logger.info(
+                    "Rendezvous: APPROACH -> BURN (drifted to %.0f m, "
+                    "outside approach envelope)", current_range)
                 self.phase = "burn"
 
         # Execute current phase
@@ -211,6 +250,9 @@ class RendezvousAutopilot(BaseAutopilot):
         elif self.phase == "brake":
             self.status = "braking"
             return self._compute_brake(rel)
+        elif self.phase == "approach":
+            self.status = "approaching"
+            return self._compute_approach(target, rel, current_range, rel_speed)
         return self._compute_stationkeep(dt, sim_time)
 
     # ----- phase implementations -------------------------------------------
@@ -230,6 +272,31 @@ class RendezvousAutopilot(BaseAutopilot):
         """Thrust retrograde to bleed closing speed."""
         return {"thrust": self._clamp_thrust(self.max_thrust),
                 "heading": self._retrograde_heading(rel)}
+
+    def _compute_approach(self, target, rel: Dict, current_range: float,
+                          rel_speed: float) -> Dict:
+        """Proportional thrust to close remaining distance without oscillating.
+
+        If relative speed is too high, point retrograde and gently brake.
+        Otherwise, point toward target with thrust proportional to distance
+        so the ship naturally decelerates as it gets closer.
+        """
+        # Safety: if speed exceeds limit, mini-brake rather than
+        # risk another overshoot
+        if rel_speed > self.APPROACH_SPEED_LIMIT:
+            return {
+                "thrust": self._clamp_thrust(0.5 * self.max_thrust),
+                "heading": self._retrograde_heading(rel),
+            }
+
+        # Proportional thrust: more thrust when far, tapering to near-zero
+        # at stationkeep range.  Floor of 5% keeps the ship creeping in.
+        thrust_frac = max(0.05, current_range / self.approach_range)
+        thrust = self._clamp_thrust(thrust_frac * 0.5 * self.max_thrust)
+
+        target_pos = target.position if hasattr(target, "position") else target
+        vec = subtract_vectors(target_pos, self.ship.position)
+        return {"thrust": thrust, "heading": vector_to_heading(vec)}
 
     def _compute_stationkeep(self, dt: float, sim_time: float) -> Optional[Dict]:
         """Delegate to MatchVelocityAutopilot for station-keeping."""
@@ -304,6 +371,15 @@ class RendezvousAutopilot(BaseAutopilot):
             if a_max > 0 and distance > 0:
                 return 2.0 * math.sqrt(distance / a_max)
             return None
+        if self.phase == "approach":
+            # Approach uses low proportional thrust, so ETA is mostly
+            # distance / current closing speed, with a floor guess.
+            if closing_speed > 0.5:
+                return distance / closing_speed
+            # Creeping — rough estimate assuming ~5 m/s average approach
+            if distance > 0:
+                return distance / 5.0
+            return 0.0
         # brake phase: t = v / a
         if a_max > 0 and closing_speed > 0:
             return closing_speed / a_max
@@ -322,6 +398,8 @@ class RendezvousAutopilot(BaseAutopilot):
             return "Flipping for deceleration burn"
         if self.phase == "brake":
             return f"Braking -- {d} remaining, ETA {t}"
+        if self.phase == "approach":
+            return f"Final approach -- {d} remaining, ETA {t}"
         return f"Station-keeping at {d}"
 
 
