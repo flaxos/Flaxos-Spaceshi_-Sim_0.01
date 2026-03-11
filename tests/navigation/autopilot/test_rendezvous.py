@@ -390,3 +390,588 @@ class TestErrorState:
         ap = RendezvousAutopilot(ship, target_id="GHOST")
         result = ap.compute(0.1, 0.0)
         assert result is None
+
+
+# ---------------------------------------------------------------------------
+# Approach phase — new tests for the BRAKE→APPROACH intermediate phase
+# ---------------------------------------------------------------------------
+#
+# The approach phase is inserted between BRAKE and stationkeep to prevent
+# the oscillation where aggressive profile ships bounce between BURN and BRAKE
+# without converging at close range.
+#
+# Expected behaviour after implementation:
+#   - Each NAV_PROFILE gains an "approach_range" key (m).
+#   - When in BRAKE with closing_speed ≈ 0 and range inside approach_range but
+#     outside stationkeep_range → enter APPROACH (not BURN).
+#   - In APPROACH, thrust is proportional to remaining distance.
+#   - APPROACH → stationkeep when range ≤ 100 m and rel_speed < 1.0 m/s.
+#   - Aggressive profile still behaves correctly from ~5 km out (converges).
+# ---------------------------------------------------------------------------
+
+
+class TestApproachPhaseStructure:
+    """Verify the approach phase exists and profiles declare approach_range."""
+
+    def test_approach_phase_exists(self):
+        """Autopilot must be able to hold phase="approach" without error.
+
+        After implementation the phase string "approach" is a first-class
+        phase.  We force it here and confirm compute() does not crash.
+        """
+        target = _make_target({"x": 3000.0, "y": 0.0, "z": 0.0})
+        ship = _make_ship(
+            position={"x": 0.0, "y": 0.0, "z": 0.0},
+            velocity={"x": 0.0, "y": 0.0, "z": 0.0},
+            target=target,
+        )
+        ap = RendezvousAutopilot(ship, target_id="T001")
+        ap.phase = "approach"
+
+        # Must not raise; result may be a dict or None — just no exception
+        try:
+            result = ap.compute(0.1, 0.0)
+        except Exception as exc:
+            pytest.fail(
+                f"compute() raised {type(exc).__name__} in 'approach' phase: {exc}"
+            )
+
+    def test_aggressive_profile_has_approach_range(self):
+        """NAV_PROFILES['aggressive'] must declare 'approach_range' after implementation."""
+        assert "approach_range" in NAV_PROFILES["aggressive"], (
+            "NAV_PROFILES['aggressive'] missing 'approach_range' key"
+        )
+
+    def test_all_profiles_have_approach_range(self):
+        """Every profile must declare 'approach_range' (an integer/float in metres)."""
+        for profile_name, profile_data in NAV_PROFILES.items():
+            assert "approach_range" in profile_data, (
+                f"NAV_PROFILES[{profile_name!r}] missing 'approach_range' key"
+            )
+            value = profile_data["approach_range"]
+            assert isinstance(value, (int, float)), (
+                f"NAV_PROFILES[{profile_name!r}]['approach_range'] must be numeric, "
+                f"got {type(value).__name__}"
+            )
+            assert value > 0, (
+                f"NAV_PROFILES[{profile_name!r}]['approach_range'] must be positive"
+            )
+
+    def test_approach_range_ordering_aggressive_gt_conservative(self):
+        """Aggressive profile approach_range must exceed conservative's.
+
+        Aggressive tolerates closing faster for longer, so it needs a wider
+        approach funnel to avoid oscillation at greater distances.
+        """
+        agg = NAV_PROFILES["aggressive"]["approach_range"]
+        con = NAV_PROFILES["conservative"]["approach_range"]
+        assert agg > con, (
+            f"Aggressive approach_range ({agg}) should exceed conservative ({con})"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Phase transitions involving APPROACH
+# ---------------------------------------------------------------------------
+
+
+class TestApproachPhaseTransitions:
+    """Test the BRAKE → APPROACH and APPROACH → stationkeep transitions."""
+
+    def _make_close_slow_ship_and_ap(self, range_m: float, profile: str = "balanced"):
+        """Return (ship, ap) where ship is range_m from target with ~0 closing speed."""
+        target = _make_target({"x": range_m, "y": 0.0, "z": 0.0})
+        ship = _make_ship(
+            position={"x": 0.0, "y": 0.0, "z": 0.0},
+            # Slightly drifting AWAY so closing_speed <= 0 triggers BRAKE exit
+            velocity={"x": -0.05, "y": 0.0, "z": 0.0},
+            target=target,
+        )
+        ap = RendezvousAutopilot(ship, target_id="T001",
+                                 params={"profile": profile})
+        ap.phase = "brake"
+        return ship, ap
+
+    def test_brake_to_approach_when_inside_approach_range(self):
+        """In BRAKE, closing_speed ≈ 0, range inside approach_range but outside
+        stationkeep_range → should transition to APPROACH, not BURN.
+
+        Uses balanced profile with approach_range=5000 m and a range of 3000 m.
+        closing_speed ≈ 0 so the old code would transition to BURN, but the
+        new code recognises we are inside approach_range and uses APPROACH instead.
+        """
+        approach_range = NAV_PROFILES["balanced"].get("approach_range", 5000)
+        stationkeep_range = 100.0  # RendezvousAutopilot.STATIONKEEP_RANGE
+
+        # Place ship inside approach_range but comfortably outside stationkeep
+        test_range = (approach_range + stationkeep_range) / 2.0
+        _, ap = self._make_close_slow_ship_and_ap(test_range, profile="balanced")
+
+        ap.compute(0.1, 0.0)
+
+        assert ap.phase == "approach", (
+            f"Expected 'approach' phase at {test_range:.0f} m with closing_speed≈0, "
+            f"got {ap.phase!r}"
+        )
+
+    def test_brake_to_burn_when_far_outside_approach_range(self):
+        """In BRAKE, closing_speed ≈ 0, range > approach_range → BURN (existing behaviour).
+
+        The new code must not alter the far-field overshoot-recovery path.
+        """
+        approach_range = NAV_PROFILES["balanced"].get("approach_range", 5000)
+        far_range = approach_range * 3.0  # well outside approach funnel
+
+        _, ap = self._make_close_slow_ship_and_ap(far_range, profile="balanced")
+
+        ap.compute(0.1, 0.0)
+
+        assert ap.phase == "burn", (
+            f"Expected 'burn' (overshoot recovery) at {far_range:.0f} m, "
+            f"got {ap.phase!r}"
+        )
+
+    def test_approach_to_stationkeep_when_range_and_speed_met(self):
+        """From APPROACH phase, range ≤ 100 m and rel_speed < 1.0 m/s → stationkeep."""
+        stationkeep_range = RendezvousAutopilot.STATIONKEEP_RANGE   # 100 m
+        stationkeep_speed = RendezvousAutopilot.STATIONKEEP_SPEED   # 1.0 m/s
+
+        target = _make_target({"x": 50.0, "y": 0.0, "z": 0.0})   # 50 m, inside range
+        ship = _make_ship(
+            position={"x": 0.0, "y": 0.0, "z": 0.0},
+            velocity={"x": 0.0, "y": 0.0, "z": 0.0},   # matched velocity
+            target=target,
+        )
+        ap = RendezvousAutopilot(ship, target_id="T001")
+        ap.phase = "approach"
+
+        ap.compute(0.1, 0.0)
+
+        assert ap.phase == "stationkeep", (
+            f"Expected 'stationkeep' at {stationkeep_range/2:.0f} m with zero rel_speed, "
+            f"got {ap.phase!r}"
+        )
+        assert ap.status == "stationkeeping"
+
+    def test_approach_does_not_jump_to_stationkeep_when_too_fast(self):
+        """APPROACH phase does NOT transition to stationkeep if rel_speed >= stationkeep_speed.
+
+        Ship is inside stationkeep_range distance but still moving at 2 m/s
+        toward the target — should stay in approach until speed bleeds off.
+        """
+        target = _make_target({"x": 60.0, "y": 0.0, "z": 0.0})   # 60 m away
+        ship = _make_ship(
+            position={"x": 0.0, "y": 0.0, "z": 0.0},
+            velocity={"x": 2.0, "y": 0.0, "z": 0.0},   # 2 m/s closing — too fast
+            target=target,
+        )
+        ap = RendezvousAutopilot(ship, target_id="T001")
+        ap.phase = "approach"
+
+        ap.compute(0.1, 0.0)
+
+        # Must NOT be stationkeep yet
+        assert ap.phase != "stationkeep", (
+            "Should not enter stationkeep when still closing at 2 m/s"
+        )
+
+    def test_approach_does_not_transition_to_stationkeep_when_too_far(self):
+        """APPROACH phase stays in approach when range > stationkeep_range, even at low speed."""
+        approach_range = NAV_PROFILES["balanced"].get("approach_range", 5000)
+
+        target = _make_target({"x": 500.0, "y": 0.0, "z": 0.0})   # 500 m, > 100 m
+        ship = _make_ship(
+            position={"x": 0.0, "y": 0.0, "z": 0.0},
+            velocity={"x": 0.0, "y": 0.0, "z": 0.0},
+            target=target,
+        )
+        ap = RendezvousAutopilot(ship, target_id="T001")
+        ap.phase = "approach"
+
+        ap.compute(0.1, 0.0)
+
+        assert ap.phase != "stationkeep", (
+            "Should not stationkeep at 500 m — still need to close distance"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Approach phase thrust behaviour
+# ---------------------------------------------------------------------------
+
+
+class TestApproachThrustBehaviour:
+    """Verify the thrust characteristics produced during APPROACH phase."""
+
+    def _ap_in_approach(self, range_m: float, profile: str = "balanced"):
+        """Return autopilot forced into approach phase at given range from target."""
+        target = _make_target({"x": range_m, "y": 0.0, "z": 0.0})
+        ship = _make_ship(
+            position={"x": 0.0, "y": 0.0, "z": 0.0},
+            velocity={"x": 0.0, "y": 0.0, "z": 0.0},
+            target=target,
+        )
+        ap = RendezvousAutopilot(ship, target_id="T001",
+                                 params={"profile": profile})
+        ap.phase = "approach"
+        return ap
+
+    def test_approach_produces_nonzero_thrust_toward_target(self):
+        """Approach phase commands positive thrust (ship needs to close distance)."""
+        ap = self._ap_in_approach(range_m=3000.0)
+
+        result = ap.compute(0.1, 0.0)
+
+        assert result is not None, "compute() should return a command dict in approach phase"
+        assert result.get("thrust", 0.0) > 0.0, (
+            "Approach phase must command positive thrust to close distance"
+        )
+
+    def test_approach_thrust_proportional_closer_range_gives_less_thrust(self):
+        """Proportional thrust: a ship at 1000 m should use less thrust than at 4000 m.
+
+        This is the core property that prevents oscillation — thrust tapers
+        as the ship converges so it does not overshoot into another burn cycle.
+        """
+        ap_far = self._ap_in_approach(range_m=4000.0)
+        ap_near = self._ap_in_approach(range_m=1000.0)
+
+        result_far = ap_far.compute(0.1, 0.0)
+        result_near = ap_near.compute(0.1, 0.0)
+
+        assert result_far is not None and result_near is not None
+        thrust_far = result_far.get("thrust", 0.0)
+        thrust_near = result_near.get("thrust", 0.0)
+
+        assert thrust_far > thrust_near, (
+            f"Expected lower thrust at close range: far={thrust_far:.4f}, "
+            f"near={thrust_near:.4f}"
+        )
+
+    def test_approach_thrust_capped_below_max_thrust(self):
+        """Approach thrust must be strictly below the profile max_thrust.
+
+        The approach phase is intentionally gentler than the main burn phase.
+        This cap prevents the approach from degenerating into another full burn.
+        """
+        ap = self._ap_in_approach(range_m=4900.0, profile="aggressive")
+
+        result = ap.compute(0.1, 0.0)
+
+        assert result is not None
+        thrust = result.get("thrust", 0.0)
+        profile_max = NAV_PROFILES["aggressive"]["max_thrust"]
+
+        assert thrust < profile_max, (
+            f"Approach thrust {thrust:.4f} must be capped below profile max_thrust "
+            f"{profile_max:.4f}"
+        )
+
+    def test_approach_thrust_never_exceeds_1(self):
+        """Thrust value from approach phase must be in [0, 1] (physics limit)."""
+        ap = self._ap_in_approach(range_m=2000.0)
+
+        result = ap.compute(0.1, 0.0)
+
+        assert result is not None
+        thrust = result.get("thrust", 0.0)
+        assert 0.0 <= thrust <= 1.0, (
+            f"Thrust {thrust:.4f} is outside valid [0, 1] range"
+        )
+
+    def test_approach_heading_points_toward_target(self):
+        """Approach phase heading should direct the ship toward the target.
+
+        Target is directly on the +X axis, so yaw should be near 0°.
+        """
+        target = _make_target({"x": 2000.0, "y": 0.0, "z": 0.0})
+        ship = _make_ship(
+            position={"x": 0.0, "y": 0.0, "z": 0.0},
+            velocity={"x": 0.0, "y": 0.0, "z": 0.0},
+            target=target,
+        )
+        ap = RendezvousAutopilot(ship, target_id="T001")
+        ap.phase = "approach"
+
+        result = ap.compute(0.1, 0.0)
+
+        assert result is not None
+        assert "heading" in result, "Approach compute() must return a heading"
+        yaw = result["heading"].get("yaw", None)
+        assert yaw is not None
+        # Target is at +X; yaw=0 is straight ahead along +X in atan2(y,x) convention
+        assert abs(yaw) < 10.0, (
+            f"Approach heading yaw {yaw:.1f}° should point toward +X target (≈0°)"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Telemetry — get_state() and status text for approach phase
+# ---------------------------------------------------------------------------
+
+
+class TestApproachTelemetry:
+    """Verify get_state() and status text correctly reflect approach phase."""
+
+    def test_approach_phase_in_get_state(self):
+        """get_state() must report phase='approach' when autopilot is in that phase."""
+        target = _make_target({"x": 3000.0, "y": 0.0, "z": 0.0})
+        ship = _make_ship(
+            position={"x": 0.0, "y": 0.0, "z": 0.0},
+            velocity={"x": 0.0, "y": 0.0, "z": 0.0},
+            target=target,
+        )
+        ap = RendezvousAutopilot(ship, target_id="T001")
+        ap.phase = "approach"
+
+        state = ap.get_state()
+
+        assert state.get("phase") == "approach", (
+            f"get_state() returned phase={state.get('phase')!r}, expected 'approach'"
+        )
+
+    def test_approach_status_text_is_informative(self):
+        """Status text for approach phase must not be empty and must not be one
+        of the other phases' default strings.
+
+        The text must convey that the ship is approaching (not burning, flipping,
+        or braking in the full-deceleration sense), e.g. 'Approaching...' or
+        'Final approach'.
+        """
+        target = _make_target({"x": 2500.0, "y": 0.0, "z": 0.0})
+        ship = _make_ship(
+            position={"x": 0.0, "y": 0.0, "z": 0.0},
+            velocity={"x": 0.0, "y": 0.0, "z": 0.0},
+            target=target,
+        )
+        ap = RendezvousAutopilot(ship, target_id="T001")
+        ap.phase = "approach"
+
+        state = ap.get_state()
+
+        status_text = state.get("status_text", "")
+        assert status_text, "status_text must not be empty in approach phase"
+
+        # Must not silently fall through to burn/flip/brake/stationkeep strings
+        forbidden_prefixes = (
+            "Burning toward",
+            "Flipping for",
+            "Braking --",
+            "Station-keeping",
+        )
+        for prefix in forbidden_prefixes:
+            assert not status_text.startswith(prefix), (
+                f"status_text {status_text!r} looks like a different phase. "
+                f"'approach' needs its own distinct text."
+            )
+
+    def test_approach_status_field_set_during_approach(self):
+        """ap.status attribute should reflect approach activity (not 'braking' or 'burning')."""
+        target = _make_target({"x": 3000.0, "y": 0.0, "z": 0.0})
+        ship = _make_ship(
+            position={"x": 0.0, "y": 0.0, "z": 0.0},
+            velocity={"x": 0.0, "y": 0.0, "z": 0.0},
+            target=target,
+        )
+        ap = RendezvousAutopilot(ship, target_id="T001")
+        ap.phase = "approach"
+        ap.compute(0.1, 0.0)
+
+        assert ap.status not in ("braking", "burning", "flipping", "error"), (
+            f"ap.status {ap.status!r} should not be a different phase's value "
+            f"while in approach phase"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Convergence simulation — aggressive profile must not oscillate
+# ---------------------------------------------------------------------------
+
+
+class TestAggressiveConvergence:
+    """Multi-tick simulation verifying the approach phase prevents oscillation.
+
+    The aggressive profile previously bounced between BURN and BRAKE when
+    closing from ~5 km because the brake trigger distance kept firing.  The
+    approach phase must allow the ship to converge to stationkeep within a
+    bounded number of ticks.
+    """
+
+    def _run_sim(self, profile: str, start_range_m: float,
+                 max_ticks: int = 2000, dt: float = 1.0):
+        """Simulate the autopilot for up to max_ticks ticks.
+
+        Each tick:
+          1. compute() returns {thrust, heading}.
+          2. We integrate thrust along the ship-to-target axis (1D model).
+          3. Update ship position and velocity.
+
+        Returns:
+            dict with keys: final_phase, ticks_taken, oscillation_count,
+                            converged (bool), final_range_m, phase_history.
+        """
+        import math as _math
+
+        target_pos_x = start_range_m
+
+        # Ship starts at origin, no initial velocity
+        ship_pos_x = 0.0
+        ship_vel_x = 0.0
+
+        target = _make_target({"x": target_pos_x, "y": 0.0, "z": 0.0})
+        ship = _make_ship(
+            position={"x": ship_pos_x, "y": 0.0, "z": 0.0},
+            velocity={"x": ship_vel_x, "y": 0.0, "z": 0.0},
+            target=target,
+            mass=10000.0,
+            max_thrust=50000.0,   # 5 m/s² max accel
+        )
+        ap = RendezvousAutopilot(ship, target_id="T001",
+                                 params={"profile": profile})
+
+        a_max = 50000.0 / 10000.0  # 5 m/s²
+
+        phase_history = []
+        oscillation_count = 0
+        prev_phase = ap.phase
+        sim_time = 0.0
+
+        for tick in range(max_ticks):
+            # Sync mock ship state with simulation state
+            ship.position = {"x": ship_pos_x, "y": 0.0, "z": 0.0}
+            ship.velocity = {"x": ship_vel_x, "y": 0.0, "z": 0.0}
+
+            result = ap.compute(dt, sim_time)
+            sim_time += dt
+
+            phase_history.append(ap.phase)
+
+            # Count burn↔brake oscillations (the bug we are fixing)
+            if ap.phase != prev_phase:
+                if (prev_phase in ("burn", "brake") and
+                        ap.phase in ("burn", "brake")):
+                    oscillation_count += 1
+            prev_phase = ap.phase
+
+            if ap.phase == "stationkeep":
+                return {
+                    "final_phase": ap.phase,
+                    "ticks_taken": tick + 1,
+                    "oscillation_count": oscillation_count,
+                    "converged": True,
+                    "final_range_m": abs(target_pos_x - ship_pos_x),
+                    "phase_history": phase_history,
+                }
+
+            if result is None:
+                break
+
+            # 1-D physics integration along X axis (ship vs stationary target)
+            thrust_fraction = result.get("thrust", 0.0)
+            heading = result.get("heading", {})
+            commanded_yaw = heading.get("yaw", 0.0)
+
+            # Simulate RCS rotation: move ship orientation toward commanded
+            # heading at ~18 deg/s (180° flip in ~10s)
+            current_yaw = ship.orientation.get("yaw", 0.0)
+            yaw_err = commanded_yaw - current_yaw
+            # Normalize to [-180, 180]
+            while yaw_err > 180:
+                yaw_err -= 360
+            while yaw_err < -180:
+                yaw_err += 360
+            max_rot = 18.0 * dt  # deg per tick
+            if abs(yaw_err) <= max_rot:
+                current_yaw = commanded_yaw
+            else:
+                current_yaw += max_rot * (1 if yaw_err > 0 else -1)
+            ship.orientation = {"pitch": 0.0, "yaw": current_yaw, "roll": 0.0}
+
+            # Use ACTUAL ship orientation for thrust direction (not commanded)
+            cos_yaw = _math.cos(_math.radians(current_yaw))
+
+            accel = thrust_fraction * a_max * cos_yaw
+            ship_vel_x += accel * dt
+            ship_pos_x += ship_vel_x * dt
+
+        return {
+            "final_phase": ap.phase,
+            "ticks_taken": max_ticks,
+            "oscillation_count": oscillation_count,
+            "converged": False,
+            "final_range_m": abs(target_pos_x - ship_pos_x),
+            "phase_history": phase_history,
+        }
+
+    def test_aggressive_convergence_from_5km(self):
+        """Aggressive profile must converge to stationkeep from 5 km within 2000 s
+        (1-second ticks) and must not oscillate more than once between burn and brake.
+
+        This is the core regression test.  Before the approach phase, the
+        aggressive profile would oscillate indefinitely between BURN and BRAKE
+        at ~5 km range and never reach stationkeep.
+        """
+        result = self._run_sim(
+            profile="aggressive",
+            start_range_m=5000.0,
+            max_ticks=2000,
+            dt=1.0,
+        )
+
+        assert result["converged"], (
+            f"Aggressive profile did NOT converge from 5 km in 2000 ticks. "
+            f"Final phase: {result['final_phase']!r}, "
+            f"final range: {result['final_range_m']:.1f} m, "
+            f"oscillations: {result['oscillation_count']}"
+        )
+
+        assert result["oscillation_count"] <= 1, (
+            f"Aggressive profile oscillated {result['oscillation_count']} times "
+            f"between burn/brake — approach phase should prevent this. "
+            f"Phase sequence (last 30): {result['phase_history'][-30:]}"
+        )
+
+    def test_balanced_enters_approach_phase(self):
+        """Balanced profile enters the approach phase from 10 km, confirming
+        it doesn't get stuck in a burn/brake oscillation.
+
+        The 1D convergence sim can't fully simulate balanced convergence
+        (RCS rotation + low proportional thrust = slow settling), but we
+        verify the approach phase is reached and the ship makes progress.
+        """
+        result = self._run_sim(
+            profile="balanced",
+            start_range_m=10000.0,
+            max_ticks=5000,
+            dt=1.0,
+        )
+
+        assert "approach" in result["phase_history"], (
+            "Balanced profile never entered 'approach' phase. "
+            f"Phases seen: {sorted(set(result['phase_history']))}"
+        )
+
+        # Ship should make progress — final range should be well under start
+        assert result["final_range_m"] < 5000.0, (
+            f"Balanced profile made no progress: final range {result['final_range_m']:.0f} m "
+            f"from start of 10 km"
+        )
+
+    def test_approach_phase_appears_in_phase_history(self):
+        """The 'approach' phase string must appear in phase history during convergence
+        from a range large enough to trigger overshoot and approach recovery.
+
+        At 50km with aggressive profile, the ship builds enough speed that
+        the brake phase overshoots, triggering the approach phase.
+        """
+        result = self._run_sim(
+            profile="aggressive",
+            start_range_m=50000.0,
+            max_ticks=5000,
+            dt=1.0,
+        )
+
+        assert "approach" in result["phase_history"], (
+            "Phase history did not contain 'approach' — the phase was never entered. "
+            f"Distinct phases seen: {sorted(set(result['phase_history']))}"
+        )
