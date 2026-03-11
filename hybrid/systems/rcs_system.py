@@ -96,8 +96,13 @@ class RCSSystem(BaseSystem):
         self.control_mode = "rate"
         
         # Controller gains (PD controller for attitude)
+        # At dt=0.1s Euler integration, continuous-time critical damping
+        # (kd=2*sqrt(kp)~2.83) still produces ~7° overshoot due to phase lag.
+        # kd=5.0 with kp=2.0 gives true overdamped response at our tick rate:
+        # heavy, deliberate rotations that settle without wobble — the ship
+        # commits to a turn and locks on heading like a real mass should.
         self.kp = config.get("attitude_kp", 2.0)  # Proportional gain
-        self.kd = config.get("attitude_kd", 1.5)  # Derivative gain
+        self.kd = config.get("attitude_kd", 5.0)  # Derivative gain (overdamped at dt=0.1s)
         
         # Maximum angular rates (degrees/second)
         self.max_rate = config.get("max_angular_rate", 30.0)
@@ -195,51 +200,92 @@ class RCSSystem(BaseSystem):
             self.status = "standby"
 
     def _compute_attitude_control(self, ship, dt) -> np.ndarray:
-        """Compute desired torque using PD attitude controller.
-        
+        """Compute desired torque using quaternion-based PD attitude controller.
+
+        Uses quaternion error to avoid gimbal-lock and cross-coupling issues
+        that plague Euler-angle controllers during large rotations (e.g. a
+        180-degree flip-and-burn maneuver). The PD gains are tuned for
+        slight overdamping to eliminate wobble on arrival.
+
         Args:
-            ship: Ship object with quaternion and angular_velocity
+            ship: Ship object with orientation and angular_velocity
             dt: Time step
-            
+
         Returns:
             Desired torque vector (ship frame)
         """
         if self.attitude_target is None:
             return np.zeros(3)
-        
-        # Get current attitude error
+
         current = ship.orientation
         target = self.attitude_target
-        
-        # Simple error in Euler angles (works for small angles)
-        # For large errors, should use quaternion error
-        pitch_error = self._angle_diff(target.get("pitch", 0), current.get("pitch", 0))
-        yaw_error = self._angle_diff(target.get("yaw", 0), current.get("yaw", 0))
-        roll_error = self._angle_diff(target.get("roll", 0), current.get("roll", 0))
-        
+
+        # Build quaternions from Euler angles for gimbal-lock-free error
+        q_current = Quaternion.from_euler(
+            current.get("pitch", 0),
+            current.get("yaw", 0),
+            current.get("roll", 0),
+        )
+        q_target = Quaternion.from_euler(
+            target.get("pitch", 0),
+            target.get("yaw", 0),
+            target.get("roll", 0),
+        )
+
+        # Error quaternion: q_err = q_target * q_current^-1
+        # The vector part of q_err gives the rotation axis * sin(half_angle),
+        # which is proportional to error for small angles and well-behaved
+        # for large angles without cross-coupling.
+        q_err = q_target * q_current.conjugate()
+
+        # Ensure shortest-path rotation (avoid > 180-degree the long way)
+        if q_err.w < 0:
+            q_err = Quaternion(-q_err.w, -q_err.x, -q_err.y, -q_err.z)
+
+        # Error axis components (body frame): proportional to sin(theta/2)
+        # For small errors this is ~theta/2, for large errors it saturates
+        # at 1.0, giving us natural rate limiting.
+        # Convert to degrees-equivalent for gain compatibility:
+        # 2 * arcsin(|v|) gives the error angle in radians.
+        err_mag = math.sqrt(q_err.x**2 + q_err.y**2 + q_err.z**2)
+        if err_mag > 1e-6:
+            err_angle_rad = 2.0 * math.asin(min(err_mag, 1.0))
+            err_angle_deg = math.degrees(err_angle_rad)
+            # Decompose into per-axis errors (degrees)
+            scale_factor = err_angle_deg / err_mag
+            # Quaternion vector part maps to body-frame axes:
+            # x -> roll, y -> pitch, z -> yaw
+            roll_error = q_err.x * scale_factor
+            pitch_error = q_err.y * scale_factor
+            yaw_error = q_err.z * scale_factor
+        else:
+            roll_error = 0.0
+            pitch_error = 0.0
+            yaw_error = 0.0
+
         # Angular velocity (current)
         omega = ship.angular_velocity
-        
-        # PD control: torque = kp * error - kd * velocity
-        # Negative velocity term provides damping
+
+        # PD control: command = kp * error - kd * angular_velocity
+        # The kd term damps any existing rotation, preventing overshoot.
         desired_rate_pitch = self.kp * pitch_error - self.kd * omega.get("pitch", 0)
         desired_rate_yaw = self.kp * yaw_error - self.kd * omega.get("yaw", 0)
         desired_rate_roll = self.kp * roll_error - self.kd * omega.get("roll", 0)
-        
-        # Clamp to max rate
+
+        # Clamp to max angular rate
         desired_rate_pitch = max(-self.max_rate, min(self.max_rate, desired_rate_pitch))
         desired_rate_yaw = max(-self.max_rate, min(self.max_rate, desired_rate_yaw))
         desired_rate_roll = max(-self.max_rate, min(self.max_rate, desired_rate_roll))
-        
+
         # Convert desired rates to torque request
-        # Scale factor to convert rate command to torque (simplified)
-        scale = getattr(ship, 'moment_of_inertia', ship.mass * 10.0) * 0.1
-        
+        inertia = getattr(ship, 'moment_of_inertia', ship.mass * 10.0)
+        scale = inertia * 0.1
+
         # Torque axes: [roll (X), pitch (Y), yaw (Z)]
         return np.array([
             math.radians(desired_rate_roll) * scale,
             math.radians(desired_rate_pitch) * scale,
-            math.radians(desired_rate_yaw) * scale
+            math.radians(desired_rate_yaw) * scale,
         ])
 
     def _compute_rate_control(self, ship, dt) -> np.ndarray:
@@ -280,42 +326,140 @@ class RCSSystem(BaseSystem):
 
     def _allocate_thrusters(self, desired_torque: np.ndarray):
         """Allocate thruster outputs to achieve desired torque.
-        
-        Simple heuristic allocation - fires thrusters that produce
-        torque in the desired direction.
+
+        Uses projection-based allocation: each thruster is throttled
+        proportional to its torque projection onto the desired axis.
+        Thrusters whose cross-axis torque exceeds their useful torque
+        are rejected to prevent unwanted pitch/roll during yaw commands
+        (and vice versa). This avoids the cross-coupling bug where bow
+        thrusters firing for yaw also induce pitch.
         """
         # Reset all thrusters
         for thruster in self.thrusters:
             thruster.throttle = 0.0
-        
+
         desired_mag = np.linalg.norm(desired_torque)
         if desired_mag < 0.01:
             return
-        
+
         # Normalize desired torque direction
         desired_dir = desired_torque / desired_mag
-        
+
         # For each thruster, compute its torque contribution at max throttle
-        # and set throttle proportional to alignment with desired torque
+        # and set throttle proportional to alignment with desired torque.
+        # Reject thrusters with excessive cross-axis torque.
         for thruster in self.thrusters:
             # Compute max torque this thruster can produce
             thruster.throttle = 1.0
             max_torque = thruster.get_torque()
             thruster.throttle = 0.0
-            
+
             max_torque_mag = np.linalg.norm(max_torque)
             if max_torque_mag < 0.01:
                 continue
-            
-            # Compute alignment: cos(θ) between thruster torque and desired torque
-            # Range: [-1, 1] where 1 = perfectly aligned, 0 = perpendicular, -1 = opposite
-            alignment = np.dot(max_torque, desired_dir) / max_torque_mag
-            
-            if alignment > 0:
-                # This thruster helps - set throttle proportionally
-                # throttle = (how much we need / how much this thruster provides) * alignment
-                throttle = (desired_mag / max_torque_mag) * alignment
-                thruster.throttle = max(0.0, min(1.0, throttle))
+
+            # Project thruster torque onto desired direction
+            projection = np.dot(max_torque, desired_dir)
+
+            if projection <= 0:
+                # Thruster opposes or is perpendicular -- skip
+                continue
+
+            # Check cross-axis contamination: the component of thruster
+            # torque orthogonal to the desired axis. If it's larger than
+            # the useful component, this thruster causes more harm than
+            # good (e.g. yaw thruster that also pitches).
+            cross_torque_sq = max_torque_mag**2 - projection**2
+            if cross_torque_sq > projection**2:
+                # Cross-axis torque exceeds useful torque -- reject
+                continue
+
+            # Throttle proportional to how much of the desired torque
+            # this thruster can contribute along the desired axis
+            throttle = desired_mag * projection / (max_torque_mag**2)
+            thruster.throttle = max(0.0, min(1.0, throttle))
+
+    # ----- Rotation estimation -----
+
+    def _get_max_angular_accel(self, ship) -> float:
+        """Max angular acceleration (deg/s^2) from thruster torque and inertia.
+
+        Sums the maximum torque magnitude across all thrusters on the
+        dominant axis (yaw, since flip-and-burn is a yaw maneuver) and
+        divides by moment of inertia.
+
+        Args:
+            ship: Ship object (for mass / moment of inertia)
+
+        Returns:
+            Angular acceleration in degrees per second squared
+        """
+        inertia = getattr(ship, 'moment_of_inertia', ship.mass * 10.0)
+        if inertia <= 0:
+            return 1.0  # safe floor
+
+        # Find max torque about yaw axis (index 2) from paired thrusters
+        max_yaw_torque = 0.0
+        for thruster in self.thrusters:
+            thruster.throttle = 1.0
+            torque = thruster.get_torque()
+            thruster.throttle = 0.0
+            # Only count positive yaw contribution (we'd fire matching pairs)
+            if abs(torque[2]) > 0.01:
+                max_yaw_torque += abs(torque[2])
+
+        # Thrusters fire in pairs (one side), so effective torque is
+        # roughly half the total (CW pair or CCW pair, not both).
+        effective_torque = max_yaw_torque / 2.0
+        if effective_torque < 0.01:
+            return 1.0
+
+        # alpha = tau / I  (rad/s^2), convert to deg/s^2
+        alpha_rad = effective_torque / inertia
+        return math.degrees(alpha_rad)
+
+    def estimate_rotation_time(self, angle_degrees: float, ship=None) -> float:
+        """Estimate time for a rotation of the given angle.
+
+        Uses a bang-bang (accelerate-then-decelerate) profile:
+        the RCS accelerates for half the angle, then decelerates for
+        the other half. Total time = 2 * sqrt(angle / alpha).
+
+        Also accounts for the maximum angular rate clamp -- if the
+        ship would exceed max_rate, it coasts at max_rate for the
+        middle portion.
+
+        Args:
+            angle_degrees: Rotation magnitude in degrees (always positive)
+            ship: Ship object (for inertia). If None, uses a rough default.
+
+        Returns:
+            Estimated rotation time in seconds
+        """
+        angle = abs(angle_degrees)
+        if angle < 0.5:
+            return 0.0
+
+        if ship is not None:
+            alpha = self._get_max_angular_accel(ship)
+        else:
+            # Fallback: assume modest angular acceleration
+            alpha = 5.0  # deg/s^2
+
+        alpha = max(alpha, 0.1)  # prevent division by zero
+
+        # Time and angle to reach max_rate under constant acceleration
+        t_accel_to_max = self.max_rate / alpha
+        angle_accel_to_max = 0.5 * alpha * t_accel_to_max**2
+
+        if angle <= 2.0 * angle_accel_to_max:
+            # Pure bang-bang: accelerate half, decelerate half
+            return 2.0 * math.sqrt(angle / alpha)
+        else:
+            # Trapezoidal: accel -> coast at max_rate -> decel
+            coast_angle = angle - 2.0 * angle_accel_to_max
+            coast_time = coast_angle / self.max_rate
+            return 2.0 * t_accel_to_max + coast_time
 
     # ----- Commands -----
     def command(self, action, params):

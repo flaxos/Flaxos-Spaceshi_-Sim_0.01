@@ -1,6 +1,11 @@
 # hybrid/navigation/autopilot/rendezvous.py
 """Rendezvous autopilot - flip-and-burn trajectory to arrive at a target
-with near-zero relative velocity.  Burn -> flip -> brake -> stationkeep."""
+with near-zero relative velocity.  Burn -> flip -> brake -> stationkeep.
+
+The braking trigger accounts for the distance the ship travels during the
+flip (when main drive is off but inertia keeps closing), which prevents
+the overshoot bug that a naive v^2/2a margin can't cover.
+"""
 
 import logging
 import math
@@ -16,6 +21,34 @@ from hybrid.utils.math_utils import subtract_vectors, magnitude
 logger = logging.getLogger(__name__)
 
 
+# -- Nav solution profiles ---------------------------------------------------
+# Each profile trades arrival speed vs fuel efficiency vs precision.
+
+NAV_PROFILES: Dict[str, Dict] = {
+    "aggressive": {
+        "max_thrust": 1.0,
+        "brake_margin": 1.1,
+        "flip_safety_factor": 1.0,
+        "description": "Full burn, minimal safety margin. Fastest but risks overshoot.",
+        "risk_level": "high",
+    },
+    "balanced": {
+        "max_thrust": 0.8,
+        "brake_margin": 1.3,
+        "flip_safety_factor": 1.5,
+        "description": "Moderate thrust and safety. Good balance of speed and control.",
+        "risk_level": "medium",
+    },
+    "conservative": {
+        "max_thrust": 0.5,
+        "brake_margin": 1.6,
+        "flip_safety_factor": 2.0,
+        "description": "Half thrust, generous margins. Slowest but very precise.",
+        "risk_level": "low",
+    },
+}
+
+
 class RendezvousAutopilot(BaseAutopilot):
     """Flip-and-burn autopilot for arriving at a stationary or slow target.
 
@@ -26,11 +59,11 @@ class RendezvousAutopilot(BaseAutopilot):
         stationkeep - Hold position via MatchVelocityAutopilot.
     """
 
+    PROFILES = NAV_PROFILES
+
     STATIONKEEP_RANGE = 100.0       # metres
     STATIONKEEP_SPEED = 1.0         # m/s relative
     FLIP_TOLERANCE_DEG = 10.0       # degrees
-    # Start braking slightly early to avoid overshooting
-    BRAKE_MARGIN = 1.05
 
     def __init__(self, ship, target_id: Optional[str] = None,
                  params: Optional[Dict] = None):
@@ -39,21 +72,38 @@ class RendezvousAutopilot(BaseAutopilot):
         Args:
             ship: Ship under autopilot control.
             target_id: Sensor contact ID of the target.
-            params: Optional overrides -- max_thrust (0-1),
-                    stationkeep_range (m), stationkeep_speed (m/s).
+            params: Optional overrides -- profile ("aggressive"|"balanced"|
+                    "conservative"), max_thrust (0-1), brake_margin,
+                    flip_safety_factor, stationkeep_range (m),
+                    stationkeep_speed (m/s).
+                    Individual params override profile values.
         """
         super().__init__(ship, target_id, params or {})
-        self.max_thrust: float = self.params.get("max_thrust", 1.0)
-        self.stationkeep_range: float = self.params.get(
-            "stationkeep_range", self.STATIONKEEP_RANGE)
-        self.stationkeep_speed: float = self.params.get(
-            "stationkeep_speed", self.STATIONKEEP_SPEED)
+
+        # Resolve profile, then overlay any explicit param overrides
+        self.profile_name: str = self.params.get("profile", "balanced")
+        profile = dict(self.PROFILES.get(self.profile_name, self.PROFILES["balanced"]))
+
+        # Individual params override profile defaults
+        self.max_thrust: float = float(self.params.get(
+            "max_thrust", profile["max_thrust"]))
+        self.brake_margin: float = float(self.params.get(
+            "brake_margin", profile["brake_margin"]))
+        self.flip_safety_factor: float = float(self.params.get(
+            "flip_safety_factor", profile["flip_safety_factor"]))
+        self.stationkeep_range: float = float(self.params.get(
+            "stationkeep_range", self.STATIONKEEP_RANGE))
+        self.stationkeep_speed: float = float(self.params.get(
+            "stationkeep_speed", self.STATIONKEEP_SPEED))
+
         self.phase: str = "burn"
         self._match_ap: Optional[MatchVelocityAutopilot] = None
         self.status = "active"
         if not target_id:
             self.status = "error"
             self.error_message = "No target specified for rendezvous"
+
+    # ----- physics helpers --------------------------------------------------
 
     def _get_max_accel(self) -> float:
         """Max linear acceleration (m/s^2) from propulsion, with safe floor."""
@@ -69,7 +119,40 @@ class RendezvousAutopilot(BaseAutopilot):
             return float("inf")
         return (speed * speed) / (2.0 * accel)
 
-    # ----- core compute ------------------------------------------------
+    def _estimate_flip_time(self) -> float:
+        """Estimate how long a 180-degree flip takes using RCS capability.
+
+        Queries the RCS system's estimate_rotation_time() if available,
+        otherwise falls back to a conservative default.
+
+        Returns:
+            Estimated flip duration in seconds.
+        """
+        rcs = self.ship.systems.get("rcs")
+        if rcs and hasattr(rcs, "estimate_rotation_time"):
+            return rcs.estimate_rotation_time(180.0, self.ship)
+        # Fallback: assume a modest RCS can do 180 in ~20 seconds
+        return 20.0
+
+    def _corrected_braking_distance(self, closing_speed: float,
+                                    a_max: float) -> float:
+        """Braking trigger distance that accounts for flip coasting.
+
+        During the flip the ship cannot brake but still closes at
+        current speed.  The old BRAKE_MARGIN of 1.05 only added 5%
+        to kinematic distance, which is vastly insufficient at high
+        closing speeds.
+
+        Formula:
+            d_needed = d_brake * brake_margin
+                     + closing_speed * flip_time * flip_safety_factor
+        """
+        d_brake = self._braking_distance(closing_speed, a_max)
+        flip_time = self._estimate_flip_time()
+        flip_coast = closing_speed * flip_time * self.flip_safety_factor
+        return d_brake * self.brake_margin + flip_coast
+
+    # ----- core compute ----------------------------------------------------
 
     def compute(self, dt: float, sim_time: float) -> Optional[Dict]:
         """Compute thrust/heading command for this tick.
@@ -98,15 +181,16 @@ class RendezvousAutopilot(BaseAutopilot):
             return self._compute_stationkeep(dt, sim_time)
 
         a_max = self._get_max_accel()
-        d_brake = self._braking_distance(closing_speed, a_max) * self.BRAKE_MARGIN
+        d_trigger = self._corrected_braking_distance(closing_speed, a_max)
 
         # Phase transitions
         if self.phase == "burn":
-            if closing_speed > 0 and current_range <= d_brake:
+            if closing_speed > 0 and current_range <= d_trigger:
                 logger.info(
                     "Rendezvous: BURN -> FLIP at range %.0f m, "
-                    "closing %.1f m/s, d_brake %.0f m",
-                    current_range, closing_speed, d_brake)
+                    "closing %.1f m/s, d_trigger %.0f m (flip %.1fs)",
+                    current_range, closing_speed, d_trigger,
+                    self._estimate_flip_time())
                 self.phase = "flip"
         elif self.phase == "flip":
             if self._heading_is_retrograde(rel):
@@ -129,7 +213,7 @@ class RendezvousAutopilot(BaseAutopilot):
             return self._compute_brake(rel)
         return self._compute_stationkeep(dt, sim_time)
 
-    # ----- phase implementations ---------------------------------------
+    # ----- phase implementations -------------------------------------------
 
     def _compute_burn(self, target) -> Dict:
         """Accelerate toward the target."""
@@ -155,7 +239,7 @@ class RendezvousAutopilot(BaseAutopilot):
                 {"tolerance": 0.5, "max_thrust": self.max_thrust})
         return self._match_ap.compute(dt, sim_time)
 
-    # ----- heading helpers ---------------------------------------------
+    # ----- heading helpers -------------------------------------------------
 
     def _retrograde_heading(self, rel: Dict) -> Dict:
         """Heading that opposes the ship's velocity relative to target.
@@ -179,13 +263,14 @@ class RendezvousAutopilot(BaseAutopilot):
             desired.get("pitch", 0) - cur.get("pitch", 0)))
         return yaw_err < self.FLIP_TOLERANCE_DEG and pitch_err < self.FLIP_TOLERANCE_DEG
 
-    # ----- state / telemetry -------------------------------------------
+    # ----- state / telemetry -----------------------------------------------
 
     def get_state(self) -> Dict:
         """Rich state dict for GUI: phase, range, closing_speed,
-        braking_distance, time_to_arrival, status_text."""
+        braking_distance, time_to_arrival, profile, status_text."""
         state = super().get_state()
         state["phase"] = self.phase
+        state["profile"] = self.profile_name
 
         target = self.get_target()
         if not target:
@@ -203,6 +288,7 @@ class RendezvousAutopilot(BaseAutopilot):
             "range": current_range,
             "closing_speed": closing_speed,
             "braking_distance": d_brake,
+            "flip_time_estimate": self._estimate_flip_time(),
             "time_to_arrival": eta,
             "status_text": self._build_status_text(current_range, eta),
         })
@@ -239,7 +325,7 @@ class RendezvousAutopilot(BaseAutopilot):
         return f"Station-keeping at {d}"
 
 
-# ----- module-level formatting helpers ---------------------------------
+# ----- module-level formatting helpers ------------------------------------
 
 def _format_distance(metres: float) -> str:
     """Format a distance for display."""

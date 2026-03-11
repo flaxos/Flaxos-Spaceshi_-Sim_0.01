@@ -1,17 +1,22 @@
 /**
  * Flight Computer Panel — Unified Command Panel
  * Combines autopilot mode selection, coordinate navigation, inline status,
- * and course options into a single command interface.
+ * nav solution profiles, and course options into a single command interface.
  *
  * Command mapping:
- *   Navigate  -> sendShipCommand("set_course", {x, y, z, stop, tolerance, max_thrust})
- *   Rendezvous, Intercept, Match Vel -> sendShipCommand("autopilot", {program, target})
+ *   Navigate  -> sendShipCommand("set_course", {x, y, z, stop, tolerance, max_thrust, profile})
+ *   Rendezvous, Intercept, Match Vel -> sendShipCommand("autopilot", {program, target, profile})
  *   Hold, Cruise, Orbit, Evasive     -> sendShipCommand("autopilot", {program})
  *   Manual / Abort                    -> sendShipCommand("autopilot", {program: "off"})
  *
+ * Nav solutions:
+ *   get_nav_solutions returns 3 profiles (aggressive/balanced/conservative) with
+ *   ETA, fuel cost, accuracy, and risk. Cards are shown when a target is selected
+ *   or coordinates are entered. Auto-polls every 5s while visible.
+ *
  * Tier awareness:
- *   ARCADE:     full command grid
- *   CPU-ASSIST: hides Match Vel, Orbit, Evasive (too granular)
+ *   ARCADE:     full command grid + nav solution cards
+ *   CPU-ASSIST: hides Match Vel, Orbit, Evasive (too granular) + shows nav solution cards
  *   RAW:        hidden by tiers.css; shows collapsed disabled-reason if forced visible
  */
 
@@ -28,6 +33,16 @@ import {
 // Modes hidden in CPU-ASSIST tier (too granular for order-based play)
 const GRANULAR_CMD_IDS = ["cmd-match", "cmd-orbit", "cmd-evasive"];
 
+// Profile color/label config for nav solution cards
+const PROFILE_CONFIG = {
+  aggressive:   { label: "Aggressive",   accent: "#ff6644", riskColor: "#ff4444", riskLabel: "HIGH" },
+  balanced:     { label: "Balanced",     accent: "#4488ff", riskColor: "#ffaa00", riskLabel: "MEDIUM" },
+  conservative: { label: "Conservative", accent: "#00cc66", riskColor: "#00cc66", riskLabel: "LOW" },
+};
+
+// Programs that support nav solution profiles
+const PROFILE_PROGRAMS = ["rendezvous", "intercept", "match"];
+
 class FlightComputerPanel extends HTMLElement {
   constructor() {
     super();
@@ -38,6 +53,13 @@ class FlightComputerPanel extends HTMLElement {
     this._showAdvanced = false;
     this._pendingAction = null;
     this._keyHandler = null;
+
+    // Nav solutions state
+    this._selectedProfile = "balanced";
+    this._navSolutions = null;       // last response from get_nav_solutions
+    this._navSolPollInterval = null;  // 5s refresh timer
+    this._lastSolTarget = null;       // target_id used for last fetch
+    this._lastSolCoords = null;       // {x,y,z} used for last fetch
   }
 
   connectedCallback() {
@@ -54,6 +76,7 @@ class FlightComputerPanel extends HTMLElement {
     if (this._unsubscribe) { this._unsubscribe(); this._unsubscribe = null; }
     if (this._keyHandler) { document.removeEventListener("keydown", this._keyHandler); this._keyHandler = null; }
     if (this._tierHandler) { document.removeEventListener("tier-change", this._tierHandler); this._tierHandler = null; }
+    this._stopNavSolPolling();
   }
 
   _subscribe() {
@@ -63,14 +86,18 @@ class FlightComputerPanel extends HTMLElement {
     });
   }
 
-  /** Hide granular commands in CPU-ASSIST tier */
+  /** Hide granular commands in CPU-ASSIST tier; hide nav solutions in RAW tier */
   _applyTier() {
     const tier = window.controlTier || "arcade";
     const isCpuAssist = tier === "cpu-assist";
+    const isRaw = tier === "raw";
     GRANULAR_CMD_IDS.forEach(id => {
       const btn = this.shadowRoot.getElementById(id);
       if (btn) btn.classList.toggle("hidden", isCpuAssist);
     });
+    // Nav solutions: hidden in RAW (manual only, no computer help)
+    const navSolSection = this.shadowRoot.getElementById("nav-solutions");
+    if (navSolSection) navSolSection.classList.toggle("tier-hidden", isRaw);
   }
 
   render() {
@@ -156,9 +183,83 @@ class FlightComputerPanel extends HTMLElement {
         .target-select:focus { outline: none; border-color: var(--status-info, #00aaff); }
 
         .hidden { display: none !important; }
+        .tier-hidden { display: none !important; }
+
+        /* --- Nav Solutions Cards --- */
+        .nav-solutions { display: none; margin-bottom: 12px; }
+        .nav-solutions.visible { display: block; }
+        .nav-solutions.tier-hidden { display: none !important; }
+        .nav-sol-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+        .nav-sol-title { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary, #888899); }
+        .nav-sol-meta { font-size: 0.6rem; color: var(--text-dim, #555566); font-family: var(--font-mono, "JetBrains Mono", monospace); }
+        .nav-sol-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .nav-sol-card {
+          padding: 10px;
+          background: var(--bg-input, #1a1a24);
+          border: 1px solid var(--border-default, #2a2a3a);
+          border-radius: 6px;
+          cursor: pointer;
+          transition: all 0.15s ease;
+          position: relative;
+        }
+        .nav-sol-card:hover { background: var(--bg-hover, #22222e); }
+        .nav-sol-card.selected { border-width: 2px; }
+        .nav-sol-card.selected::after {
+          content: "SELECTED";
+          position: absolute;
+          top: 4px;
+          right: 6px;
+          font-size: 0.5rem;
+          font-weight: 700;
+          letter-spacing: 0.5px;
+          opacity: 0.8;
+        }
+        .nav-sol-card.aggressive { border-color: #ff6644; }
+        .nav-sol-card.aggressive.selected { background: rgba(255, 102, 68, 0.08); }
+        .nav-sol-card.aggressive.selected::after { color: #ff6644; }
+        .nav-sol-card.balanced { border-color: #4488ff; }
+        .nav-sol-card.balanced.selected { background: rgba(68, 136, 255, 0.08); }
+        .nav-sol-card.balanced.selected::after { color: #4488ff; }
+        .nav-sol-card.conservative { border-color: #00cc66; }
+        .nav-sol-card.conservative.selected { background: rgba(0, 204, 102, 0.08); }
+        .nav-sol-card.conservative.selected::after { color: #00cc66; }
+
+        .sol-profile-name { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 6px; }
+        .nav-sol-card.aggressive .sol-profile-name { color: #ff6644; }
+        .nav-sol-card.balanced .sol-profile-name { color: #4488ff; }
+        .nav-sol-card.conservative .sol-profile-name { color: #00cc66; }
+
+        .sol-stat { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; }
+        .sol-stat-lbl { font-size: 0.6rem; color: var(--text-dim, #555566); text-transform: uppercase; }
+        .sol-stat-val { font-size: 0.7rem; font-family: var(--font-mono, "JetBrains Mono", monospace); color: var(--text-primary, #e0e0e0); }
+
+        /* Fuel bar */
+        .sol-fuel-bar { height: 4px; background: var(--bg-primary, #0a0a0f); border-radius: 2px; margin-top: 2px; margin-bottom: 4px; overflow: hidden; }
+        .sol-fuel-fill { height: 100%; border-radius: 2px; transition: width 0.3s ease; }
+        .nav-sol-card.aggressive .sol-fuel-fill { background: #ff6644; }
+        .nav-sol-card.balanced .sol-fuel-fill { background: #4488ff; }
+        .nav-sol-card.conservative .sol-fuel-fill { background: #00cc66; }
+
+        /* Risk badge */
+        .sol-risk-badge { display: inline-block; font-size: 0.55rem; font-weight: 700; letter-spacing: 0.5px; padding: 1px 6px; border-radius: 3px; }
+        .sol-risk-badge.high { color: #ff4444; background: rgba(255, 68, 68, 0.15); }
+        .sol-risk-badge.medium { color: #ffaa00; background: rgba(255, 170, 0, 0.15); }
+        .sol-risk-badge.low { color: #00cc66; background: rgba(0, 204, 102, 0.15); }
+
+        .nav-sol-desc { font-size: 0.55rem; color: var(--text-dim, #555566); font-style: italic; margin-top: 4px; line-height: 1.3; }
+
+        .nav-sol-loading { text-align: center; padding: 16px; font-size: 0.7rem; color: var(--text-dim, #555566); font-style: italic; }
+        .nav-sol-error { text-align: center; padding: 8px; font-size: 0.7rem; color: var(--status-critical, #ff4444); }
+
+        /* Active profile indicator in inline status */
+        .active-profile-badge { font-size: 0.65rem; font-weight: 600; padding: 1px 6px; border-radius: 3px; margin-left: 6px; }
+        .active-profile-badge.aggressive { color: #ff6644; background: rgba(255, 102, 68, 0.15); }
+        .active-profile-badge.balanced { color: #4488ff; background: rgba(68, 136, 255, 0.15); }
+        .active-profile-badge.conservative { color: #00cc66; background: rgba(0, 204, 102, 0.15); }
 
         @media (max-width: 768px) {
           .command-grid { grid-template-columns: repeat(3, 1fr); }
+          .nav-sol-grid { grid-template-columns: 1fr; }
         }
       </style>
 
@@ -167,6 +268,7 @@ class FlightComputerPanel extends HTMLElement {
         <div class="status-header">
           <span class="mode-badge executing" id="mode-badge">AUTOPILOT</span>
           <span class="status-command" id="status-command">--</span>
+          <span class="active-profile-badge hidden" id="active-profile-badge"></span>
           <span class="status-target" id="status-target"></span>
         </div>
         <div class="status-text-line" id="status-text"></div>
@@ -226,6 +328,17 @@ class FlightComputerPanel extends HTMLElement {
         </select>
       </div>
 
+      <!-- Nav Solutions (shown when target selected or coords entered) -->
+      <div class="nav-solutions" id="nav-solutions">
+        <div class="nav-sol-header">
+          <span class="nav-sol-title">Nav Solutions</span>
+          <span class="nav-sol-meta" id="nav-sol-meta"></span>
+        </div>
+        <div id="nav-sol-content">
+          <div class="nav-sol-grid" id="nav-sol-grid"></div>
+        </div>
+      </div>
+
       <div class="command-grid" id="command-grid">
         <button class="cmd-btn wide" id="cmd-rendezvous" title="Approach and arrive at target with zero velocity (flip-and-burn). Requires target.">
           <span class="cmd-label">Rendezvous</span><span class="cmd-subtitle">flip & arrive</span>
@@ -258,10 +371,30 @@ class FlightComputerPanel extends HTMLElement {
   _setupInteraction() {
     const $ = (id) => this.shadowRoot.getElementById(id);
 
-    // Navigate button - toggles coordinate input
+    // Navigate button - toggles coordinate input and fetches solutions for coords
     $("cmd-navigate").addEventListener("click", () => this._toggleCoordInput());
     $("nav-go-btn").addEventListener("click", () => this._sendNavigate());
-    $("nav-cancel-btn").addEventListener("click", () => this._hideCoordInput());
+    $("nav-cancel-btn").addEventListener("click", () => { this._hideCoordInput(); this._hideNavSolutions(); });
+
+    // Fetch nav solutions when coordinate inputs change (debounced)
+    let coordDebounce = null;
+    const coordInputHandler = () => {
+      clearTimeout(coordDebounce);
+      coordDebounce = setTimeout(() => {
+        if (!this._showCoordinateInput) return;
+        const x = parseFloat($("nav-x").value) || 0;
+        const y = parseFloat($("nav-y").value) || 0;
+        const z = parseFloat($("nav-z").value) || 0;
+        // Only fetch if at least one coord is non-zero
+        if (x !== 0 || y !== 0 || z !== 0) {
+          this._fetchNavSolutions({ target_position: { x, y, z } });
+          this._showNavSolutions();
+        }
+      }, 800);
+    };
+    $("nav-x").addEventListener("input", coordInputHandler);
+    $("nav-y").addEventListener("input", coordInputHandler);
+    $("nav-z").addEventListener("input", coordInputHandler);
 
     // Advanced options toggle
     $("adv-toggle").addEventListener("click", () => {
@@ -289,12 +422,29 @@ class FlightComputerPanel extends HTMLElement {
     $("cmd-abort").addEventListener("click", () => this._sendAutopilot("off"));
     $("disengage-btn").addEventListener("click", () => this._sendAutopilot("off"));
 
-    // Target select change - auto-send if pending action
+    // Target select change — fetch nav solutions, then wait for user to confirm
     $("target-select").addEventListener("change", (e) => {
       if (e.target.value && this._pendingAction) {
-        this._sendTargetCommand(this._pendingAction, e.target.value);
-        this._hideTargetSelect();
+        // For profile-supporting programs, fetch solutions before sending
+        if (PROFILE_PROGRAMS.includes(this._pendingAction)) {
+          this._fetchNavSolutions({ target_id: e.target.value });
+          this._showNavSolutions();
+          // Don't auto-send yet — user picks a profile card then confirms via card click
+        } else {
+          this._sendTargetCommand(this._pendingAction, e.target.value);
+          this._hideTargetSelect();
+        }
       }
+    });
+
+    // Nav solution card clicks (delegated)
+    $("nav-sol-grid").addEventListener("click", (e) => {
+      const card = e.target.closest(".nav-sol-card");
+      if (!card) return;
+      const profile = card.dataset.profile;
+      if (!profile) return;
+      this._selectedProfile = profile;
+      this._renderNavSolCards();
     });
 
     // Keyboard shortcuts
@@ -349,6 +499,7 @@ class FlightComputerPanel extends HTMLElement {
   _hideTargetSelect() {
     this._pendingAction = null;
     this.shadowRoot.getElementById("target-section").classList.remove("visible");
+    this._hideNavSolutions();
   }
 
   // --- Commands ---
@@ -374,14 +525,16 @@ class FlightComputerPanel extends HTMLElement {
     const tolerance = parseFloat($("opt-tolerance").value) || 100;
     const max_thrust = (parseFloat($("opt-thrust").value) || 100) / 100;
     const stop = $("opt-stop").checked;
+    const profile = this._selectedProfile || "balanced";
 
     try {
-      const response = await wsClient.sendShipCommand("set_course", { x, y, z, tolerance, max_thrust, stop });
+      const response = await wsClient.sendShipCommand("set_course", { x, y, z, tolerance, max_thrust, stop, profile });
       if (response?.error) {
         this._showMessage(`Navigate error: ${response.error}`, "error");
       } else {
-        this._showMessage(`Navigating to (${x}, ${y}, ${z})`, "success");
+        this._showMessage(`Navigating to (${x}, ${y}, ${z}) [${profile}]`, "success");
         this._hideCoordInput();
+        this._hideNavSolutions();
       }
     } catch (error) {
       this._showMessage(`Navigate failed: ${error.message}`, "error");
@@ -389,15 +542,201 @@ class FlightComputerPanel extends HTMLElement {
   }
 
   async _sendTargetCommand(action, targetId) {
+    const profile = PROFILE_PROGRAMS.includes(action) ? (this._selectedProfile || "balanced") : undefined;
     try {
-      const response = await wsClient.sendShipCommand("autopilot", { program: action, target: targetId });
+      const params = { program: action, target: targetId };
+      if (profile) params.profile = profile;
+      const response = await wsClient.sendShipCommand("autopilot", params);
       if (response?.error) {
         this._showMessage(`${action} error: ${response.error}`, "error");
       } else {
-        this._showMessage(`${action}: ${targetId}`, "success");
+        const profileNote = profile ? ` [${profile}]` : "";
+        this._showMessage(`${action}: ${targetId}${profileNote}`, "success");
+        this._hideNavSolutions();
       }
     } catch (error) {
       this._showMessage(`${action} failed: ${error.message}`, "error");
+    }
+  }
+
+  // --- Nav Solutions ---
+
+  /** Show the nav solutions section */
+  _showNavSolutions() {
+    const section = this.shadowRoot.getElementById("nav-solutions");
+    if (section) section.classList.add("visible");
+  }
+
+  /** Hide the nav solutions section and stop polling */
+  _hideNavSolutions() {
+    const section = this.shadowRoot.getElementById("nav-solutions");
+    if (section) section.classList.remove("visible");
+    this._stopNavSolPolling();
+    this._navSolutions = null;
+    this._lastSolTarget = null;
+    this._lastSolCoords = null;
+  }
+
+  /** Fetch nav solutions from the server and start auto-refresh polling */
+  async _fetchNavSolutions(params) {
+    // Save the query params so we can re-poll
+    if (params.target_id) {
+      this._lastSolTarget = params.target_id;
+      this._lastSolCoords = null;
+    } else if (params.target_position) {
+      this._lastSolCoords = params.target_position;
+      this._lastSolTarget = null;
+    }
+
+    // Show loading on first fetch
+    const content = this.shadowRoot.getElementById("nav-sol-content");
+    if (!this._navSolutions) {
+      content.innerHTML = '<div class="nav-sol-loading">Computing solutions...</div>';
+    }
+
+    try {
+      const resp = await wsClient.send("get_nav_solutions", params);
+      if (resp?.error) {
+        content.innerHTML = `<div class="nav-sol-error">${resp.error}</div>`;
+        this._navSolutions = null;
+        return;
+      }
+      this._navSolutions = resp;
+      // Restore the grid container (loading may have replaced it)
+      content.innerHTML = '<div class="nav-sol-grid" id="nav-sol-grid"></div>';
+      // Re-attach click delegation on the new grid element
+      this.shadowRoot.getElementById("nav-sol-grid").addEventListener("click", (e) => {
+        const card = e.target.closest(".nav-sol-card");
+        if (!card) return;
+        const profile = card.dataset.profile;
+        if (profile) {
+          this._selectedProfile = profile;
+          this._renderNavSolCards();
+        }
+      });
+      this._renderNavSolCards();
+      this._updateNavSolMeta();
+    } catch (err) {
+      content.innerHTML = `<div class="nav-sol-error">Failed: ${err.message}</div>`;
+      this._navSolutions = null;
+    }
+
+    // Start 5-second refresh polling if not already running
+    this._startNavSolPolling();
+  }
+
+  /** Re-poll solutions using the last known target/coords */
+  _repollNavSolutions() {
+    if (this._lastSolTarget) {
+      this._fetchNavSolutions({ target_id: this._lastSolTarget });
+    } else if (this._lastSolCoords) {
+      this._fetchNavSolutions({ target_position: this._lastSolCoords });
+    }
+  }
+
+  _startNavSolPolling() {
+    if (this._navSolPollInterval) return;
+    this._navSolPollInterval = setInterval(() => this._repollNavSolutions(), 5000);
+  }
+
+  _stopNavSolPolling() {
+    if (this._navSolPollInterval) {
+      clearInterval(this._navSolPollInterval);
+      this._navSolPollInterval = null;
+    }
+  }
+
+  /** Update the meta text (range + closing speed from last response) */
+  _updateNavSolMeta() {
+    const meta = this.shadowRoot.getElementById("nav-sol-meta");
+    if (!meta || !this._navSolutions) return;
+    const range = this._navSolutions.range;
+    const closing = this._navSolutions.closing_speed;
+    const parts = [];
+    if (range != null) parts.push(`Range: ${formatDistance(range)}`);
+    if (closing != null) parts.push(`Close: ${closing.toFixed(1)} m/s`);
+    meta.textContent = parts.join(" | ");
+  }
+
+  /** Render the 3 solution cards into the grid */
+  _renderNavSolCards() {
+    const grid = this.shadowRoot.getElementById("nav-sol-grid");
+    if (!grid || !this._navSolutions?.solutions) return;
+
+    const solutions = this._navSolutions.solutions;
+    grid.innerHTML = "";
+
+    for (const key of ["aggressive", "balanced", "conservative"]) {
+      const sol = solutions[key];
+      if (!sol) continue;
+      const cfg = PROFILE_CONFIG[key];
+      const isSelected = this._selectedProfile === key;
+      const riskClass = (sol.risk_level || cfg.riskLabel).toLowerCase();
+
+      const card = document.createElement("div");
+      card.className = `nav-sol-card ${key}${isSelected ? " selected" : ""}`;
+      card.dataset.profile = key;
+      card.title = sol.description || `${cfg.label} approach profile`;
+
+      const fuelPct = Math.min(100, Math.round((sol.fuel_cost || 0) * 100));
+
+      card.innerHTML = `
+        <div class="sol-profile-name">${cfg.label}</div>
+        <div class="sol-stat">
+          <span class="sol-stat-lbl">ETA</span>
+          <span class="sol-stat-val">${formatEta(sol.total_time)}</span>
+        </div>
+        <div class="sol-stat">
+          <span class="sol-stat-lbl">Fuel</span>
+          <span class="sol-stat-val">${fuelPct}%</span>
+        </div>
+        <div class="sol-fuel-bar"><div class="sol-fuel-fill" style="width: ${fuelPct}%"></div></div>
+        <div class="sol-stat">
+          <span class="sol-stat-lbl">Accuracy</span>
+          <span class="sol-stat-val">${formatDistance(sol.accuracy)}</span>
+        </div>
+        <div class="sol-stat">
+          <span class="sol-stat-lbl">Risk</span>
+          <span class="sol-risk-badge ${riskClass}">${(sol.risk_level || cfg.riskLabel).toUpperCase()}</span>
+        </div>
+        ${sol.description ? `<div class="nav-sol-desc">${sol.description}</div>` : ""}
+      `;
+
+      grid.appendChild(card);
+    }
+
+    // If a target is selected and a profile-supporting action is pending,
+    // show a confirm/engage button below the cards
+    this._renderEngageButton();
+  }
+
+  /** Show an "Engage" button below nav sol cards when a target + profile are ready */
+  _renderEngageButton() {
+    let engageBtn = this.shadowRoot.getElementById("nav-sol-engage");
+    const targetSelect = this.shadowRoot.getElementById("target-select");
+    const targetId = targetSelect?.value;
+
+    if (this._pendingAction && PROFILE_PROGRAMS.includes(this._pendingAction) && targetId) {
+      if (!engageBtn) {
+        engageBtn = document.createElement("button");
+        engageBtn.id = "nav-sol-engage";
+        engageBtn.className = "coord-go-btn";
+        engageBtn.style.cssText = "width: 100%; margin-top: 8px; padding: 10px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; cursor: pointer; border: none; background: var(--status-nominal, #00ff88); color: var(--bg-primary, #0a0a0f); font-family: var(--font-sans, 'Inter', sans-serif);";
+        engageBtn.addEventListener("click", () => {
+          const tgt = this.shadowRoot.getElementById("target-select")?.value;
+          if (tgt && this._pendingAction) {
+            this._sendTargetCommand(this._pendingAction, tgt);
+            this._hideTargetSelect();
+          }
+        });
+        const section = this.shadowRoot.getElementById("nav-solutions");
+        section.appendChild(engageBtn);
+      }
+      const profileLabel = PROFILE_CONFIG[this._selectedProfile]?.label || this._selectedProfile;
+      engageBtn.textContent = `Engage ${this._pendingAction.toUpperCase()} [${profileLabel}]`;
+      engageBtn.style.display = "block";
+    } else if (engageBtn) {
+      engageBtn.style.display = "none";
     }
   }
 
@@ -419,11 +758,25 @@ class FlightComputerPanel extends HTMLElement {
     inlineStatus.classList.remove("hidden");
     disengageBar.classList.add("visible");
 
-    // Header: badge, command, target
+    // Header: badge, command, active profile, target
     const programLabel = (fc.program || "").toUpperCase().replace(/_/g, " ");
     this.shadowRoot.getElementById("status-command").textContent = programLabel || "AUTOPILOT";
     this.shadowRoot.getElementById("status-target").textContent = fc.target ? `-> ${fc.target}` : "";
     this.shadowRoot.getElementById("status-text").textContent = fc.statusText || "";
+
+    // Show active profile badge if autopilot is using a profile-supporting program
+    const profileBadge = this.shadowRoot.getElementById("active-profile-badge");
+    if (profileBadge) {
+      const isProfileProgram = PROFILE_PROGRAMS.includes(fc.program?.toLowerCase()) ||
+        fc.program?.toLowerCase() === "goto_position" || fc.program?.toLowerCase() === "set_course";
+      if (isProfileProgram && this._selectedProfile) {
+        const cfg = PROFILE_CONFIG[this._selectedProfile];
+        profileBadge.textContent = (cfg?.label || this._selectedProfile).toUpperCase();
+        profileBadge.className = `active-profile-badge ${this._selectedProfile}`;
+      } else {
+        profileBadge.classList.add("hidden");
+      }
+    }
 
     // Phase progress bar
     const { segmentsHtml, labelsHtml } = buildPhaseProgressHtml(fc.program, fc.phase);

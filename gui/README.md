@@ -22,37 +22,32 @@ python tools/start_gui_stack.py --server station
 
 This launches the TCP simulation server, WebSocket bridge, and GUI HTTP server.
 
-### 1. Install Dependencies
+### Manual Setup
+
+**1. Install Dependencies**
 
 ```bash
 pip install websockets
 ```
 
-### 2. Start the Simulation Server
+**2. Start the Simulation Server**
 
 ```bash
-# Recommended: station-aware server (multi-crew / permissions)
 python -m server.station_server --port 8765
-
-# Minimal server (no stations)
-# python -m server.run_server --port 8765
 ```
 
-### 3. Start the WebSocket Bridge
+**3. Start the WebSocket Bridge**
 
 ```bash
 python gui/ws_bridge.py --tcp-port 8765 --ws-port 8081
 ```
 
-### 4. Open the GUI
-
-Open `gui/index.html` in a browser, or serve it via a simple HTTP server:
+**4. Open the GUI**
 
 ```bash
-# Python 3
 cd gui
-python -m http.server 3000
-# Then open http://localhost:3000
+python -m http.server 3100
+# Then open http://localhost:3100
 ```
 
 ## Configuration
@@ -66,89 +61,155 @@ python -m http.server 3000
 --tcp-port   TCP server port (default: 8765)
 ```
 
+Default ports: TCP=8765, WS=8081, HTTP=3100
+
 ### GUI URL Parameters
 
-- `?ws=ws://host:port` - Custom WebSocket URL
-- `?noauto` - Disable auto-connect
-- `?debug` - Enable debug logging
+- `?ws=ws://host:port` — Custom WebSocket URL
+- `?noauto` — Disable auto-connect
+- `?debug` — Enable debug logging
 
-## Development Phases
+## Helm View — Glass Cockpit Layout
 
-The GUI is being developed in phases:
+The Helm view uses a 3-column layout across 10 panels (consolidated from 14 in earlier builds).
 
-- **Phase 1**: Foundation & Transport (WebSocket bridge, connection UI) ✓
-- **Phase 2**: Text Interface (event log, command prompt) ✓
-- **Phase 3**: Status Displays (ship status, navigation, sensors, weapons) ✓
-- **Phase 4**: Visual Controls (throttle, heading, autopilot) ✓
-- **Phase 5**: Integration (layout, scenarios, missions) ✓
-- **Phase 6**: Mobile Optimization (touch controls, responsive) ✓
+```
+┌─────────────────┬──────────────────────┬──────────────────┐
+│  LEFT COLUMN    │   CENTER COLUMN      │  RIGHT COLUMN    │
+│  Situational    │   Command &          │  Ship Status     │
+│  Awareness      │   Control            │                  │
+│                 │                      │                  │
+│  Contacts       │  Flight Computer     │  Autopilot       │
+│  Flight Data    │  Manual Flight       │  Status          │
+│                 │  RCS / Attitude      │  Helm Queue      │
+│                 │  Docking             │  Maneuver        │
+│                 │                      │  Planner         │
+└─────────────────┴──────────────────────┴──────────────────┘
+                  [Helm Workflow Strip — full width]
+```
 
-## Mobile Support
+### Panels
 
-The GUI automatically switches to a mobile-optimized layout on screens <= 768px wide.
+| # | Panel | Column | Role |
+|---|-------|--------|------|
+| 1 | Contacts | Left | Sensor contacts list — read-only awareness |
+| 2 | Flight Data | Left | Position, velocity, delta-v — read-only; merged from nav + delta-v panels |
+| 3 | Flight Computer | Center | Primary command panel; absorbs autopilot-control + set-course |
+| 4 | Manual Flight | Center | Throttle + heading controls; merged from two separate panels |
+| 5 | RCS / Attitude | Center | Fine attitude control |
+| 6 | Autopilot Status | Right | Current autopilot program and phase — read-only |
+| 7 | Helm Queue | Right | Delegation queue; absorbs helm-requests panel |
+| 8 | Docking | Center | Docking approach and clamp controls |
+| 9 | Maneuver Planner | Right | Expert trajectory tool; renamed from Flight Computer Local |
+| 10 | Helm Workflow Strip | Full width | Breadcrumb showing current workflow step, tier-aware |
 
-### Mobile Features
-- **Tab Navigation**: 5 tabs (NAV, SEN, WPN, LOG, SYS) for panel grouping
-- **Touch Throttle**: Vertical drag control with 10% snap increments
-- **Touch Joystick**: Virtual joystick for pitch/yaw control
-- **Quick Actions**: Fire, Lock, Autopilot, Ping buttons
-- **Swipe Gestures**: Swipe left/right to change tabs
-- **iOS/Android Support**: Safe area handling, touch targets >= 44px
+### Panel Attributes
 
-### Testing on Mobile
-1. Ensure server is accessible on your network (`--host 0.0.0.0`)
-2. Open `http://<server-ip>:3000` on your mobile device
-3. See `docs/MOBILE_GUI_TESTING.md` for full testing checklist
+Panels accept three standard attributes that drive visual hierarchy and state:
+
+| Attribute | Values | Effect |
+|-----------|--------|--------|
+| `priority` | `primary`, `secondary`, `tertiary` | Raised background, border weight, and shadow depth |
+| `domain` | `nav`, `sensor`, `helm`, `comms`, `weapons`, `power` | Color-coded left border accent |
+| `disabled-reason` | Any string | Renders a disabled overlay on the panel with the provided explanation |
+
+Example:
+```html
+<flaxos-panel title="Manual Flight" priority="primary" domain="helm"
+              disabled-reason="Autopilot active — disengage to control manually">
+```
+
+Panel-group wrappers use `display: contents` so the inner panels participate directly in the CSS grid.
+
+### CSS Utility Classes
+
+These classes are available inside panel Shadow DOMs for consistent display of data:
+
+| Class | Use |
+|-------|-----|
+| `.status-chip` | Inline status pill; combine with `.nominal`, `.warning`, `.critical`, `.offline`, `.info` |
+| `.data-table-dense` | Compact monospace table for columnar readouts |
+| `.kv-inline` | Key-value pair row — label left, value right |
+| `.big-number` | Hero numeric display; use `.unit` as a child element for the unit label |
+| `.panel-group` / `.panel-group-header` | Section dividers within a panel |
+
+## Tier Visual Identity
+
+The control tier selector sets `body.tier-{id}` and a `window.controlTier` string. Each tier has a distinct visual language and promotes different panels as the hero (largest grid span).
+
+### RAW
+- Accent: red. Font: monospace. Corners: sharp. Overlay: scanline effect.
+- Hero panel: Manual Flight (8-column span).
+- Shows: manual controls (throttle, heading, RCS). Hides: autopilot panels, helm queue.
+- Audience: experienced pilots who want direct control.
+
+### ARCADE
+- Accent: blue. Font: mixed. Corners: rounded. Effect: blue glow.
+- Hero panel: Flight Computer (6-column span).
+- Shows: guided workflow panels. Hides: expert tools (Maneuver Planner).
+- Audience: new players following a workflow.
+
+### CPU-ASSIST
+- Accent: purple. Font: sans-serif. Type size: larger.
+- Hero panel: Autopilot Status (6-column span).
+- Shows: status and delegation panels. Hides: all manual flight controls.
+- Audience: captain-level oversight, autopilot does the flying.
+
+Tier CSS lives in `gui/styles/tiers.css`. Use view-specific panel class selectors (`body.tier-raw .helm-manual-flight-panel`) rather than `:has()` for cross-browser reliability.
 
 ## File Structure
 
 ```
 gui/
-├── index.html                # Main entry point
-├── ws_bridge.py              # WebSocket-TCP bridge
-├── README.md                 # This file
+├── index.html                    # Main entry point
+├── ws_bridge.py                  # WebSocket-TCP bridge
+├── README.md                     # This file
 ├── styles/
-│   ├── main.css              # CSS foundation & variables
-│   └── mobile.css            # Mobile-specific overrides
+│   ├── main.css                  # CSS foundation & variables
+│   ├── tiers.css                 # Tier visual identity & panel visibility
+│   └── mobile.css                # Mobile-specific overrides
 ├── js/
-│   ├── main.js               # App initialization
-│   ├── ws-client.js          # WebSocket client
-│   ├── state-manager.js      # State synchronization
-│   └── gestures.js           # Touch gesture handling
-├── components/
-│   ├── connection-status.js  # Connection indicator
-│   ├── panel.js              # Collapsible panel container
-│   ├── event-log.js          # Scrolling event log
-│   ├── command-prompt.js     # Text command input
-│   ├── system-message.js     # Toast notifications
-│   ├── ship-status.js        # Hull/fuel/power display
-│   ├── navigation-display.js # Position/velocity/heading
-│   ├── sensor-contacts.js    # Contact list & ping
-│   ├── targeting-display.js  # Target lock & solution
-│   ├── weapons-status.js     # Ammo & fire control
-│   ├── throttle-control.js   # Vertical throttle slider
-│   ├── heading-control.js    # Pitch/yaw controls
-│   ├── autopilot-control.js  # Autopilot mode selector
-│   ├── weapon-controls.js    # Fire/lock buttons
-│   ├── system-toggles.js     # System power toggles
-│   ├── quick-actions.js      # Quick action bar
-│   ├── scenario-loader.js    # Scenario list & load
-│   ├── mission-objectives.js # Mission status & objectives
-│   ├── touch-throttle.js     # Mobile touch throttle (Phase 6)
-│   └── touch-joystick.js     # Mobile virtual joystick (Phase 6)
-└── layouts/
-    └── mobile-layout.js      # Mobile tab layout (Phase 6)
+│   ├── main.js                   # App initialization
+│   ├── ws-client.js              # WebSocket client
+│   ├── state-manager.js          # State synchronization
+│   ├── gestures.js               # Touch gesture handling
+│   └── autopilot-utils.js        # Shared autopilot formatting & phase logic
+└── components/
+    ├── connection-status.js      # Connection indicator
+    ├── panel.js                  # Collapsible panel container (priority/domain/disabled-reason)
+    ├── event-log.js              # Scrolling event log
+    ├── command-prompt.js         # Text command input
+    ├── system-message.js         # Toast notifications
+    ├── ship-status.js            # Hull/fuel/power display
+    ├── flight-data-panel.js      # Position, velocity, delta-v (merged nav + delta-v)
+    ├── flight-computer-panel.js  # Primary helm command panel (absorbs autopilot-control + set-course)
+    ├── manual-flight-panel.js    # Throttle + heading (merged from two panels)
+    ├── rcs-control.js            # Fine attitude control
+    ├── autopilot-status.js       # Autopilot program & phase display (read-only)
+    ├── helm-queue-panel.js       # Delegation queue (absorbs helm-requests)
+    ├── docking-panel.js          # Docking approach & clamp controls
+    ├── maneuver-planner.js       # Expert trajectory tool (renamed from flight-computer.js)
+    ├── helm-workflow-strip.js    # Workflow breadcrumb strip
+    ├── sensor-contacts.js        # Contact list & ping
+    ├── targeting-display.js      # Target lock & solution
+    ├── weapons-status.js         # Ammo & fire control
+    ├── weapon-controls.js        # Fire/lock buttons
+    ├── system-toggles.js         # System power toggles
+    ├── scenario-loader.js        # Scenario list & load
+    ├── mission-objectives.js     # Mission status & objectives
+    ├── touch-throttle.js         # Mobile touch throttle
+    └── touch-joystick.js         # Mobile virtual joystick
 ```
 
 ## Commands
 
-The GUI sends JSON commands to the server in the format:
+The GUI sends JSON commands to the server:
 
 ```json
 {"cmd": "command_name", "arg1": "value1", ...}
 ```
 
-See `docs/GUI_DEV_PLAN.md` for the full command reference.
+See `docs/FLIGHT-COMPUTER.md` for the full command reference.
 
 ## Testing
 
@@ -156,11 +217,21 @@ See `docs/GUI_DEV_PLAN.md` for the full command reference.
 2. Start the WebSocket bridge
 3. Open the GUI in a browser
 4. Use the debug console to send test commands:
-   - `{"cmd": "get_state"}` - Get ship state
-   - `{"cmd": "contacts"}` - Get sensor contacts
-   - `{"cmd": "ping"}` - Active sensor ping
+   - `{"cmd": "get_state"}` — Get ship state
+   - `{"cmd": "contacts"}` — Get sensor contacts
+   - `{"cmd": "ping"}` — Active sensor ping
 
-The connection status indicator should show:
-- 🟢 CONNECTED - WebSocket connected
-- 🟡 CONNECTING - Attempting connection
-- ⚪ DISCONNECTED - Not connected
+Connection status indicator:
+- CONNECTED — WebSocket connected
+- CONNECTING — Attempting connection
+- DISCONNECTED — Not connected
+
+## Mobile Support
+
+The GUI automatically switches to a mobile-optimized layout on screens <= 768px wide.
+
+- Tab navigation: NAV, SEN, WPN, LOG, SYS
+- Touch throttle: vertical drag with 10% snap increments
+- Touch joystick: virtual pitch/yaw control
+- Swipe left/right to change tabs
+- iOS/Android safe area handling, touch targets >= 44px

@@ -205,6 +205,8 @@ class NavigationSystem(BaseSystem):
             return self._cmd_set_course(params)
         elif action == "set_plan":
             return self._cmd_set_plan(params)
+        elif action == "get_nav_solutions":
+            return self._cmd_get_nav_solutions(params)
         elif action == "status":
             return self.get_state()
 
@@ -319,6 +321,11 @@ class NavigationSystem(BaseSystem):
         if brake_buffer is not None:
             autopilot_params["brake_buffer"] = brake_buffer
 
+        # Pass through nav solution profile if provided
+        profile = params.get("profile")
+        if profile:
+            autopilot_params["profile"] = profile
+
         result = self.controller.engage_autopilot("goto_position", None, autopilot_params)
         if result.get("error"):
             return result
@@ -342,6 +349,42 @@ class NavigationSystem(BaseSystem):
             stop=stop,
             tolerance=tolerance,
         )
+
+    def _cmd_get_nav_solutions(self, params: dict):
+        """Calculate all 3 nav solution profiles for a target.
+
+        Args:
+            params: Dict with target_id and/or target_position {x, y, z}.
+
+        Returns:
+            dict: Success with solutions list, or error.
+        """
+        target_id = params.get("target_id") or params.get("target")
+        target_position = params.get("target_position")
+        if not target_position:
+            # Allow inline x/y/z
+            if params.get("x") is not None:
+                try:
+                    target_position = {
+                        "x": float(params["x"]),
+                        "y": float(params["y"]),
+                        "z": float(params["z"]),
+                    }
+                except (TypeError, ValueError, KeyError):
+                    pass
+
+        if not target_id and not target_position:
+            return error_dict("MISSING_TARGET",
+                              "Provide target_id or target_position {x, y, z}")
+
+        solutions = self.controller.calculate_nav_solutions(
+            target_id=target_id, target_position=target_position)
+
+        if solutions is None:
+            return error_dict("TARGET_NOT_FOUND",
+                              "Could not resolve target for nav solutions")
+
+        return success_dict("Nav solutions calculated", solutions=solutions)
 
     def _cmd_set_plan(self, params: dict):
         """Set a queued flight plan.
