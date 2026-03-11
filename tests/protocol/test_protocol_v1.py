@@ -283,8 +283,8 @@ class TestServerConfig:
             DEFAULT_HTTP_PORT,
         )
         assert DEFAULT_TCP_PORT == 8765
-        assert DEFAULT_WS_PORT == 8080
-        assert DEFAULT_HTTP_PORT == 3000
+        assert DEFAULT_WS_PORT == 8081
+        assert DEFAULT_HTTP_PORT == 3100
 
     def test_discovery_info_format(self):
         """Discovery info should contain required fields."""

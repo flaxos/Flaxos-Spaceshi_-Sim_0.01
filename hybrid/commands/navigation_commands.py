@@ -16,10 +16,16 @@ def cmd_autopilot(navigation, ship, params):
         return error_dict("INVALID_PROGRAM", error_msg)
 
     if navigation and hasattr(navigation, "set_autopilot"):
-        return navigation.set_autopilot({
+        autopilot_params = {
             "program": validated_program,
-            "target": target
-        })
+            "target": target,
+        }
+        # Pass through optional profile so RendezvousAutopilot (and
+        # GoToPositionAutopilot) can pick the right nav solution preset.
+        profile = params.get("profile")
+        if profile:
+            autopilot_params["profile"] = profile
+        return navigation.set_autopilot(autopilot_params)
 
     return error_dict("NOT_IMPLEMENTED", "Autopilot not yet implemented")
 
