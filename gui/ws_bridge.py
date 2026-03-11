@@ -283,6 +283,15 @@ class WSBridge:
         wrapped = WSEnvelope.response(response_data)
         await websocket.send(wrapped.to_wire())
 
+    async def _tcp_reconnect_loop(self):
+        """Periodically retry TCP connection if not connected."""
+        while self._running:
+            if not self.tcp.connected:
+                connected = await self.tcp.connect()
+                if connected:
+                    await self._maybe_broadcast_tcp_status()
+            await asyncio.sleep(2)
+
     async def start(self):
         """Start the WebSocket server."""
         self._running = True
@@ -301,8 +310,13 @@ class WSBridge:
             ping_timeout=10
         ):
             logger.info("WebSocket bridge running. Press Ctrl+C to stop.")
-            while self._running:
-                await asyncio.sleep(1)
+            # Start background TCP reconnection loop
+            reconnect_task = asyncio.create_task(self._tcp_reconnect_loop())
+            try:
+                while self._running:
+                    await asyncio.sleep(1)
+            finally:
+                reconnect_task.cancel()
 
     def stop(self):
         """Signal the bridge to stop."""

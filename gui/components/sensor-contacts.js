@@ -7,22 +7,35 @@ import { stateManager } from "../js/state-manager.js";
 import { wsClient } from "../js/ws-client.js";
 import { helmRequests, calculate3DBearing } from "../js/helm-requests.js";
 
+// How long a lost contact remains visible (faded) before removal
+const STALE_TIMEOUT_MS = 8000;
+
 class SensorContacts extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: "open" });
     this._unsubscribe = null;
     this._selectedContact = null;
+    // Map of contactId -> { contact, lostAt } for contacts that disappeared from server data
+    this._staleContacts = new Map();
+    this._staleTimer = null;
   }
 
   connectedCallback() {
     this.render();
     this._subscribe();
+    // Periodically purge expired stale contacts
+    this._staleTimer = setInterval(() => this._purgeStaleContacts(), 2000);
   }
 
   disconnectedCallback() {
     if (this._unsubscribe) {
       this._unsubscribe();
+      this._unsubscribe = null;
+    }
+    if (this._staleTimer) {
+      clearInterval(this._staleTimer);
+      this._staleTimer = null;
     }
   }
 
@@ -146,6 +159,8 @@ class SensorContacts extends HTMLElement {
           flex: 1;
           overflow-y: auto;
           padding: 8px 0;
+          /* Stable minimum height prevents panel resize when contacts come/go */
+          min-height: 140px;
         }
 
         .contact-row {
@@ -154,7 +169,7 @@ class SensorContacts extends HTMLElement {
           gap: 6px;
           padding: 8px 16px;
           cursor: pointer;
-          transition: background 0.1s ease;
+          transition: opacity 0.4s ease, background 0.1s ease;
           font-family: var(--font-mono, "JetBrains Mono", monospace);
           font-size: 0.75rem;
         }
@@ -220,6 +235,23 @@ class SensorContacts extends HTMLElement {
           background: var(--status-info, #00aaff);
           border-color: var(--status-info, #00aaff);
           color: var(--bg-primary, #0a0a0f);
+        }
+
+        .contact-row.stale {
+          opacity: 0.35;
+          pointer-events: none;
+        }
+
+        .contact-row.stale .contact-id {
+          color: var(--text-dim, #555566);
+        }
+
+        .stale-label {
+          color: var(--status-warning, #ffaa00);
+          font-size: 0.6rem;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
         }
 
         .contact-row:hover {
@@ -531,8 +563,51 @@ class SensorContacts extends HTMLElement {
 
   _updateContactsList(contacts) {
     const list = this.shadowRoot.getElementById("contacts-list");
+    const liveContacts = contacts || [];
 
-    if (!contacts || contacts.length === 0) {
+    // Build set of currently live contact IDs
+    const liveIds = new Set(
+      liveContacts.map(c => c.contact_id || c.id)
+    );
+
+    // Any previously known contact (live or stale) that reappears: remove from stale
+    for (const id of liveIds) {
+      this._staleContacts.delete(id);
+    }
+
+    // Track which contacts just disappeared: mark as stale
+    // Compare against what was rendered last time (live rows from previous frame)
+    if (this._lastLiveIds) {
+      for (const prevId of this._lastLiveIds) {
+        if (!liveIds.has(prevId) && !this._staleContacts.has(prevId)) {
+          // Contact disappeared — find its last known data from previous render
+          const lastData = this._lastContactData?.get(prevId);
+          if (lastData) {
+            this._staleContacts.set(prevId, {
+              contact: lastData,
+              lostAt: Date.now()
+            });
+          }
+        }
+      }
+    }
+
+    // Save current live state for next comparison
+    this._lastLiveIds = liveIds;
+    this._lastContactData = new Map(
+      liveContacts.map(c => [c.contact_id || c.id, c])
+    );
+
+    // Purge expired stale contacts
+    this._purgeStaleContacts();
+
+    // Merge live + stale contacts for display
+    const allContacts = [...liveContacts];
+    for (const [id, entry] of this._staleContacts) {
+      allContacts.push(entry.contact);
+    }
+
+    if (allContacts.length === 0) {
       list.innerHTML = `
         <div class="empty-state">
           <div class="empty-icon">○</div>
@@ -542,18 +617,41 @@ class SensorContacts extends HTMLElement {
       return;
     }
 
-    // Sort by range (nearest first)
-    const sorted = [...contacts].sort((a, b) => {
+    // Sort by range (nearest first), stale contacts sort to bottom
+    const sorted = [...allContacts].sort((a, b) => {
+      const aId = a.contact_id || a.id;
+      const bId = b.contact_id || b.id;
+      const aStale = this._staleContacts.has(aId) ? 1 : 0;
+      const bStale = this._staleContacts.has(bId) ? 1 : 0;
+      if (aStale !== bStale) return aStale - bStale;
       const rangeA = a.range || a.distance || Infinity;
       const rangeB = b.range || b.distance || Infinity;
       return rangeA - rangeB;
     });
 
-    list.innerHTML = sorted.map(contact => this._renderContactRow(contact)).join("");
+    list.innerHTML = sorted
+      .map(contact => {
+        const cId = contact.contact_id || contact.id;
+        const isStale = this._staleContacts.has(cId);
+        return this._renderContactRow(contact, isStale);
+      })
+      .join("");
     this._updateContactSelection();
   }
 
-  _renderContactRow(contact) {
+  /**
+   * Remove stale contacts that have exceeded the timeout
+   */
+  _purgeStaleContacts() {
+    const now = Date.now();
+    for (const [id, entry] of this._staleContacts) {
+      if (now - entry.lostAt > STALE_TIMEOUT_MS) {
+        this._staleContacts.delete(id);
+      }
+    }
+  }
+
+  _renderContactRow(contact, isStale = false) {
     const id = contact.contact_id || contact.id || "???";
     const classification = contact.name || contact.classification || contact.class || "UNKNOWN";
     const bearing = contact.bearing ?? "---";
@@ -581,15 +679,17 @@ class SensorContacts extends HTMLElement {
     const relY = posY - shipY;
     const relZ = posZ - shipZ;
 
+    const staleClass = isStale ? "stale" : "";
+
     return `
-      <div class="contact-row ${isSelected ? 'selected' : ''}" data-contact-id="${id}">
+      <div class="contact-row ${isSelected ? 'selected' : ''} ${staleClass}" data-contact-id="${id}">
         <span class="contact-id">${isSelected ? '►' : ' '}${id.substring(0, 5)}</span>
-        <span class="contact-class">${classification.substring(0, 8)}</span>
-        <span class="contact-bearing">${this._formatBearing(bearing)}°</span>
-        <span class="contact-range">${this._formatRange(range)}</span>
-        <span class="contact-closure ${closureClass}">${closureSign}${Math.abs(rangeRate).toFixed(0)}</span>
+        <span class="contact-class">${isStale ? '<span class="stale-label">LOST</span>' : classification.substring(0, 8)}</span>
+        <span class="contact-bearing">${isStale ? '---' : this._formatBearing(bearing) + '°'}</span>
+        <span class="contact-range">${isStale ? '---' : this._formatRange(range)}</span>
+        <span class="contact-closure ${closureClass}">${isStale ? '---' : closureSign + Math.abs(rangeRate).toFixed(0)}</span>
       </div>
-      <div class="contact-expanded ${isSelected ? 'visible' : ''}" data-contact-id="${id}">
+      <div class="contact-expanded ${isSelected && !isStale ? 'visible' : ''}" data-contact-id="${id}">
         <div class="position-grid">
           <div class="pos-item">
             <div class="pos-label">Rel X</div>

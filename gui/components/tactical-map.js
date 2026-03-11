@@ -5,7 +5,7 @@
 
 import { stateManager } from "../js/state-manager.js";
 
-const MAP_SCALE_OPTIONS = [1000, 5000, 10000, 50000, 100000]; // meters per screen radius
+const MAP_SCALE_OPTIONS = [1000, 5000, 10000, 50000, 100000, 250000, 500000, 1000000]; // meters per screen radius
 
 const WEAPON_RANGES = {
   PDC: 5000,        // 5km in meters
@@ -18,6 +18,7 @@ class TacticalMap extends HTMLElement {
     this.attachShadow({ mode: "open" });
     this._unsubscribe = null;
     this._scaleIndex = 2; // Default 10km
+    this._autoFit = true; // Auto-scale to fit all contacts
     this._showVelocityVectors = true;
     this._showHeading = true;
     this._showGrid = true;
@@ -202,6 +203,7 @@ class TacticalMap extends HTMLElement {
           <button class="control-btn" id="zoom-out">−</button>
           <span class="scale-display" id="scale-display">10 km</span>
           <button class="control-btn" id="zoom-in">+</button>
+          <button class="control-btn active" id="auto-fit" title="Auto-fit to show all contacts">A</button>
         </div>
         <div class="control-group">
           <button class="control-btn" id="toggle-vectors" title="Velocity Vectors">V</button>
@@ -288,10 +290,11 @@ class TacticalMap extends HTMLElement {
   }
 
   _setupInteraction() {
-    // Zoom controls
+    // Zoom controls — manual zoom disables auto-fit
     this.shadowRoot.getElementById("zoom-in").addEventListener("click", () => {
       if (this._scaleIndex > 0) {
         this._scaleIndex--;
+        this._setAutoFit(false);
         this._updateScaleDisplay();
         this._draw();
       }
@@ -300,9 +303,17 @@ class TacticalMap extends HTMLElement {
     this.shadowRoot.getElementById("zoom-out").addEventListener("click", () => {
       if (this._scaleIndex < MAP_SCALE_OPTIONS.length - 1) {
         this._scaleIndex++;
+        this._setAutoFit(false);
         this._updateScaleDisplay();
         this._draw();
       }
+    });
+
+    // Auto-fit toggle
+    const autoFitBtn = this.shadowRoot.getElementById("auto-fit");
+    autoFitBtn.addEventListener("click", () => {
+      this._setAutoFit(!this._autoFit);
+      this._draw();
     });
 
     // Toggle buttons
@@ -344,6 +355,80 @@ class TacticalMap extends HTMLElement {
       this._handleCanvasClick(e);
     });
 
+    this._updateScaleDisplay();
+  }
+
+  _setAutoFit(enabled) {
+    this._autoFit = enabled;
+    const btn = this.shadowRoot.getElementById("auto-fit");
+    if (btn) btn.classList.toggle("active", enabled);
+  }
+
+  /**
+   * Resolve a contact's world position. Prefers the position field from telemetry,
+   * but reconstructs from distance + bearing relative to the player if missing.
+   */
+  _resolveContactPosition(contact, playerPos) {
+    // If telemetry includes the actual position, use it directly
+    if (contact.position && (contact.position.x !== undefined || contact.position.y !== undefined)) {
+      return contact.position;
+    }
+
+    // Reconstruct from distance + bearing.
+    // Server bearing is {yaw, pitch} where yaw = atan2(dy, dx) in the XY plane.
+    // A scalar bearing is treated as yaw in degrees.
+    if (contact.distance != null && contact.bearing != null) {
+      const yawDeg = typeof contact.bearing === "object"
+        ? (contact.bearing.yaw || 0)
+        : contact.bearing;
+      const pitchDeg = typeof contact.bearing === "object"
+        ? (contact.bearing.pitch || 0)
+        : 0;
+      const yawRad = (yawDeg * Math.PI) / 180;
+      const pitchRad = (pitchDeg * Math.PI) / 180;
+      const horizDist = contact.distance * Math.cos(pitchRad);
+      return {
+        x: playerPos.x + horizDist * Math.cos(yawRad),
+        y: playerPos.y + horizDist * Math.sin(yawRad),
+        z: playerPos.z + contact.distance * Math.sin(pitchRad),
+      };
+    }
+
+    // No usable position data — place at player origin (will overlap)
+    return { x: playerPos.x, y: playerPos.y, z: playerPos.z };
+  }
+
+  /**
+   * Auto-fit the scale so all contacts are visible with some padding.
+   */
+  _autoFitScale(contacts, playerPos) {
+    if (!contacts || contacts.length === 0) return;
+
+    let maxDist = 0;
+    for (const contact of contacts) {
+      const pos = this._resolveContactPosition(contact, playerPos);
+      const dx = pos.x - playerPos.x;
+      const dz = pos.z - playerPos.z;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+      if (dist > maxDist) maxDist = dist;
+    }
+
+    if (maxDist < 100) return; // All contacts very close, keep current scale
+
+    // Add 20% padding so contacts aren't at the very edge
+    const neededScale = maxDist * 1.2;
+
+    // Find the smallest scale option that fits
+    for (let i = 0; i < MAP_SCALE_OPTIONS.length; i++) {
+      if (MAP_SCALE_OPTIONS[i] >= neededScale) {
+        this._scaleIndex = i;
+        this._updateScaleDisplay();
+        return;
+      }
+    }
+
+    // If nothing fits, use the largest available
+    this._scaleIndex = MAP_SCALE_OPTIONS.length - 1;
     this._updateScaleDisplay();
   }
 
@@ -394,6 +479,20 @@ class TacticalMap extends HTMLElement {
 
     // Draw contacts
     const contacts = stateManager.getContacts() || [];
+
+    // Auto-fit scale to show all contacts before rendering.
+    // We do this before drawing so the scale is correct for this frame.
+    if (this._autoFit && contacts.length > 0) {
+      const prevIndex = this._scaleIndex;
+      this._autoFitScale(contacts, playerPos);
+      // If the scale changed, we need to redraw with the new pixelsPerMeter.
+      // Guard against repeated redraws by only redrawing once per auto-fit change.
+      if (this._scaleIndex !== prevIndex) {
+        this._draw();
+        return;
+      }
+    }
+
     contacts.forEach(contact => {
       this._drawContact(ctx, contact, playerPos, centerX, centerY, pixelsPerMeter, playerVel, scale);
     });
@@ -579,8 +678,8 @@ class TacticalMap extends HTMLElement {
   }
 
   _drawContact(ctx, contact, playerPos, centerX, centerY, pixelsPerMeter, playerVel, scale) {
-    // Calculate relative position
-    const contactPos = contact.position || { x: 0, y: 0, z: 0 };
+    // Calculate relative position — reconstruct from distance/bearing if position is missing
+    const contactPos = this._resolveContactPosition(contact, playerPos);
     const relX = (contactPos.x - playerPos.x) * pixelsPerMeter;
     const relZ = (contactPos.z - playerPos.z) * pixelsPerMeter;
 
@@ -732,7 +831,7 @@ class TacticalMap extends HTMLElement {
     // Calculate distance and bearing from player
     const ship = stateManager.getShipState();
     const playerPos = ship?.position || { x: 0, y: 0, z: 0 };
-    const contactPos = contact.position || { x: 0, y: 0, z: 0 };
+    const contactPos = this._resolveContactPosition(contact, playerPos);
 
     const dx = contactPos.x - playerPos.x;
     const dz = contactPos.z - playerPos.z;

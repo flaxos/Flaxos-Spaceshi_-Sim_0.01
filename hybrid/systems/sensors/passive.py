@@ -77,8 +77,11 @@ class PassiveSensor:
             # Calculate detection probability
             accuracy = calculate_detection_accuracy(distance, signature, self.range)
 
-            # Passive detection has additional probability factor
-            detection_probability = min(0.95, accuracy ** 2)  # Squared for lower passive detection
+            # Detection probability equals accuracy directly. The S-curve range
+            # falloff in calculate_detection_accuracy already models the realistic
+            # drop-off near max range — squaring it again was punishing targets
+            # within operational range too harshly (e.g. 2% at 85% range).
+            detection_probability = min(0.95, accuracy)
 
             # Random detection check (skip on initial scan to populate contacts immediately)
             if not initial_scan:
@@ -109,13 +112,23 @@ class PassiveSensor:
             detected[target_ship.id] = contact
 
         # Merge new detections with existing contacts (don't drop on failed re-detect)
-        # Failed re-detection degrades confidence rather than removing the contact
+        # Failed re-detection degrades confidence gradually rather than removing.
+        # Re-detected contacts keep the higher of old and new confidence so a
+        # briefly-degraded contact snaps back when re-detected.
         for existing_id, existing_contact in self.contacts.items():
             if existing_id not in detected:
-                # Contact not re-detected this scan — degrade confidence
-                existing_contact.confidence *= 0.8
+                # Contact not re-detected this scan — degrade confidence slowly.
+                # 5% per scan means a contact survives ~45 missed scans before
+                # dropping below the 0.1 threshold from confidence 0.95, giving
+                # the sensor time to re-detect intermittent contacts.
+                existing_contact.confidence *= 0.95
                 if existing_contact.confidence > 0.1:
                     detected[existing_id] = existing_contact
+            else:
+                # Re-detected: keep the higher confidence so contacts that were
+                # degrading recover immediately on successful re-detection.
+                new_contact = detected[existing_id]
+                new_contact.confidence = max(new_contact.confidence, existing_contact.confidence)
 
         self.contacts = detected
 

@@ -2,6 +2,7 @@
 """Go-to-position autopilot for set_course navigation."""
 
 import logging
+import math
 from typing import Dict, Optional
 
 from hybrid.navigation.autopilot.base import BaseAutopilot
@@ -165,14 +166,49 @@ class GoToPositionAutopilot(BaseAutopilot):
         max_accel = self._get_max_accel()
         braking_distance = (closing_speed ** 2) / (2 * max_accel) if closing_speed > 0 else 0.0
 
+        # ETA estimate
+        time_to_arrival = None
+        if closing_speed > 0.1:
+            time_to_arrival = distance / closing_speed
+        elif max_accel > 0 and distance > 0 and self.phase == self.PHASE_ACCELERATE:
+            # Rough brachistochrone estimate: t = 2 * sqrt(d / a)
+            time_to_arrival = 2.0 * math.sqrt(distance / max_accel)
+
+        # Also expose as "range" for consistent field naming across autopilots
         state.update({
             "phase": self.phase,
             "destination": self.target_position,
             "distance": distance,
+            "range": distance,
             "closing_speed": closing_speed,
             "braking_distance": braking_distance,
+            "time_to_arrival": time_to_arrival,
             "stop": self.stop_at_target,
             "tolerance": self.tolerance,
             "complete": self.completed,
+            "status_text": self._build_status_text(distance, closing_speed, time_to_arrival),
         })
         return state
+
+    def _build_status_text(self, distance: float, closing_speed: float,
+                           eta: float = None) -> str:
+        """Human-readable status for the GUI."""
+        range_str = f"{distance / 1000:.1f}km" if distance >= 1000 else f"{distance:.0f}m"
+        eta_str = ""
+        if eta is not None:
+            if eta < 60:
+                eta_str = f", ETA {eta:.0f}s"
+            else:
+                minutes = int(eta) // 60
+                secs = int(eta) % 60
+                eta_str = f", ETA {minutes}m {secs:02d}s"
+
+        if self.phase == self.PHASE_ACCELERATE:
+            return f"Accelerating -- {range_str}{eta_str}"
+        elif self.phase == self.PHASE_COAST:
+            return f"Coasting -- {range_str}, {closing_speed:.1f} m/s{eta_str}"
+        elif self.phase == self.PHASE_BRAKE:
+            return f"Braking -- {range_str} remaining{eta_str}"
+        elif self.phase == self.PHASE_HOLD:
+            return f"Holding position at destination"
+        return f"En route -- {range_str}"

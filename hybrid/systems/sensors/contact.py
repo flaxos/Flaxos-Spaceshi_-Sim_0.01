@@ -252,6 +252,11 @@ def calculate_detection_signature(ship) -> float:
 def calculate_detection_accuracy(distance: float, signature: float, sensor_range: float) -> float:
     """Calculate detection accuracy based on distance and signature.
 
+    Uses an S-curve (smoothstep) for range falloff so detection is reliable
+    within ~80% of sensor range, then degrades sharply near max range.
+    This models real sensor behaviour: inverse-square signal strength means
+    SNR is comfortable well inside rated range, with a noise floor near the edge.
+
     Args:
         distance: Distance to target
         signature: Target signature strength
@@ -263,8 +268,15 @@ def calculate_detection_accuracy(distance: float, signature: float, sensor_range
     if distance > sensor_range:
         return 0.0
 
-    # Base accuracy from range
-    range_factor = 1.0 - (distance / sensor_range)
+    # Shifted smoothstep: detection stays near-perfect within 60% of rated
+    # range, then drops off steeply from 60-100%. This models real sensors
+    # where SNR is comfortable well inside rated range (inverse-square signal
+    # is still strong) but degrades rapidly near the noise floor at max range.
+    # At 85% range (427km/500km): range_factor ~0.30, accuracy ~0.24
+    ratio = distance / sensor_range
+    t = max(0.0, min(1.0, (ratio - 0.6) / 0.4))  # Remap 60-100% to 0-1
+    smoothstep = 3.0 * t * t - 2.0 * t * t * t
+    range_factor = 1.0 - smoothstep
 
     # Signature factor (stronger signature = better detection)
     signature_factor = min(1.0, signature / 100.0)

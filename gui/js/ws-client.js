@@ -6,7 +6,7 @@
 class WSClient extends EventTarget {
   constructor(url = null) {
     super();
-    this.url = url || `ws://${window.location.hostname}:8080`;
+    this.url = url || `ws://${window.location.hostname}:8081`;
     this.socket = null;
     this.status = "disconnected"; // disconnected, connecting, connected
     this.reconnectAttempts = 0;

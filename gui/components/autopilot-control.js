@@ -8,6 +8,7 @@ import { wsClient } from "../js/ws-client.js";
 
 const AUTOPILOT_MODES = [
   { id: "manual", label: "MANUAL", description: "Direct control" },
+  { id: "rendezvous", label: "RENDEZVOUS", description: "Approach and arrive at target with zero relative velocity (flip-and-burn)" },
   { id: "intercept", label: "INTERCEPT", description: "Approach target" },
   { id: "match", label: "MATCH", description: "Match velocity" },
   { id: "hold", label: "HOLD", description: "Hold position" },
@@ -104,6 +105,11 @@ class AutopilotControl extends HTMLElement {
 
         .mode-btn.active {
           box-shadow: 0 0 12px rgba(0, 170, 255, 0.3);
+        }
+
+        /* Rendezvous is the primary tutorial mode — span full width for prominence */
+        .mode-btn[data-mode="rendezvous"] {
+          grid-column: 1 / -1;
         }
 
         .target-section {
@@ -304,7 +310,7 @@ class AutopilotControl extends HTMLElement {
   _updateEngageButton() {
     const engageBtn = this.shadowRoot.getElementById("engage-btn");
     const hintEl = this.shadowRoot.getElementById("engage-hint");
-    const needsTarget = ["intercept", "match"].includes(this._selectedMode);
+    const needsTarget = ["rendezvous", "intercept", "match"].includes(this._selectedMode);
     const isDisabled = needsTarget && !this._selectedTarget;
     engageBtn.disabled = isDisabled;
 
