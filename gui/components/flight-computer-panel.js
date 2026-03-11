@@ -1,8 +1,14 @@
 /**
  * Flight Computer Panel
  * Displays server-side flight computer status and provides quick command buttons.
- * Subscribes to stateManager for flight_computer state.
- * Sends flight_computer commands via wsClient.sendShipCommand().
+ * Subscribes to stateManager for autopilot/navigation state.
+ * Sends autopilot + set_course commands via wsClient.sendShipCommand().
+ *
+ * Command mapping:
+ *   Navigate  -> sendShipCommand("set_course", {x, y, z})
+ *   Rendezvous, Intercept, Match Vel -> sendShipCommand("autopilot", {program, target})
+ *   Hold, Cruise, Orbit, Evasive     -> sendShipCommand("autopilot", {program})
+ *   Manual / Abort                    -> sendShipCommand("autopilot", {program: "off"})
  */
 
 import { stateManager } from "../js/state-manager.js";
@@ -35,19 +41,43 @@ class FlightComputerPanel extends HTMLElement {
   }
 
   _subscribe() {
-    this._unsubscribe = stateManager.subscribe("*", (value, key, fullState) => {
-      this._fcState = fullState.flight_computer || this._extractFCState(fullState);
+    this._unsubscribe = stateManager.subscribe("*", () => {
+      this._fcState = this._extractAutopilotState();
       this._updateDisplay();
     });
   }
 
   /**
-   * Try to extract flight computer state from various possible locations
+   * Extract autopilot state from navigation telemetry.
+   * Server puts autopilot data in multiple paths depending on station filtering.
    */
-  _extractFCState(state) {
+  _extractAutopilotState() {
+    const nav = stateManager.getNavigation();
+    const autopilot = nav?.autopilot;
     const ship = stateManager.getShipState();
-    if (!ship) return null;
-    return ship.flight_computer || ship.systems?.flight_computer || null;
+
+    // Build a unified state object from whichever path has data
+    const mode = autopilot?.mode || ship?.nav_mode || ship?.autopilot?.mode || null;
+    const program = autopilot?.program || ship?.autopilot_program || null;
+    const phase = autopilot?.phase || autopilot?.autopilot_state || ship?.autopilot?.autopilot_state || null;
+    const target = autopilot?.target || autopilot?.course?.target || null;
+
+    if (!mode || mode === "off" || mode === "manual") {
+      return null;
+    }
+
+    return {
+      mode: "executing",
+      command: (program || mode).toUpperCase(),
+      phase: phase,
+      target: target,
+      status_text: target ? `Target: ${target}` : "",
+      // These may come from burn plan data if available
+      progress: autopilot?.progress,
+      eta: autopilot?.eta,
+      burn_plan: autopilot?.burn_plan,
+      delta_v: autopilot?.delta_v,
+    };
   }
 
   render() {
@@ -208,6 +238,11 @@ class FlightComputerPanel extends HTMLElement {
         }
 
         .cmd-btn {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 2px;
           padding: 10px 6px;
           background: var(--bg-input, #1a1a24);
           border: 1px solid var(--border-default, #2a2a3a);
@@ -221,6 +256,19 @@ class FlightComputerPanel extends HTMLElement {
           transition: all 0.1s ease;
           min-height: 44px;
           letter-spacing: 0.3px;
+        }
+
+        .cmd-label {
+          font-size: 0.7rem;
+          font-weight: 600;
+        }
+
+        .cmd-subtitle {
+          font-size: 0.55rem;
+          font-weight: 400;
+          opacity: 0.6;
+          letter-spacing: 0.3px;
+          text-transform: lowercase;
         }
 
         .cmd-btn:hover:not(:disabled) {
@@ -449,14 +497,42 @@ class FlightComputerPanel extends HTMLElement {
       </div>
 
       <div class="command-grid">
-        <button class="cmd-btn" id="cmd-navigate" title="Navigate to coordinates">Navigate</button>
-        <button class="cmd-btn" id="cmd-intercept" title="Intercept a target">Intercept</button>
-        <button class="cmd-btn" id="cmd-match" title="Match velocity with target">Match Vel</button>
-        <button class="cmd-btn" id="cmd-hold" title="Hold current position (H)">Hold</button>
-        <button class="cmd-btn" id="cmd-orbit" title="Enter orbit">Orbit</button>
-        <button class="cmd-btn" id="cmd-evasive" title="Evasive maneuvers">Evasive</button>
-        <button class="cmd-btn" id="cmd-manual" title="Switch to manual control (M)">Manual</button>
-        <button class="cmd-btn danger" id="cmd-abort" title="Abort current command (Esc)">Abort</button>
+        <button class="cmd-btn wide" id="cmd-rendezvous" title="Approach and arrive at target with zero velocity (flip-and-burn)">
+          <span class="cmd-label">Rendezvous</span>
+          <span class="cmd-subtitle">flip & arrive</span>
+        </button>
+        <button class="cmd-btn" id="cmd-navigate" title="Navigate to coordinates (x, y, z). Uses autopilot course-following.">
+          <span class="cmd-label">Navigate</span>
+          <span class="cmd-subtitle">go to coords</span>
+        </button>
+        <button class="cmd-btn" id="cmd-intercept" title="Chase a moving target using lead pursuit. Requires target selected.">
+          <span class="cmd-label">Intercept</span>
+          <span class="cmd-subtitle">chase target</span>
+        </button>
+        <button class="cmd-btn" id="cmd-match" title="Match speed and direction with target. Zeroes relative velocity. Requires target selected.">
+          <span class="cmd-label">Match Vel</span>
+          <span class="cmd-subtitle">zero rel-v</span>
+        </button>
+        <button class="cmd-btn" id="cmd-hold" title="Station-keep at current position. Fires thrusters to counteract drift. (H)">
+          <span class="cmd-label">Hold</span>
+          <span class="cmd-subtitle">station-keep</span>
+        </button>
+        <button class="cmd-btn" id="cmd-orbit" title="Maintain circular orbit around a point. Best for surveillance or patrol.">
+          <span class="cmd-label">Orbit</span>
+          <span class="cmd-subtitle">circle point</span>
+        </button>
+        <button class="cmd-btn" id="cmd-evasive" title="Random jinking pattern to avoid incoming fire. Unpredictable thrust changes.">
+          <span class="cmd-label">Evasive</span>
+          <span class="cmd-subtitle">jink & dodge</span>
+        </button>
+        <button class="cmd-btn" id="cmd-manual" title="Disengage autopilot. Returns to manual control. (M)">
+          <span class="cmd-label">Manual</span>
+          <span class="cmd-subtitle">manual ctrl</span>
+        </button>
+        <button class="cmd-btn danger" id="cmd-abort" title="Abort current autopilot program and return to manual control. (Esc)">
+          <span class="cmd-label">Abort</span>
+          <span class="cmd-subtitle">disengage AP</span>
+        </button>
       </div>
     `;
   }
@@ -477,6 +553,11 @@ class FlightComputerPanel extends HTMLElement {
       this._hideCoordInput();
     });
 
+    // Rendezvous - requires target, show target select
+    this.shadowRoot.getElementById("cmd-rendezvous").addEventListener("click", () => {
+      this._showTargetSelect("rendezvous");
+    });
+
     // Intercept - show target select then send
     this.shadowRoot.getElementById("cmd-intercept").addEventListener("click", () => {
       this._showTargetSelect("intercept");
@@ -484,28 +565,29 @@ class FlightComputerPanel extends HTMLElement {
 
     // Match velocity - show target select then send
     this.shadowRoot.getElementById("cmd-match").addEventListener("click", () => {
-      this._showTargetSelect("match_velocity");
+      this._showTargetSelect("match");
     });
 
-    // Simple commands
+    // Simple autopilot programs (no target required)
     this.shadowRoot.getElementById("cmd-hold").addEventListener("click", () => {
-      this._sendCommand("hold");
+      this._sendAutopilot("hold");
     });
 
     this.shadowRoot.getElementById("cmd-orbit").addEventListener("click", () => {
-      this._sendCommand("orbit");
+      this._sendAutopilot("orbit");
     });
 
     this.shadowRoot.getElementById("cmd-evasive").addEventListener("click", () => {
-      this._sendCommand("evasive");
+      this._sendAutopilot("evasive");
     });
 
+    // Manual and abort both disengage autopilot
     this.shadowRoot.getElementById("cmd-manual").addEventListener("click", () => {
-      this._sendCommand("manual");
+      this._sendAutopilot("off");
     });
 
     this.shadowRoot.getElementById("cmd-abort").addEventListener("click", () => {
-      this._sendCommand("abort");
+      this._sendAutopilot("off");
     });
 
     // Target select change - auto-send if a pending action
@@ -528,17 +610,17 @@ class FlightComputerPanel extends HTMLElement {
       switch (e.key.toUpperCase()) {
         case "H":
           e.preventDefault();
-          this._sendCommand("hold");
+          this._sendAutopilot("hold");
           break;
         case "M":
           e.preventDefault();
-          this._sendCommand("manual");
+          this._sendAutopilot("off");
           break;
         case "ESCAPE":
           if (this._showCoordinateInput) {
             this._hideCoordInput();
           } else {
-            this._sendCommand("abort");
+            this._sendAutopilot("off");
           }
           break;
       }
@@ -582,29 +664,38 @@ class FlightComputerPanel extends HTMLElement {
     this.shadowRoot.getElementById("target-section").classList.remove("visible");
   }
 
-  async _sendCommand(action) {
+  /**
+   * Send a simple autopilot command (no target needed).
+   * Maps to: wsClient.sendShipCommand("autopilot", { program })
+   */
+  async _sendAutopilot(program) {
     try {
-      const response = await wsClient.sendShipCommand("flight_computer", { action });
+      const args = { program };
+      console.log("Flight computer autopilot:", args);
+      const response = await wsClient.sendShipCommand("autopilot", args);
       if (response?.error) {
-        this._showMessage(`Flight computer error: ${response.error}`, "error");
+        this._showMessage(`Autopilot error: ${response.error}`, "error");
       } else {
-        this._showMessage(`Flight computer: ${action}`, "success");
+        const label = program === "off" ? "disengaged" : program;
+        this._showMessage(`Autopilot: ${label}`, "success");
       }
     } catch (error) {
       this._showMessage(`Command failed: ${error.message}`, "error");
     }
   }
 
+  /**
+   * Send navigate command using set_course.
+   * Maps to: wsClient.sendShipCommand("set_course", { x, y, z })
+   */
   async _sendNavigate() {
     const x = parseFloat(this.shadowRoot.getElementById("nav-x").value) || 0;
     const y = parseFloat(this.shadowRoot.getElementById("nav-y").value) || 0;
     const z = parseFloat(this.shadowRoot.getElementById("nav-z").value) || 0;
 
     try {
-      const response = await wsClient.sendShipCommand("flight_computer", {
-        action: "navigate_to",
-        position: { x, y, z }
-      });
+      console.log("Flight computer set_course:", { x, y, z });
+      const response = await wsClient.sendShipCommand("set_course", { x, y, z });
       if (response?.error) {
         this._showMessage(`Navigate error: ${response.error}`, "error");
       } else {
@@ -616,12 +707,15 @@ class FlightComputerPanel extends HTMLElement {
     }
   }
 
+  /**
+   * Send an autopilot command that requires a target (intercept, match, rendezvous).
+   * Maps to: wsClient.sendShipCommand("autopilot", { program, target })
+   */
   async _sendTargetCommand(action, targetId) {
     try {
-      const response = await wsClient.sendShipCommand("flight_computer", {
-        action,
-        target: targetId
-      });
+      const args = { program: action, target: targetId };
+      console.log("Flight computer autopilot (target):", args);
+      const response = await wsClient.sendShipCommand("autopilot", args);
       if (response?.error) {
         this._showMessage(`${action} error: ${response.error}`, "error");
       } else {
