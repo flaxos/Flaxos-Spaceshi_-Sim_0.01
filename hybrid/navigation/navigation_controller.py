@@ -268,24 +268,23 @@ class NavigationController:
         }
 
     def calculate_nav_solutions(self, target_id: Optional[str] = None,
-                               target_position: Optional[Dict] = None) -> Optional[List[Dict]]:
+                               target_position: Optional[Dict] = None) -> Optional[Dict]:
         """Calculate all 3 nav solution profiles for a target.
 
         Returns aggressive, balanced, and conservative solutions with
         estimated time, fuel cost, accuracy, risk, and description.
-        Follows the same target-resolution pattern as
-        ``calculate_intercept_solution``.
 
         Args:
             target_id: Sensor contact ID of the target.
             target_position: Target position dict {x, y, z} (fallback).
 
         Returns:
-            List of 3 solution dicts, or None if target cannot be resolved.
+            Dict with 'solutions' (keyed by profile name), 'range',
+            'closing_speed', and 'target_id'; or None if target
+            cannot be resolved.
         """
         from hybrid.navigation.relative_motion import calculate_relative_motion
         from hybrid.navigation.autopilot.rendezvous import NAV_PROFILES
-        from hybrid.utils.math_utils import magnitude as vec_mag, subtract_vectors
 
         # -- resolve target --------------------------------------------------
         target = None
@@ -322,7 +321,7 @@ class NavigationController:
         else:
             flip_time = 20.0
 
-        solutions: List[Dict] = []
+        solutions: Dict = {}
 
         for profile_name, profile in NAV_PROFILES.items():
             thrust_frac = profile["max_thrust"]
@@ -331,37 +330,38 @@ class NavigationController:
             a_eff = ship_max_accel * thrust_frac
 
             # Brachistochrone estimate: burn half, brake half
-            # t_total ~ 2 * sqrt(d / a_eff) + flip_time * flip_safety
             if a_eff > 0 and distance > 0:
                 t_flight = 2.0 * math.sqrt(distance / a_eff)
             else:
                 t_flight = float("inf")
             t_total = t_flight + flip_time * flip_safety
 
-            # Delta-v: symmetric brachistochrone dv = 2 * sqrt(d * a_eff)
-            # Normalise to 0-1 scale relative to aggressive (highest dv).
+            # Delta-v normalised to 0-1 scale relative to max accel
             dv = 2.0 * math.sqrt(max(distance * a_eff, 0))
+            dv_max = 2.0 * math.sqrt(max(distance * ship_max_accel, 0))
 
-            # Accuracy estimate: how close the ship will stop.
-            # Higher margins and lower thrust -> better precision.
-            # Aggressive may overshoot by ~500m, conservative ~10m.
+            # Accuracy: higher margins + lower thrust -> better precision
             accuracy_map = {"aggressive": 500.0, "balanced": 50.0, "conservative": 10.0}
-            accuracy = accuracy_map.get(profile_name, 50.0)
 
-            solutions.append({
+            solutions[profile_name] = {
                 "profile": profile_name,
                 "total_time": round(t_total, 1),
-                "fuel_cost": round(min(dv / max(2.0 * math.sqrt(max(distance * ship_max_accel, 0)), 1.0), 1.0), 3),
-                "accuracy": accuracy,
+                "fuel_cost": round(min(dv / max(dv_max, 1.0), 1.0), 3),
+                "accuracy": accuracy_map.get(profile_name, 50.0),
                 "risk_level": profile["risk_level"],
                 "description": profile["description"],
                 "max_thrust": thrust_frac,
                 "brake_margin": brake_margin,
                 "flip_safety_factor": flip_safety,
                 "estimated_flip_time": round(flip_time * flip_safety, 1),
-            })
+            }
 
-        return solutions
+        return {
+            "solutions": solutions,
+            "target_id": target_id,
+            "range": round(distance, 1),
+            "closing_speed": round(closing_speed, 1),
+        }
 
     def get_nav_assistance(self) -> Dict:
         """Get current navigation computer assistance data.
