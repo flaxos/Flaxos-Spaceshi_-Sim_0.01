@@ -31,6 +31,7 @@ system_commands = {
     "set_course": ("navigation", "set_course"),
     "autopilot": ("navigation", "set_autopilot"),
     "set_plan": ("navigation", "set_plan"),
+    "get_nav_solutions": ("navigation", "get_nav_solutions"),
     # Helm control authority
     "helm_override": ("helm", "set_mode"),
     "take_manual_control": ("helm", "take_manual_control"),

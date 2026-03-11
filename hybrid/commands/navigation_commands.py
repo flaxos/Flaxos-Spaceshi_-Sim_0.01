@@ -37,6 +37,13 @@ def cmd_set_plan(navigation, ship, params):
 
     return error_dict("NOT_IMPLEMENTED", "Flight plan setting not yet implemented")
 
+def cmd_get_nav_solutions(navigation, ship, params):
+    """Get all 3 nav solution profiles for a target."""
+    if navigation and hasattr(navigation, "command"):
+        return navigation.command("get_nav_solutions", params)
+
+    return error_dict("NOT_IMPLEMENTED", "Nav solutions not yet implemented")
+
 def register_commands(dispatcher):
     """Register all navigation commands with the dispatcher."""
 
@@ -47,7 +54,10 @@ def register_commands(dispatcher):
                     choices=["match", "intercept", "approach", "hold", "hold_velocity", "orbit", "evasive", "jink", "rendezvous", "dock_approach", "off"],
                     description="Autopilot program to run"),
             ArgSpec("target", "str", required=False,
-                    description="Target contact ID (required for match/intercept)")
+                    description="Target contact ID (required for match/intercept)"),
+            ArgSpec("profile", "str", required=False,
+                    choices=["aggressive", "balanced", "conservative"],
+                    description="Nav solution profile (rendezvous/goto_position)"),
         ],
         help_text="Engage autopilot (match|intercept|approach|hold|hold_velocity|orbit|evasive|rendezvous|off)",
         system="navigation"
@@ -71,6 +81,9 @@ def register_commands(dispatcher):
                     description="Maximum speed during course"),
             ArgSpec("brake_buffer", "float", required=False,
                     description="Extra distance buffer for braking"),
+            ArgSpec("profile", "str", required=False,
+                    choices=["aggressive", "balanced", "conservative"],
+                    description="Nav solution profile for thrust/braking"),
         ],
         help_text="Set navigation course to destination",
         system="navigation"
@@ -83,5 +96,23 @@ def register_commands(dispatcher):
                     description="Flight plan payload"),
         ],
         help_text="Queue a navigation flight plan",
+        system="navigation"
+    ))
+
+    dispatcher.register("get_nav_solutions", CommandSpec(
+        handler=cmd_get_nav_solutions,
+        args=[
+            ArgSpec("target_id", "str", required=False,
+                    description="Target contact ID"),
+            ArgSpec("target_position", "dict", required=False,
+                    description="Target position {x, y, z}"),
+            ArgSpec("x", "float", required=False,
+                    description="Target X coordinate (alternative to target_position)"),
+            ArgSpec("y", "float", required=False,
+                    description="Target Y coordinate"),
+            ArgSpec("z", "float", required=False,
+                    description="Target Z coordinate"),
+        ],
+        help_text="Calculate aggressive/balanced/conservative nav solutions for a target",
         system="navigation"
     ))

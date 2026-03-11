@@ -1,5 +1,10 @@
 # hybrid/navigation/autopilot/goto_position.py
-"""Go-to-position autopilot for set_course navigation."""
+"""Go-to-position autopilot for set_course navigation.
+
+Supports nav-solution profiles (aggressive / balanced / conservative)
+that adjust thrust and braking safety margins. Individual params can
+still override profile defaults for fine-tuning.
+"""
 
 import logging
 import math
@@ -17,8 +22,34 @@ from hybrid.utils.math_utils import (
 logger = logging.getLogger(__name__)
 
 
+# -- Nav solution profiles ---------------------------------------------------
+
+GOTO_PROFILES: Dict[str, Dict] = {
+    "aggressive": {
+        "max_thrust": 1.0,
+        "brake_buffer_factor": 1.1,
+        "description": "Full burn, tight braking margin. Fast but may overshoot.",
+        "risk_level": "high",
+    },
+    "balanced": {
+        "max_thrust": 0.8,
+        "brake_buffer_factor": 1.3,
+        "description": "Moderate thrust, reasonable margin. Good general use.",
+        "risk_level": "medium",
+    },
+    "conservative": {
+        "max_thrust": 0.5,
+        "brake_buffer_factor": 1.6,
+        "description": "Half thrust, generous margin. Precise stops, uses less fuel.",
+        "risk_level": "low",
+    },
+}
+
+
 class GoToPositionAutopilot(BaseAutopilot):
     """Autopilot that flies to a fixed position and optionally stops there."""
+
+    PROFILES = GOTO_PROFILES
 
     PHASE_ACCELERATE = "ACCELERATE"
     PHASE_COAST = "COAST"
@@ -32,17 +63,22 @@ class GoToPositionAutopilot(BaseAutopilot):
             ship: Ship under control
             target_id: Unused (fixed position target)
             params: Additional parameters:
+                - profile: "aggressive"|"balanced"|"conservative" (default "balanced")
                 - x, y, z: Target coordinates
                 - destination: Optional dict {x, y, z}
                 - stop: Whether to stop at target (bool, default True)
                 - tolerance: Distance tolerance for arrival (m, default 50.0)
-                - max_thrust: Maximum thrust fraction (0..1, default 1.0)
+                - max_thrust: Maximum thrust fraction (0..1, overrides profile)
                 - coast_speed: Speed threshold to coast (m/s, default 50.0)
                 - max_speed: Optional max closing speed for non-stop courses
-                - brake_buffer: Extra distance before braking (m, default tolerance)
+                - brake_buffer: Extra distance before braking (m, overrides profile)
                 - arrival_speed_tolerance: Speed tolerance to consider stopped (m/s, default 0.5)
         """
         super().__init__(ship, target_id, params or {})
+
+        # Resolve profile
+        self.profile_name: str = self.params.get("profile", "balanced")
+        profile = dict(self.PROFILES.get(self.profile_name, self.PROFILES["balanced"]))
 
         destination = self.params.get("destination") or {
             "x": self.params.get("x"),
@@ -53,11 +89,20 @@ class GoToPositionAutopilot(BaseAutopilot):
         self.target_position = destination
         self.stop_at_target = bool(self.params.get("stop", True))
         self.tolerance = float(self.params.get("tolerance", 50.0))
-        self.max_thrust = float(self.params.get("max_thrust", 1.0))
+        self.max_thrust = float(self.params.get(
+            "max_thrust", profile["max_thrust"]))
         self.coast_speed = float(self.params.get("coast_speed", 50.0))
         self.max_speed = self.params.get("max_speed")
-        self.brake_buffer = float(self.params.get("brake_buffer", self.tolerance))
-        self.arrival_speed_tolerance = float(self.params.get("arrival_speed_tolerance", 0.5))
+
+        # brake_buffer: if explicitly provided use that, otherwise derive
+        # from profile factor * tolerance for a proportional margin.
+        if "brake_buffer" in self.params and self.params["brake_buffer"] is not None:
+            self.brake_buffer = float(self.params["brake_buffer"])
+        else:
+            self.brake_buffer = self.tolerance * profile["brake_buffer_factor"]
+
+        self.arrival_speed_tolerance = float(
+            self.params.get("arrival_speed_tolerance", 0.5))
 
         self.phase = self.PHASE_ACCELERATE
         self.completed = False
@@ -158,6 +203,7 @@ class GoToPositionAutopilot(BaseAutopilot):
         }
 
     def get_state(self) -> Dict:
+        """Get autopilot state including profile information."""
         state = super().get_state()
         vector_to_target = subtract_vectors(self.target_position, self.ship.position)
         distance = magnitude(vector_to_target)
@@ -177,6 +223,7 @@ class GoToPositionAutopilot(BaseAutopilot):
         # Also expose as "range" for consistent field naming across autopilots
         state.update({
             "phase": self.phase,
+            "profile": self.profile_name,
             "destination": self.target_position,
             "distance": distance,
             "range": distance,
