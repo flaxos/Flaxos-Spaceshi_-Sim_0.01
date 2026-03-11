@@ -151,6 +151,11 @@ def get_weapons_status(ship) -> Dict[str, Any]:
 def get_sensor_contacts(ship) -> Dict[str, Any]:
     """Get sensor contacts for a ship.
 
+    Reads from SensorSystem.contact_tracker (the single source of truth for
+    merged, de-duplicated contacts with stable IDs like C001).  Falls back to
+    reading raw passive/active contact dicts only for legacy dict-based sensor
+    systems that lack a ContactTracker.
+
     Args:
         ship: Ship object
 
@@ -168,36 +173,19 @@ def get_sensor_contacts(ship) -> Dict[str, Any]:
 
     contacts_list = []
 
-    def contact_value(contact: Any, key: str, default: Any = None) -> Any:
-        if isinstance(contact, dict):
-            if key == "last_update":
-                return contact.get("last_update", contact.get("last_updated", default))
-            return contact.get(key, default)
-        return getattr(contact, key, default)
+    # Prefer ContactTracker — it holds merged contacts with stable IDs (C001)
+    # and already de-duplicates passive + active detections.
+    if hasattr(sensors, "contact_tracker"):
+        sim_time = getattr(sensors, "sim_time", 0.0)
+        all_contacts = sensors.contact_tracker.get_all_contacts(sim_time)
 
-    # Get passive contacts
-    if hasattr(sensors, "passive") and hasattr(sensors.passive, "contacts"):
-        for contact_id, contact in sensors.passive.contacts.items():
-            position = contact_value(contact, "position", ship.position)
+        for contact_id, contact in all_contacts.items():
+            position = getattr(contact, "position", ship.position)
             distance = calculate_distance(ship.position, position)
             bearing = calculate_bearing(ship.position, position)
 
-            # Serialize position as dict for JSON transport
-            pos_dict = None
-            if position is not None:
-                if hasattr(position, "x"):
-                    pos_dict = {"x": position.x, "y": position.y, "z": getattr(position, "z", 0)}
-                elif isinstance(position, dict):
-                    pos_dict = {"x": position.get("x", 0), "y": position.get("y", 0), "z": position.get("z", 0)}
-
-            # Get velocity if available
-            velocity = contact_value(contact, "velocity", None)
-            vel_dict = None
-            if velocity is not None:
-                if hasattr(velocity, "x"):
-                    vel_dict = {"x": velocity.x, "y": velocity.y, "z": getattr(velocity, "z", 0)}
-                elif isinstance(velocity, dict):
-                    vel_dict = {"x": velocity.get("x", 0), "y": velocity.get("y", 0), "z": velocity.get("z", 0)}
+            pos_dict = _serialize_vector(position)
+            vel_dict = _serialize_vector(getattr(contact, "velocity", None))
 
             contacts_list.append({
                 "id": contact_id,
@@ -205,53 +193,15 @@ def get_sensor_contacts(ship) -> Dict[str, Any]:
                 "velocity": vel_dict,
                 "distance": distance,
                 "bearing": bearing,
-                "confidence": contact_value(contact, "confidence", 0.5),
-                "last_update": contact_value(contact, "last_update", 0),
-                "detection_method": contact_value(contact, "detection_method", "passive"),
-                "name": contact_value(contact, "name", None),
-                "classification": contact_value(contact, "classification", None),
+                "confidence": getattr(contact, "confidence", 0.5),
+                "last_update": getattr(contact, "last_update", 0),
+                "detection_method": getattr(contact, "detection_method", "passive"),
+                "name": getattr(contact, "name", None),
+                "classification": getattr(contact, "classification", None),
             })
-
-    # Get active contacts
-    if hasattr(sensors, "active") and hasattr(sensors.active, "contacts"):
-        for contact_id, contact in sensors.active.contacts.items():
-            # Skip if already in passive contacts
-            if any(c["id"] == contact_id for c in contacts_list):
-                continue
-
-            position = contact_value(contact, "position", ship.position)
-            distance = calculate_distance(ship.position, position)
-            bearing = calculate_bearing(ship.position, position)
-
-            # Serialize position as dict for JSON transport
-            pos_dict = None
-            if position is not None:
-                if hasattr(position, "x"):
-                    pos_dict = {"x": position.x, "y": position.y, "z": getattr(position, "z", 0)}
-                elif isinstance(position, dict):
-                    pos_dict = {"x": position.get("x", 0), "y": position.get("y", 0), "z": position.get("z", 0)}
-
-            # Get velocity if available
-            velocity = contact_value(contact, "velocity", None)
-            vel_dict = None
-            if velocity is not None:
-                if hasattr(velocity, "x"):
-                    vel_dict = {"x": velocity.x, "y": velocity.y, "z": getattr(velocity, "z", 0)}
-                elif isinstance(velocity, dict):
-                    vel_dict = {"x": velocity.get("x", 0), "y": velocity.get("y", 0), "z": velocity.get("z", 0)}
-
-            contacts_list.append({
-                "id": contact_id,
-                "position": pos_dict,
-                "velocity": vel_dict,
-                "distance": distance,
-                "bearing": bearing,
-                "confidence": contact_value(contact, "confidence", 0.9),
-                "last_update": contact_value(contact, "last_update", 0),
-                "detection_method": contact_value(contact, "detection_method", "active"),
-                "name": contact_value(contact, "name", None),
-                "classification": contact_value(contact, "classification", None),
-            })
+    else:
+        # Legacy fallback for dict-based sensors without ContactTracker
+        contacts_list = _get_contacts_from_raw_sensors(sensors, ship)
 
     # Sort by distance
     contacts_list.sort(key=lambda c: c["distance"])
@@ -261,6 +211,75 @@ def get_sensor_contacts(ship) -> Dict[str, Any]:
         "contacts": contacts_list,
         "count": len(contacts_list)
     }
+
+
+def _serialize_vector(vec) -> Optional[Dict[str, float]]:
+    """Serialize a position/velocity to a plain dict for JSON transport."""
+    if vec is None:
+        return None
+    if hasattr(vec, "x"):
+        return {"x": vec.x, "y": vec.y, "z": getattr(vec, "z", 0)}
+    if isinstance(vec, dict):
+        return {"x": vec.get("x", 0), "y": vec.get("y", 0), "z": vec.get("z", 0)}
+    return None
+
+
+def _get_contacts_from_raw_sensors(sensors, ship) -> List[Dict[str, Any]]:
+    """Legacy fallback: read contacts directly from passive/active subsystems.
+
+    Used only when the sensor system has no ContactTracker (old dict-based
+    sensors).  New code should always use ContactTracker.
+    """
+    contacts_list = []
+
+    def contact_value(contact: Any, key: str, default: Any = None) -> Any:
+        if isinstance(contact, dict):
+            if key == "last_update":
+                return contact.get("last_update", contact.get("last_updated", default))
+            return contact.get(key, default)
+        return getattr(contact, key, default)
+
+    if hasattr(sensors, "passive") and hasattr(sensors.passive, "contacts"):
+        for contact_id, contact in sensors.passive.contacts.items():
+            position = contact_value(contact, "position", ship.position)
+            distance = calculate_distance(ship.position, position)
+            bearing = calculate_bearing(ship.position, position)
+
+            contacts_list.append({
+                "id": contact_id,
+                "position": _serialize_vector(position),
+                "velocity": _serialize_vector(contact_value(contact, "velocity", None)),
+                "distance": distance,
+                "bearing": bearing,
+                "confidence": contact_value(contact, "confidence", 0.5),
+                "last_update": contact_value(contact, "last_update", 0),
+                "detection_method": contact_value(contact, "detection_method", "passive"),
+                "name": contact_value(contact, "name", None),
+                "classification": contact_value(contact, "classification", None),
+            })
+
+    if hasattr(sensors, "active") and hasattr(sensors.active, "contacts"):
+        for contact_id, contact in sensors.active.contacts.items():
+            if any(c["id"] == contact_id for c in contacts_list):
+                continue
+            position = contact_value(contact, "position", ship.position)
+            distance = calculate_distance(ship.position, position)
+            bearing = calculate_bearing(ship.position, position)
+
+            contacts_list.append({
+                "id": contact_id,
+                "position": _serialize_vector(position),
+                "velocity": _serialize_vector(contact_value(contact, "velocity", None)),
+                "distance": distance,
+                "bearing": bearing,
+                "confidence": contact_value(contact, "confidence", 0.9),
+                "last_update": contact_value(contact, "last_update", 0),
+                "detection_method": contact_value(contact, "detection_method", "active"),
+                "name": contact_value(contact, "name", None),
+                "classification": contact_value(contact, "classification", None),
+            })
+
+    return contacts_list
 
 def get_telemetry_snapshot(sim, recent_events_limit: int = 50) -> Dict[str, Any]:
     """Get complete telemetry snapshot of the simulation.

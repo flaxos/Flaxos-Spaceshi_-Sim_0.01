@@ -27,11 +27,15 @@ SUBSYSTEM_HEALTH_SCHEMA = {
         "criticality": 5.0,
         "failure_threshold": 0.25,
         # v0.6.0: Heat settings (main drive generates significant heat)
-        # Calibrated so full thrust reaches ~60% heat at equilibrium.
-        # Sustained burn at max thrust can push toward overheat.
+        # Formula: heat_amount = heat_generation * thrust_magnitude * dt
+        # At full thrust (50,000 N): generation = 0.00009 * 50,000 = 4.5 °C/s
+        # Net gain at full thrust: 4.5 - 2.5 (dissipation) = 2.0 °C/s
+        # Time to 60% of max_heat (120°C): 60 seconds of continuous burn
+        # Overheat (180°C): ~90 seconds — enough for a sustained intercept burn
+        # but not indefinite full thrust, forcing players to manage throttle.
         "max_heat": 200.0,           # Drives run hot
-        "heat_generation": 0.015,    # Heat per Newton-second of thrust
-        "heat_dissipation": 2.5,     # Passive cooling rate
+        "heat_generation": 0.00009,  # Heat per Newton-second of thrust
+        "heat_dissipation": 2.5,     # Passive cooling rate (°C/s)
         "overheat_threshold": 0.90,  # Higher tolerance for drives
         "overheat_penalty": 0.6,     # Thrust reduction when overheated
     },
