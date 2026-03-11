@@ -3,12 +3,16 @@
  * Displays the helm command queue status (active + pending commands)
  * and provides interrupt/clear controls.
  *
+ * Also shows pending inter-station helm requests (from tactical, ops, etc.)
+ * above the command queue, with execute/dismiss controls.
+ *
  * Subscribes to stateManager for helm queue data via ship state.
  * Falls back to polling helm_queue_status if state data is unavailable.
  */
 
 import { stateManager } from "../js/state-manager.js";
 import { wsClient } from "../js/ws-client.js";
+import { helmRequests } from "../js/helm-requests.js";
 
 class HelmQueuePanel extends HTMLElement {
   constructor() {
@@ -20,11 +24,14 @@ class HelmQueuePanel extends HTMLElement {
     // Track whether stateManager provides queue data so we know
     // whether to fall back to explicit polling.
     this._stateHasQueueData = false;
+    this._boundRequestUpdate = this._updateRequestsDisplay.bind(this);
   }
 
   connectedCallback() {
     this.render();
     this._subscribe();
+    this._setupRequestListeners();
+    this._updateRequestsDisplay();
   }
 
   disconnectedCallback() {
@@ -33,6 +40,7 @@ class HelmQueuePanel extends HTMLElement {
       this._unsubscribe = null;
     }
     this._stopPolling();
+    this._teardownRequestListeners();
   }
 
   // ---------------------------------------------------------------------------
@@ -142,6 +150,116 @@ class HelmQueuePanel extends HTMLElement {
     } catch (error) {
       this._showMessage(`Clear failed: ${error.message}`, "error");
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Inter-station request handling
+  // ---------------------------------------------------------------------------
+
+  _setupRequestListeners() {
+    window.addEventListener("helm:request_created", this._boundRequestUpdate);
+    window.addEventListener("helm:request_executed", this._boundRequestUpdate);
+    window.addEventListener("helm:request_dismissed", this._boundRequestUpdate);
+
+    // Delegate click events within the requests container
+    const reqList = this.shadowRoot.getElementById("requests-list");
+    if (reqList) {
+      reqList.addEventListener("click", (e) => {
+        const btn = e.target.closest(".req-action-btn");
+        if (!btn) return;
+        const requestId = parseInt(btn.dataset.requestId, 10);
+        if (btn.classList.contains("req-execute")) {
+          this._executeHelmRequest(requestId);
+        } else if (btn.classList.contains("req-dismiss")) {
+          this._dismissHelmRequest(requestId);
+        }
+      });
+    }
+  }
+
+  _teardownRequestListeners() {
+    window.removeEventListener("helm:request_created", this._boundRequestUpdate);
+    window.removeEventListener("helm:request_executed", this._boundRequestUpdate);
+    window.removeEventListener("helm:request_dismissed", this._boundRequestUpdate);
+  }
+
+  async _executeHelmRequest(requestId) {
+    const request = helmRequests.getAllRequests().find(r => r.id === requestId);
+    if (!request || request.status !== "pending") return;
+
+    try {
+      if (request.type === "point_at" || request.type === "set_heading") {
+        await wsClient.sendShipCommand("set_orientation", {
+          pitch: request.params.pitch || 0,
+          yaw: request.params.yaw || 0,
+          roll: request.params.roll || 0
+        });
+      } else if (request.type === "intercept") {
+        await wsClient.sendShipCommand("set_autopilot", {
+          mode: "intercept",
+          target: request.targetId
+        });
+      } else if (request.type === "match_velocity") {
+        await wsClient.sendShipCommand("set_autopilot", {
+          mode: "match",
+          target: request.targetId
+        });
+      }
+
+      helmRequests.executeRequest(requestId);
+      this._showMessage(`Executed: ${request.description}`, "success");
+    } catch (error) {
+      console.error("Failed to execute helm request:", error);
+      this._showMessage(`Failed: ${error.message}`, "error");
+    }
+  }
+
+  _dismissHelmRequest(requestId) {
+    const request = helmRequests.dismissRequest(requestId);
+    if (request) {
+      this._showMessage(`Dismissed: ${request.description}`, "info");
+    }
+  }
+
+  _updateRequestsDisplay() {
+    const pending = helmRequests.getPendingRequests();
+    const section = this.shadowRoot.getElementById("requests-section");
+    const listEl = this.shadowRoot.getElementById("requests-list");
+    const badge = this.shadowRoot.getElementById("requests-badge");
+
+    if (!section || !listEl || !badge) return;
+
+    badge.textContent = String(pending.length);
+    badge.classList.toggle("hidden", pending.length === 0);
+
+    if (pending.length === 0) {
+      section.style.display = "none";
+      return;
+    }
+
+    section.style.display = "";
+    listEl.innerHTML = pending.map(req => this._renderRequest(req)).join("");
+  }
+
+  _renderRequest(req) {
+    const typeLabels = {
+      point_at: "POINT AT",
+      intercept: "INTERCEPT",
+      match_velocity: "MATCH VEL",
+      set_heading: "SET HEADING"
+    };
+    const typeLabel = typeLabels[req.type] || req.type.toUpperCase();
+    const target = req.targetId ? ` ${req.targetId}` : "";
+    const source = req.source || "unknown";
+
+    return `
+      <div class="request-item ${req.type}">
+        <span class="request-source">${source.toUpperCase()}</span>
+        <span class="request-desc">${typeLabel}${target}</span>
+        <button class="req-action-btn req-execute" data-request-id="${req.id}" title="Execute this request">&#10003;</button>
+        <button class="req-action-btn req-dismiss" data-request-id="${req.id}" title="Dismiss this request">&#10007;</button>
+      </div>
+    `;
   }
 
   // ---------------------------------------------------------------------------
@@ -355,6 +473,128 @@ class HelmQueuePanel extends HTMLElement {
           border-color: var(--status-warning, #ffaa00);
         }
 
+        /* Pending requests section */
+        .requests-section {
+          margin-bottom: 12px;
+        }
+
+        .requests-header {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 6px;
+        }
+
+        .requests-title {
+          font-size: 0.7rem;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          color: var(--status-warning, #ffaa00);
+        }
+
+        .requests-badge {
+          background: var(--status-warning, #ffaa00);
+          color: var(--bg-primary, #0a0a0f);
+          padding: 1px 6px;
+          border-radius: 8px;
+          font-size: 0.65rem;
+          font-weight: 700;
+          line-height: 1.4;
+          animation: pulse-badge 1.5s ease-in-out infinite;
+        }
+
+        .requests-badge.hidden {
+          display: none;
+        }
+
+        @keyframes pulse-badge {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.6; }
+        }
+
+        .requests-list {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+
+        .request-item {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 10px;
+          background: rgba(255, 170, 0, 0.06);
+          border: 1px solid rgba(255, 170, 0, 0.2);
+          border-radius: 6px;
+        }
+
+        .request-item.point_at,
+        .request-item.set_heading {
+          border-left: 3px solid var(--status-info, #00aaff);
+        }
+
+        .request-item.intercept {
+          border-left: 3px solid var(--status-warning, #ffaa00);
+        }
+
+        .request-item.match_velocity {
+          border-left: 3px solid var(--status-nominal, #00ff88);
+        }
+
+        .request-source {
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+          font-size: 0.65rem;
+          font-weight: 600;
+          color: var(--status-info, #00aaff);
+          min-width: 32px;
+        }
+
+        .request-desc {
+          flex: 1;
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+          font-size: 0.75rem;
+          color: var(--text-primary, #e0e0e0);
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .req-action-btn {
+          width: 28px;
+          height: 28px;
+          border-radius: 4px;
+          border: 1px solid var(--border-default, #2a2a3a);
+          background: var(--bg-input, #1a1a24);
+          color: var(--text-secondary, #888899);
+          font-size: 0.85rem;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0;
+          transition: all 0.1s ease;
+          flex-shrink: 0;
+        }
+
+        .req-action-btn.req-execute:hover {
+          background: var(--status-nominal, #00ff88);
+          border-color: var(--status-nominal, #00ff88);
+          color: var(--bg-primary, #0a0a0f);
+        }
+
+        .req-action-btn.req-dismiss:hover {
+          background: rgba(255, 68, 68, 0.15);
+          border-color: var(--status-critical, #ff4444);
+          color: var(--status-critical, #ff4444);
+        }
+
+        .requests-divider {
+          border: none;
+          border-top: 1px solid var(--border-default, #2a2a3a);
+          margin: 12px 0;
+        }
+
         @media (max-width: 768px) {
           :host {
             padding: 10px;
@@ -366,7 +606,17 @@ class HelmQueuePanel extends HTMLElement {
         }
       </style>
 
-      <div class="section-title">Helm Queue</div>
+      <!-- Pending inter-station requests (hidden when empty) -->
+      <div class="requests-section" id="requests-section" style="display:none;">
+        <div class="requests-header">
+          <span class="requests-title">Pending Requests</span>
+          <span class="requests-badge hidden" id="requests-badge">0</span>
+        </div>
+        <div class="requests-list" id="requests-list"></div>
+        <hr class="requests-divider" />
+      </div>
+
+      <div class="section-title">Command Queue</div>
 
       <!-- Active command (visible when one is executing) -->
       <div class="active-command" id="active-section" style="display:none;">

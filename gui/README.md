@@ -41,7 +41,7 @@ python -m server.station_server --port 8765
 ### 3. Start the WebSocket Bridge
 
 ```bash
-python gui/ws_bridge.py --tcp-port 8765 --ws-port 8080
+python gui/ws_bridge.py --tcp-port 8765 --ws-port 8081
 ```
 
 ### 4. Open the GUI
@@ -61,7 +61,7 @@ python -m http.server 3000
 
 ```
 --ws-host    WebSocket bind host (default: 0.0.0.0)
---ws-port    WebSocket port (default: 8080)
+--ws-port    WebSocket port (default: 8081)
 --tcp-host   TCP server host (default: 127.0.0.1)
 --tcp-port   TCP server port (default: 8765)
 ```

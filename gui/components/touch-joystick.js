@@ -319,10 +319,10 @@ class TouchJoystick extends HTMLElement {
     const pitchRate = this._y * 30; // -30 to +30 deg/s
     const yawRate = this._x * 30;
 
-    wsClient.send("set_angular_velocity", { 
-      pitch: pitchRate, 
-      yaw: yawRate, 
-      roll: 0 
+    wsClient.sendShipCommand("set_angular_velocity", {
+      pitch: pitchRate,
+      yaw: yawRate,
+      roll: 0
     });
   }
 
@@ -330,10 +330,10 @@ class TouchJoystick extends HTMLElement {
     const wsClient = window.flaxosApp?.wsClient;
     if (!wsClient) return;
 
-    wsClient.send("set_angular_velocity", { 
-      pitch: 0, 
-      yaw: 0, 
-      roll: 0 
+    wsClient.sendShipCommand("set_angular_velocity", {
+      pitch: 0,
+      yaw: 0,
+      roll: 0
     });
   }
 

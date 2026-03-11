@@ -41,6 +41,7 @@ import { mobileLayout } from "../layouts/mobile-layout.js";
 import { initMobileGestures } from "./gestures.js";
 // Phase 7: Enhanced Navigation & Multi-Crew
 import "../components/flight-computer.js";
+import "../components/maneuver-planner.js";
 import { stationManager } from "./station-manager.js";
 // Phase 8: Inter-Station Communication
 import "../components/helm-requests.js";
@@ -59,6 +60,10 @@ import "../components/tier-selector.js";
 import "../components/helm-queue-panel.js";
 import "../components/docking-panel.js";
 import "../components/delta-v-display.js";
+// GUI Refactor: Merged panels
+import "../components/flight-data-panel.js";
+import "../components/manual-flight-panel.js";
+import "../components/helm-workflow-strip.js";
 // Phase 11: Tactical Completion
 import "../components/subsystem-selector.js";
 import "../components/threat-board.js";
