@@ -7,12 +7,54 @@ import { stateManager } from "../js/state-manager.js";
 import { wsClient } from "../js/ws-client.js";
 
 const AUTOPILOT_MODES = [
-  { id: "manual", label: "MANUAL", description: "Direct control" },
-  { id: "rendezvous", label: "RENDEZVOUS", description: "Approach and arrive at target with zero relative velocity (flip-and-burn)" },
-  { id: "intercept", label: "INTERCEPT", description: "Approach target" },
-  { id: "match", label: "MATCH", description: "Match velocity" },
-  { id: "hold", label: "HOLD", description: "Hold position" },
-  { id: "hold_velocity", label: "HOLD VEL", description: "Maintain velocity" },
+  {
+    id: "manual",
+    label: "OFF",
+    subtitle: "manual ctrl",
+    description: "Disengage autopilot. Returns to manual control.",
+  },
+  {
+    id: "rendezvous",
+    label: "RENDEZVOUS",
+    subtitle: "flip & arrive",
+    description: "Approach and arrive at a stationary or slow target with zero relative velocity. Uses flip-and-burn: accelerates halfway, flips, decelerates to stop at target. Best for: stations, debris, waypoints. Requires: target selected.",
+  },
+  {
+    id: "intercept",
+    label: "INTERCEPT",
+    subtitle: "chase target",
+    description: "Chase a moving target using lead pursuit. Accelerates toward the predicted intercept point. Best for: moving ships, fleeing targets. Requires: target selected.",
+  },
+  {
+    id: "match",
+    label: "MATCH VEL",
+    subtitle: "zero rel-v",
+    description: "Match speed and direction with target. Zeroes out relative velocity without closing distance. Best for: formation flying, parallel approach. Requires: target selected.",
+  },
+  {
+    id: "hold",
+    label: "HOLD POS",
+    subtitle: "station-keep",
+    description: "Station-keep at current position. Fires thrusters to counteract any drift. Best for: waiting, overwatch.",
+  },
+  {
+    id: "hold_velocity",
+    label: "CRUISE",
+    subtitle: "hold speed",
+    description: "Maintain current speed and heading. No acceleration or deceleration. Best for: cruising, transit.",
+  },
+  {
+    id: "evasive",
+    label: "EVASIVE",
+    subtitle: "jink & dodge",
+    description: "Random jinking pattern to avoid incoming fire. Unpredictable thrust changes. Best for: under fire, dodging torpedoes.",
+  },
+  {
+    id: "orbit",
+    label: "ORBIT",
+    subtitle: "circle point",
+    description: "Maintain circular orbit around a point. Best for: surveillance, patrol.",
+  },
 ];
 
 class AutopilotControl extends HTMLElement {
@@ -80,6 +122,11 @@ class AutopilotControl extends HTMLElement {
         }
 
         .mode-btn {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 2px;
           padding: 10px 8px;
           background: var(--bg-input, #1a1a24);
           border: 1px solid var(--border-default, #2a2a3a);
@@ -90,6 +137,18 @@ class AutopilotControl extends HTMLElement {
           font-weight: 600;
           min-height: 44px;
           transition: all 0.1s ease;
+        }
+
+        .mode-label {
+          font-size: 0.75rem;
+          font-weight: 600;
+        }
+
+        .mode-subtitle {
+          font-size: 0.6rem;
+          font-weight: 400;
+          opacity: 0.6;
+          letter-spacing: 0.3px;
         }
 
         .mode-btn:hover {
@@ -260,12 +319,13 @@ class AutopilotControl extends HTMLElement {
   _renderModeButtons() {
     const grid = this.shadowRoot.getElementById("mode-grid");
     grid.innerHTML = AUTOPILOT_MODES.map(mode => `
-      <button 
-        class="mode-btn ${mode.id === this._selectedMode ? 'selected' : ''}" 
+      <button
+        class="mode-btn ${mode.id === this._selectedMode ? 'selected' : ''}"
         data-mode="${mode.id}"
         title="${mode.description}"
       >
-        ${mode.label}
+        <span class="mode-label">${mode.label}</span>
+        <span class="mode-subtitle">${mode.subtitle}</span>
       </button>
     `).join("");
 

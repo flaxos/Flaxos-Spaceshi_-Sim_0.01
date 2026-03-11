@@ -44,12 +44,12 @@ def register_commands(dispatcher):
         handler=cmd_autopilot,
         args=[
             ArgSpec("program", "str", required=True,
-                    choices=["match", "intercept", "approach", "hold", "orbit", "evasive", "jink", "off"],
+                    choices=["match", "intercept", "approach", "hold", "hold_velocity", "orbit", "evasive", "jink", "rendezvous", "dock_approach", "off"],
                     description="Autopilot program to run"),
             ArgSpec("target", "str", required=False,
                     description="Target contact ID (required for match/intercept)")
         ],
-        help_text="Engage autopilot (match|intercept|approach|hold|off)",
+        help_text="Engage autopilot (match|intercept|approach|hold|hold_velocity|orbit|evasive|rendezvous|off)",
         system="navigation"
     ))
 
