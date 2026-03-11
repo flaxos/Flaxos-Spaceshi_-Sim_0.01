@@ -317,13 +317,13 @@ class HelmRequestsPanel extends HTMLElement {
         });
       } else if (request.type === 'intercept') {
         // Could trigger autopilot intercept mode
-        await wsClient.sendShipCommand("set_autopilot", {
-          mode: "intercept",
+        await wsClient.sendShipCommand("autopilot", {
+          program: "intercept",
           target: request.targetId
         });
       } else if (request.type === 'match_velocity') {
-        await wsClient.sendShipCommand("set_autopilot", {
-          mode: "match",
+        await wsClient.sendShipCommand("autopilot", {
+          program: "match",
           target: request.targetId
         });
       }

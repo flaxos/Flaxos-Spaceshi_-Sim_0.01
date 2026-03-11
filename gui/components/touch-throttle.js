@@ -253,7 +253,7 @@ class TouchThrottle extends HTMLElement {
   _sendCommand() {
     const wsClient = window.flaxosApp?.wsClient;
     if (wsClient) {
-      wsClient.send("set_thrust", { thrust: this._value / 100 });
+      wsClient.sendShipCommand("set_thrust", { thrust: this._value / 100 });
     }
   }
 

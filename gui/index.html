@@ -123,7 +123,35 @@
 
     /* ===== Panel sizing within views ===== */
 
-    /* Helm view panels */
+    /* --- Panel group wrappers (transparent to grid) --- */
+    .panel-group {
+      display: contents;
+    }
+
+    /* Panel group labels — dim monospace headers rendered via ::before */
+    .panel-group[data-label]::before {
+      content: attr(data-label);
+      display: block;
+      grid-column: span 4;
+      font-family: var(--font-mono, 'JetBrains Mono', monospace);
+      font-size: 0.65rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-dim, #555570);
+      padding: 6px 8px 2px;
+      border-bottom: 1px solid var(--border-subtle, #1a1a2a);
+      align-self: end;
+    }
+
+    /* Workflow strip (sits above the grid) */
+    helm-workflow-strip {
+      display: block;
+      padding: 4px 8px;
+      background: var(--bg-panel, #11111a);
+      border-bottom: 1px solid var(--border-subtle, #1a1a2a);
+    }
+
+    /* --- Helm view panels --- */
     .helm-fc-panel {
       grid-column: span 6;
       min-height: var(--panel-height-md);
@@ -134,13 +162,8 @@
       min-height: var(--panel-height-md);
     }
 
-    .helm-nav-panel {
-      grid-column: span 4;
-      min-height: var(--panel-height-sm);
-    }
-
-    .helm-autopilot-panel {
-      grid-column: span 4;
+    .helm-flight-data-panel {
+      grid-column: span 6;
       min-height: var(--panel-height-sm);
     }
 
@@ -149,34 +172,19 @@
       min-height: var(--panel-height-sm);
     }
 
-    .helm-throttle-panel {
-      grid-column: span 3;
+    .helm-manual-flight-panel {
+      grid-column: span 4;
       min-height: var(--panel-height-md);
-    }
-
-    .helm-heading-panel {
-      grid-column: span 3;
-      min-height: var(--panel-height-sm);
-    }
-
-    .helm-course-panel {
-      grid-column: span 3;
-      min-height: var(--panel-height-sm);
     }
 
     .helm-rcs-panel {
-      grid-column: span 3;
+      grid-column: span 4;
       min-height: var(--panel-height-sm);
     }
 
-    .helm-old-fc-panel {
+    .helm-maneuver-panel {
       grid-column: span 6;
       min-height: var(--panel-height-md);
-    }
-
-    .helm-requests-panel {
-      grid-column: span 6;
-      min-height: var(--panel-height-sm);
     }
 
     .helm-queue-panel {
@@ -185,11 +193,6 @@
     }
 
     .helm-docking-panel {
-      grid-column: span 4;
-      min-height: var(--panel-height-sm);
-    }
-
-    .helm-deltav-panel {
       grid-column: span 4;
       min-height: var(--panel-height-sm);
     }
@@ -333,8 +336,13 @@
         grid-template-columns: repeat(6, 1fr);
       }
 
-      .view-grid > flaxos-panel {
+      .view-grid > flaxos-panel,
+      .view-grid .panel-group > flaxos-panel {
         grid-column: span 6 !important;
+      }
+
+      .panel-group[data-label]::before {
+        grid-column: span 6;
       }
     }
 
@@ -344,9 +352,14 @@
         grid-template-columns: 1fr;
       }
 
-      .view-grid > flaxos-panel {
+      .view-grid > flaxos-panel,
+      .view-grid .panel-group > flaxos-panel {
         grid-column: span 1 !important;
         grid-row: span 1 !important;
+      }
+
+      .panel-group[data-label]::before {
+        grid-column: span 1;
       }
 
       .eng-log-panel {
@@ -383,73 +396,54 @@
 
     <!-- ===== HELM VIEW ===== -->
     <div class="view-container active" id="view-helm">
+      <!-- Workflow breadcrumb strip (above the grid) -->
+      <helm-workflow-strip></helm-workflow-strip>
+
       <div class="view-grid">
-        <!-- Flight Computer Panel (new, for server-side flight computer) -->
-        <flaxos-panel title="Flight Computer" collapsible class="helm-fc-panel">
-          <flight-computer-panel></flight-computer-panel>
-        </flaxos-panel>
+        <!-- LEFT: SITUATIONAL AWARENESS — "Where am I? What's around?" -->
+        <div class="panel-group" data-label="// SITUATIONAL AWARENESS">
+          <flaxos-panel title="Contacts" collapsible priority="primary" domain="sensor" class="helm-contacts-panel">
+            <sensor-contacts id="sensor-contacts"></sensor-contacts>
+          </flaxos-panel>
 
-        <!-- Compact contact list -->
-        <flaxos-panel title="Contacts" collapsible class="helm-contacts-panel">
-          <sensor-contacts id="sensor-contacts"></sensor-contacts>
-        </flaxos-panel>
+          <flaxos-panel title="Flight Data" collapsible priority="secondary" domain="nav" class="helm-flight-data-panel">
+            <flight-data-panel></flight-data-panel>
+          </flaxos-panel>
+        </div>
 
-        <!-- Navigation -->
-        <flaxos-panel title="Navigation" collapsible class="helm-nav-panel">
-          <navigation-display></navigation-display>
-        </flaxos-panel>
+        <!-- CENTER: COMMAND & CONTROL — "What do I want to do?" -->
+        <div class="panel-group" data-label="// COMMAND &amp; CONTROL">
+          <flaxos-panel title="Flight Computer" collapsible priority="primary" domain="nav" class="helm-fc-panel">
+            <flight-computer-panel></flight-computer-panel>
+          </flaxos-panel>
 
-        <!-- Autopilot -->
-        <flaxos-panel title="Autopilot" collapsible class="helm-autopilot-panel">
-          <autopilot-control></autopilot-control>
-        </flaxos-panel>
+          <flaxos-panel title="Manual Flight" collapsible priority="primary" domain="helm" class="helm-manual-flight-panel">
+            <manual-flight-panel></manual-flight-panel>
+          </flaxos-panel>
 
-        <!-- Autopilot Status -->
-        <flaxos-panel title="Autopilot Status" collapsible class="helm-autopilot-status-panel">
-          <autopilot-status></autopilot-status>
-        </flaxos-panel>
+          <flaxos-panel title="RCS / Attitude" collapsible domain="helm" class="helm-rcs-panel">
+            <rcs-controls></rcs-controls>
+          </flaxos-panel>
+        </div>
 
-        <!-- Manual Controls -->
-        <flaxos-panel title="Throttle" collapsible class="helm-throttle-panel">
-          <throttle-control></throttle-control>
-        </flaxos-panel>
+        <!-- RIGHT: SHIP STATUS — "What is my ship doing?" -->
+        <div class="panel-group" data-label="// SHIP STATUS">
+          <flaxos-panel title="Autopilot Status" collapsible priority="secondary" domain="nav" class="helm-autopilot-status-panel">
+            <autopilot-status></autopilot-status>
+          </flaxos-panel>
 
-        <flaxos-panel title="Heading" collapsible class="helm-heading-panel">
-          <heading-control></heading-control>
-        </flaxos-panel>
+          <flaxos-panel title="Helm Queue" collapsible priority="tertiary" domain="comms" class="helm-queue-panel">
+            <helm-queue-panel></helm-queue-panel>
+          </flaxos-panel>
 
-        <flaxos-panel title="Set Course" collapsible class="helm-course-panel">
-          <set-course-control></set-course-control>
-        </flaxos-panel>
+          <flaxos-panel title="Docking" collapsible domain="nav" class="helm-docking-panel">
+            <docking-panel></docking-panel>
+          </flaxos-panel>
 
-        <flaxos-panel title="RCS / Attitude" collapsible class="helm-rcs-panel">
-          <rcs-controls></rcs-controls>
-        </flaxos-panel>
-
-        <!-- Client-side flight computer (existing, with waypoint/intercept/flip-burn) -->
-        <flaxos-panel title="Flight Computer (Local)" collapsible class="helm-old-fc-panel">
-          <flight-computer></flight-computer>
-        </flaxos-panel>
-
-        <!-- Helm Requests -->
-        <flaxos-panel title="Helm Requests" collapsible class="helm-requests-panel">
-          <helm-requests></helm-requests>
-        </flaxos-panel>
-
-        <!-- Helm Queue -->
-        <flaxos-panel title="Helm Queue" collapsible class="helm-queue-panel">
-          <helm-queue-panel></helm-queue-panel>
-        </flaxos-panel>
-
-        <!-- Docking -->
-        <flaxos-panel title="Docking" collapsible class="helm-docking-panel">
-          <docking-panel></docking-panel>
-        </flaxos-panel>
-
-        <!-- Delta-V Budget -->
-        <flaxos-panel title="Delta-V Budget" collapsible class="helm-deltav-panel">
-          <delta-v-display></delta-v-display>
-        </flaxos-panel>
+          <flaxos-panel title="Maneuver Planner" collapsible priority="tertiary" domain="helm" class="helm-maneuver-panel">
+            <maneuver-planner></maneuver-planner>
+          </flaxos-panel>
+        </div>
       </div>
     </div>
 

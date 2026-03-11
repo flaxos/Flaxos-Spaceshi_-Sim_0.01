@@ -1,11 +1,21 @@
 /**
  * Panel Container Component
  * Consistent header styling with optional collapse/expand
+ * Supports priority levels, domain color accents, and disabled state with reason overlay
  */
+
+const DOMAIN_COLORS = {
+  nav:     "--domain-nav",
+  sensor:  "--domain-sensor",
+  weapons: "--domain-weapons",
+  power:   "--domain-power",
+  comms:   "--domain-comms",
+  helm:    "--domain-helm",
+};
 
 class FlaxosPanel extends HTMLElement {
   static get observedAttributes() {
-    return ["title", "collapsible", "collapsed", "minimizable"];
+    return ["title", "collapsible", "collapsed", "minimizable", "priority", "domain", "disabled-reason"];
   }
 
   constructor() {
@@ -56,11 +66,41 @@ class FlaxosPanel extends HTMLElement {
     this._updateCollapsedState();
   }
 
+  get priority() {
+    const val = this.getAttribute("priority");
+    if (val === "primary" || val === "tertiary") return val;
+    return "secondary";
+  }
+
+  get domain() {
+    return this.getAttribute("domain") || null;
+  }
+
+  get disabledReason() {
+    return this.getAttribute("disabled-reason") || null;
+  }
+
   toggle() {
     this.collapsed = !this.collapsed;
   }
 
+  /**
+   * Build the domain color CSS variable assignment.
+   * When a valid domain is set, --panel-domain-color resolves to the
+   * corresponding --domain-* variable so other styles can reference it.
+   */
+  _getDomainColorRule() {
+    const d = this.domain;
+    if (d && DOMAIN_COLORS[d]) {
+      return `--panel-domain-color: var(${DOMAIN_COLORS[d]});`;
+    }
+    return `--panel-domain-color: transparent;`;
+  }
+
   render() {
+    const domainRule = this._getDomainColorRule();
+    const isDisabled = this.disabledReason !== null;
+
     this.shadowRoot.innerHTML = `
       <style>
         :host {
@@ -70,6 +110,27 @@ class FlaxosPanel extends HTMLElement {
           border: 1px solid var(--border-default, #2a2a3a);
           border-radius: var(--radius-md, 8px);
           overflow: hidden;
+          position: relative;
+          ${domainRule}
+        }
+
+        /* --- Priority: primary --- */
+        :host([priority="primary"]) {
+          background: var(--bg-panel-raised, #161622);
+          border-color: var(--border-active, #3a3a4a);
+          border-left: 3px solid var(--panel-domain-color, var(--border-active, #3a3a4a));
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+        }
+
+        /* --- Priority: tertiary --- */
+        :host([priority="tertiary"]) {
+          border-color: var(--border-subtle, #1e1e2e);
+          opacity: 0.85;
+        }
+
+        /* --- Disabled state --- */
+        :host([disabled-reason]) {
+          opacity: 0.4;
         }
 
         .header {
@@ -116,10 +177,16 @@ class FlaxosPanel extends HTMLElement {
         .content {
           flex: 1;
           overflow-y: auto;
+          position: relative;
         }
 
         .content.collapsed {
           display: none;
+        }
+
+        /* Block interaction when panel is disabled */
+        .content.disabled {
+          pointer-events: none;
         }
 
         .collapse-icon {
@@ -133,6 +200,28 @@ class FlaxosPanel extends HTMLElement {
 
         ::slotted(*) {
           padding: 16px;
+        }
+
+        /* Disabled reason overlay — sits inside content area so title bar stays visible */
+        .disabled-overlay {
+          position: absolute;
+          inset: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 16px;
+          background: rgba(6, 6, 9, 0.6);
+          z-index: 5;
+          pointer-events: none;
+        }
+        .disabled-overlay .reason-text {
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+          font-size: 0.7rem;
+          color: var(--text-dim, #555570);
+          text-align: center;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          line-height: 1.4;
         }
       </style>
 
@@ -150,12 +239,24 @@ class FlaxosPanel extends HTMLElement {
           ` : ""}
         </div>
       </div>
-      <div class="content" id="content" part="content">
+      <div class="content${isDisabled ? " disabled" : ""}" id="content" part="content">
         <slot></slot>
+        ${isDisabled ? `
+          <div class="disabled-overlay">
+            <span class="reason-text">${this._escapeHtml(this.disabledReason)}</span>
+          </div>
+        ` : ""}
       </div>
     `;
 
     this._bindEvents();
+  }
+
+  /** Escape HTML entities to prevent XSS in disabled-reason text */
+  _escapeHtml(str) {
+    if (!str) return "";
+    const map = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" };
+    return str.replace(/[&<>"']/g, (c) => map[c]);
   }
 
   _bindEvents() {

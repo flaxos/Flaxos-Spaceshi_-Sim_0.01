@@ -1,19 +1,33 @@
-/* tiers.css — Panel visibility rules per control tier.
+/* tiers.css — Per-tier visual identity, panel visibility, and layout rules.
  *
  * The tier-selector component sets one of these classes on <body>:
- *   .tier-raw        — manual flight, raw vectors
- *   .tier-arcade     — balanced (DEFAULT)
- *   .tier-cpu-assist — order-based, ship handles execution
+ *   .tier-raw        — manual flight, raw vectors ("You ARE the flight computer")
+ *   .tier-arcade     — balanced, DEFAULT ("Point and shoot")
+ *   .tier-cpu-assist — order-based, ship handles execution ("Captain's chair")
  *
  * Panels use view-specific class names (helm-*, eng-*) so hiding
  * targets the right panel in the right view without :has() issues.
+ *
+ * New panel classes (post-refactor):
+ *   helm-flight-data-panel      (merged nav + delta-v)
+ *   helm-manual-flight-panel    (merged throttle + heading)
+ *   helm-maneuver-panel         (renamed from helm-old-fc-panel)
+ *   helm-fc-panel               (unified flight computer)
+ *   helm-contacts-panel
+ *   helm-rcs-panel
+ *   helm-autopilot-status-panel
+ *   helm-queue-panel            (expanded, absorbed requests)
+ *   helm-docking-panel
  */
 
-/* --- Tier accent colors ------------------------------------------------- */
 
-body.tier-raw        { --tier-accent: #ff4444; }
-body.tier-arcade     { --tier-accent: #4488ff; }
-body.tier-cpu-assist { --tier-accent: #00ff88; }
+/* =========================================================================
+   1. TIER ACCENT COLORS
+   ========================================================================= */
+
+body.tier-raw        { --tier-accent: #ff4444; }  /* Red — danger, manual */
+body.tier-arcade     { --tier-accent: #4488ff; }  /* Blue — guided */
+body.tier-cpu-assist { --tier-accent: #c0a0ff; }  /* Purple — bridge command */
 
 /* Status bar and bridge controls pick up the accent */
 .status-bar,
@@ -21,55 +35,235 @@ body.tier-cpu-assist { --tier-accent: #00ff88; }
   border-bottom: 2px solid var(--tier-accent, #4488ff);
 }
 
-/* --- Smooth transitions on all panels ----------------------------------- */
+
+/* =========================================================================
+   2. PER-TIER VISUAL IDENTITY
+   ========================================================================= */
+
+/* --- RAW: Terminal aesthetic, monospace everything, sharp edges ---------- */
+
+body.tier-raw {
+  font-family: var(--font-mono, 'JetBrains Mono', 'Fira Code', 'Consolas', monospace);
+}
+
+body.tier-raw flaxos-panel {
+  border-radius: 2px;
+}
+
+/* Subtle green scanline tint via pseudo-element on the body.
+ * Pointer-events: none so it never blocks interaction. */
+body.tier-raw::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 3px,
+    rgba(0, 255, 64, 0.015) 3px,
+    rgba(0, 255, 64, 0.015) 4px
+  );
+}
+
+/* --- ARCADE: Mixed fonts, rounded, blue glow on interactives ------------ */
+
+body.tier-arcade flaxos-panel {
+  border-radius: 8px;
+}
+
+/* Blue glow on buttons, inputs, selects inside arcade tier */
+body.tier-arcade button:focus,
+body.tier-arcade button:hover,
+body.tier-arcade select:focus,
+body.tier-arcade input:focus {
+  box-shadow: 0 0 6px 1px rgba(68, 136, 255, 0.4);
+  outline: none;
+}
+
+/* --- CPU-ASSIST: Sans-serif, larger text, lighter panels ---------------- */
+
+body.tier-cpu-assist {
+  font-family: var(--font-sans, 'Inter', 'Segoe UI', system-ui, sans-serif);
+  font-size: 1rem;
+}
+
+body.tier-cpu-assist flaxos-panel {
+  border-radius: 6px;
+  background: var(--bg-panel-raised, #161622);
+}
+
+
+/* =========================================================================
+   3. SMOOTH TRANSITIONS ON ALL PANELS
+   ========================================================================= */
 
 flaxos-panel {
   transition: opacity 0.2s ease, max-height 0.3s ease;
 }
 
-/* --- RAW tier: manual only, hide automation & queues -------------------- */
 
-body.tier-raw .helm-fc-panel,
-body.tier-raw .helm-old-fc-panel,
-body.tier-raw .helm-autopilot-panel,
+/* =========================================================================
+   4. HELM PANEL VISIBILITY — RAW TIER
+   "You ARE the flight computer" (~7 panels)
+
+   Show:     Contacts, Flight Data, Manual Flight (HERO), RCS, Maneuver Planner
+   Disabled: Flight Computer (collapsed, autopilot message)
+   Hidden:   Autopilot Status, Helm Queue, Docking
+   ========================================================================= */
+
+/* Hidden panels */
 body.tier-raw .helm-autopilot-status-panel,
+body.tier-raw .helm-queue-panel,
+body.tier-raw .helm-docking-panel {
+  display: none;
+}
+
+/* Disabled: Flight Computer — visible but inert.
+ * The disabled-reason attribute on <flaxos-panel> handles the overlay message. */
+body.tier-raw .helm-fc-panel {
+  opacity: 0.5;
+  pointer-events: none;
+  position: relative;
+  order: 99; /* Push to end of grid */
+}
+
+/* Legacy panels that should not appear (in case markup still references them) */
+body.tier-raw .helm-autopilot-panel,
 body.tier-raw .helm-course-panel,
 body.tier-raw .helm-requests-panel,
-body.tier-raw .helm-queue-panel,
-body.tier-raw .helm-docking-panel { display: none; }
+body.tier-raw .helm-old-fc-panel,
+body.tier-raw .helm-nav-panel,
+body.tier-raw .helm-throttle-panel,
+body.tier-raw .helm-heading-panel,
+body.tier-raw .helm-deltav-panel {
+  display: none;
+}
 
+
+/* =========================================================================
+   5. HELM PANEL VISIBILITY — ARCADE TIER
+   "Point and shoot" (~7 panels)
+
+   Show:     Contacts, Flight Computer (HERO), Flight Data, Autopilot Status,
+             Docking (when near)
+   Disabled: RCS (autopilot handles attitude)
+   Hidden:   Manual Flight, Maneuver Planner, Helm Queue
+   ========================================================================= */
+
+/* Hidden panels */
+body.tier-arcade .helm-manual-flight-panel,
+body.tier-arcade .helm-maneuver-panel,
+body.tier-arcade .helm-queue-panel {
+  display: none;
+}
+
+/* Disabled: RCS — visible but inert */
+body.tier-arcade .helm-rcs-panel {
+  opacity: 0.5;
+  pointer-events: none;
+  position: relative;
+}
+
+/* Legacy panels */
+body.tier-arcade .helm-old-fc-panel,
+body.tier-arcade .helm-requests-panel,
+body.tier-arcade .helm-autopilot-panel,
+body.tier-arcade .helm-course-panel,
+body.tier-arcade .helm-nav-panel,
+body.tier-arcade .helm-throttle-panel,
+body.tier-arcade .helm-heading-panel,
+body.tier-arcade .helm-deltav-panel,
+body.tier-arcade .helm-micro-rcs-panel {
+  display: none;
+}
+
+
+/* =========================================================================
+   6. HELM PANEL VISIBILITY — CPU-ASSIST TIER
+   "Captain's chair" (~6 panels)
+
+   Show:     Contacts, Flight Computer, Flight Data,
+             Autopilot Status (HERO), Helm Queue, Docking
+   Hidden:   Manual Flight, RCS, Maneuver Planner
+   ========================================================================= */
+
+/* Hidden panels */
+body.tier-cpu-assist .helm-manual-flight-panel,
+body.tier-cpu-assist .helm-rcs-panel,
+body.tier-cpu-assist .helm-maneuver-panel {
+  display: none;
+}
+
+/* Legacy panels */
+body.tier-cpu-assist .helm-old-fc-panel,
+body.tier-cpu-assist .helm-requests-panel,
+body.tier-cpu-assist .helm-autopilot-panel,
+body.tier-cpu-assist .helm-course-panel,
+body.tier-cpu-assist .helm-nav-panel,
+body.tier-cpu-assist .helm-throttle-panel,
+body.tier-cpu-assist .helm-heading-panel,
+body.tier-cpu-assist .helm-deltav-panel {
+  display: none;
+}
+
+
+/* =========================================================================
+   7. HERO PANEL SIZING PER TIER
+   Grid assumes 12 columns. Hero panels span more to dominate the layout.
+   ========================================================================= */
+
+body.tier-raw .helm-manual-flight-panel {
+  grid-column: span 8;
+}
+
+body.tier-arcade .helm-fc-panel {
+  grid-column: span 6;
+}
+
+body.tier-cpu-assist .helm-autopilot-status-panel {
+  grid-column: span 6;
+}
+
+
+/* =========================================================================
+   8. WORKFLOW STRIP
+   Visible in all tiers, accent color matches tier.
+   ========================================================================= */
+
+body.tier-raw helm-workflow-strip        { --strip-accent: #ff4444; }
+body.tier-arcade helm-workflow-strip     { --strip-accent: #4488ff; }
+body.tier-cpu-assist helm-workflow-strip { --strip-accent: #c0a0ff; }
+
+
+/* =========================================================================
+   9. ENGINEERING PANEL VISIBILITY (unchanged from pre-refactor)
+   Eng view has its own panel set. These rules are preserved as-is
+   until engineering gets its own refactor pass.
+   ========================================================================= */
+
+/* RAW: hide automation/profile panels, show raw systems */
 body.tier-raw .eng-profiles-panel,
 body.tier-raw .eng-draw-panel,
 body.tier-raw .eng-crew-panel,
 body.tier-raw .eng-nav-panel,
 body.tier-raw .eng-log-panel,
-body.tier-raw .eng-pos-heading-panel { display: none; }
+body.tier-raw .eng-pos-heading-panel {
+  display: none;
+}
 
-/* --- ARCADE tier: guided, hide expert & low-level controls -------------- */
-
-body.tier-arcade .helm-old-fc-panel,
-body.tier-arcade .helm-requests-panel,
-body.tier-arcade .helm-queue-panel,
-body.tier-arcade .helm-rcs-panel,
-body.tier-arcade .helm-micro-rcs-panel,
-body.tier-arcade .helm-docking-panel { display: none; }
-
+/* ARCADE: hide low-level engineering, show balanced set */
 body.tier-arcade .eng-draw-panel,
 body.tier-arcade .eng-crew-panel,
 body.tier-arcade .eng-micro-rcs-panel,
 body.tier-arcade .eng-thrust-panel,
 body.tier-arcade .eng-pos-heading-panel,
-body.tier-arcade .eng-nav-panel { display: none; }
+body.tier-arcade .eng-nav-panel {
+  display: none;
+}
 
-/* --- CPU ASSIST tier: minimal, order-based ------------------------------ */
-
-body.tier-cpu-assist .helm-throttle-panel,
-body.tier-cpu-assist .helm-heading-panel,
-body.tier-cpu-assist .helm-rcs-panel,
-body.tier-cpu-assist .helm-old-fc-panel,
-body.tier-cpu-assist .helm-requests-panel,
-body.tier-cpu-assist .helm-docking-panel { display: none; }
-
+/* CPU-ASSIST: minimal engineering — just status and profiles */
 body.tier-cpu-assist .eng-systems-panel,
 body.tier-cpu-assist .eng-power-panel,
 body.tier-cpu-assist .eng-draw-panel,
@@ -77,9 +271,14 @@ body.tier-cpu-assist .eng-crew-panel,
 body.tier-cpu-assist .eng-nav-panel,
 body.tier-cpu-assist .eng-pos-heading-panel,
 body.tier-cpu-assist .eng-micro-rcs-panel,
-body.tier-cpu-assist .eng-thrust-panel { display: none; }
+body.tier-cpu-assist .eng-thrust-panel {
+  display: none;
+}
 
-/* --- Tutorial highlight glow -------------------------------------------- */
+
+/* =========================================================================
+   10. TUTORIAL HIGHLIGHT GLOW
+   ========================================================================= */
 
 @keyframes tutorial-pulse {
   0%, 100% { box-shadow: 0 0 8px 2px var(--status-info, #4488ff); }
@@ -91,4 +290,24 @@ flaxos-panel.tutorial-highlight {
   border-color: var(--status-info, #4488ff) !important;
   z-index: 10;
   position: relative;
+}
+
+/* During active tutorial, dim all non-highlighted panels */
+body.tutorial-active flaxos-panel:not(.tutorial-highlight) {
+  opacity: 0.4;
+}
+
+
+/* =========================================================================
+   11. REDUCED MOTION
+   ========================================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  flaxos-panel {
+    transition: none;
+  }
+  flaxos-panel.tutorial-highlight {
+    animation: none;
+    box-shadow: 0 0 8px 2px var(--status-info, #4488ff);
+  }
 }
