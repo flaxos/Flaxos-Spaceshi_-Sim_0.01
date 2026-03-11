@@ -240,22 +240,35 @@ class HybridRunner:
         return True
     
     def _run_loop(self):
-        """Internal method to run the simulation loop"""
+        """Internal method to run the simulation loop.
+
+        Throttles to real-time: each tick advances sim time by self.dt seconds,
+        so we sleep the remainder of dt after computing the tick.  Without this
+        the loop runs thousands of ticks per wall-clock second and the ship
+        crosses hundreds of km in seconds instead of minutes.
+        """
         self.simulator.start()
-        
+
         while self.running:
             try:
+                tick_start = time.monotonic()
+
                 # Run a single simulation step (using tick method)
                 self.simulator.tick()
                 self.tick_count += 1
                 self._update_mission()
-                
+
                 # Update the state cache every 10 ticks (or as needed)
                 if self.tick_count % 10 == 0:
                     self._update_state_cache()
-                
-                # Sleep to limit CPU usage
-                time.sleep(0.001)
+
+                # Sleep the remaining dt to maintain real-time simulation speed.
+                # dt=0.1 means 10 ticks per real second; without this sleep the
+                # loop runs as fast as the CPU allows (~1000+ ticks/s).
+                elapsed = time.monotonic() - tick_start
+                sleep_time = self.dt - elapsed
+                if sleep_time > 0:
+                    time.sleep(sleep_time)
             except Exception as e:
                 print(f"Error in simulation tick: {e}")
                 time.sleep(0.1)  # Sleep longer on error

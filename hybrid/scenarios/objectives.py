@@ -360,23 +360,41 @@ class Objective:
         return False
 
     def _check_scan_target(self, sim, player_ship) -> bool:
-        """Check if target has been scanned with active sensors."""
+        """Check if target has been detected by sensors (passive or active).
+
+        Accepts any detection method — passive detection at range counts as
+        'scanned' for mission objectives.  Active scans complete at any
+        confidence; passive scans need confidence > 0.3 to filter out
+        momentary noise detections.
+        """
         target_id = self.params.get("target")
 
-        # Check if target is in sensor contacts with high confidence
+        # Check if target is in sensor contacts via ContactTracker
         sensors = player_ship.systems.get("sensors")
-        if sensors:
-            contact = sensors.get_contact(target_id)
-            if contact and hasattr(contact, "detection_method"):
-                if contact.detection_method == "active" and contact.confidence > 0.9:
-                    self.status = ObjectiveStatus.COMPLETED
-                    self.completion_time = sim.time
-                    self.progress = 1.0
-                    logger.info(f"Objective {self.id} completed: Scanned {target_id}")
-                    return True
+        if not sensors or not hasattr(sensors, "get_contact"):
+            return False
 
-                # Update progress
-                self.progress = contact.confidence if contact else 0.0
+        contact = sensors.get_contact(target_id)
+        if contact and hasattr(contact, "detection_method"):
+            # Active scans complete immediately (high-confidence ping)
+            if contact.detection_method == "active" and contact.confidence > 0.5:
+                self.status = ObjectiveStatus.COMPLETED
+                self.completion_time = sim.time
+                self.progress = 1.0
+                logger.info(f"Objective {self.id} completed: Active scan of {target_id}")
+                return True
+
+            # Passive detection completes once confidence stabilises above noise floor.
+            # At 427km / 500km range, accuracy is ~0.24-0.49 so 0.3 is reachable.
+            if contact.detection_method == "passive" and contact.confidence > 0.3:
+                self.status = ObjectiveStatus.COMPLETED
+                self.completion_time = sim.time
+                self.progress = 1.0
+                logger.info(f"Objective {self.id} completed: Passive detection of {target_id}")
+                return True
+
+            # Update progress based on confidence
+            self.progress = contact.confidence
 
         return False
 
