@@ -595,9 +595,11 @@ class FlightComputerPanel extends HTMLElement {
     }
 
     try {
-      const resp = await wsClient.send("get_nav_solutions", params);
-      if (resp?.error) {
-        content.innerHTML = `<div class="nav-sol-error">${resp.error}</div>`;
+      const raw = await wsClient.sendShipCommand("get_nav_solutions", params);
+      // Station dispatcher wraps in {ok, message, response: {solutions, range, ...}}
+      const resp = raw?.response || raw;
+      if (resp?.error || raw?.error) {
+        content.innerHTML = `<div class="nav-sol-error">${resp?.error || raw?.error}</div>`;
         this._navSolutions = null;
         return;
       }

@@ -377,14 +377,14 @@ class NavigationSystem(BaseSystem):
             return error_dict("MISSING_TARGET",
                               "Provide target_id or target_position {x, y, z}")
 
-        solutions = self.controller.calculate_nav_solutions(
+        result = self.controller.calculate_nav_solutions(
             target_id=target_id, target_position=target_position)
 
-        if solutions is None:
+        if result is None:
             return error_dict("TARGET_NOT_FOUND",
                               "Could not resolve target for nav solutions")
 
-        return success_dict("Nav solutions calculated", solutions=solutions)
+        return success_dict("Nav solutions calculated", **result)
 
     def _cmd_set_plan(self, params: dict):
         """Set a queued flight plan.
