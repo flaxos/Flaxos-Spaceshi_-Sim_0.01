@@ -212,6 +212,12 @@ class StationSelector extends HTMLElement {
   async _pollStatus() {
     if (!wsClient.isConnected) return;
 
+    // If registered but not yet assigned to a ship, retry assignment
+    // (stateManager may have auto-detected the player ship since last check)
+    if (this._registered && !this._assignedShipId) {
+      await this._tryAssignShip();
+    }
+
     try {
       const response = await wsClient.send("my_status", {});
       if (response && response.ok !== false) {

@@ -163,6 +163,18 @@ class StationServer:
         if requires_ship and not ship_id:
             return {"ok": False, "error": "missing ship"}
 
+        # Auto-assign ship and station if session exists but has none yet
+        if session and ship_id and ship_id in self.runner.simulator.ships:
+            if not session.ship_id:
+                self.station_manager.assign_to_ship(client_id, ship_id)
+                logger.info(f"Auto-assigned {client_id} to ship {ship_id}")
+            if not session.station and session.ship_id == ship_id:
+                from server.stations.station_types import StationType
+                self.station_manager.claim_station(
+                    client_id, ship_id, StationType.CAPTAIN, PermissionLevel.CAPTAIN
+                )
+                logger.info(f"Auto-claimed CAPTAIN station for {client_id} on {ship_id}")
+
         # Route through station-aware dispatcher
         args = {k: v for k, v in req.items() if k not in ["cmd", "command"]}
         if ship_id:
