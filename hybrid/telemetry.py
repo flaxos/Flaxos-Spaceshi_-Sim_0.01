@@ -182,8 +182,27 @@ def get_sensor_contacts(ship) -> Dict[str, Any]:
             distance = calculate_distance(ship.position, position)
             bearing = calculate_bearing(ship.position, position)
 
+            # Serialize position as dict for JSON transport
+            pos_dict = None
+            if position is not None:
+                if hasattr(position, "x"):
+                    pos_dict = {"x": position.x, "y": position.y, "z": getattr(position, "z", 0)}
+                elif isinstance(position, dict):
+                    pos_dict = {"x": position.get("x", 0), "y": position.get("y", 0), "z": position.get("z", 0)}
+
+            # Get velocity if available
+            velocity = contact_value(contact, "velocity", None)
+            vel_dict = None
+            if velocity is not None:
+                if hasattr(velocity, "x"):
+                    vel_dict = {"x": velocity.x, "y": velocity.y, "z": getattr(velocity, "z", 0)}
+                elif isinstance(velocity, dict):
+                    vel_dict = {"x": velocity.get("x", 0), "y": velocity.get("y", 0), "z": velocity.get("z", 0)}
+
             contacts_list.append({
                 "id": contact_id,
+                "position": pos_dict,
+                "velocity": vel_dict,
                 "distance": distance,
                 "bearing": bearing,
                 "confidence": contact_value(contact, "confidence", 0.5),
@@ -204,8 +223,27 @@ def get_sensor_contacts(ship) -> Dict[str, Any]:
             distance = calculate_distance(ship.position, position)
             bearing = calculate_bearing(ship.position, position)
 
+            # Serialize position as dict for JSON transport
+            pos_dict = None
+            if position is not None:
+                if hasattr(position, "x"):
+                    pos_dict = {"x": position.x, "y": position.y, "z": getattr(position, "z", 0)}
+                elif isinstance(position, dict):
+                    pos_dict = {"x": position.get("x", 0), "y": position.get("y", 0), "z": position.get("z", 0)}
+
+            # Get velocity if available
+            velocity = contact_value(contact, "velocity", None)
+            vel_dict = None
+            if velocity is not None:
+                if hasattr(velocity, "x"):
+                    vel_dict = {"x": velocity.x, "y": velocity.y, "z": getattr(velocity, "z", 0)}
+                elif isinstance(velocity, dict):
+                    vel_dict = {"x": velocity.get("x", 0), "y": velocity.get("y", 0), "z": velocity.get("z", 0)}
+
             contacts_list.append({
                 "id": contact_id,
+                "position": pos_dict,
+                "velocity": vel_dict,
                 "distance": distance,
                 "bearing": bearing,
                 "confidence": contact_value(contact, "confidence", 0.9),

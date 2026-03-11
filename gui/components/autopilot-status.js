@@ -12,8 +12,23 @@
 import { stateManager } from "../js/state-manager.js";
 import { wsClient } from "../js/ws-client.js";
 
-// Autopilot phases for GoToPosition
-const PHASES = ["ACCELERATE", "COAST", "BRAKE", "HOLD"];
+// Phase lists for different autopilot programs.
+// GoToPosition uses uppercase, Rendezvous uses lowercase, Intercept has its own set.
+// We normalise to uppercase for display and map them into a common ordered list.
+const GOTO_PHASES = ["ACCELERATE", "COAST", "BRAKE", "HOLD"];
+const RENDEZVOUS_PHASES = ["BURN", "FLIP", "BRAKE", "STATIONKEEP"];
+const INTERCEPT_PHASES = ["INTERCEPT", "APPROACH", "MATCH"];
+
+// Map program names to their phase lists
+const PROGRAM_PHASES = {
+  goto_position: GOTO_PHASES,
+  set_course: GOTO_PHASES,
+  rendezvous: RENDEZVOUS_PHASES,
+  intercept: INTERCEPT_PHASES,
+};
+
+// Default fallback
+const DEFAULT_PHASES = GOTO_PHASES;
 
 class AutopilotStatus extends HTMLElement {
   constructor() {
@@ -24,7 +39,12 @@ class AutopilotStatus extends HTMLElement {
     this._phase = null;
     this._status = null;
     this._mode = "manual";
-    this._courseInfo = null;
+    this._apState = null;
+    this._range = null;
+    this._closingSpeed = null;
+    this._brakingDistance = null;
+    this._eta = null;
+    this._statusText = null;
   }
 
   connectedCallback() {
@@ -149,10 +169,19 @@ class AutopilotStatus extends HTMLElement {
           background: var(--status-nominal, #00ff88);
         }
 
+        /* GoToPosition phases */
         .phase-segment.accelerate.active { background: var(--status-warning, #ffaa00); }
         .phase-segment.coast.active { background: var(--status-info, #00aaff); }
         .phase-segment.brake.active { background: var(--status-critical, #ff4444); }
         .phase-segment.hold.active { background: var(--status-nominal, #00ff88); }
+        /* Rendezvous phases */
+        .phase-segment.burn.active { background: var(--status-warning, #ffaa00); }
+        .phase-segment.flip.active { background: #cc66ff; }
+        .phase-segment.stationkeep.active { background: var(--status-nominal, #00ff88); }
+        /* Intercept phases */
+        .phase-segment.intercept.active { background: var(--status-warning, #ffaa00); }
+        .phase-segment.approach.active { background: var(--status-info, #00aaff); }
+        .phase-segment.match.active { background: var(--status-nominal, #00ff88); }
 
         .phase-labels {
           display: flex;
@@ -168,6 +197,23 @@ class AutopilotStatus extends HTMLElement {
         .phase-label.active {
           color: var(--text-primary, #e0e0e0);
           font-weight: 600;
+        }
+
+        /* Status Text */
+        .status-text {
+          font-size: 0.75rem;
+          color: var(--text-secondary, #888899);
+          text-align: center;
+          padding: 6px 8px;
+          margin-bottom: 8px;
+          background: var(--bg-input, #1a1a24);
+          border-radius: 4px;
+          font-style: italic;
+          min-height: 1.4em;
+        }
+
+        .status-text:empty {
+          display: none;
         }
 
         /* Info Grid */
@@ -250,19 +296,11 @@ class AutopilotStatus extends HTMLElement {
             </div>
 
             <div class="phase-progress" id="phase-progress">
-              <div class="phase-bar">
-                <div class="phase-segment accelerate" data-phase="ACCELERATE"></div>
-                <div class="phase-segment coast" data-phase="COAST"></div>
-                <div class="phase-segment brake" data-phase="BRAKE"></div>
-                <div class="phase-segment hold" data-phase="HOLD"></div>
-              </div>
-              <div class="phase-labels">
-                <span class="phase-label" data-phase="ACCELERATE">Accel</span>
-                <span class="phase-label" data-phase="COAST">Coast</span>
-                <span class="phase-label" data-phase="BRAKE">Brake</span>
-                <span class="phase-label" data-phase="HOLD">Hold</span>
-              </div>
+              <div class="phase-bar" id="phase-bar"></div>
+              <div class="phase-labels" id="phase-labels"></div>
             </div>
+
+            <div class="status-text" id="status-text"></div>
 
             <div class="info-grid">
               <div class="info-item">
@@ -278,8 +316,8 @@ class AutopilotStatus extends HTMLElement {
                 <div class="info-value" id="info-braking">--</div>
               </div>
               <div class="info-item">
-                <div class="info-label">Target</div>
-                <div class="info-value" id="info-target">--</div>
+                <div class="info-label">ETA</div>
+                <div class="info-value" id="info-eta">--</div>
               </div>
             </div>
 
@@ -307,19 +345,34 @@ class AutopilotStatus extends HTMLElement {
     const ship = stateManager.getShipState();
     const navigation = ship?.systems?.navigation || {};
     const helm = ship?.systems?.helm || {};
-    // Station-filtered view nests under ship.autopilot
+    // Station-filtered HELM view nests autopilot data under ship.autopilot
     const ap = ship?.autopilot || {};
 
-    // Check all possible paths: top-level, station-filtered, nested systems
+    // Check all possible paths for mode and program name
     this._mode = ship?.nav_mode || ap.mode || navigation.mode || helm.mode || "manual";
     this._program = ship?.autopilot_program || ap.program || navigation.current_program || helm.autopilot_program || null;
-    this._status = ship?.autopilot_state?.status || ap.autopilot_state?.status || navigation.autopilot_state?.status || null;
 
-    // Get course info from any available path
-    this._courseInfo = ship?.course || ap.course || navigation.course || ship?.autopilot_state || ap.autopilot_state || navigation.autopilot_state || null;
-    if (this._courseInfo) {
-      this._phase = this._courseInfo.phase || null;
-    }
+    // Autopilot state dict -- the rich data from the autopilot's get_state().
+    // Telemetry puts it at top-level as "autopilot_state", station filter
+    // nests it under "autopilot.autopilot_state", and navigation system
+    // exposes it via systems.navigation.autopilot_state.
+    const apState = ship?.autopilot_state
+      || ap.autopilot_state
+      || navigation.autopilot_state
+      || null;
+
+    this._status = apState?.status || null;
+    this._apState = apState;
+
+    // Phase from autopilot state (normalise to uppercase for display)
+    this._phase = apState?.phase?.toUpperCase() || null;
+
+    // Extract numeric fields -- autopilots use "range" or "distance" depending on type
+    this._range = apState?.range ?? apState?.distance ?? null;
+    this._closingSpeed = apState?.closing_speed ?? null;
+    this._brakingDistance = apState?.braking_distance ?? null;
+    this._eta = apState?.time_to_arrival ?? null;
+    this._statusText = apState?.status_text ?? null;
 
     this._updateDisplay();
   }
@@ -378,86 +431,106 @@ class AutopilotStatus extends HTMLElement {
   }
 
   _updatePhaseProgress() {
-    const segments = this.shadowRoot.querySelectorAll(".phase-segment");
-    const labels = this.shadowRoot.querySelectorAll(".phase-label");
-    const currentPhase = this._phase?.toUpperCase() || null;
-    const currentIndex = PHASES.indexOf(currentPhase);
+    const bar = this.shadowRoot.getElementById("phase-bar");
+    const labelsContainer = this.shadowRoot.getElementById("phase-labels");
+    if (!bar || !labelsContainer) return;
 
-    segments.forEach((segment, index) => {
-      segment.classList.remove("active", "completed");
-      if (index < currentIndex) {
-        segment.classList.add("completed");
-      } else if (index === currentIndex) {
-        segment.classList.add("active");
-      }
-    });
+    // Pick the phase list for the current program
+    const programKey = this._program?.toLowerCase() || "";
+    const phases = PROGRAM_PHASES[programKey] || DEFAULT_PHASES;
+    const currentPhase = this._phase || null;
+    const currentIndex = phases.indexOf(currentPhase);
 
-    labels.forEach((label, index) => {
-      label.classList.remove("active");
-      if (index === currentIndex) {
-        label.classList.add("active");
-      }
+    // Rebuild segments and labels to match the active program's phases
+    bar.innerHTML = phases.map(
+      (p) => `<div class="phase-segment ${p.toLowerCase()}" data-phase="${p}"></div>`
+    ).join("");
+    labelsContainer.innerHTML = phases.map(
+      (p) => `<span class="phase-label" data-phase="${p}">${this._shortPhaseLabel(p)}</span>`
+    ).join("");
+
+    // Apply active/completed classes
+    bar.querySelectorAll(".phase-segment").forEach((seg, i) => {
+      if (i < currentIndex) seg.classList.add("completed");
+      else if (i === currentIndex) seg.classList.add("active");
     });
+    labelsContainer.querySelectorAll(".phase-label").forEach((lbl, i) => {
+      if (i === currentIndex) lbl.classList.add("active");
+    });
+  }
+
+  /** Short display label for a phase name */
+  _shortPhaseLabel(phase) {
+    const labels = {
+      ACCELERATE: "Accel",
+      COAST: "Coast",
+      BRAKE: "Brake",
+      HOLD: "Hold",
+      BURN: "Burn",
+      FLIP: "Flip",
+      STATIONKEEP: "Stnkeep",
+      INTERCEPT: "Intrcpt",
+      APPROACH: "Approach",
+      MATCH: "Match",
+    };
+    return labels[phase] || phase;
   }
 
   _updateInfoGrid() {
     const distanceEl = this.shadowRoot.getElementById("info-distance");
     const closingEl = this.shadowRoot.getElementById("info-closing");
     const brakingEl = this.shadowRoot.getElementById("info-braking");
-    const targetEl = this.shadowRoot.getElementById("info-target");
+    const etaEl = this.shadowRoot.getElementById("info-eta");
+    const statusTextEl = this.shadowRoot.getElementById("status-text");
 
-    if (this._courseInfo) {
-      // Distance
-      if (distanceEl) {
-        const dist = this._courseInfo.distance;
-        if (dist !== null && dist !== undefined) {
-          if (dist > 1000) {
-            distanceEl.textContent = `${(dist / 1000).toFixed(2)} km`;
-          } else {
-            distanceEl.textContent = `${dist.toFixed(1)} m`;
-          }
-        } else {
-          distanceEl.textContent = "--";
-        }
-      }
-
-      // Closing speed
-      if (closingEl) {
-        const closing = this._courseInfo.closing_speed;
-        if (closing !== null && closing !== undefined) {
-          closingEl.textContent = `${closing.toFixed(1)} m/s`;
-        } else {
-          closingEl.textContent = "--";
-        }
-      }
-
-      // Braking distance
-      if (brakingEl) {
-        const braking = this._courseInfo.braking_distance;
-        if (braking !== null && braking !== undefined) {
-          if (braking > 1000) {
-            brakingEl.textContent = `${(braking / 1000).toFixed(2)} km`;
-          } else {
-            brakingEl.textContent = `${braking.toFixed(1)} m`;
-          }
-        } else {
-          brakingEl.textContent = "--";
-        }
-      }
-
-      // Target/destination
-      if (targetEl) {
-        const dest = this._courseInfo.destination;
-        if (dest) {
-          const x = dest.x?.toFixed(0) || 0;
-          const y = dest.y?.toFixed(0) || 0;
-          const z = dest.z?.toFixed(0) || 0;
-          targetEl.textContent = `(${x}, ${y}, ${z})`;
-        } else {
-          targetEl.textContent = "--";
-        }
-      }
+    // Distance (use normalised _range which covers both "range" and "distance" fields)
+    if (distanceEl) {
+      distanceEl.textContent = this._formatDistance(this._range);
     }
+
+    // Closing speed
+    if (closingEl) {
+      closingEl.textContent = this._closingSpeed != null
+        ? `${this._closingSpeed.toFixed(1)} m/s`
+        : "--";
+    }
+
+    // Braking distance
+    if (brakingEl) {
+      brakingEl.textContent = this._formatDistance(this._brakingDistance);
+    }
+
+    // ETA
+    if (etaEl) {
+      etaEl.textContent = this._formatEta(this._eta);
+    }
+
+    // Human-readable status text from the autopilot
+    if (statusTextEl) {
+      statusTextEl.textContent = this._statusText || "";
+    }
+  }
+
+  /** Format a distance in metres for display: "427.3 km" or "850 m" */
+  _formatDistance(metres) {
+    if (metres == null) return "--";
+    if (metres >= 1000) {
+      return `${(metres / 1000).toFixed(1)} km`;
+    }
+    return `${metres.toFixed(0)} m`;
+  }
+
+  /** Format seconds into "Xm Ys" or "Xs" */
+  _formatEta(seconds) {
+    if (seconds == null) return "--";
+    if (seconds <= 0) return "0s";
+    if (seconds < 60) return `${seconds.toFixed(0)}s`;
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    if (m < 60) return `${m}m ${String(s).padStart(2, "0")}s`;
+    const h = Math.floor(m / 60);
+    const rm = m % 60;
+    return `${h}h ${String(rm).padStart(2, "0")}m`;
   }
 
   async _engageHold() {

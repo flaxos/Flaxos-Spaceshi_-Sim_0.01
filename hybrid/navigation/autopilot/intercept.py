@@ -209,16 +209,55 @@ class InterceptAutopilot(BaseAutopilot):
         """Get intercept autopilot state.
 
         Returns:
-            dict: State with phase info
+            dict: State with phase, range, closing_speed, time_to_arrival,
+            and human-readable status_text for GUI display.
         """
         state = super().get_state()
         state["phase"] = self.phase
         state["desired_approach_speed"] = self.desired_approach_speed
 
         target = self.get_target()
-        if target:
-            rel_motion = calculate_relative_motion(self.ship, target)
-            state["range"] = rel_motion["range"]
-            state["closing_speed"] = -rel_motion["range_rate"] if rel_motion["closing"] else 0
+        if not target:
+            state["status_text"] = "Target lost"
+            return state
+
+        rel_motion = calculate_relative_motion(self.ship, target)
+        current_range = rel_motion["range"]
+        closing_speed = -rel_motion["range_rate"] if rel_motion["closing"] else 0
+
+        # ETA estimate: distance / closing_speed when closing, else None
+        time_to_arrival = None
+        if closing_speed > 0.1:
+            time_to_arrival = current_range / closing_speed
+
+        state["range"] = current_range
+        state["closing_speed"] = closing_speed
+        state["time_to_arrival"] = time_to_arrival
+        state["status_text"] = self._build_status_text(
+            current_range, closing_speed, time_to_arrival
+        )
 
         return state
+
+    def _build_status_text(self, distance: float, closing_speed: float,
+                           eta: float = None) -> str:
+        """Human-readable status for the GUI."""
+        range_str = f"{distance / 1000:.1f}km" if distance >= 1000 else f"{distance:.0f}m"
+        if self.phase == "intercept":
+            eta_str = f", ETA {self._format_eta(eta)}" if eta else ""
+            return f"Intercept burn -- {range_str}{eta_str}"
+        elif self.phase == "approach":
+            return f"Approaching -- {range_str}, {closing_speed:.1f} m/s"
+        else:  # match
+            return f"Matching velocity at {range_str}"
+
+    @staticmethod
+    def _format_eta(seconds: float) -> str:
+        """Format seconds into compact time string."""
+        if seconds is None or seconds < 0:
+            return "0s"
+        if seconds < 60:
+            return f"{seconds:.0f}s"
+        minutes = int(seconds) // 60
+        secs = int(seconds) % 60
+        return f"{minutes}m {secs:02d}s"
