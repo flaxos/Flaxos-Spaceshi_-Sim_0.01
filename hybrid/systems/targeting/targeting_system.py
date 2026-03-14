@@ -100,11 +100,25 @@ class TargetingSystem(BaseSystem):
         self._ship_ref = ship
         self._sim_time = getattr(ship, 'sim_time', self._sim_time + dt)
 
-        # Get sensor degradation
-        if hasattr(ship, 'damage_model'):
+        # Get sensor degradation (includes cascade effects like reactor failure)
+        if hasattr(ship, 'get_effective_factor'):
+            self._sensor_factor = ship.get_effective_factor("sensors")
+        elif hasattr(ship, 'damage_model'):
             self._sensor_factor = ship.damage_model.get_degradation_factor("sensors")
         else:
             self._sensor_factor = 1.0
+
+        # Get targeting cascade factor (RCS offline = can't aim, sensors offline = blind)
+        if hasattr(ship, 'get_effective_factor'):
+            self._targeting_factor = ship.get_effective_factor("targeting")
+        else:
+            self._targeting_factor = 1.0
+
+        # Cascade: if targeting factor is zero, force-degrade all locks
+        if self._targeting_factor <= 0.0:
+            if self.lock_state not in (LockState.NONE, LockState.LOST):
+                self._degrade_lock(dt, "cascade_denial")
+            return
 
         # Update lock based on current state
         if self.locked_target:
@@ -210,6 +224,7 @@ class TargetingSystem(BaseSystem):
             # Progress lock acquisition
             lock_rate = 1.0 / self.lock_acquisition_time
             lock_rate *= self._sensor_factor  # Degraded sensors lock slower
+            lock_rate *= self._targeting_factor  # Cascade penalties (RCS/reactor)
             self.lock_progress = min(1.0, self.lock_progress + lock_rate * dt)
 
             if self.lock_progress >= 1.0:
@@ -223,8 +238,8 @@ class TargetingSystem(BaseSystem):
                 })
 
         elif self.lock_state == LockState.LOCKED:
-            # Maintain lock quality based on sensor quality and target confidence
-            target_quality = self._sensor_factor * self.target_data["confidence"]
+            # Maintain lock quality based on sensor quality, cascade, and confidence
+            target_quality = self._sensor_factor * self._targeting_factor * self.target_data["confidence"]
             # Smooth transition
             self.lock_quality = self.lock_quality * 0.9 + target_quality * 0.1
 

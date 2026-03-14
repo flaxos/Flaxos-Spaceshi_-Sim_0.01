@@ -20,6 +20,7 @@ def test_station_type_enum():
     assert StationType.OPS.value == "ops"
     assert StationType.ENGINEERING.value == "engineering"
     assert StationType.COMMS.value == "comms"
+    assert StationType.SCIENCE.value == "science"
     assert StationType.FLEET_COMMANDER.value == "fleet_commander"
 
 
@@ -61,15 +62,23 @@ def test_tactical_commands():
 
 
 def test_ops_commands():
-    """Test OPS station has sensor commands"""
+    """Test OPS station has power management and damage control commands"""
     ops_cmds = get_station_commands(StationType.OPS)
-    assert "ping_sensors" in ops_cmds
+    assert "set_power_profile" in ops_cmds
+    assert "get_power_profiles" in ops_cmds
+    assert "override_bio_monitor" in ops_cmds
 
 
 def test_engineering_commands():
-    """Test ENGINEERING station has power management commands"""
+    """Test ENGINEERING station has reactor/drive commands"""
     eng_cmds = get_station_commands(StationType.ENGINEERING)
-    assert "override_bio_monitor" in eng_cmds
+    assert "get_power_profiles" in eng_cmds
+
+
+def test_science_commands():
+    """Test SCIENCE station has sensor analysis commands"""
+    sci_cmds = get_station_commands(StationType.SCIENCE)
+    assert "ping_sensors" in sci_cmds
 
 
 def test_get_station_for_command():

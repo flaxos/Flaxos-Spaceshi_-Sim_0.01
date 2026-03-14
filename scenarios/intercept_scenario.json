@@ -14,6 +14,7 @@
       "class": "frigate",
       "faction": "unsa",
       "mass": 2500.0,
+      "dry_mass": 1800.0,
       "max_hull_integrity": 250.0,
       "hull_integrity": 250.0,
       "ai_enabled": false,
@@ -37,10 +38,10 @@
           "enabled": true,
           "power_draw": 80,
           "mass": 350,
-          "main_drive": {
-            "thrust": {"x": 0.0, "y": 0.0, "z": 0.0},
-            "max_thrust": 400.0
-          }
+          "max_thrust": 400.0,
+          "max_fuel": 700.0,
+          "fuel_level": 700.0,
+          "isp": 4000
         },
         "rcs": {
           "enabled": true,
@@ -105,7 +106,9 @@
         "propulsion": {"max_health": 100.0, "health": 100.0},
         "rcs": {"max_health": 80.0, "health": 80.0},
         "weapons": {"max_health": 90.0, "health": 90.0},
-        "sensors": {"max_health": 70.0, "health": 70.0}
+        "sensors": {"max_health": 70.0, "health": 70.0},
+        "reactor": {"max_health": 130.0, "health": 130.0},
+        "life_support": {"max_health": 70.0, "health": 70.0}
       }
     },
     {
@@ -114,6 +117,7 @@
       "class": "corvette",
       "faction": "hostile",
       "mass": 1500.0,
+      "dry_mass": 1100.0,
       "max_hull_integrity": 150.0,
       "hull_integrity": 150.0,
       "ai_enabled": true,
@@ -137,10 +141,10 @@
           "enabled": true,
           "power_draw": 50,
           "mass": 200,
-          "main_drive": {
-            "thrust": {"x": 0.0, "y": 0.0, "z": 0.0},
-            "max_thrust": 250.0
-          }
+          "max_thrust": 250.0,
+          "max_fuel": 400.0,
+          "fuel_level": 400.0,
+          "isp": 3500
         },
         "rcs": {
           "enabled": true,
@@ -205,7 +209,9 @@
         "propulsion": {"max_health": 80.0, "health": 80.0},
         "rcs": {"max_health": 60.0, "health": 60.0},
         "weapons": {"max_health": 70.0, "health": 70.0},
-        "sensors": {"max_health": 50.0, "health": 50.0}
+        "sensors": {"max_health": 50.0, "health": 50.0},
+        "reactor": {"max_health": 100.0, "health": 100.0},
+        "life_support": {"max_health": 50.0, "health": 50.0}
       }
     }
   ],

@@ -1,7 +1,7 @@
 /**
  * View Tabs Component
  * Tab bar for switching between station views.
- * Keyboard shortcuts: 1=Helm, 2=Tactical, 3=Ops, 4=Engineering, 5=Fleet, 6=Mission
+ * Keyboard shortcuts: 1=Helm, 2=Tactical, 3=Ops, 4=Engineering, 5=Science, 6=Fleet, 7=Mission
  */
 
 class ViewTabs extends HTMLElement {
@@ -53,8 +53,10 @@ class ViewTabs extends HTMLElement {
       { id: "tactical", label: "TACTICAL", shortcut: "2", icon: "T" },
       { id: "ops", label: "OPS", shortcut: "3", icon: "O" },
       { id: "engineering", label: "ENGINEERING", shortcut: "4", icon: "E" },
-      { id: "fleet", label: "FLEET", shortcut: "5", icon: "F" },
-      { id: "mission", label: "MISSION", shortcut: "6", icon: "M" },
+      { id: "science", label: "SCIENCE", shortcut: "5", icon: "S" },
+      { id: "fleet", label: "FLEET", shortcut: "6", icon: "F" },
+      { id: "mission", label: "MISSION", shortcut: "7", icon: "M" },
+      { id: "editor", label: "EDITOR", shortcut: "8", icon: "W" },
     ];
 
     this.shadowRoot.innerHTML = `
@@ -201,7 +203,7 @@ class ViewTabs extends HTMLElement {
   }
 
   _setupKeyboardShortcuts() {
-    const viewMap = { "1": "helm", "2": "tactical", "3": "ops", "4": "engineering", "5": "fleet", "6": "mission" };
+    const viewMap = { "1": "helm", "2": "tactical", "3": "ops", "4": "engineering", "5": "science", "6": "fleet", "7": "mission", "8": "editor" };
 
     this._keyHandler = (e) => {
       // Don't capture if user is typing in an input

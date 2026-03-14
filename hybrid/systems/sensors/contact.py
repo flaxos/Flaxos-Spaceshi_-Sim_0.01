@@ -221,67 +221,54 @@ def add_detection_noise(position: Dict[str, float], accuracy: float) -> Dict[str
 def calculate_detection_signature(ship) -> float:
     """Calculate detection signature for a ship.
 
+    Delegates to the physics-based emission model. The returned value is
+    the IR emission power in watts, which is the dominant passive
+    detection signature (drive plumes, radiator heat, hull thermal).
+
     Args:
         ship: Ship object
 
     Returns:
-        float: Signature strength (higher = easier to detect)
+        float: Signature strength in watts (higher = easier to detect)
     """
-    from hybrid.utils.math_utils import magnitude
+    from hybrid.systems.sensors.emission_model import calculate_ir_signature
+    return calculate_ir_signature(ship)
 
-    # Base signature
-    signature = 10.0
-
-    # Add signature from thrust
-    if hasattr(ship, "thrust"):
-        thrust_magnitude = magnitude(ship.thrust)
-        signature += thrust_magnitude * 0.1
-
-    # Add signature from mass (bigger ships are easier to detect)
-    if hasattr(ship, "mass"):
-        signature += ship.mass * 0.001
-
-    # Check for signature spikes from propulsion
-    propulsion = ship.systems.get("propulsion")
-    if propulsion and hasattr(propulsion, "status"):
-        if propulsion.status == "active":
-            signature *= 1.5
-
-    return signature
 
 def calculate_detection_accuracy(distance: float, signature: float, sensor_range: float) -> float:
     """Calculate detection accuracy based on distance and signature.
 
-    Uses an S-curve (smoothstep) for range falloff so detection is reliable
-    within ~80% of sensor range, then degrades sharply near max range.
-    This models real sensor behaviour: inverse-square signal strength means
-    SNR is comfortable well inside rated range, with a noise floor near the edge.
+    Uses the physics-based detection quality model. Resolution degrades
+    with distance — at long range you get a bearing and maybe a range
+    estimate, not a detailed track.
 
     Args:
-        distance: Distance to target
-        signature: Target signature strength
-        sensor_range: Sensor maximum range
+        distance: Distance to target in metres
+        signature: Target IR signature in watts (used for range calc)
+        sensor_range: Maximum sensor range in metres (from emission model)
 
     Returns:
         float: Accuracy (0.0 to 1.0)
     """
-    if distance > sensor_range:
+    from hybrid.systems.sensors.emission_model import (
+        calculate_ir_detection_range, calculate_detection_quality
+    )
+
+    if sensor_range <= 0:
         return 0.0
 
-    # Shifted smoothstep: detection stays near-perfect within 60% of rated
-    # range, then drops off steeply from 60-100%. This models real sensors
-    # where SNR is comfortable well inside rated range (inverse-square signal
-    # is still strong) but degrades rapidly near the noise floor at max range.
-    # At 85% range (427km/500km): range_factor ~0.30, accuracy ~0.24
-    ratio = distance / sensor_range
-    t = max(0.0, min(1.0, (ratio - 0.6) / 0.4))  # Remap 60-100% to 0-1
-    smoothstep = 3.0 * t * t - 2.0 * t * t * t
-    range_factor = 1.0 - smoothstep
+    # Use emission-based detection range if signature is provided
+    # The effective range is the minimum of sensor hardware range and
+    # the range at which this target's emissions are detectable
+    if signature > 0:
+        emission_range = calculate_ir_detection_range(signature)
+        effective_range = min(sensor_range, emission_range)
+    else:
+        effective_range = sensor_range
 
-    # Signature factor (stronger signature = better detection)
-    signature_factor = min(1.0, signature / 100.0)
+    if distance > effective_range:
+        return 0.0
 
-    # Combined accuracy
-    accuracy = range_factor * 0.7 + signature_factor * 0.3
+    quality = calculate_detection_quality(distance, effective_range)
 
-    return min(0.95, max(0.1, accuracy))  # Clamp to 10-95%
+    return min(0.95, max(0.1, quality))  # Clamp to 10-95%

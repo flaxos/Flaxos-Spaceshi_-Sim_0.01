@@ -75,6 +75,30 @@ SUBSYSTEM_HEALTH_SCHEMA = {
         "overheat_threshold": 0.85,
         "overheat_penalty": 0.0,     # Cannot fire when overheated (binary)
     },
+    "reactor": {
+        # Reactor (power generation) — distinct from power_management distribution
+        # Reactor failure = total power loss, cascading to all systems
+        "max_health": 130.0,
+        "criticality": 5.0,          # Highest criticality: everything depends on power
+        "failure_threshold": 0.15,   # Reactors are resilient but catastrophic when they fail
+        "max_heat": 200.0,
+        "heat_generation": 0.03,     # Heat per kJ generated
+        "heat_dissipation": 3.5,     # Good passive cooling (radiators)
+        "overheat_threshold": 0.90,
+        "overheat_penalty": 0.4,     # Severe output reduction when overheated
+    },
+    "life_support": {
+        # Life support — crew survivability
+        # Failure doesn't immediately kill but crew performance degrades
+        "max_health": 70.0,
+        "criticality": 2.0,          # Lower criticality (not combat-critical)
+        "failure_threshold": 0.2,
+        "max_heat": 50.0,
+        "heat_generation": 0.2,      # Minimal heat from environmental systems
+        "heat_dissipation": 1.0,
+        "overheat_threshold": 0.80,
+        "overheat_penalty": 0.6,     # Reduced environmental control when overheated
+    },
 }
 
 # v0.6.0: Default heat values for subsystems not in schema

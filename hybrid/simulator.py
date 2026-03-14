@@ -8,6 +8,7 @@ import random
 from hybrid.ship import Ship
 from hybrid.fleet.fleet_manager import FleetManager
 from hybrid.core.event_bus import EventBus
+from hybrid.systems.combat.projectile_manager import ProjectileManager
 
 logger = logging.getLogger(__name__)
 
@@ -46,17 +47,29 @@ class Simulator:
     Ship simulator that manages multiple ships and handles simulation ticks.
     """
     
-    def __init__(self, dt=0.1):
+    def __init__(self, dt=0.1, time_scale=1.0):
         """
         Initialize the simulator
 
         Args:
             dt (float): Simulation time step in seconds
+            time_scale (float): Time scale multiplier (1.0 = real-time,
+                2.0 = double speed, 0.5 = half speed). Allows decoupling
+                physics from wall-clock for testing.
         """
         self.ships = {}
         self.dt = dt
+        self.time_scale = max(0.01, float(time_scale))
         self.running = False
         self.time = 0.0
+
+        # Tick tracking for performance metrics
+        self.tick_count = 0
+        self._tick_times = []  # recent tick durations for avg calculation
+        self._max_tick_samples = 100
+
+        # Projectile simulation
+        self.projectile_manager = ProjectileManager()
 
         # Initialize fleet manager
         self.fleet_manager = FleetManager(simulator=self)
@@ -174,14 +187,24 @@ class Simulator:
         return True
         
     def tick(self):
-        """
-        Run a single simulation tick
+        """Run a single simulation tick.
+
+        Tick order:
+        1. Ship systems update (propulsion sets acceleration, RCS sets angular vel)
+        2. Auto-repair tick (gradual passive repair)
+        3. Sensor interactions (cross-ship detection)
+        4. Projectile advancement and intercept checks
+        5. Remove destroyed ships
+        6. Fleet manager update
+        7. Advance simulation time
 
         Returns:
             float: Time elapsed in simulation
         """
         if not self.running:
             return self.time
+
+        tick_start = time.monotonic()
 
         # Update all ships
         all_ships = list(self.ships.values())
@@ -192,10 +215,20 @@ class Simulator:
                 ship.tick(self.dt, all_ships, self.time)
             except Exception as e:
                 logger.error(f"Error in ship {ship.id} tick: {e}")
-                # Continue with other ships - don't let one ship crash the simulation
+
+        # Auto-repair: tick passive repair on all ships
+        for ship in all_ships:
+            try:
+                ship.damage_model.tick_auto_repair(self.dt, ship.event_bus, ship.id)
+            except Exception as e:
+                logger.error(f"Error in auto-repair for {ship.id}: {e}")
 
         # Process sensor interactions
         self._process_sensor_interactions(all_ships)
+
+        # Advance projectiles and check for intercepts
+        if self.projectile_manager.active_count > 0:
+            self.projectile_manager.tick(self.dt, self.time, self.ships)
 
         # D6: Remove destroyed ships
         destroyed_ships = [ship.id for ship in all_ships if ship.is_destroyed()]
@@ -208,8 +241,35 @@ class Simulator:
 
         # Update simulation time
         self.time += self.dt
+        self.tick_count += 1
+
+        # Track tick performance
+        tick_duration = time.monotonic() - tick_start
+        self._tick_times.append(tick_duration)
+        if len(self._tick_times) > self._max_tick_samples:
+            del self._tick_times[:-self._max_tick_samples]
 
         return self.time
+
+    def get_tick_metrics(self) -> dict:
+        """Get physics tick performance metrics.
+
+        Returns:
+            dict: Tick rate, average tick time, time_scale, etc.
+        """
+        avg_tick = (
+            sum(self._tick_times) / len(self._tick_times)
+            if self._tick_times else 0.0
+        )
+        return {
+            "tick_count": self.tick_count,
+            "physics_dt": self.dt,
+            "tick_rate_hz": 1.0 / self.dt if self.dt > 0 else 0,
+            "time_scale": self.time_scale,
+            "sim_time": self.time,
+            "avg_tick_ms": avg_tick * 1000,
+            "active_projectiles": self.projectile_manager.active_count,
+        }
 
     def _record_event(self, event_name, payload, ship_id=None):
         payload = payload or {}

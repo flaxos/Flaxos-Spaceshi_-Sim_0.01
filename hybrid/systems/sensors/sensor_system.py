@@ -1,5 +1,16 @@
 # hybrid/systems/sensors/sensor_system.py
-"""Enhanced sensor system with passive/active detection and contact management."""
+"""Enhanced sensor system with physics-based detection.
+
+Detection is driven by physical emissions:
+- **IR (passive)**: Detects drive plumes, radiator heat, hull thermal.
+  Range is emission-dependent — a thrusting ship is visible system-wide.
+- **Radar (active)**: Broad-beam EM pulse with 1/r^4 round-trip falloff.
+  Detects targets by radar cross-section (RCS). Reveals pinging ship.
+- **Lidar (active)**: Narrow-beam laser, higher resolution, shorter range.
+
+Resolution degrades with distance: at long range you get bearing + rough
+range, not a detailed track.
+"""
 
 import logging
 from hybrid.core.event_bus import EventBus
@@ -7,6 +18,7 @@ from hybrid.core.base_system import BaseSystem
 from hybrid.systems.sensors.passive import PassiveSensor
 from hybrid.systems.sensors.active import ActiveSensor
 from hybrid.systems.sensors.contact import ContactTracker
+from hybrid.systems.sensors.emission_model import get_ship_emissions
 from hybrid.utils.errors import success_dict, error_dict
 
 logger = logging.getLogger(__name__)
@@ -52,7 +64,9 @@ class SensorSystem(BaseSystem):
             event_bus: Event bus for publishing events
         """
         damage_factor = 1.0
-        if ship is not None and hasattr(ship, "damage_model"):
+        if ship is not None and hasattr(ship, "get_effective_factor"):
+            damage_factor = ship.get_effective_factor("sensors")
+        elif ship is not None and hasattr(ship, "damage_model"):
             damage_factor = ship.damage_model.get_degradation_factor("sensors")
 
         if damage_factor <= 0.0:
@@ -244,7 +258,7 @@ class SensorSystem(BaseSystem):
         """Get sensor system state.
 
         Returns:
-            dict: Current state
+            dict: Current state including emission data and detection modes
         """
         state = super().get_state()
 
@@ -270,6 +284,18 @@ class SensorSystem(BaseSystem):
             for contact_id, contact in all_contacts.items()
         ]
 
+        # Calculate own-ship emissions (what others can see of us)
+        own_emissions = None
+        if self.all_ships:
+            # Find own ship from all_ships list
+            for s in self.all_ships:
+                if hasattr(s, "id") and hasattr(s, "systems"):
+                    # Check if this ship's sensor system is us
+                    s_sensors = s.systems.get("sensors")
+                    if s_sensors is self:
+                        own_emissions = get_ship_emissions(s)
+                        break
+
         state.update({
             "passive_range": self.passive.range,
             "active_range": self.active.range,
@@ -277,7 +303,12 @@ class SensorSystem(BaseSystem):
             "contact_count": len(contacts_list),
             "can_ping": can_ping,
             "ping_cooldown_remaining": ping_cooldown,
-            "ping_cooldown_total": self.active.cooldown
+            "ping_cooldown_total": self.active.cooldown,
+            "detection_modes": {
+                "passive": "ir",
+                "active": "radar",
+            },
+            "own_emissions": own_emissions,
         })
 
         return state

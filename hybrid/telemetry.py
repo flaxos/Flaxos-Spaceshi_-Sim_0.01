@@ -1,10 +1,89 @@
 # hybrid/telemetry.py
-"""Unified telemetry snapshot system for consistent state export."""
+"""Unified telemetry snapshot system for consistent state export.
 
+Includes delta-v budget and point-of-no-return (PONR) calculations for
+hard-sci navigation — the player always knows whether they can still
+stop, and how much velocity-change budget remains.
+"""
+
+import math
 import time
 from typing import Dict, List, Any, Optional
 from hybrid.utils.math_utils import magnitude, calculate_distance, calculate_bearing
 from hybrid.utils.units import calculate_delta_v
+
+# Standard gravity (m/s²)
+_G0 = 9.81
+
+
+def _compute_ponr(velocity_magnitude: float, delta_v_remaining: float,
+                  max_thrust: float, ship_mass: float, isp: float,
+                  fuel_level: float, dry_mass: float) -> Dict[str, Any]:
+    """Compute point-of-no-return data for deceleration.
+
+    The PONR tells the player: at your current speed, can you still
+    brake to a stop with remaining fuel? And how much delta-v margin
+    do you have beyond the braking budget?
+
+    Args:
+        velocity_magnitude: Current speed in m/s
+        delta_v_remaining: Total remaining delta-v in m/s
+        max_thrust: Maximum thrust in Newtons
+        ship_mass: Current total mass in kg
+        isp: Specific impulse in seconds
+        fuel_level: Current fuel in kg
+        dry_mass: Structural mass without fuel in kg
+
+    Returns:
+        dict with PONR status and margins
+    """
+    if delta_v_remaining <= 0 or velocity_magnitude <= 0.01:
+        return {
+            "can_stop": delta_v_remaining > 0 or velocity_magnitude <= 0.01,
+            "dv_to_stop": 0.0,
+            "dv_margin": delta_v_remaining,
+            "margin_percent": 100.0 if delta_v_remaining > 0 else 0.0,
+            "stop_distance": 0.0,
+            "stop_time": 0.0,
+            "past_ponr": False,
+        }
+
+    # Delta-v needed to decelerate from current speed to zero
+    dv_to_stop = velocity_magnitude
+
+    # Margin: how much delta-v remains after a full stop burn
+    dv_margin = delta_v_remaining - dv_to_stop
+    margin_pct = (dv_margin / delta_v_remaining * 100.0) if delta_v_remaining > 0 else 0.0
+    can_stop = dv_margin >= 0
+
+    # Estimate stopping distance and time (constant-thrust approximation)
+    # Uses average acceleration during deceleration burn
+    stop_distance = 0.0
+    stop_time = 0.0
+    if max_thrust > 0 and ship_mass > 0:
+        # Average acceleration during braking (mass decreases as fuel burns)
+        # Use geometric mean of initial and final acceleration
+        exhaust_vel = isp * _G0
+        if exhaust_vel > 0 and can_stop:
+            # Fuel consumed to stop = m0 * (1 - exp(-dv_to_stop / Ve))
+            fuel_to_stop = ship_mass * (1.0 - math.exp(-dv_to_stop / exhaust_vel))
+            final_mass = max(ship_mass - fuel_to_stop, dry_mass)
+            avg_accel = max_thrust / ((ship_mass + final_mass) / 2.0)
+            if avg_accel > 0:
+                stop_time = dv_to_stop / avg_accel
+                stop_distance = velocity_magnitude * stop_time - 0.5 * avg_accel * stop_time ** 2
+                stop_distance = max(0.0, stop_distance)
+
+    return {
+        "can_stop": can_stop,
+        "dv_to_stop": round(dv_to_stop, 1),
+        "dv_margin": round(dv_margin, 1),
+        "margin_percent": round(margin_pct, 1),
+        "stop_distance": round(stop_distance, 1),
+        "stop_time": round(stop_time, 1),
+        "past_ponr": not can_stop,
+    }
+
 
 def get_ship_telemetry(ship, sim_time: float = None) -> Dict[str, Any]:
     """Get comprehensive telemetry for a single ship.
@@ -32,18 +111,20 @@ def get_ship_telemetry(ship, sim_time: float = None) -> Dict[str, Any]:
     max_fuel = 0.0
     fuel_percent = 0.0
     delta_v_remaining = 0.0
+    isp = 3000.0
+    max_thrust = 0.0
 
     if propulsion and hasattr(propulsion, "get_state"):
         prop_state = propulsion.get_state()
         fuel_level = prop_state.get("fuel_level", 0.0)
         max_fuel = prop_state.get("max_fuel", 1.0)
         fuel_percent = prop_state.get("fuel_percent", 0.0)
+        isp = getattr(propulsion, "isp", 3000.0)
+        max_thrust = getattr(propulsion, "max_thrust", 0.0)
 
-        # Calculate delta-v if we have ISP data
-        if hasattr(propulsion, "efficiency") and ship.mass > 0:
-            dry_mass = max(0.0, ship.mass - fuel_level)  # Ensure non-negative
-            isp = getattr(propulsion, "isp", 3000)  # Default ISP
-            delta_v_remaining = calculate_delta_v(dry_mass, fuel_level, isp)
+        # Calculate delta-v using Tsiolkovsky equation
+        dry_mass = getattr(ship, "dry_mass", max(0.0, ship.mass - fuel_level))
+        delta_v_remaining = calculate_delta_v(dry_mass, fuel_level, isp)
 
     # Get targeting data
     target_id = getattr(ship, "target_id", None)
@@ -76,8 +157,26 @@ def get_ship_telemetry(ship, sim_time: float = None) -> Dict[str, Any]:
     # Get weapons status
     weapons_status = get_weapons_status(ship)
 
-    # Get sensor contacts
+    # Get sensor contacts and emissions
     sensor_contacts = get_sensor_contacts(ship)
+
+    # Get own-ship emission data (what others can see)
+    emissions = _get_ship_emissions(ship)
+
+    # Drift state: moving with no thrust applied
+    is_drifting = acceleration_magnitude < 0.001 and velocity_magnitude > 0.01
+
+    # Point-of-no-return calculation
+    dry_mass = getattr(ship, "dry_mass", max(0.0, ship.mass - fuel_level))
+    ponr = _compute_ponr(
+        velocity_magnitude=velocity_magnitude,
+        delta_v_remaining=delta_v_remaining,
+        max_thrust=max_thrust,
+        ship_mass=ship.mass,
+        isp=isp,
+        fuel_level=fuel_level,
+        dry_mass=dry_mass,
+    )
 
     return {
         "id": ship.id,
@@ -92,12 +191,16 @@ def get_ship_telemetry(ship, sim_time: float = None) -> Dict[str, Any]:
         "orientation": ship.orientation,
         "angular_velocity": ship.angular_velocity,
         "mass": ship.mass,
+        "dry_mass": getattr(ship, "dry_mass", ship.mass),
+        "moment_of_inertia": getattr(ship, "moment_of_inertia", 0.0),
+        "is_drifting": is_drifting,
         "fuel": {
             "level": fuel_level,
             "max": max_fuel,
             "percent": fuel_percent
         },
         "delta_v_remaining": delta_v_remaining,
+        "ponr": ponr,
         "target_id": target_id,
         "target_subsystem": target_subsystem,
         "nav_mode": nav_mode,
@@ -107,7 +210,9 @@ def get_ship_telemetry(ship, sim_time: float = None) -> Dict[str, Any]:
         "helm_queue": helm_queue,
         "weapons": weapons_status,
         "sensors": sensor_contacts,
+        "emissions": emissions,
         "subsystem_health": ship.damage_model.get_report() if hasattr(ship, "damage_model") else {},
+        "cascade_effects": ship.cascade_manager.get_report() if hasattr(ship, "cascade_manager") else {},
         "systems": {
             system_name: system.get("status", "unknown") if isinstance(system, dict) else
                          system.get_state().get("status", "online") if hasattr(system, "get_state") else "online"
@@ -115,6 +220,31 @@ def get_ship_telemetry(ship, sim_time: float = None) -> Dict[str, Any]:
         },
         "timestamp": sim_time
     }
+
+def _get_ship_emissions(ship) -> Dict[str, Any]:
+    """Get own-ship emission data for telemetry.
+
+    Shows the player what emissions their ship is producing —
+    how visible they are to enemy sensors.
+
+    Args:
+        ship: Ship object
+
+    Returns:
+        dict: Emission data (ir_watts, rcs_m2, ir_detection_range, is_thrusting)
+    """
+    try:
+        from hybrid.systems.sensors.emission_model import get_ship_emissions
+        return get_ship_emissions(ship)
+    except Exception:
+        return {
+            "ir_watts": 0.0,
+            "rcs_m2": 0.0,
+            "ir_detection_range": 0.0,
+            "is_thrusting": False,
+            "thrust_magnitude": 0.0,
+        }
+
 
 def get_weapons_status(ship) -> Dict[str, Any]:
     """Get weapons system status.
@@ -300,9 +430,11 @@ def get_telemetry_snapshot(sim, recent_events_limit: int = 50) -> Dict[str, Any]
         for ship_id, ship in sim.ships.items():
             ships_telemetry[ship_id] = get_ship_telemetry(ship, sim_time)
 
-    # Get projectiles/missiles
+    # Get active projectiles from ProjectileManager
     projectiles = []
-    if hasattr(sim, "projectiles"):
+    if hasattr(sim, "projectile_manager"):
+        projectiles = sim.projectile_manager.get_state()
+    elif hasattr(sim, "projectiles"):
         for proj in sim.projectiles:
             projectiles.append({
                 "id": getattr(proj, "id", "unknown"),
@@ -320,6 +452,11 @@ def get_telemetry_snapshot(sim, recent_events_limit: int = 50) -> Dict[str, Any]
     elif hasattr(sim, "recent_events"):
         events = sim.recent_events[-recent_events_limit:]
 
+    # Get tick metrics
+    tick_metrics = {}
+    if hasattr(sim, "get_tick_metrics"):
+        tick_metrics = sim.get_tick_metrics()
+
     return {
         "tick": tick,
         "sim_time": sim_time,
@@ -327,6 +464,7 @@ def get_telemetry_snapshot(sim, recent_events_limit: int = 50) -> Dict[str, Any]
         "ships": ships_telemetry,
         "projectiles": projectiles,
         "events": events,
+        "tick_metrics": tick_metrics,
         "timestamp": time.time()
     }
 

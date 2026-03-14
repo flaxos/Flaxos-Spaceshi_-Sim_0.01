@@ -50,6 +50,10 @@ class FlightDataPanel extends HTMLElement {
 .ff.r { background:var(--status-critical,#ff4444); }
 .ft { position:absolute; right:6px; top:50%; transform:translateY(-50%); font-size:.65rem; color:var(--text-bright,#fff); text-shadow:0 1px 2px rgba(0,0,0,.5); }
 .bingo { padding:6px; background:rgba(255,68,68,.15); border:1px solid var(--status-critical,#ff4444); border-radius:4px; text-align:center; font-weight:700; font-size:.75rem; color:var(--status-critical,#ff4444); letter-spacing:2px; animation:bp 1.5s ease-in-out infinite; margin-bottom:6px; }
+.ponr { padding:6px; border-radius:4px; text-align:center; font-weight:700; font-size:.7rem; letter-spacing:1px; margin-bottom:6px; }
+.ponr.warn { background:rgba(255,170,0,.12); border:1px solid var(--status-warning,#ffaa00); color:var(--status-warning,#ffaa00); }
+.ponr.crit { background:rgba(255,68,68,.15); border:1px solid var(--status-critical,#ff4444); color:var(--status-critical,#ff4444); animation:bp 1s ease-in-out infinite; }
+.ponr.ok { background:rgba(0,255,136,.08); border:1px solid var(--status-nominal,#00ff88); color:var(--status-nominal,#00ff88); }
 @keyframes bp { 0%,100%{opacity:1} 50%{opacity:.5} }
 .empty { text-align:center; color:var(--text-dim,#555566); padding:24px; font-style:italic; font-size:.75rem; }
 .hero { text-align:center; padding:14px; }
@@ -72,17 +76,17 @@ class FlightDataPanel extends HTMLElement {
     const pos = nav.position || [0, 0, 0];
     const vel = nav.velocity || [0, 0, 0];
     const hdg = nav.heading || { pitch: 0, yaw: 0 };
-    const vmag = ship.navigation?.velocity_magnitude || this._mag(vel);
+    const vmag = ship.navigation?.velocity_magnitude ?? ship.velocity_magnitude ?? this._mag(vel);
     const prop = ship.systems?.propulsion || {};
     const fuel = ship.fuel || {};
-    const fm = prop.fuel_mass ?? fuel.current ?? 0;
-    const fc = prop.fuel_capacity ?? fuel.capacity ?? 0;
+    const fm = prop.fuel_mass ?? fuel.level ?? fuel.current ?? 0;
+    const fc = prop.fuel_capacity ?? fuel.max ?? fuel.capacity ?? 0;
     const fp = fc > 0 ? fm / fc : 0;
-    const dm = prop.dry_mass ?? ship.mass ?? 0;
+    const dm = ship.dry_mass ?? prop.dry_mass ?? ship.mass ?? 0;
     const wm = dm + fm;
     const mt = prop.max_thrust_n ?? prop.max_thrust ?? 0;
     const ve = prop.exhaust_velocity ?? (prop.isp ? prop.isp * G0 : 0);
-    let dv = prop.delta_v ?? null;
+    let dv = ship.delta_v_remaining ?? prop.delta_v ?? null;
     if (dv === null && ve > 0 && dm > 0 && wm > dm) dv = ve * Math.log(wm / dm);
     dv = dv ?? 0;
     const tg = prop.thrust_g || 0;
@@ -90,7 +94,9 @@ class FlightDataPanel extends HTMLElement {
     const ct = mt * th;
     let bt = null;
     if (ct > 0 && ve > 0) { const r = ct / ve; bt = r > 0 ? fm / r : null; }
-    return { pos, vel, hdg, vmag, fm, fc, fp, dm, wm, dv, tg, bt };
+    // Point-of-no-return data (from server telemetry or client-side fallback)
+    const ponr = ship.ponr || null;
+    return { pos, vel, hdg, vmag, fm, fc, fp, dm, wm, dv, tg, bt, ponr };
   }
 
   _update() {
@@ -116,6 +122,18 @@ class FlightDataPanel extends HTMLElement {
     return (fp < BINGO_PCT && fc > 0) ? '<div class="bingo">BINGO FUEL</div>' : "";
   }
 
+  _ponrHTML(ponr, compact = false) {
+    if (!ponr) return "";
+    if (ponr.past_ponr) {
+      return '<div class="ponr crit">PAST POINT OF NO RETURN</div>';
+    }
+    if (ponr.margin_percent < 25 && ponr.dv_to_stop > 0) {
+      const label = compact ? "PONR" : "BRAKING MARGIN";
+      return `<div class="ponr warn">${label}: ${ponr.margin_percent.toFixed(0)}% \u2014 ${this._fmtSpd(ponr.dv_margin)} reserve</div>`;
+    }
+    return "";
+  }
+
   // -- ARCADE --
   _arcadeHTML(d) {
     return `<div class="s"><div class="st">Position</div>${
@@ -126,11 +144,13 @@ class FlightDataPanel extends HTMLElement {
       this._kv("Speed", this._fmtSpd(d.vmag), "i")}${
       this._kv("Heading", this._fmtAng(d.hdg.yaw ?? 0))}${
       d.tg > 0 ? this._kv("Accel", d.tg.toFixed(2) + " G") : ""
-    }</div><div class="s">${this._bingoHTML(d.fp, d.fc)}${
+    }</div><div class="s">${this._ponrHTML(d.ponr)}${this._bingoHTML(d.fp, d.fc)}${
       this._kv("\u0394v", this._fmtSpd(d.dv), "i")}${
+      d.ponr && d.ponr.dv_to_stop > 0 ? this._kv("\u0394v to stop", this._fmtSpd(d.ponr.dv_to_stop)) : ""}${
       this._kv("Fuel", (d.fp*100).toFixed(1) + "%", d.fp < .25 ? "c" : "")}${
       this._fuelBar(d.fp, this._fmtMass(d.fm))}${
       d.bt !== null ? this._kv("Burn time", this._fmtDur(d.bt)) : ""}${
+      d.ponr && d.ponr.stop_time > 0 && d.ponr.dv_to_stop > 0 ? this._kv("Stop dist", this._fmtDist(d.ponr.stop_distance)) : ""}${
       this._kv("Mass", this._fmtMass(d.wm))
     }</div>`;
   }
@@ -149,11 +169,15 @@ class FlightDataPanel extends HTMLElement {
       this._kv("Z", this._sf(d.pos[2]))
     }</div><div class="s"><div class="st">ACCEL</div>${
       this._kv("FWD", ac + " m/s\u00B2")
-    }</div><div class="s">${this._bingoHTML(d.fp, d.fc)}<div class="st">DELTA-V / FUEL</div>${
+    }</div><div class="s">${this._ponrHTML(d.ponr)}${this._bingoHTML(d.fp, d.fc)}<div class="st">DELTA-V / FUEL</div>${
       this._kv("dV", d.dv.toFixed(1) + " m/s", "i")}${
+      d.ponr ? this._kv("dV_STOP", d.ponr.dv_to_stop.toFixed(1) + " m/s") : ""}${
+      d.ponr ? this._kv("MARGIN", d.ponr.dv_margin.toFixed(1) + " m/s", d.ponr.past_ponr ? "c" : "") : ""}${
       this._kv("FUEL", d.fm.toFixed(1) + " kg")}${
       this._fuelBar(d.fp, (d.fp*100).toFixed(1) + "%")}${
       d.bt !== null ? this._kv("BURN", this._fmtDur(d.bt)) : ""}${
+      d.ponr && d.ponr.stop_time > 0 ? this._kv("T_STOP", d.ponr.stop_time.toFixed(1) + " s") : ""}${
+      d.ponr && d.ponr.stop_distance > 0 ? this._kv("D_STOP", d.ponr.stop_distance.toFixed(0) + " m") : ""}${
       this._kv("DRY", d.dm.toFixed(1) + " kg")}${
       this._kv("WET", d.wm.toFixed(1) + " kg")
     }</div>`;
@@ -162,6 +186,7 @@ class FlightDataPanel extends HTMLElement {
   // -- CPU-ASSIST --
   _assistHTML(d) {
     return `<div class="hero"><div class="hv">${this._fmtSpd(d.vmag)}</div><div class="hs">current speed</div></div><div class="s">${
+      this._ponrHTML(d.ponr, true)}${
       this._bingoHTML(d.fp, d.fc)}${
       this._kv("\u0394v", this._fmtSpd(d.dv), "i")}${
       this._kv("Fuel", (d.fp*100).toFixed(0) + "%", d.fp < .25 ? "c" : "")}${

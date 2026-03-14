@@ -1,5 +1,7 @@
 {
   "id": "enemy_probe",
+  "mass": 500.0,
+  "dry_mass": 400.0,
   "position": {
     "x": 1000,
     "y": 0,
@@ -22,7 +24,11 @@
       "power_draw": 10,
       "mass": 100,
       "slot_type": "propulsion",
-      "tech_level": 1
+      "tech_level": 1,
+      "max_thrust": 80.0,
+      "max_fuel": 100.0,
+      "fuel_level": 100.0,
+      "isp": 2500
     },
     "sensors": {
       "cone_angle_deg": 90,
@@ -30,7 +36,9 @@
       "power_draw": 5,
       "mass": 30,
       "slot_type": "sensor",
-      "tech_level": 1
+      "tech_level": 1,
+      "ir_modifier": 0.8,
+      "rcs_modifier": 0.6
     }
   },
   "sensors": {
@@ -55,11 +63,23 @@
         "criticality": 4.0,
         "failure_threshold": 0.25
       },
+      "rcs": {
+        "max_health": 50.0,
+        "health": 50.0,
+        "criticality": 3.0,
+        "failure_threshold": 0.2
+      },
       "sensors": {
         "max_health": 70.0,
         "health": 70.0,
         "criticality": 3.0,
         "failure_threshold": 0.2
+      },
+      "reactor": {
+        "max_health": 80.0,
+        "health": 80.0,
+        "criticality": 5.0,
+        "failure_threshold": 0.15
       }
     }
   }

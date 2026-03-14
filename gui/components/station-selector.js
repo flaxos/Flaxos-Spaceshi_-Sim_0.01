@@ -15,6 +15,7 @@ const STATIONS = [
   { id: "ops",             label: "OPS",             color: "#00ff88" },
   { id: "engineering",     label: "ENGINEERING",     color: "#ff8800" },
   { id: "comms",           label: "COMMS",           color: "#aa88ff" },
+  { id: "science",         label: "SCIENCE",         color: "#44ddff" },
   { id: "fleet_commander", label: "FLEET COMMANDER", color: "#ff66cc" },
 ];
 
