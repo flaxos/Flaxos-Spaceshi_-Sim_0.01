@@ -3,6 +3,7 @@ Start the full GUI stack in a single terminal:
 - TCP simulation server (unified entrypoint)
 - WebSocket bridge
 - GUI static file server
+- Asset editor server (REST API + editor UI)
 
 Uses the unified server.main entrypoint with --mode flag.
 """
@@ -84,6 +85,8 @@ def main() -> int:
     )
     parser.add_argument("--lan", action="store_true", help="Enable LAN mode (bind to 0.0.0.0)")
     parser.add_argument("--no-browser", action="store_true", help="Do not open browser")
+    parser.add_argument("--editor-port", type=int, default=3200, help="Asset editor port")
+    parser.add_argument("--no-editor", action="store_true", help="Do not start asset editor server")
     args = parser.parse_args()
 
     _ensure_websockets()
@@ -136,17 +139,28 @@ def main() -> int:
         str(args.http_port),
     ]
 
+    editor_cmd = [
+        python,
+        os.path.join(ROOT_DIR, "gui", "asset_editor_server.py"),
+        "--port",
+        str(args.editor_port),
+    ]
+
     processes: list[subprocess.Popen] = []
     try:
         processes.append(_start_process("TCP server", server_cmd, ROOT_DIR))
         processes.append(_start_process("WebSocket bridge", ws_bridge_cmd, ROOT_DIR))
         processes.append(_start_process("GUI server", http_cmd, os.path.join(ROOT_DIR, "gui")))
+        if not args.no_editor:
+            processes.append(_start_process("Asset editor", editor_cmd, ROOT_DIR))
 
         gui_url = f"http://localhost:{args.http_port}/"
         print(f"[ready] Mode: {mode}")
         print(f"[ready] GUI: {gui_url}")
         print(f"[ready] WS bridge: ws://localhost:{args.ws_port}")
         print(f"[ready] TCP server: {args.host}:{args.tcp_port}")
+        if not args.no_editor:
+            print(f"[ready] Asset editor: http://localhost:{args.editor_port}/")
         print("Press Ctrl+C to stop all services.")
 
         if not args.no_browser:

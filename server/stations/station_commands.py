@@ -131,7 +131,7 @@ def register_station_commands(
         Claim a station on the assigned ship.
 
         Args:
-            station: Station name (captain, helm, tactical, ops, engineering, comms)
+            station: Station name (captain, helm, tactical, ops, engineering, comms, science)
         """
         station_name = args.get("station")
 
@@ -800,19 +800,19 @@ def register_station_commands(
     dispatcher.register_command(
         "set_power_profile",
         cmd_set_power_profile,
-        station=StationType.ENGINEERING
+        station=StationType.OPS
     )
 
     dispatcher.register_command(
         "get_power_profiles",
         cmd_get_power_profiles,
-        station=StationType.ENGINEERING
+        station=StationType.OPS
     )
 
     dispatcher.register_command(
         "get_draw_profile",
         cmd_get_draw_profile,
-        station=StationType.ENGINEERING
+        station=StationType.OPS
     )
 
     dispatcher.register_command(

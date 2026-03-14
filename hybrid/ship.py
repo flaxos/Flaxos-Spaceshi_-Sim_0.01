@@ -5,7 +5,7 @@ Ship implementation that manages systems and handles physics.
 """
 from hybrid.core.event_bus import EventBus
 from hybrid.utils.math_utils import (
-    sanitize_physics_state, is_valid_number, clamp,
+    sanitize_physics_state, is_valid_number, clamp, magnitude,
     normalize_angle as normalize_angle_util
 )
 from hybrid.utils.quaternion import Quaternion, quaternion_identity
@@ -33,15 +33,24 @@ class Ship:
 
         # Initialize ship properties with defaults
         self.name = config.get("name", ship_id)
-        self.mass = config.get("mass", 1000.0)  # kg
         self.class_type = config.get("class", "shuttle")
         self.faction = config.get("faction", "neutral")
+
+        # Dynamic mass model: total mass = dry_mass + fuel + ammo
+        # When dry_mass is explicitly set, mass updates each tick as
+        # consumables are spent. When omitted, mass stays fixed for
+        # backward compatibility with existing ship configs.
+        total_mass = config.get("mass", 1000.0)
+        self._dynamic_mass = "dry_mass" in config
+        self.dry_mass = float(config.get("dry_mass", total_mass))  # structural mass
+        self.mass = total_mass  # kg, current total mass
 
         # Rotational inertia (kg⋅m²)
         # For S3: moment of inertia for rotational dynamics (torque = I * angular_acceleration)
         # Currently scalar (spherical approximation), can be extended to 3x3 tensor for complex shapes
         # Default: I ≈ (1/6) * m * L² where L ≈ ∛(m) (rough estimate for spacecraft)
-        self.moment_of_inertia = config.get("moment_of_inertia", self.mass * (self.mass ** (1.0/3.0)) / 6.0)
+        self._base_moment_of_inertia = config.get("moment_of_inertia", None)
+        self.moment_of_inertia = self._base_moment_of_inertia or self._calculate_moment_of_inertia(self.mass)
 
         # D6: Hull integrity for damage model
         # Base hull on mass: roughly 1 hull point per 10 kg of mass
@@ -68,6 +77,9 @@ class Ship:
         self.angular_acceleration = {"pitch": 0.0, "yaw": 0.0, "roll": 0.0}  # For S3: RCS torque integration
         self.thrust = {"x": 0.0, "y": 0.0, "z": 0.0}
 
+        # Previous acceleration for Velocity Verlet integration
+        self._prev_acceleration = {"x": 0.0, "y": 0.0, "z": 0.0}
+
         # Flight path logging (for minimap trails)
         # Records position history: 600 samples @ 0.5s = 5 minutes of history
         self._flight_path_max_samples = 600
@@ -89,6 +101,10 @@ class Ship:
             schema=get_subsystem_health_schema(),
             systems_config=config.get("systems", {}),
         )
+
+        # Initialize cascade manager for damage propagation effects
+        from hybrid.systems.cascade_manager import CascadeManager
+        self.cascade_manager = CascadeManager()
 
         # Initialize systems
         self.systems = {}
@@ -127,7 +143,44 @@ class Ship:
             y_key: float(config.get(y_key, 0.0)),
             z_key: float(config.get(z_key, 0.0))
         }
-        
+
+    @staticmethod
+    def _calculate_moment_of_inertia(mass: float) -> float:
+        """Calculate moment of inertia from mass using spherical approximation.
+
+        I = (1/6) * m * L^2 where L = m^(1/3) (rough spacecraft estimate).
+        """
+        return mass * (mass ** (1.0 / 3.0)) / 6.0
+
+    def _update_mass(self):
+        """Recalculate total mass from dry mass plus consumables (fuel, ammo).
+
+        Only active when ``dry_mass`` was explicitly set in the ship config
+        (``_dynamic_mass`` flag).  Updates moment_of_inertia when mass
+        changes significantly so that F=ma and torque calculations stay
+        correct as fuel is burned.
+        """
+        if not self._dynamic_mass:
+            return
+
+        old_mass = self.mass
+
+        fuel_mass = 0.0
+        propulsion = self.systems.get("propulsion")
+        if propulsion and hasattr(propulsion, "fuel_level"):
+            fuel_mass = propulsion.fuel_level
+
+        ammo_mass = 0.0
+        weapons = self.systems.get("weapons")
+        if weapons and hasattr(weapons, "get_total_ammo_mass"):
+            ammo_mass = weapons.get_total_ammo_mass()
+
+        self.mass = self.dry_mass + fuel_mass + ammo_mass
+
+        # Recalculate moment of inertia if mass changed by >1%
+        if self._base_moment_of_inertia is None and abs(self.mass - old_mass) > old_mass * 0.01:
+            self.moment_of_inertia = self._calculate_moment_of_inertia(self.mass)
+
     def _load_systems(self, systems_config):
         """
         Load ship systems from configuration
@@ -211,14 +264,30 @@ class Ship:
                 except Exception as e:
                     logger.error(f"Error reporting heat for system {system_type}: {e}")
 
+        # v0.7.0: Evaluate cascade effects (reactor→all, sensors→targeting, etc.)
+        self.cascade_manager.tick(self.damage_model, self.event_bus, self.id)
+
         # v0.6.0: Dissipate heat from all subsystems
         self.damage_model.dissipate_heat(dt, self.event_bus, self.id)
+
+        # Update mass from consumables (fuel burned, ammo expended)
+        self._update_mass()
 
         # Update physics after systems have updated
         self._update_physics(dt, sim_time=sim_time)
     
     def _update_physics(self, dt, force=None, sim_time=0.0):
-        """Update ship physics for the current time step
+        """Update ship physics using Velocity Verlet integration.
+
+        Velocity Verlet provides better energy conservation than Euler
+        integration while remaining simple and efficient. The update is:
+
+            x(t+dt) = x(t) + v(t)*dt + 0.5*a(t)*dt^2
+            v(t+dt) = v(t) + 0.5*(a(t) + a(t+dt))*dt
+
+        Since acceleration changes are set by systems *before* this method
+        runs, ``self.acceleration`` already holds the new value ``a(t+dt)``.
+        We cache the previous acceleration to complete the Verlet step.
 
         Args:
             dt (float): Time delta in seconds
@@ -236,28 +305,39 @@ class Ship:
             logger.error(f"Ship {self.id}: Invalid mass={self.mass}, resetting to default")
             self.mass = 1000.0
 
+        # Store previous acceleration for Verlet integration
+        prev_accel = {
+            "x": self._prev_acceleration.get("x", 0.0),
+            "y": self._prev_acceleration.get("y", 0.0),
+            "z": self._prev_acceleration.get("z", 0.0),
+        }
+
         if force is not None:
-            # Calculate acceleration from force, with safe division
+            # Calculate new acceleration from force
             self.acceleration = {
                 "x": force.get("x", 0.0) / self.mass,
                 "y": force.get("y", 0.0) / self.mass,
                 "z": force.get("z", 0.0) / self.mass,
             }
 
-            # Update velocity
-            self.velocity["x"] += self.acceleration["x"] * dt
-            self.velocity["y"] += self.acceleration["y"] * dt
-            self.velocity["z"] += self.acceleration["z"] * dt
-        else:
-            # Update velocity based on current acceleration
-            self.velocity["x"] += self.acceleration["x"] * dt
-            self.velocity["y"] += self.acceleration["y"] * dt
-            self.velocity["z"] += self.acceleration["z"] * dt
+        # Velocity Verlet: position update uses previous velocity + 0.5*a_prev*dt^2
+        half_dt_sq = 0.5 * dt * dt
+        self.position["x"] += self.velocity["x"] * dt + prev_accel["x"] * half_dt_sq
+        self.position["y"] += self.velocity["y"] * dt + prev_accel["y"] * half_dt_sq
+        self.position["z"] += self.velocity["z"] * dt + prev_accel["z"] * half_dt_sq
 
-        # Update position based on velocity
-        self.position["x"] += self.velocity["x"] * dt
-        self.position["y"] += self.velocity["y"] * dt
-        self.position["z"] += self.velocity["z"] * dt
+        # Velocity Verlet: velocity update uses average of old and new acceleration
+        half_dt = 0.5 * dt
+        self.velocity["x"] += (prev_accel["x"] + self.acceleration["x"]) * half_dt
+        self.velocity["y"] += (prev_accel["y"] + self.acceleration["y"]) * half_dt
+        self.velocity["z"] += (prev_accel["z"] + self.acceleration["z"]) * half_dt
+
+        # Cache current acceleration for next tick's Verlet step
+        self._prev_acceleration = {
+            "x": self.acceleration["x"],
+            "y": self.acceleration["y"],
+            "z": self.acceleration["z"],
+        }
 
         # Record position in flight path history (use simulation time)
         self._record_flight_path(sim_time)
@@ -420,6 +500,11 @@ class Ship:
         # Calculate navigation awareness metrics
         nav_awareness = self._calculate_navigation_awareness()
         
+        # Determine engine/drift state
+        accel_mag = magnitude(self.acceleration)
+        vel_mag = magnitude(self.velocity)
+        is_drifting = accel_mag < 0.001 and vel_mag > 0.01
+
         # Start with the ship's physical state
         state = {
             "id": self.id,
@@ -427,6 +512,8 @@ class Ship:
             "class": self.class_type,
             "faction": self.faction,
             "mass": self.mass,
+            "dry_mass": self.dry_mass,
+            "moment_of_inertia": self.moment_of_inertia,
             "hull_integrity": self.hull_integrity,
             "max_hull_integrity": self.max_hull_integrity,
             "hull_percent": (self.hull_integrity / self.max_hull_integrity * 100) if self.max_hull_integrity > 0 else 0,
@@ -436,10 +523,12 @@ class Ship:
             "orientation": self.orientation,
             "angular_velocity": self.angular_velocity,
             "thrust": self.thrust,
+            "is_drifting": is_drifting,
             "navigation": nav_awareness,  # Add navigation awareness metrics
             "flight_path": self.get_flight_path(60) if self._flight_path_history else [],  # Last 60 seconds of flight path
             "systems": {},
             "damage_model": self.damage_model.get_report(),
+            "cascade_effects": self.cascade_manager.get_report(),
         }
         
         # Add systems state
@@ -657,6 +746,21 @@ class Ship:
             "damage": subsystem_damage,
             "result": result,
         }
+
+    def get_effective_factor(self, subsystem: str) -> float:
+        """Get the effective performance factor for a subsystem, including cascades.
+
+        Combines damage degradation, heat penalty, and cascade effects from
+        upstream subsystem failures (e.g. reactor offline → no propulsion power).
+
+        Args:
+            subsystem: Subsystem name
+
+        Returns:
+            float: Combined factor (0.0-1.0)
+        """
+        cascade_factor = self.cascade_manager.get_cascade_factor(subsystem)
+        return self.damage_model.get_combined_factor(subsystem, cascade_factor)
 
     def is_destroyed(self):
         """

@@ -36,6 +36,7 @@ from server.config import (
     DEFAULT_TCP_PORT,
     DEFAULT_HOST,
     DEFAULT_DT,
+    DEFAULT_TIME_SCALE,
     DEFAULT_FLEET_DIR,
     PROTOCOL_VERSION,
 )
@@ -46,6 +47,8 @@ from server.protocol import (
     parse_request,
     make_error_response,
 )
+from server.command_validator import validate_command_params
+from server.rate_limiter import RateLimiter
 from hybrid_runner import HybridRunner
 from utils.logger import setup_logging
 
@@ -66,7 +69,11 @@ class UnifiedServer:
         self.running = False
 
         # Initialize simulation
-        self.runner = HybridRunner(fleet_dir=config.fleet_dir, dt=config.dt)
+        self.runner = HybridRunner(
+            fleet_dir=config.fleet_dir,
+            dt=config.dt,
+            time_scale=config.time_scale,
+        )
 
         # Station system (only initialized in STATION mode)
         self.station_manager = None
@@ -78,6 +85,9 @@ class UnifiedServer:
         self.clients: Dict[str, socket.socket] = {}
         self.client_lock = threading.Lock()
         self.server_socket: Optional[socket.socket] = None
+
+        # Rate limiter (20 commands/sec sustained, burst of 30)
+        self.rate_limiter = RateLimiter(rate=20.0, burst=30)
 
     def initialize(self) -> None:
         """Initialize server and load simulation."""
@@ -135,6 +145,11 @@ class UnifiedServer:
         """
         Route a command to the appropriate handler.
 
+        Server-authoritative validation:
+        1. Rate limiting per client
+        2. Parameter validation and sanitization
+        3. Mode-specific dispatch (station or minimal)
+
         Args:
             client_id: Client identifier (used in station mode)
             req: Request dictionary with 'cmd' and parameters
@@ -146,12 +161,25 @@ class UnifiedServer:
         if not cmd:
             return Response.error("missing cmd", ErrorCode.MISSING_PARAM).to_dict()
 
+        # Rate limiting (skip for state polling and discovery)
+        if cmd not in ("get_state", "get_events", "_discover", "_ping"):
+            if not self.rate_limiter.allow(client_id):
+                return Response.error(
+                    "Rate limited: too many commands", ErrorCode.BAD_REQUEST
+                ).to_dict()
+
         # Handle discover command (protocol v1)
         if cmd == "_discover":
             return {
                 "ok": True,
                 **self.config.to_discovery_info(),
             }
+
+        # Server-authoritative parameter validation
+        is_valid, error_msg, sanitized = validate_command_params(cmd, req)
+        if not is_valid:
+            return Response.error(error_msg, ErrorCode.INVALID_PARAM).to_dict()
+        req = sanitized
 
         if self.config.mode == ServerMode.STATION:
             return self._dispatch_station(client_id, cmd, req)
@@ -184,6 +212,15 @@ class UnifiedServer:
         if cmd == "get_mission_hints":
             clear = bool(req.get("clear", False))
             return {"ok": True, "hints": self.runner.get_mission_hints(clear=clear)}
+
+        if cmd == "get_tick_metrics":
+            return {"ok": True, **self.runner.simulator.get_tick_metrics()}
+
+        if cmd == "set_time_scale":
+            scale = float(req.get("time_scale", req.get("scale", 1.0)))
+            scale = max(0.01, min(10.0, scale))
+            self.runner.simulator.time_scale = scale
+            return {"ok": True, "time_scale": scale}
 
         if cmd == "pause":
             on = bool(req.get("on", True))
@@ -272,6 +309,17 @@ class UnifiedServer:
         if cmd == "get_mission_hints":
             clear = bool(req.get("clear", False))
             return {"ok": True, "hints": self.runner.get_mission_hints(clear=clear)}
+
+        if cmd == "get_tick_metrics":
+            return {"ok": True, **self.runner.simulator.get_tick_metrics()}
+
+        if cmd == "set_time_scale":
+            if session and session.station and session.station.value == "captain":
+                scale = float(req.get("time_scale", req.get("scale", 1.0)))
+                scale = max(0.01, min(10.0, scale))
+                self.runner.simulator.time_scale = scale
+                return {"ok": True, "time_scale": scale}
+            return Response.error("Only captain can change time scale", ErrorCode.PERMISSION_DENIED).to_dict()
 
         if cmd == "pause":
             if session and session.station and session.station.value == "captain":
@@ -566,6 +614,7 @@ class UnifiedServer:
             logger.info(f"Client disconnected: {client_id}")
             with self.client_lock:
                 self.clients.pop(client_id, None)
+            self.rate_limiter.remove_client(client_id)
             if self.config.mode == ServerMode.STATION and self.station_manager:
                 self.station_manager.unregister_client(client_id)
             conn.close()
@@ -647,6 +696,10 @@ Examples:
     ap.add_argument("--host", default=DEFAULT_HOST, help="Host to bind to")
     ap.add_argument("--port", type=int, default=DEFAULT_TCP_PORT, help="Port to bind to")
     ap.add_argument("--dt", type=float, default=DEFAULT_DT, help="Simulation timestep")
+    ap.add_argument(
+        "--time-scale", type=float, default=DEFAULT_TIME_SCALE,
+        help="Time scale multiplier (1.0=real-time, 2.0=double speed)"
+    )
     ap.add_argument("--fleet-dir", default=DEFAULT_FLEET_DIR, help="Fleet directory")
     ap.add_argument("--lan", action="store_true", help="Enable LAN mode (bind to 0.0.0.0)")
     ap.add_argument("--log-file", default=None, help="Log file path")
@@ -669,6 +722,7 @@ def main() -> None:
         host=args.host,
         tcp_port=args.port,
         dt=args.dt,
+        time_scale=args.time_scale,
         fleet_dir=args.fleet_dir,
         log_file=args.log_file,
         lan_mode=args.lan,

@@ -84,8 +84,10 @@ class CombatSystem(BaseSystem):
         self._ship_ref = ship
         self._sim_time = getattr(ship, 'sim_time', self._sim_time + dt)
 
-        # Get weapons damage factor
-        if hasattr(ship, 'damage_model'):
+        # Get weapons damage factor (includes cascade effects)
+        if hasattr(ship, 'get_effective_factor'):
+            self._damage_factor = ship.get_effective_factor("weapons")
+        elif hasattr(ship, 'damage_model'):
             self._damage_factor = ship.damage_model.get_combined_factor("weapons")
         else:
             self._damage_factor = 1.0

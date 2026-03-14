@@ -9,19 +9,21 @@ from hybrid.scenarios.loader import ScenarioLoader
 from hybrid.fleet.fleet_manager import FleetManager
 
 class HybridRunner:
-    def __init__(self, fleet_dir="hybrid_fleet", dt=0.1):
+    def __init__(self, fleet_dir="hybrid_fleet", dt=0.1, time_scale=1.0):
         """
         Initialize the hybrid runner
 
         Args:
             fleet_dir (str): Directory containing ship JSON files
             dt (float): Simulation time step in seconds
+            time_scale (float): Time scale multiplier (1.0 = real-time,
+                2.0 = double speed, 0.5 = half speed)
         """
         self.root_dir = os.path.dirname(os.path.abspath(__file__))
         self.fleet_dir = os.path.join(self.root_dir, fleet_dir)
         self.scenarios_dir = os.path.join(self.root_dir, "scenarios")
         self.dt = dt
-        self.simulator = Simulator(dt=dt)
+        self.simulator = Simulator(dt=dt, time_scale=time_scale)
         self.running = False
         self.thread = None
         self.ships = {}
@@ -129,6 +131,8 @@ class HybridRunner:
     def _reset_simulation(self):
         self.simulator.ships.clear()
         self.simulator.time = 0.0
+        self.simulator.tick_count = 0
+        self.simulator.projectile_manager.clear()
         self.tick_count = 0
         self.state_cache = {}
         self.last_update_time = 0
@@ -242,10 +246,13 @@ class HybridRunner:
     def _run_loop(self):
         """Internal method to run the simulation loop.
 
-        Throttles to real-time: each tick advances sim time by self.dt seconds,
-        so we sleep the remainder of dt after computing the tick.  Without this
-        the loop runs thousands of ticks per wall-clock second and the ship
-        crosses hundreds of km in seconds instead of minutes.
+        Throttles based on time_scale: each tick advances sim time by dt
+        seconds, and we sleep to maintain the target wall-clock rate.
+
+        time_scale controls how fast simulation runs relative to real time:
+        - 1.0 = real-time (10 Hz physics = 10 ticks per wall-clock second)
+        - 2.0 = double speed (10 Hz physics = 20 ticks per wall-clock second)
+        - 0.5 = half speed (10 Hz physics = 5 ticks per wall-clock second)
         """
         self.simulator.start()
 
@@ -262,17 +269,18 @@ class HybridRunner:
                 if self.tick_count % 10 == 0:
                     self._update_state_cache()
 
-                # Sleep the remaining dt to maintain real-time simulation speed.
-                # dt=0.1 means 10 ticks per real second; without this sleep the
-                # loop runs as fast as the CPU allows (~1000+ ticks/s).
+                # Sleep to maintain target rate adjusted by time_scale.
+                # wall_dt = physics_dt / time_scale
+                # At time_scale=2.0, we sleep half as long → twice as fast.
                 elapsed = time.monotonic() - tick_start
-                sleep_time = self.dt - elapsed
+                wall_dt = self.dt / self.simulator.time_scale
+                sleep_time = wall_dt - elapsed
                 if sleep_time > 0:
                     time.sleep(sleep_time)
             except Exception as e:
                 print(f"Error in simulation tick: {e}")
                 time.sleep(0.1)  # Sleep longer on error
-        
+
         self.simulator.stop()
 
     def _update_mission(self):

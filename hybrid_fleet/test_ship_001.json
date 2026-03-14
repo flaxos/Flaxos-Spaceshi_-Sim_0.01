@@ -21,6 +21,7 @@
     "roll": 0.0
   },
   "mass": 800.0,
+  "dry_mass": 600.0,
   "systems": {
     "propulsion": {
       "enabled": true,
@@ -28,6 +29,10 @@
       "mass": 150,
       "slot_type": "propulsion",
       "tech_level": 1,
+      "max_thrust": 150.0,
+      "max_fuel": 200.0,
+      "fuel_level": 200.0,
+      "isp": 3000,
       "main_drive": {
         "thrust": {
           "x": 0.0,
@@ -55,7 +60,9 @@
         "cooldown_time": 8.0,
         "contact_count": 0
       },
-      "signature_base": 1.2
+      "signature_base": 1.2,
+      "ir_modifier": 1.0,
+      "rcs_modifier": 1.0
     },
     "targeting": {
       "enabled": true,
@@ -120,6 +127,12 @@
         "criticality": 5.0,
         "failure_threshold": 0.25
       },
+      "rcs": {
+        "max_health": 80.0,
+        "health": 80.0,
+        "criticality": 4.0,
+        "failure_threshold": 0.2
+      },
       "sensors": {
         "max_health": 90.0,
         "health": 90.0,
@@ -131,6 +144,18 @@
         "health": 100.0,
         "criticality": 4.0,
         "failure_threshold": 0.25
+      },
+      "reactor": {
+        "max_health": 130.0,
+        "health": 130.0,
+        "criticality": 5.0,
+        "failure_threshold": 0.15
+      },
+      "life_support": {
+        "max_health": 70.0,
+        "health": 70.0,
+        "criticality": 2.0,
+        "failure_threshold": 0.2
       }
     }
   }

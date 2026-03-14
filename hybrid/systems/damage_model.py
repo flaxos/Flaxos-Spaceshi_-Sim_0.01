@@ -348,6 +348,42 @@ class DamageModel:
         result["repair_applied"] = data.health - prev_health
         return result
 
+    # Auto-repair rate: health points per second for passive repair
+    AUTO_REPAIR_RATE = 0.5  # 0.5 hp/s → ~200s to fully repair from 0
+
+    def tick_auto_repair(self, dt: float, event_bus=None, ship_id: str = None):
+        """Tick passive auto-repair for damaged subsystems.
+
+        Subsystems that are DAMAGED (not DESTROYED or OFFLINE) slowly
+        self-repair over time, representing crew damage control efforts.
+        Destroyed subsystems cannot be auto-repaired.
+
+        Args:
+            dt: Time delta in seconds
+            event_bus: Optional EventBus for repair events
+            ship_id: Optional ship ID for event context
+        """
+        for name, data in self.subsystems.items():
+            status = data.get_status()
+            # Only auto-repair DAMAGED subsystems (not offline/destroyed)
+            if status != SubsystemStatus.DAMAGED:
+                continue
+
+            prev_health = data.health
+            repair_amount = self.AUTO_REPAIR_RATE * dt
+            data.health = min(data.max_health, data.health + repair_amount)
+
+            # Check for status transition (DAMAGED -> ONLINE)
+            new_status = data.get_status()
+            if new_status != status and event_bus:
+                event_bus.publish("subsystem_auto_repaired", {
+                    "ship_id": ship_id,
+                    "subsystem": name,
+                    "health_before": prev_health,
+                    "health_after": data.health,
+                    "new_status": new_status.value,
+                })
+
     def get_degradation_factor(self, subsystem: str) -> float:
         """Get performance degradation factor for a subsystem.
 
@@ -529,13 +565,15 @@ class DamageModel:
                     "heat_percent": data.heat_percent(),
                 })
 
-    def get_combined_factor(self, subsystem: str) -> float:
-        """Get combined performance factor from damage and heat.
+    def get_combined_factor(self, subsystem: str, cascade_factor: float = 1.0) -> float:
+        """Get combined performance factor from damage, heat, and cascades.
 
         v0.6.0: Combines degradation_factor and heat_factor.
+        v0.7.0: Accepts cascade_factor from CascadeManager.
 
         Args:
             subsystem: Subsystem name
+            cascade_factor: External cascade penalty (0.0-1.0) from CascadeManager
 
         Returns:
             float: Combined factor (0.0-1.0)
@@ -546,7 +584,7 @@ class DamageModel:
 
         damage_factor = self.get_degradation_factor(subsystem)
         heat_factor = data.get_heat_factor()
-        return damage_factor * heat_factor
+        return damage_factor * heat_factor * cascade_factor
 
     def get_subsystem_report(self, subsystem: str) -> dict:
         """Get detailed report for a subsystem.
@@ -565,6 +603,16 @@ class DamageModel:
 
         status = data.get_status()
 
+        # Map health percentage to integrity level:
+        # 100% = nominal, >0% = impaired, 0% = destroyed
+        pct = data.health_percent()
+        if pct >= 100.0:
+            integrity_level = "nominal"
+        elif pct > 0.0:
+            integrity_level = "impaired"
+        else:
+            integrity_level = "destroyed"
+
         return {
             "ok": True,
             "subsystem": subsystem,
@@ -572,6 +620,7 @@ class DamageModel:
             "health": data.health,
             "max_health": data.max_health,
             "health_percent": data.health_percent(),
+            "integrity_level": integrity_level,
             "criticality": data.criticality,
             "failure_threshold": data.failure_threshold,
             "status": status.value,

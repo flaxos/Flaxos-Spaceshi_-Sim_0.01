@@ -1,0 +1,142 @@
+{
+  "name": "Tutorial: Rendezvous and Dock",
+  "description": "Learn to use sensors and autopilot to rendezvous with and dock at a station",
+  "dt": 0.1,
+  "ships": [
+    {
+      "id": "player",
+      "name": "Rocinante",
+      "class": "corvette",
+      "player_controlled": true,
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "velocity": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "mass": 5000,
+      "systems": {
+        "propulsion": {
+          "max_thrust": 50000,
+          "fuel_level": 10000,
+          "max_fuel": 10000
+        },
+        "sensors": {
+          "passive": {
+            "range": 500000
+          },
+          "active": {
+            "scan_range": 500000
+          }
+        },
+        "navigation": {},
+        "targeting": {}
+      }
+    },
+    {
+      "id": "target_station",
+      "name": "Tycho Station",
+      "class": "station",
+      "position": {
+        "x": 400000,
+        "y": 150000,
+        "z": 0
+      },
+      "velocity": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "mass": 100000,
+      "systems": {
+        "sensors": {
+          "passive": {
+            "range": 100000
+          }
+        }
+      }
+    }
+  ],
+  "mission": {
+    "name": "First Contact",
+    "description": "Rendezvous with Tycho Station and dock",
+    "briefing": "Welcome, pilot. This is a training mission to familiarize you with\nthe basic systems of your ship.\n\nYour objective is to rendezvous with Tycho Station, currently ~430km\naway, and dock with it. The station is stationary, so use the\n\"rendezvous\" autopilot mode for a smooth approach.\n\nSteps:\n1. Use sensors to detect the station\n2. Target the station contact\n3. Engage autopilot in rendezvous mode to approach\n4. When within 5km, request docking\n5. The docking system will complete the dock automatically\n   once range and velocity criteria are met\n\nGood luck!\n",
+    "objectives": [
+      {
+        "id": "detect_station",
+        "type": "scan_target",
+        "description": "Detect the station with sensors",
+        "required": true,
+        "params": {
+          "target": "target_station"
+        }
+      },
+      {
+        "id": "close_to_5km",
+        "type": "reach_range",
+        "description": "Close to within 5km of the station",
+        "required": true,
+        "params": {
+          "target": "target_station",
+          "range": 5000,
+          "initial_range": 427000
+        }
+      },
+      {
+        "id": "dock_with_station",
+        "type": "dock_with",
+        "description": "Request docking and dock with Tycho Station",
+        "required": true,
+        "params": {
+          "target": "target_station"
+        }
+      }
+    ],
+    "success_message": "Excellent work! You've successfully docked with Tycho Station.\n\nYou've learned:\n- How to use passive sensors to detect contacts\n- How to lock a target\n- How to engage the rendezvous autopilot\n- How to request and complete a docking maneuver\n\nReady for the next mission?\n",
+    "failure_message": "Training failed. Review the briefing and try again.",
+    "hints": [
+      {
+        "trigger": "start",
+        "message": "Use the sensors panel to detect nearby contacts"
+      },
+      {
+        "trigger": "range < 200000",
+        "target": "target_station",
+        "message": "You're halfway there. The autopilot will handle the flip-and-burn deceleration automatically."
+      },
+      {
+        "trigger": "range < 50000",
+        "target": "target_station",
+        "message": "Getting close! The autopilot is decelerating for final approach."
+      },
+      {
+        "trigger": "range < 5000",
+        "target": "target_station",
+        "message": "Within docking range! Use the docking panel to request docking with the station."
+      }
+    ]
+  },
+  "metadata": {
+    "author": "Flax",
+    "version": "1.0",
+    "tags": [],
+    "difficulty": "medium"
+  },
+  "objectives": [],
+  "win_conditions": {
+    "any_of": []
+  },
+  "fail_conditions": {
+    "any_of": []
+  },
+  "events": [],
+  "tactical_notes": {
+    "player_advantages": [],
+    "enemy_advantages": [],
+    "recommended_tactics": []
+  }
+}

@@ -1,36 +1,57 @@
 # hybrid/systems/sensors/active.py
-"""Active sensor system for high-accuracy pinging."""
+"""Active sensor system for high-accuracy detection.
+
+Active sensors emit energy and detect the return signal:
+- **Radar**: Broad-beam electromagnetic pulse. Inverse-square falloff
+  both ways (1/r^4 round-trip). Detects anything with radar cross-section
+  (RCS) — even cold, drifting targets. Reveals the pinging ship's position.
+- **Lidar**: Narrow-beam laser pulse. Higher resolution than radar at
+  close range but narrower field. Must be pointed at a known bearing.
+
+Active pings always reveal the observer — you can't ping without
+announcing your position to anyone listening.
+"""
 
 import logging
-import time
 from typing import Dict, List
 from hybrid.systems.sensors.contact import (
     ContactData, add_detection_noise,
     calculate_detection_signature
 )
+from hybrid.systems.sensors.emission_model import (
+    calculate_radar_cross_section, calculate_radar_detection_range,
+    calculate_lidar_detection_range, calculate_detection_quality
+)
 from hybrid.utils.math_utils import calculate_distance, calculate_bearing
 
 logger = logging.getLogger(__name__)
 
+
 class ActiveSensor:
-    """Active sensor for manual high-accuracy pings."""
+    """Active sensor for manual high-accuracy pings (radar/lidar)."""
 
     def __init__(self, config: dict):
         """Initialize active sensor.
 
         Args:
             config: Configuration dict with:
-                - range: Maximum ping range in meters
+                - range: Maximum ping range in metres (hardware limit)
                 - cooldown: Seconds between pings
                 - power_cost: Power required per ping
                 - resolution_boost: Accuracy multiplier vs passive
+                - radar_power: Transmit power in watts
+                - radar_sensitivity: Receiver noise floor in watts
         """
         self.range = config.get("active_range", config.get("scan_range", 500000))  # 500km default
         self.base_range = self.range
-        self.cooldown = config.get("ping_cooldown", config.get("cooldown", 30.0))  # 30 seconds
+        self.cooldown = config.get("ping_cooldown", config.get("cooldown", 30.0))
         self.power_cost = config.get("ping_power_cost", config.get("power_cost", 50.0))
-        self.resolution_boost = config.get("resolution_boost", 0.95)  # Much better than passive
+        self.resolution_boost = config.get("resolution_boost", 0.95)
         self.base_resolution_boost = self.resolution_boost
+
+        # Radar transmitter/receiver parameters
+        self.radar_power = config.get("radar_power", 1.0e6)  # 1 MW default
+        self.radar_sensitivity = config.get("radar_sensitivity", 1.0e-12)
 
         self.last_ping_time = -1000.0  # Start ready
         self.contacts: Dict[str, ContactData] = {}
@@ -66,7 +87,11 @@ class ActiveSensor:
         return self.cooldown - (current_time - self.last_ping_time)
 
     def ping(self, observer_ship, all_ships: List, sim_time: float, event_bus) -> Dict[str, str]:
-        """Execute an active sensor ping.
+        """Execute an active sensor ping (radar).
+
+        Radar ping: emits EM pulse, detects returns from targets based
+        on their radar cross-section. Detection range follows the radar
+        equation with 1/r^4 falloff. Reveals pinging ship to all listeners.
 
         Args:
             observer_ship: Ship executing the ping
@@ -100,6 +125,9 @@ class ActiveSensor:
         self.last_ping_time = sim_time
         detected = {}
 
+        # Scale radar power by damage multiplier
+        effective_radar_power = self.radar_power * (self.resolution_boost / self.base_resolution_boost)
+
         for target_ship in all_ships:
             # Don't detect self
             if target_ship.id == observer_ship.id:
@@ -108,14 +136,27 @@ class ActiveSensor:
             # Calculate distance
             distance = calculate_distance(observer_ship.position, target_ship.position)
 
+            # Calculate target's radar cross-section
+            rcs = calculate_radar_cross_section(target_ship)
+
+            # Calculate radar detection range for this target
+            radar_range = calculate_radar_detection_range(
+                rcs, effective_radar_power, self.radar_sensitivity
+            )
+
+            # Effective range: minimum of radar equation and hardware limit
+            effective_range = min(radar_range, self.range)
+
             # Check if in range
-            if distance > self.range:
+            if distance > effective_range:
                 continue
 
-            # Active sensor provides high accuracy
-            base_accuracy = self.resolution_boost
-            range_factor = 1.0 - (distance / self.range) * 0.2  # Only 20% degradation with range
-            accuracy = min(0.98, base_accuracy * range_factor)
+            # Calculate detection quality from radar equation
+            quality = calculate_detection_quality(distance, effective_range)
+
+            # Active radar gets a resolution boost over passive detection
+            accuracy = min(0.98, quality * 1.2)
+            accuracy = max(0.3, accuracy)  # Radar always gets decent accuracy if detected
 
             # Very minimal noise for active sensor
             noisy_position = add_detection_noise(target_ship.position, accuracy)
@@ -130,7 +171,7 @@ class ActiveSensor:
                 velocity=noisy_velocity,
                 confidence=accuracy,
                 last_update=sim_time,
-                detection_method="active",
+                detection_method="radar",
                 bearing=bearing,
                 distance=distance,
                 signature=signature,
@@ -149,12 +190,14 @@ class ActiveSensor:
                 "ship_id": observer_ship.id,
                 "position": observer_ship.position,
                 "range": self.range,
+                "mode": "radar",
                 "timestamp": sim_time
             })
             event_bus.publish("active_ping_complete", {
                 "ship_id": observer_ship.id,
                 "contacts_detected": len(detected),
                 "contacts": list(detected.keys()),
+                "mode": "radar",
                 "timestamp": sim_time
             })
             for contact_id, contact in detected.items():
@@ -173,13 +216,14 @@ class ActiveSensor:
                     },
                 })
 
-        logger.info(f"Active ping from {observer_ship.id}: {len(detected)} contacts detected")
+        logger.info(f"Radar ping from {observer_ship.id}: {len(detected)} contacts detected")
 
         return success_dict(
-            f"Ping complete: {len(detected)} contacts detected",
+            f"Radar ping complete: {len(detected)} contacts detected",
             contacts_detected=len(detected),
             cooldown=self.cooldown,
-            next_ping_available=sim_time + self.cooldown
+            next_ping_available=sim_time + self.cooldown,
+            mode="radar"
         )
 
     def get_contacts(self) -> Dict[str, ContactData]:

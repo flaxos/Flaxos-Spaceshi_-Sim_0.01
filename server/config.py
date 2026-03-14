@@ -29,6 +29,7 @@ DEFAULT_LAN_HOST = "0.0.0.0"         # All interfaces (for LAN play)
 
 # Simulation defaults
 DEFAULT_DT = 0.1                     # 100ms simulation timestep
+DEFAULT_TIME_SCALE = 1.0             # 1.0 = real-time
 DEFAULT_FLEET_DIR = "hybrid_fleet"   # Ship definitions directory
 
 # Protocol version
@@ -55,6 +56,7 @@ class ServerConfig:
 
     # Simulation settings
     dt: float = DEFAULT_DT
+    time_scale: float = DEFAULT_TIME_SCALE
     fleet_dir: str = DEFAULT_FLEET_DIR
 
     # Optional overrides

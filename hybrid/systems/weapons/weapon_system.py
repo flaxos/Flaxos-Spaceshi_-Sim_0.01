@@ -202,7 +202,9 @@ class WeaponSystem:
             ship: Ship with this weapon system (optional)
             event_bus: Event bus (optional)
         """
-        if ship is not None and hasattr(ship, "damage_model"):
+        if ship is not None and hasattr(ship, "get_effective_factor"):
+            self.damage_factor = ship.get_effective_factor("weapons")
+        elif ship is not None and hasattr(ship, "damage_model"):
             self.damage_factor = ship.damage_model.get_combined_factor("weapons")
         else:
             self.damage_factor = 1.0

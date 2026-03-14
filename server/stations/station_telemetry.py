@@ -210,8 +210,8 @@ class StationTelemetryFilter:
         Returns:
             True if station can see events
         """
-        # Captain and Ops see all events
-        return station in [StationType.CAPTAIN, StationType.OPS]
+        # Captain, Ops (damage control), and Science (sensor events) see events
+        return station in [StationType.CAPTAIN, StationType.OPS, StationType.SCIENCE]
 
     def get_telemetry_summary_for_client(self, client_id: str) -> Dict[str, Any]:
         """
@@ -292,27 +292,14 @@ def create_station_specific_telemetry(
         }
 
     elif station == StationType.OPS:
-        return {
-            "station": "ops",
-            "sensors": ship_telemetry.get("sensors"),
-            "contacts": ship_telemetry.get("sensors", {}).get("contacts", []),
-            "systems": {
-                "sensors": ship_telemetry.get("systems", {}).get("sensors", "unknown")
-            }
-        }
-
-    elif station == StationType.ENGINEERING:
-        # v0.6.0: Enhanced with damage model and heat status
+        # OPS handles power management, damage control, system priorities
         damage_model = ship_telemetry.get("damage_model", {})
         return {
-            "station": "engineering",
+            "station": "ops",
             "systems": ship_telemetry.get("systems"),
-            "fuel": ship_telemetry.get("fuel"),
             "power": {
-                # Power data would come from power management system
                 "available": True
             },
-            # v0.6.0: Damage and heat status
             "damage_model": {
                 "subsystems": damage_model.get("subsystems", {}),
                 "mission_kill": damage_model.get("mission_kill", False),
@@ -321,6 +308,37 @@ def create_station_specific_telemetry(
                 "failed_subsystems": damage_model.get("failed_subsystems", []),
                 "critical_subsystems": damage_model.get("critical_subsystems", []),
                 "overheated_subsystems": damage_model.get("overheated_subsystems", []),
+            },
+            "hull": {
+                "integrity": ship_telemetry.get("hull_integrity"),
+                "max_integrity": ship_telemetry.get("max_hull_integrity"),
+                "percent": ship_telemetry.get("hull_percent"),
+            }
+        }
+
+    elif station == StationType.SCIENCE:
+        # SCIENCE handles sensor analysis and contact classification
+        return {
+            "station": "science",
+            "sensors": ship_telemetry.get("sensors"),
+            "contacts": ship_telemetry.get("sensors", {}).get("contacts", []),
+            "systems": {
+                "sensors": ship_telemetry.get("systems", {}).get("sensors", "unknown")
+            }
+        }
+
+    elif station == StationType.ENGINEERING:
+        # Engineering handles reactor, drive, repair crews
+        return {
+            "station": "engineering",
+            "systems": ship_telemetry.get("systems"),
+            "fuel": ship_telemetry.get("fuel"),
+            "propulsion": {
+                "fuel": ship_telemetry.get("fuel"),
+                "delta_v": ship_telemetry.get("delta_v_remaining"),
+            },
+            "damage_model": {
+                "subsystems": ship_telemetry.get("damage_model", {}).get("subsystems", {}),
             },
             "hull": {
                 "integrity": ship_telemetry.get("hull_integrity"),

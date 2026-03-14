@@ -278,18 +278,51 @@
       min-height: var(--panel-height-sm);
     }
 
-    /* Ops view panels */
-    .ops-sensors-panel {
+    /* Ops view panels (power management, damage control) */
+    .ops-status-panel {
+      grid-column: span 4;
+      min-height: var(--panel-height-md);
+    }
+
+    .ops-systems-panel {
+      grid-column: span 4;
+      min-height: var(--panel-height-md);
+    }
+
+    .ops-power-panel {
+      grid-column: span 4;
+      min-height: var(--panel-height-md);
+    }
+
+    .ops-profiles-panel {
+      grid-column: span 4;
+      min-height: var(--panel-height-sm);
+    }
+
+    .ops-draw-panel {
+      grid-column: span 4;
+      min-height: var(--panel-height-sm);
+    }
+
+    .ops-log-panel {
+      grid-column: span 4;
+      min-height: var(--panel-height-sm);
+      max-height: 400px;
+      overflow: hidden;
+    }
+
+    /* Science view panels (sensor analysis, contact classification) */
+    .sci-sensors-panel {
       grid-column: span 12;
       min-height: var(--panel-height-md);
     }
 
-    .ops-map-panel {
+    .sci-map-panel {
       grid-column: span 6;
       min-height: var(--panel-height-md);
     }
 
-    .ops-log-panel {
+    .sci-log-panel {
       grid-column: span 6;
       min-height: var(--panel-height-md);
       max-height: 400px;
@@ -487,21 +520,36 @@
       </div>
     </div>
 
-    <!-- ===== OPS VIEW ===== -->
+    <!-- ===== OPS VIEW (Power Management, Damage Control, System Priorities) ===== -->
     <div class="view-container" id="view-ops">
       <div class="view-grid">
-        <!-- Full sensor contacts display -->
-        <flaxos-panel title="Sensors" collapsible class="ops-sensors-panel">
-          <sensor-contacts></sensor-contacts>
+        <!-- Ship Status Overview -->
+        <flaxos-panel title="Ship Status" collapsible class="ops-status-panel">
+          <ship-status></ship-status>
         </flaxos-panel>
 
-        <!-- Tactical Map -->
-        <flaxos-panel title="Tactical Map" collapsible class="ops-map-panel">
-          <tactical-map></tactical-map>
+        <!-- System Toggles / Priorities -->
+        <flaxos-panel title="System Priorities" collapsible class="ops-systems-panel">
+          <system-toggles></system-toggles>
         </flaxos-panel>
 
-        <!-- Event Log (sensor events) -->
-        <flaxos-panel title="Sensor Log" collapsible class="ops-log-panel">
+        <!-- Power Management -->
+        <flaxos-panel title="Power Management" collapsible class="ops-power-panel">
+          <power-management></power-management>
+        </flaxos-panel>
+
+        <!-- Power Profiles -->
+        <flaxos-panel title="Power Profiles" collapsible class="ops-profiles-panel">
+          <power-profile-selector></power-profile-selector>
+        </flaxos-panel>
+
+        <!-- Power Draw -->
+        <flaxos-panel title="Power Draw" collapsible class="ops-draw-panel">
+          <power-draw-display></power-draw-display>
+        </flaxos-panel>
+
+        <!-- Event Log (damage/system events) -->
+        <flaxos-panel title="Event Log" collapsible class="ops-log-panel">
           <event-log></event-log>
         </flaxos-panel>
       </div>
@@ -567,6 +615,26 @@
       </div>
     </div>
 
+    <!-- ===== SCIENCE VIEW (Sensor Analysis, Contact Classification) ===== -->
+    <div class="view-container" id="view-science">
+      <div class="view-grid">
+        <!-- Full sensor contacts display -->
+        <flaxos-panel title="Sensor Contacts" collapsible class="sci-sensors-panel">
+          <sensor-contacts></sensor-contacts>
+        </flaxos-panel>
+
+        <!-- Tactical Map -->
+        <flaxos-panel title="Tactical Map" collapsible class="sci-map-panel">
+          <tactical-map></tactical-map>
+        </flaxos-panel>
+
+        <!-- Sensor Event Log -->
+        <flaxos-panel title="Sensor Log" collapsible class="sci-log-panel">
+          <event-log></event-log>
+        </flaxos-panel>
+      </div>
+    </div>
+
     <!-- ===== FLEET VIEW ===== -->
     <div class="view-container" id="view-fleet">
       <div class="view-grid">
@@ -627,6 +695,13 @@
       </div>
     </div>
 
+    <!-- ===== EDITOR VIEW ===== -->
+    <div class="view-container" id="view-editor">
+      <div style="width: 100%; height: calc(100vh - 140px); border: none;">
+        <iframe id="editor-iframe" src="" style="width: 100%; height: 100%; border: none; background: var(--bg-primary, #0a0a0f);" title="Asset Editor"></iframe>
+      </div>
+    </div>
+
     <!-- Legacy interface grid (hidden, kept for backward compatibility) -->
     <main id="interface-grid"></main>
 
@@ -645,15 +720,46 @@
       tactical: document.getElementById("view-tactical"),
       ops: document.getElementById("view-ops"),
       engineering: document.getElementById("view-engineering"),
+      science: document.getElementById("view-science"),
       fleet: document.getElementById("view-fleet"),
       mission: document.getElementById("view-mission"),
+      editor: document.getElementById("view-editor"),
     };
+
+    // Map station claims to their corresponding view tab
+    const stationViewMap = {
+      captain: "helm",
+      helm: "helm",
+      tactical: "tactical",
+      ops: "ops",
+      engineering: "engineering",
+      comms: "fleet",
+      science: "science",
+      fleet_commander: "fleet",
+    };
+
+    const editorIframe = document.getElementById("editor-iframe");
+    let editorLoaded = false;
 
     viewTabs.addEventListener("view-change", (e) => {
       const activeView = e.detail.view;
       Object.entries(views).forEach(([id, el]) => {
         el.classList.toggle("active", id === activeView);
       });
+      // Lazy-load editor iframe on first switch
+      if (activeView === "editor" && !editorLoaded) {
+        editorIframe.src = "http://localhost:3200/";
+        editorLoaded = true;
+      }
+    });
+
+    // Auto-switch view when a station is claimed
+    document.addEventListener("station-claimed", (e) => {
+      const station = e.detail.station;
+      const targetView = stationViewMap[station];
+      if (targetView && viewTabs) {
+        viewTabs.activeView = targetView;
+      }
     });
   </script>
 

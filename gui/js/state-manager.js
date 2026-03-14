@@ -149,11 +149,27 @@ class StateManager extends EventTarget {
   }
 
   /**
-   * Update internal state and notify subscribers
+   * Deep-freeze an object to prevent client-side mutations.
+   * Server state is authoritative -- clients must not modify it.
+   */
+  _deepFreeze(obj) {
+    if (obj === null || typeof obj !== "object") return obj;
+    Object.freeze(obj);
+    for (const value of Object.values(obj)) {
+      if (value !== null && typeof value === "object" && !Object.isFrozen(value)) {
+        this._deepFreeze(value);
+      }
+    }
+    return obj;
+  }
+
+  /**
+   * Update internal state and notify subscribers.
+   * State is frozen to enforce server-authoritative read-only access.
    */
   _updateState(newState) {
     const oldState = this._state;
-    this._state = newState;
+    this._state = this._deepFreeze(newState);
     this._lastStateUpdate = Date.now();
 
     // Determine what changed

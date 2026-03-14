@@ -10,6 +10,7 @@ Expanse-style hard-sci physics:
 
 from hybrid.core.base_system import BaseSystem
 from hybrid.utils.math_utils import is_valid_number, clamp
+from hybrid.utils.units import calculate_delta_v
 import math
 import logging
 
@@ -33,13 +34,13 @@ class PropulsionSystem(BaseSystem):
         # Main drive configuration
         self.max_thrust = float(config.get("max_thrust", 100.0))
         self.base_max_thrust = self.max_thrust
-        
+
         # Primary control: scalar throttle (0.0 to 1.0)
         self.throttle = 0.0
-        
+
         # Debug mode: direct vector thrust (bypasses ship-frame transform)
         self._debug_thrust_vector = None  # None means use throttle + ship frame
-        
+
         # Legacy compatibility - keep main_drive dict for telemetry
         self.main_drive = {
             "throttle": 0.0,
@@ -51,15 +52,23 @@ class PropulsionSystem(BaseSystem):
         self.base_efficiency = self.efficiency
         self.base_power_draw = self.power_draw
         self.base_power_draw_per_thrust = self.power_draw_per_thrust
-        self.fuel_consumption = float(config.get("fuel_consumption", 0.1))
         self.max_fuel = float(config.get("max_fuel", 1000.0))
         self.fuel_level = float(config.get("fuel_level", self.max_fuel))
+
+        # Specific impulse (seconds) — defines exhaust velocity and fuel efficiency
+        # Higher ISP = more delta-v per kg of fuel
+        # Epstein-class drives: ~1,000,000s; Chemical rockets: ~300s
+        self.isp = float(config.get("isp", 3000.0))
+        self.exhaust_velocity = self.isp * G_FORCE  # Ve = Isp * g0 (m/s)
+
+        # Legacy fuel_consumption used as fallback if no ISP-based calc desired
+        self._legacy_fuel_consumption = float(config.get("fuel_consumption", 0.0))
 
         # Tracking - world-frame thrust after rotation
         self.thrust_world = {"x": 0.0, "y": 0.0, "z": 0.0}
         self.power_status = True
         self.status = "idle"
-        
+
         # G-force tracking (calculated from acceleration)
         self.current_thrust_g = 0.0
         self.max_thrust_g = 0.0  # Will be calculated from max_thrust and ship mass
@@ -75,7 +84,9 @@ class PropulsionSystem(BaseSystem):
         3. F=ma gives acceleration in world frame
         """
         damage_factor = 1.0
-        if ship is not None and hasattr(ship, "damage_model"):
+        if ship is not None and hasattr(ship, "get_effective_factor"):
+            damage_factor = ship.get_effective_factor("propulsion")
+        elif ship is not None and hasattr(ship, "damage_model"):
             damage_factor = ship.damage_model.get_combined_factor("propulsion")
 
         if damage_factor <= 0.0:
@@ -147,8 +158,14 @@ class PropulsionSystem(BaseSystem):
                 self.status = "error"
                 return
 
-            # Fuel consumption
-            consumption = (thrust_magnitude / max(self.max_thrust, 1e-10)) * self.fuel_consumption * dt
+            # Fuel consumption: mass flow rate = F / Ve (Tsiolkovsky-consistent)
+            # If legacy fuel_consumption is set and no ISP override, use legacy rate
+            if self._legacy_fuel_consumption > 0 and self.isp == 3000.0:
+                consumption = (thrust_magnitude / max(self.max_thrust, 1e-10)) * self._legacy_fuel_consumption * dt
+            else:
+                mass_flow_rate = thrust_magnitude / max(self.exhaust_velocity, 1.0)
+                consumption = mass_flow_rate * dt
+
             if self.fuel_level >= consumption:
                 self.fuel_level -= consumption
 
@@ -379,6 +396,17 @@ class PropulsionSystem(BaseSystem):
         """Get current world-frame thrust vector."""
         return self.thrust_world
 
+    def get_delta_v(self, ship_dry_mass: float) -> float:
+        """Calculate remaining delta-v using Tsiolkovsky rocket equation.
+
+        Args:
+            ship_dry_mass: Ship dry mass in kg (structural mass without fuel)
+
+        Returns:
+            Delta-v in m/s
+        """
+        return calculate_delta_v(ship_dry_mass, self.fuel_level, self.isp)
+
     def get_state(self):
         state = super().get_state()
         state.update({
@@ -389,9 +417,14 @@ class PropulsionSystem(BaseSystem):
             "thrust_world": self.thrust_world,
             "debug_mode": self._debug_thrust_vector is not None,
             "fuel_level": self.fuel_level,
+            "fuel_mass": self.fuel_level,  # fuel_level is in kg (mass units)
             "fuel_percent": (self.fuel_level / self.max_fuel * 100) if self.max_fuel > 0 else 0,
             "max_fuel": self.max_fuel,
+            "fuel_capacity": self.max_fuel,
             "power_status": self.power_status,
+            # Engine performance
+            "isp": self.isp,
+            "exhaust_velocity": self.exhaust_velocity,
             # G-force metrics
             "thrust_g": self.current_thrust_g,
             "max_thrust_g": self.max_thrust_g,

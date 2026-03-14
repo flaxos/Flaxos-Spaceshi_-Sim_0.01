@@ -14,9 +14,10 @@ class StationType(Enum):
     CAPTAIN = "captain"      # Command authority, can override any station
     HELM = "helm"            # Navigation, flight control, docking
     TACTICAL = "tactical"    # Weapons, targeting, PDC
-    OPS = "ops"              # Sensors, contacts, electronic warfare
-    ENGINEERING = "engineering"  # Power, damage control, repairs
-    COMMS = "comms"          # Fleet coordination, hailing, jamming
+    OPS = "ops"              # Power management, damage control, system priorities
+    ENGINEERING = "engineering"  # Reactor, drive, repair crews
+    COMMS = "comms"          # Communications, IFF, transponder
+    SCIENCE = "science"      # Sensor analysis, contact classification
     FLEET_COMMANDER = "fleet_commander"  # Multi-ship coordination, fleet tactics
 
 
@@ -48,7 +49,8 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
         },
         displays={"all_displays"},
         can_override={StationType.HELM, StationType.TACTICAL, StationType.OPS,
-                      StationType.ENGINEERING, StationType.COMMS, StationType.FLEET_COMMANDER},
+                      StationType.ENGINEERING, StationType.COMMS, StationType.SCIENCE,
+                      StationType.FLEET_COMMANDER},
     ),
 
     StationType.HELM: StationDefinition(
@@ -109,34 +111,36 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
     StationType.OPS: StationDefinition(
         station_type=StationType.OPS,
         commands={
-            # Implemented ops commands (registered with dispatcher)
-            "ping_sensors",
+            # Power management and damage control
+            "set_power_profile",
+            "get_power_profiles",
+            "set_power_allocation",
+            "get_draw_profile",
+            "override_bio_monitor",
         },
         displays={
-            "contacts", "sensor_status", "contact_details",
-            "signature_analysis", "ecm_status", "eccm_status",
-            "sensor_coverage", "detection_log",
+            "power_grid", "reactor_status", "system_status",
+            "damage_report", "repair_queue", "hull_integrity",
+            "compartment_status", "heat_status",
+            "power_management_status",
         },
-        required_systems={"sensors"},
+        required_systems={"power", "power_management"},
     ),
 
     StationType.ENGINEERING: StationDefinition(
         station_type=StationType.ENGINEERING,
         commands={
-            # Implemented engineering commands (registered with dispatcher)
-            "override_bio_monitor",
+            # Reactor, drive, repair crews
             "set_power_profile",
             "get_power_profiles",
-            "set_power_allocation",
             "get_draw_profile",
         },
         displays={
-            "power_grid", "reactor_status", "system_status",
-            "damage_report", "repair_queue", "hull_integrity",
-            "compartment_status", "fuel_status", "heat_status",
-            "power_management_status",
+            "reactor_status", "system_status", "fuel_status",
+            "propulsion_status", "heat_status",
+            "damage_report", "hull_integrity",
         },
-        required_systems={"power", "power_management"},
+        required_systems={"power", "propulsion"},
     ),
 
     StationType.COMMS: StationDefinition(
@@ -148,6 +152,20 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             "iff_contacts", "jamming_status",
         },
         required_systems={"comms"},
+    ),
+
+    StationType.SCIENCE: StationDefinition(
+        station_type=StationType.SCIENCE,
+        commands={
+            # Sensor analysis and contact classification
+            "ping_sensors",
+        },
+        displays={
+            "contacts", "sensor_status", "contact_details",
+            "signature_analysis", "sensor_coverage",
+            "detection_log",
+        },
+        required_systems={"sensors"},
     ),
 
     StationType.FLEET_COMMANDER: StationDefinition(
