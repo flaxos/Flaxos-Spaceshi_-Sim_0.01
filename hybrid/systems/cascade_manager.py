@@ -6,7 +6,7 @@ all systems that depend on it. Each cascade produces causal feedback so the
 player understands exactly *what* failed and *why*.
 
 Dependency graph:
-    reactor -> [propulsion, rcs, sensors, weapons, targeting, life_support]
+    reactor -> [propulsion, rcs, sensors, weapons, targeting, life_support, radiators]
     sensors -> [targeting]
     rcs     -> [targeting]  (cannot aim = solutions degrade)
 
@@ -99,6 +99,14 @@ CASCADE_RULES: List[CascadeEffect] = [
         description="RCS offline — cannot orient ship to aim weapons, firing solutions degrading",
         penalty_failed=0.1,
         penalty_damaged=0.6,
+    ),
+    # Reactor powers radiator coolant pumps
+    CascadeEffect(
+        source="reactor",
+        dependent="radiators",
+        description="Reactor failure — radiator coolant pumps have no power, heat rejection degraded",
+        penalty_failed=0.1,
+        penalty_damaged=0.7,
     ),
 ]
 

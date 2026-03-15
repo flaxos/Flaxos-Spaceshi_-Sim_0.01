@@ -1,0 +1,20 @@
+{
+  "category": "feature",
+  "description": "Server runs physics at a fixed tick rate (e.g., 10 Hz for game logic, with interpolation for display). Each tick: apply forces (thrust, gravity if near bodies), integrate positions and velocities (Verlet or RK4), update sensor detection (what can each ship see), progress projectile trajectories, check for intercepts (slug-ship, torpedo-ship, PDC-torpedo), update heat generation and dissipation, tick subsystem repair progress. Physics timestep is decoupled from network update rate — server can run simulation faster or slower than real-time for testing.",
+  "id": "physics-tick-simulation",
+  "title": "Fixed-Timestep Physics Simulation Loop",
+  "dependencies": [
+    "newtonian-flight-model",
+    "server-authoritative-state"
+  ],
+  "priority": 2,
+  "status": "in_progress",
+  "descriptionHistory": [
+    {
+      "description": "Server runs physics at a fixed tick rate (e.g., 10 Hz for game logic, with interpolation for display). Each tick: apply forces (thrust, gravity if near bodies), integrate positions and velocities (Verlet or RK4), update sensor detection (what can each ship see), progress projectile trajectories, check for intercepts (slug-ship, torpedo-ship, PDC-torpedo), update heat generation and dissipation, tick subsystem repair progress. Physics timestep is decoupled from network update rate — server can run simulation faster or slower than real-time for testing.",
+      "timestamp": "2026-03-14T04:07:48.944Z",
+      "source": "initial"
+    }
+  ],
+  "updatedAt": "2026-03-14T06:36:44.667Z"
+}

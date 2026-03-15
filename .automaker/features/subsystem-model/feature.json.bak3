@@ -1,0 +1,16 @@
+{
+  "category": "feature",
+  "description": "Every ship is composed of discrete subsystems: drive (main engine), RCS (maneuvering thrusters), sensors (radar/lidar/IR), weapons (railgun mounts, PDC turrets, torpedo tubes), reactor (power generation), and life support. Each subsystem has an integrity value (100% nominal → 50% impaired → 0% destroyed) with defined degradation curves. Impaired systems work poorly; destroyed systems don't work at all. No HP bars — damage is always to specific subsystems.",
+  "id": "subsystem-model",
+  "title": "Ship Subsystem Architecture",
+  "dependencies": [],
+  "priority": 1,
+  "status": "backlog",
+  "descriptionHistory": [
+    {
+      "description": "Every ship is composed of discrete subsystems: drive (main engine), RCS (maneuvering thrusters), sensors (radar/lidar/IR), weapons (railgun mounts, PDC turrets, torpedo tubes), reactor (power generation), and life support. Each subsystem has an integrity value (100% nominal → 50% impaired → 0% destroyed) with defined degradation curves. Impaired systems work poorly; destroyed systems don't work at all. No HP bars — damage is always to specific subsystems.",
+      "timestamp": "2026-03-14T04:07:48.928Z",
+      "source": "initial"
+    }
+  ]
+}

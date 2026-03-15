@@ -1,0 +1,17 @@
+{
+  "category": "feature",
+  "description": "Core physics engine for ship movement: thrust produces acceleration (F=ma), no friction in vacuum, flip-and-burn for deceleration, drift when engines off. Ships have mass (affected by fuel/ammo load), moment of inertia for rotation, and RCS thruster placement determines rotation rates. No banking turns — all course changes require thrust.",
+  "id": "newtonian-flight-model",
+  "title": "Newtonian Flight Model",
+  "dependencies": [],
+  "priority": 1,
+  "status": "verified",
+  "descriptionHistory": [
+    {
+      "description": "Core physics engine for ship movement: thrust produces acceleration (F=ma), no friction in vacuum, flip-and-burn for deceleration, drift when engines off. Ships have mass (affected by fuel/ammo load), moment of inertia for rotation, and RCS thruster placement determines rotation rates. No banking turns — all course changes require thrust.",
+      "timestamp": "2026-03-14T04:07:48.927Z",
+      "source": "initial"
+    }
+  ],
+  "updatedAt": "2026-03-14T05:58:28.936Z"
+}

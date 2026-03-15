@@ -1,0 +1,18 @@
+{
+  "category": "feature",
+  "description": "When subsystems are damaged or destroyed, cascading effects propagate through dependent systems. Sensors destroyed = targeting pipeline blind (no new tracks, existing solutions degrade to useless). Drive destroyed = no acceleration (sitting duck, predictable trajectory). RCS destroyed = cannot rotate ship (cannot aim weapons, cannot orient for burns). Reactor impaired = reduced power budget forcing triage of active systems. Each cascade must produce clear causal feedback to the player explaining what failed and why.",
+  "id": "damage-cascade-system",
+  "title": "Subsystem Damage Cascade Effects",
+  "dependencies": [
+    "subsystem-model"
+  ],
+  "priority": 2,
+  "status": "backlog",
+  "descriptionHistory": [
+    {
+      "description": "When subsystems are damaged or destroyed, cascading effects propagate through dependent systems. Sensors destroyed = targeting pipeline blind (no new tracks, existing solutions degrade to useless). Drive destroyed = no acceleration (sitting duck, predictable trajectory). RCS destroyed = cannot rotate ship (cannot aim weapons, cannot orient for burns). Reactor impaired = reduced power budget forcing triage of active systems. Each cascade must produce clear causal feedback to the player explaining what failed and why.",
+      "timestamp": "2026-03-14T04:07:48.928Z",
+      "source": "initial"
+    }
+  ]
+}

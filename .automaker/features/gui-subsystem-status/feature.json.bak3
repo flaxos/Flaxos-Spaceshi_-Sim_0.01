@@ -1,0 +1,20 @@
+{
+  "category": "feature",
+  "description": "Display panel showing all ship subsystems with current integrity (nominal/impaired/destroyed), active damage effects, repair team assignments, power allocation, and heat levels. Color-coded for quick reading: green nominal, yellow impaired, red destroyed. Shows cascade effects clearly — if sensors are destroyed, the targeting pipeline section should indicate 'NO SENSOR DATA' rather than just showing empty tracks. Repair time estimates based on damage severity and crew assignment.",
+  "id": "gui-subsystem-status",
+  "title": "Web GUI: Subsystem Status Panel",
+  "dependencies": [
+    "server-authoritative-state",
+    "subsystem-model",
+    "damage-cascade-system"
+  ],
+  "priority": 3,
+  "status": "backlog",
+  "descriptionHistory": [
+    {
+      "description": "Display panel showing all ship subsystems with current integrity (nominal/impaired/destroyed), active damage effects, repair team assignments, power allocation, and heat levels. Color-coded for quick reading: green nominal, yellow impaired, red destroyed. Shows cascade effects clearly — if sensors are destroyed, the targeting pipeline section should indicate 'NO SENSOR DATA' rather than just showing empty tracks. Repair time estimates based on damage severity and crew assignment.",
+      "timestamp": "2026-03-14T04:07:48.942Z",
+      "source": "initial"
+    }
+  ]
+}

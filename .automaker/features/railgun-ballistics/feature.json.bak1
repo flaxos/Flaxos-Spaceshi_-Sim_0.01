@@ -1,0 +1,20 @@
+{
+  "category": "feature",
+  "description": "Railgun fires inert tungsten slugs at 20 km/s. Slugs are unguided after launch — they follow Newtonian trajectories (straight lines at combat ranges where gravity is negligible). At 500km, flight time is 25 seconds — the target moves during that time. Hit probability comes from firing solution accuracy, not RNG. The railgun has finite ammunition (slug count and mass tracked), requires capacitor charge time between shots (physical, not cooldown), and generates significant heat per firing. A hit on a subsystem at railgun velocity is devastating: one slug, one subsystem killed or severely impaired.",
+  "id": "railgun-ballistics",
+  "title": "Railgun Weapon System (UNE-440)",
+  "dependencies": [
+    "targeting-pipeline",
+    "newtonian-flight-model"
+  ],
+  "priority": 3,
+  "status": "verified",
+  "descriptionHistory": [
+    {
+      "description": "Railgun fires inert tungsten slugs at 20 km/s. Slugs are unguided after launch — they follow Newtonian trajectories (straight lines at combat ranges where gravity is negligible). At 500km, flight time is 25 seconds — the target moves during that time. Hit probability comes from firing solution accuracy, not RNG. The railgun has finite ammunition (slug count and mass tracked), requires capacitor charge time between shots (physical, not cooldown), and generates significant heat per firing. A hit on a subsystem at railgun velocity is devastating: one slug, one subsystem killed or severely impaired.",
+      "timestamp": "2026-03-14T04:07:48.930Z",
+      "source": "initial"
+    }
+  ],
+  "updatedAt": "2026-03-14T13:23:44.591Z"
+}

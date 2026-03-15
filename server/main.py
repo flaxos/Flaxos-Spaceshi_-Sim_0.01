@@ -78,6 +78,7 @@ class UnifiedServer:
         # Station system (only initialized in STATION mode)
         self.station_manager = None
         self.crew_manager = None
+        self.ai_crew_manager = None
         self.dispatcher = None
         self.telemetry_filter = None
 
@@ -92,6 +93,10 @@ class UnifiedServer:
     def initialize(self) -> None:
         """Initialize server and load simulation."""
         logger.info(f"Initializing server in {self.config.mode.value} mode...")
+
+        # Verify command registration consistency
+        from hybrid.command_registry_lint import check_on_startup
+        check_on_startup()
 
         # Load ships
         self.runner.load_ships()
@@ -115,9 +120,11 @@ class UnifiedServer:
         from server.stations.fleet_commands import register_fleet_commands
         from server.telemetry.station_filter import StationTelemetryFilter
         from server.stations.crew_system import CrewManager
+        from server.stations.ai_crew import AICrewManager
 
         self.station_manager = StationManager()
         self.crew_manager = CrewManager()
+        self.ai_crew_manager = AICrewManager(default_competence=0.7)
         self.dispatcher = StationAwareDispatcher(self.station_manager)
         self.telemetry_filter = StationTelemetryFilter(self.station_manager)
 
@@ -138,6 +145,13 @@ class UnifiedServer:
             self.station_manager,
             self.runner.simulator.fleet_manager,
         )
+
+        # Start AI crew background tick thread
+        self._ai_crew_thread = threading.Thread(
+            target=self._ai_crew_tick_loop,
+            daemon=True,
+        )
+        self._ai_crew_thread.start()
 
         logger.info("Station system initialized with multi-crew support")
 
@@ -162,7 +176,7 @@ class UnifiedServer:
             return Response.error("missing cmd", ErrorCode.MISSING_PARAM).to_dict()
 
         # Rate limiting (skip for state polling and discovery)
-        if cmd not in ("get_state", "get_events", "_discover", "_ping"):
+        if cmd not in ("get_state", "get_events", "get_combat_log", "_discover", "_ping", "list_ship_classes"):
             if not self.rate_limiter.allow(client_id):
                 return Response.error(
                     "Rate limited: too many commands", ErrorCode.BAD_REQUEST
@@ -200,8 +214,14 @@ class UnifiedServer:
         if cmd == "get_events":
             return self._handle_get_events(req)
 
+        if cmd == "get_combat_log":
+            return self._handle_get_combat_log(req)
+
         if cmd == "list_scenarios":
             return {"ok": True, "scenarios": self.runner.list_scenarios()}
+
+        if cmd == "list_ship_classes":
+            return self._handle_list_ship_classes()
 
         if cmd == "load_scenario":
             return self._handle_load_scenario(req)
@@ -273,8 +293,14 @@ class UnifiedServer:
         if cmd == "get_events":
             return self._handle_get_events_station(client_id, req)
 
+        if cmd == "get_combat_log":
+            return self._handle_get_combat_log(req)
+
         if cmd == "list_scenarios":
             return {"ok": True, "scenarios": self.runner.list_scenarios()}
+
+        if cmd == "list_ship_classes":
+            return self._handle_list_ship_classes()
 
         if cmd == "load_scenario":
             # Allow scenario loading - auto-assign client to player ship afterward
@@ -300,6 +326,11 @@ class UnifiedServer:
                 result["assigned_ship"] = player_ship_id
                 result["station"] = "captain"
                 logger.info(f"Auto-assigned {client_id} to {player_ship_id} as captain")
+
+            # Register AI crew for all ships in the scenario
+            if result.get("ok") and self.ai_crew_manager:
+                for sid in self.runner.simulator.ships:
+                    self.ai_crew_manager.register_ship(sid)
 
             return result
 
@@ -347,7 +378,32 @@ class UnifiedServer:
         if ship_id:
             args["ship"] = ship_id
 
+        # Capture station before release (release clears session.station)
+        _pre_release_station = None
+        _pre_release_ship = None
+        if cmd == "release_station" and self.ai_crew_manager:
+            pre_session = self.station_manager.get_session(client_id)
+            if pre_session and pre_session.station and pre_session.ship_id:
+                _pre_release_station = pre_session.station
+                _pre_release_ship = pre_session.ship_id
+
         result = self.dispatcher.dispatch(client_id, ship_id or "", cmd, args)
+
+        # Notify AI crew manager when stations are claimed/released
+        if self.ai_crew_manager and result.success:
+            if cmd == "claim_station":
+                station_name = args.get("station", "")
+                from server.stations.station_types import StationType
+                try:
+                    st = StationType(station_name.lower())
+                    sess = self.station_manager.get_session(client_id)
+                    if sess and sess.ship_id:
+                        self.ai_crew_manager.deactivate_station(sess.ship_id, st)
+                except ValueError:
+                    pass
+            elif cmd == "release_station" and _pre_release_station and _pre_release_ship:
+                self.ai_crew_manager.activate_station(_pre_release_ship, _pre_release_station)
+
         return result.to_dict()
 
     def _handle_get_state_minimal(self, req: dict) -> dict:
@@ -451,6 +507,31 @@ class UnifiedServer:
             return self.runner.simulator.recent_events[-limit:]
         return []
 
+    def _handle_get_combat_log(self, req: dict) -> dict:
+        """Handle get_combat_log command — return causal chain combat entries."""
+        limit = int(req.get("limit", 50))
+        since_id = int(req.get("since_id", 0))
+        event_type = req.get("event_type")
+        weapon = req.get("weapon")
+        target = req.get("target")
+
+        combat_log = getattr(self.runner.simulator, "combat_log", None)
+        if not combat_log:
+            return {"ok": True, "entries": [], "latest_id": 0}
+
+        entries = combat_log.get_entries(
+            limit=limit,
+            since_id=since_id,
+            event_type=event_type,
+            weapon=weapon,
+            target=target,
+        )
+        return {
+            "ok": True,
+            "entries": entries,
+            "latest_id": combat_log.get_latest_id(),
+        }
+
     def _filter_events_for_station(self, events: list, station, ship_id: str) -> list:
         """Filter events based on station permissions."""
         from server.stations.station_types import StationType, get_station_displays
@@ -507,6 +588,12 @@ class UnifiedServer:
                 filtered.append(event)
 
         return filtered
+
+    def _handle_list_ship_classes(self) -> dict:
+        """Handle list_ship_classes command."""
+        from hybrid.ship_class_registry import get_registry
+        registry = get_registry()
+        return {"ok": True, "ship_classes": registry.list_classes()}
 
     def _handle_load_scenario(self, req: dict) -> dict:
         """Handle load_scenario command."""
@@ -618,6 +705,20 @@ class UnifiedServer:
             if self.config.mode == ServerMode.STATION and self.station_manager:
                 self.station_manager.unregister_client(client_id)
             conn.close()
+
+    def _ai_crew_tick_loop(self) -> None:
+        """Background loop for AI crew behaviors."""
+        import time as _time
+        while self.running:
+            try:
+                if self.ai_crew_manager and self.runner.simulator.ships:
+                    self.ai_crew_manager.tick(
+                        self.runner.simulator.ships,
+                        self.config.dt,
+                    )
+            except Exception as e:
+                logger.debug(f"AI crew tick error: {e}")
+            _time.sleep(2.0)  # AI acts every 2 seconds
 
     def start(self) -> None:
         """Start the server."""

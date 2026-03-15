@@ -1,0 +1,17 @@
+{
+  "category": "feature",
+  "description": "All game state (ship positions, velocities, subsystem states, ammunition counts, sensor contacts) lives exclusively on the server. The GUI client receives state updates and renders them but cannot modify game state directly. All player actions are commands sent to the server, validated, and executed server-side. The server runs the physics simulation at a fixed tick rate. Client-side prediction is acceptable for smooth rendering but server state is always authoritative. This prevents cheating and ensures consistent multiplayer experience.",
+  "id": "server-authoritative-state",
+  "title": "Server-Authoritative Game State Architecture",
+  "dependencies": [],
+  "priority": 1,
+  "status": "verified",
+  "descriptionHistory": [
+    {
+      "description": "All game state (ship positions, velocities, subsystem states, ammunition counts, sensor contacts) lives exclusively on the server. The GUI client receives state updates and renders them but cannot modify game state directly. All player actions are commands sent to the server, validated, and executed server-side. The server runs the physics simulation at a fixed tick rate. Client-side prediction is acceptable for smooth rendering but server state is always authoritative. This prevents cheating and ensures consistent multiplayer experience.",
+      "timestamp": "2026-03-14T04:07:48.939Z",
+      "source": "initial"
+    }
+  ],
+  "updatedAt": "2026-03-14T06:08:44.896Z"
+}

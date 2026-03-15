@@ -1,0 +1,20 @@
+{
+  "category": "feature",
+  "description": "Ship classes defined as data (JSON/YAML configuration, not hardcoded): mass, dimensions, subsystem list with placement positions, weapon mounts with firing arcs, drive specifications (thrust, specific impulse, fuel capacity), sensor suite, crew complement, PDC turret positions and coverage arcs, armor thickness by section (physical armor that ablates, not HP). Different ship classes have meaningfully different capabilities: corvettes are fast and agile with limited weapons, destroyers have more weapons but are slower, freighters have large drives for hauling but minimal weapons.",
+  "id": "modular-ship-definitions",
+  "title": "Modular Ship Class Definitions",
+  "dependencies": [
+    "subsystem-model",
+    "newtonian-flight-model"
+  ],
+  "priority": 3,
+  "status": "in_progress",
+  "descriptionHistory": [
+    {
+      "description": "Ship classes defined as data (JSON/YAML configuration, not hardcoded): mass, dimensions, subsystem list with placement positions, weapon mounts with firing arcs, drive specifications (thrust, specific impulse, fuel capacity), sensor suite, crew complement, PDC turret positions and coverage arcs, armor thickness by section (physical armor that ablates, not HP). Different ship classes have meaningfully different capabilities: corvettes are fast and agile with limited weapons, destroyers have more weapons but are slower, freighters have large drives for hauling but minimal weapons.",
+      "timestamp": "2026-03-14T04:07:48.942Z",
+      "source": "initial"
+    }
+  ],
+  "startedAt": "2026-03-14T09:16:40.100Z"
+}

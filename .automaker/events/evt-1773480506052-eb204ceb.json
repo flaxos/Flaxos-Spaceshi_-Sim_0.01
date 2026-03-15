@@ -1,0 +1,10 @@
+{
+  "id": "evt-1773480506052-eb204ceb",
+  "trigger": "feature_success",
+  "timestamp": "2026-03-14T09:28:26.052Z",
+  "projectPath": "/projects/spaceship-sim",
+  "projectName": "spaceship-sim",
+  "featureId": "helm-navigation",
+  "featureName": "Helm Station: Navigation & Maneuvering Commands",
+  "passes": true
+}

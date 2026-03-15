@@ -1,0 +1,10 @@
+{
+  "id": "evt-1773499587868-85e6ce6f",
+  "trigger": "feature_success",
+  "timestamp": "2026-03-14T14:46:27.868Z",
+  "projectPath": "/projects/spaceship-sim",
+  "projectName": "spaceship-sim",
+  "featureId": "hit-location-physics",
+  "featureName": "Physics-Based Hit Location & Penetration",
+  "passes": true
+}

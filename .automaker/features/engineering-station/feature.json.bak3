@@ -1,0 +1,20 @@
+{
+  "category": "feature",
+  "description": "Engineering station commands: set-reactor-output (adjust power generation level, higher = more heat), throttle-drive (set drive output percentage), manage-radiators (extend/retract, set heat dissipation priority), monitor-fuel (track reaction mass remaining), emergency-vent (dump heat rapidly by venting coolant, one-time use). Engineering manages the physical plant that keeps everything running. Reactor output determines available power budget; drive output determines available thrust. Both generate heat that engineering must manage.",
+  "id": "engineering-station",
+  "title": "Engineering Station: Reactor & Drive Management",
+  "dependencies": [
+    "station-crew-roles",
+    "heat-management",
+    "newtonian-flight-model"
+  ],
+  "priority": 4,
+  "status": "backlog",
+  "descriptionHistory": [
+    {
+      "description": "Engineering station commands: set-reactor-output (adjust power generation level, higher = more heat), throttle-drive (set drive output percentage), manage-radiators (extend/retract, set heat dissipation priority), monitor-fuel (track reaction mass remaining), emergency-vent (dump heat rapidly by venting coolant, one-time use). Engineering manages the physical plant that keeps everything running. Reactor output determines available power budget; drive output determines available thrust. Both generate heat that engineering must manage.",
+      "timestamp": "2026-03-14T04:07:48.935Z",
+      "source": "initial"
+    }
+  ]
+}

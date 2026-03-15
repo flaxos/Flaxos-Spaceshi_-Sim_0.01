@@ -104,6 +104,13 @@ class ActiveSensor:
         """
         from hybrid.utils.errors import success_dict, error_dict
 
+        # Cold-drift mode disables active sensors (reactor offline)
+        if getattr(observer_ship, "_cold_drift_active", False):
+            return error_dict(
+                "COLD_DRIFT",
+                "Active sensors offline — ship is in cold-drift mode"
+            )
+
         # Check cooldown
         if not self.can_ping(sim_time):
             remaining = self.get_cooldown_remaining(sim_time)
@@ -139,6 +146,22 @@ class ActiveSensor:
             # Calculate target's radar cross-section
             rcs = calculate_radar_cross_section(target_ship)
 
+            # ECM: Chaff inflates apparent RCS (target looks bigger on radar,
+            # but the cloud adds position noise that degrades track quality)
+            target_ecm = target_ship.systems.get("ecm")
+            ecm_chaff_active = False
+            ecm_chaff_noise = 0.0
+            ecm_jam_factor = 1.0
+            if target_ecm and hasattr(target_ecm, "is_chaff_active"):
+                ecm_chaff_active = target_ecm.is_chaff_active()
+                if ecm_chaff_active:
+                    rcs *= target_ecm.get_chaff_rcs_multiplier()
+                    ecm_chaff_noise = target_ecm.get_chaff_noise_radius()
+
+                # Radar jamming: degrades radar quality at range
+                if hasattr(target_ecm, "get_jammer_effect_at_range"):
+                    ecm_jam_factor = target_ecm.get_jammer_effect_at_range(distance)
+
             # Calculate radar detection range for this target
             radar_range = calculate_radar_detection_range(
                 rcs, effective_radar_power, self.radar_sensitivity
@@ -154,6 +177,9 @@ class ActiveSensor:
             # Calculate detection quality from radar equation
             quality = calculate_detection_quality(distance, effective_range)
 
+            # ECM: Apply jamming degradation to quality
+            quality *= ecm_jam_factor
+
             # Active radar gets a resolution boost over passive detection
             accuracy = min(0.98, quality * 1.2)
             accuracy = max(0.3, accuracy)  # Radar always gets decent accuracy if detected
@@ -161,6 +187,15 @@ class ActiveSensor:
             # Very minimal noise for active sensor
             noisy_position = add_detection_noise(target_ship.position, accuracy)
             noisy_velocity = add_detection_noise(target_ship.velocity, accuracy)
+
+            # ECM: Chaff adds additional position noise on top of accuracy noise
+            if ecm_chaff_active and ecm_chaff_noise > 0:
+                import random
+                noisy_position = {
+                    "x": noisy_position["x"] + random.gauss(0, ecm_chaff_noise),
+                    "y": noisy_position["y"] + random.gauss(0, ecm_chaff_noise),
+                    "z": noisy_position["z"] + random.gauss(0, ecm_chaff_noise),
+                }
 
             bearing = calculate_bearing(observer_ship.position, target_ship.position)
             signature = calculate_detection_signature(target_ship)

@@ -1,0 +1,561 @@
+{
+  "version": 1,
+  "events": [
+    {
+      "id": "evt-1773532814896-283ca51e",
+      "trigger": "auto_mode_complete",
+      "timestamp": "2026-03-15T00:00:14.896Z"
+    },
+    {
+      "id": "evt-1773532812690-4ea179d8",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-15T00:00:12.690Z",
+      "featureName": "Multiplayer: Multiple Players on One Ship",
+      "featureId": "multiplayer-crew-stations"
+    },
+    {
+      "id": "evt-1773532812675-ba5fac5f",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-15T00:00:12.675Z",
+      "featureName": "Multiplayer: Multiple Players on One Ship",
+      "featureId": "multiplayer-crew-stations"
+    },
+    {
+      "id": "evt-1773531717155-c5a19764",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T23:41:57.155Z",
+      "featureName": "Fleet Station: Multi-Ship Coordination",
+      "featureId": "fleet-station-coordination"
+    },
+    {
+      "id": "evt-1773531717137-0596c47d",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T23:41:57.137Z",
+      "featureName": "Fleet Station: Multi-Ship Coordination",
+      "featureId": "fleet-station-coordination"
+    },
+    {
+      "id": "evt-1773530940521-1c6be816",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T23:29:00.521Z",
+      "featureName": "Science Station: Sensor Analysis & Contact Classification",
+      "featureId": "science-station-analysis"
+    },
+    {
+      "id": "evt-1773530940504-0c3e0844",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T23:29:00.504Z",
+      "featureName": "Science Station: Sensor Analysis & Contact Classification",
+      "featureId": "science-station-analysis"
+    },
+    {
+      "id": "evt-1773530234359-b1852e5c",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T23:17:14.359Z",
+      "featureName": "Crew Fatigue & Performance Modeling",
+      "featureId": "crew-fatigue-performance"
+    },
+    {
+      "id": "evt-1773530234342-18bde3fa",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T23:17:14.342Z",
+      "featureName": "Crew Fatigue & Performance Modeling",
+      "featureId": "crew-fatigue-performance"
+    },
+    {
+      "id": "evt-1773529290897-3b912a2e",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T23:01:30.897Z",
+      "featureName": "Communications & IFF System",
+      "featureId": "comms-iff-system"
+    },
+    {
+      "id": "evt-1773529290886-8a628b9a",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T23:01:30.886Z",
+      "featureName": "Communications & IFF System",
+      "featureId": "comms-iff-system"
+    },
+    {
+      "id": "evt-1773528444555-ead61744",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T22:47:24.555Z",
+      "featureName": "Guided Torpedo System",
+      "featureId": "torpedo-system"
+    },
+    {
+      "id": "evt-1773528444530-6e36caf7",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T22:47:24.530Z",
+      "featureName": "Guided Torpedo System",
+      "featureId": "torpedo-system"
+    },
+    {
+      "id": "evt-1773526975068-3c340530",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T22:22:55.068Z",
+      "featureName": "Maneuver-IR Signature Tradeoff",
+      "featureId": "maneuvering-ir-signature"
+    },
+    {
+      "id": "evt-1773500928831-37e29a3b",
+      "trigger": "feature_error",
+      "timestamp": "2026-03-14T15:08:48.831Z",
+      "featureName": "Maneuver-IR Signature Tradeoff",
+      "featureId": "maneuvering-ir-signature"
+    },
+    {
+      "id": "evt-1773500917473-84806e50",
+      "trigger": "feature_error",
+      "timestamp": "2026-03-14T15:08:37.473Z",
+      "featureName": "Maneuver-IR Signature Tradeoff",
+      "featureId": "maneuvering-ir-signature"
+    },
+    {
+      "id": "evt-1773500908916-3383f60d",
+      "trigger": "feature_error",
+      "timestamp": "2026-03-14T15:08:28.916Z",
+      "featureName": "Maneuver-IR Signature Tradeoff",
+      "featureId": "maneuvering-ir-signature"
+    },
+    {
+      "id": "evt-1773500266836-079fad60",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T14:57:46.836Z",
+      "featureName": "Intercept Combat Scenario",
+      "featureId": "intercept-scenario"
+    },
+    {
+      "id": "evt-1773500266824-c61471d2",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T14:57:46.824Z",
+      "featureName": "Intercept Combat Scenario",
+      "featureId": "intercept-scenario"
+    },
+    {
+      "id": "evt-1773499587868-85e6ce6f",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T14:46:27.868Z",
+      "featureName": "Physics-Based Hit Location & Penetration",
+      "featureId": "hit-location-physics"
+    },
+    {
+      "id": "evt-1773499587849-c9e38033",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T14:46:27.849Z",
+      "featureName": "Physics-Based Hit Location & Penetration",
+      "featureId": "hit-location-physics"
+    },
+    {
+      "id": "evt-1773498790888-cc84f02b",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T14:33:10.888Z",
+      "featureName": "Web GUI: Helm Navigation Display",
+      "featureId": "gui-helm-display"
+    },
+    {
+      "id": "evt-1773498790880-4ebb0b89",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T14:33:10.880Z",
+      "featureName": "Web GUI: Helm Navigation Display",
+      "featureId": "gui-helm-display"
+    },
+    {
+      "id": "evt-1773498384731-5d2a0be5",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T14:26:24.731Z",
+      "featureName": "Engineering Station: Reactor & Drive Management",
+      "featureId": "engineering-station"
+    },
+    {
+      "id": "evt-1773498384711-b6c8ce92",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T14:26:24.711Z",
+      "featureName": "Engineering Station: Reactor & Drive Management",
+      "featureId": "engineering-station"
+    },
+    {
+      "id": "evt-1773497323056-191a4f0b",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T14:08:43.056Z",
+      "featureName": "Electronic Countermeasures & Electronic Warfare",
+      "featureId": "ecm-electronic-warfare"
+    },
+    {
+      "id": "evt-1773497323036-44000051",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T14:08:43.036Z",
+      "featureName": "Electronic Countermeasures & Electronic Warfare",
+      "featureId": "ecm-electronic-warfare"
+    },
+    {
+      "id": "evt-1773496155814-49bec026",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T13:49:15.814Z",
+      "featureName": "Tactical Station: Weapons & Targeting Commands",
+      "featureId": "tactical-station"
+    },
+    {
+      "id": "evt-1773496155801-cb4efed6",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T13:49:15.801Z",
+      "featureName": "Tactical Station: Weapons & Targeting Commands",
+      "featureId": "tactical-station"
+    },
+    {
+      "id": "evt-1773495530507-0580d7ec",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T13:38:50.507Z",
+      "featureName": "Firing Solution Confidence & Feedback System",
+      "featureId": "firing-solution-confidence"
+    },
+    {
+      "id": "evt-1773495530491-24cbe254",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T13:38:50.491Z",
+      "featureName": "Firing Solution Confidence & Feedback System",
+      "featureId": "firing-solution-confidence"
+    },
+    {
+      "id": "evt-1773494624604-deeb9e8d",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T13:23:44.604Z",
+      "featureName": "Railgun Weapon System (UNE-440)",
+      "featureId": "railgun-ballistics"
+    },
+    {
+      "id": "evt-1773494624592-f504b6cb",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T13:23:44.592Z",
+      "featureName": "Railgun Weapon System (UNE-440)",
+      "featureId": "railgun-ballistics"
+    },
+    {
+      "id": "evt-1773493953464-8d83c6a1",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T13:12:33.464Z",
+      "featureName": "Point Defense Cannon System (Narwhal-III)",
+      "featureId": "pdc-system"
+    },
+    {
+      "id": "evt-1773481475939-9a5200f8",
+      "trigger": "feature_error",
+      "timestamp": "2026-03-14T09:44:35.939Z",
+      "featureName": "Point Defense Cannon System (Narwhal-III)",
+      "featureId": "pdc-system"
+    },
+    {
+      "id": "evt-1773481468979-fc030a7b",
+      "trigger": "feature_error",
+      "timestamp": "2026-03-14T09:44:28.979Z",
+      "featureName": "Point Defense Cannon System (Narwhal-III)",
+      "featureId": "pdc-system"
+    },
+    {
+      "id": "evt-1773481457791-42c35d3a",
+      "trigger": "feature_error",
+      "timestamp": "2026-03-14T09:44:17.791Z",
+      "featureName": "Point Defense Cannon System (Narwhal-III)",
+      "featureId": "pdc-system"
+    },
+    {
+      "id": "evt-1773481400745-921217cf",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T09:43:20.745Z",
+      "featureName": "Ops Station: Power & Damage Control Commands",
+      "featureId": "ops-station"
+    },
+    {
+      "id": "evt-1773481400731-c63fbd30",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T09:43:20.731Z",
+      "featureName": "Ops Station: Power & Damage Control Commands",
+      "featureId": "ops-station"
+    },
+    {
+      "id": "evt-1773480680865-80264ef2",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T09:31:20.865Z",
+      "featureName": "Thermal Management System",
+      "featureId": "heat-management"
+    },
+    {
+      "id": "evt-1773480561688-756ebabf",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T09:29:21.688Z",
+      "featureName": "Modular Ship Class Definitions",
+      "featureId": "modular-ship-definitions"
+    },
+    {
+      "id": "evt-1773480506052-eb204ceb",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T09:28:26.052Z",
+      "featureName": "Helm Station: Navigation & Maneuvering Commands",
+      "featureId": "helm-navigation"
+    },
+    {
+      "id": "evt-1773480309172-f4054274",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T09:25:09.172Z",
+      "featureName": "Web GUI: Tactical Display",
+      "featureId": "gui-tactical-display"
+    },
+    {
+      "id": "evt-1773480022170-0035d814",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T09:20:22.170Z",
+      "featureName": "Web GUI: Subsystem Status Panel",
+      "featureId": "gui-subsystem-status"
+    },
+    {
+      "id": "evt-1773480022161-2b181b4d",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T09:20:22.161Z",
+      "featureName": "Web GUI: Subsystem Status Panel",
+      "featureId": "gui-subsystem-status"
+    },
+    {
+      "id": "evt-1773479656876-d02bd2d6",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T09:14:16.876Z",
+      "featureName": "Command Registration Validation Tool",
+      "featureId": "command-registration-linter"
+    },
+    {
+      "id": "evt-1773479656868-ca139d77",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T09:14:16.868Z",
+      "featureName": "Command Registration Validation Tool",
+      "featureId": "command-registration-linter"
+    },
+    {
+      "id": "evt-1773479234749-288aec97",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T09:07:14.749Z",
+      "featureName": "Causal Combat Event Log",
+      "featureId": "combat-feedback-log"
+    },
+    {
+      "id": "evt-1773479234735-04ca689b",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T09:07:14.735Z",
+      "featureName": "Causal Combat Event Log",
+      "featureId": "combat-feedback-log"
+    },
+    {
+      "id": "evt-1773478313880-5bcdc2f9",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T08:51:53.880Z",
+      "featureName": "Physical Ammunition & Resource Tracking",
+      "featureId": "ammunition-tracking"
+    },
+    {
+      "id": "evt-1773478313866-a9c6270f",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T08:51:53.866Z",
+      "featureName": "Physical Ammunition & Resource Tracking",
+      "featureId": "ammunition-tracking"
+    },
+    {
+      "id": "evt-1773477647070-eff6d879",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T08:40:47.070Z",
+      "featureName": "Multi-Stage Targeting Pipeline",
+      "featureId": "targeting-pipeline"
+    },
+    {
+      "id": "evt-1773477647057-4177ba25",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T08:40:47.057Z",
+      "featureName": "Multi-Stage Targeting Pipeline",
+      "featureId": "targeting-pipeline"
+    },
+    {
+      "id": "evt-1773476955480-faafa5a4",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T08:29:15.480Z",
+      "featureName": "Three-Place Command Registration System",
+      "featureId": "command-registration-system"
+    },
+    {
+      "id": "evt-1773476955472-1ebd7b45",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T08:29:15.472Z",
+      "featureName": "Three-Place Command Registration System",
+      "featureId": "command-registration-system"
+    },
+    {
+      "id": "evt-1773476597681-8cb63576",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T08:23:17.681Z",
+      "featureName": "Station-Based Crew Role System",
+      "featureId": "station-crew-roles"
+    },
+    {
+      "id": "evt-1773472045749-02ecb0c7",
+      "trigger": "feature_error",
+      "timestamp": "2026-03-14T07:07:25.749Z",
+      "featureName": "Station-Based Crew Role System",
+      "featureId": "station-crew-roles"
+    },
+    {
+      "id": "evt-1773472038905-7a4f9a56",
+      "trigger": "feature_error",
+      "timestamp": "2026-03-14T07:07:18.905Z",
+      "featureName": "Station-Based Crew Role System",
+      "featureId": "station-crew-roles"
+    },
+    {
+      "id": "evt-1773472030361-e1608830",
+      "trigger": "feature_error",
+      "timestamp": "2026-03-14T07:07:10.361Z",
+      "featureName": "Station-Based Crew Role System",
+      "featureId": "station-crew-roles"
+    },
+    {
+      "id": "evt-1773471632303-4b5d8678",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T07:00:32.303Z",
+      "featureName": "Physics-Based Sensor Detection",
+      "featureId": "sensor-detection-model"
+    },
+    {
+      "id": "evt-1773471632291-b3ff7874",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T07:00:32.291Z",
+      "featureName": "Physics-Based Sensor Detection",
+      "featureId": "sensor-detection-model"
+    },
+    {
+      "id": "evt-1773471036470-6cabaf2a",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T06:50:36.470Z",
+      "featureName": "Fixed-Timestep Physics Simulation Loop",
+      "featureId": "physics-tick-simulation"
+    },
+    {
+      "id": "evt-1773471036455-2f033857",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T06:50:36.455Z",
+      "featureName": "Fixed-Timestep Physics Simulation Loop",
+      "featureId": "physics-tick-simulation"
+    },
+    {
+      "id": "evt-1773470200218-82beebbd",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T06:36:40.218Z",
+      "featureName": "Fuel & Delta-V Budget System",
+      "featureId": "fuel-delta-v-budget"
+    },
+    {
+      "id": "evt-1773470200202-e0227b69",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T06:36:40.202Z",
+      "featureName": "Fuel & Delta-V Budget System",
+      "featureId": "fuel-delta-v-budget"
+    },
+    {
+      "id": "evt-1773469541905-69f7c8f4",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T06:25:41.905Z",
+      "featureName": "Subsystem Damage Cascade Effects",
+      "featureId": "damage-cascade-system"
+    },
+    {
+      "id": "evt-1773469541894-f1776bf9",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T06:25:41.894Z",
+      "featureName": "Subsystem Damage Cascade Effects",
+      "featureId": "damage-cascade-system"
+    },
+    {
+      "id": "evt-1773468977765-d1ee01ab",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T06:16:17.765Z",
+      "featureName": "Ship Subsystem Architecture",
+      "featureId": "subsystem-model"
+    },
+    {
+      "id": "evt-1773468977755-6c6d420f",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T06:16:17.755Z",
+      "featureName": "Ship Subsystem Architecture",
+      "featureId": "subsystem-model"
+    },
+    {
+      "id": "evt-1773468524914-5cc425c8",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T06:08:44.914Z",
+      "featureName": "Server-Authoritative Game State Architecture",
+      "featureId": "server-authoritative-state"
+    },
+    {
+      "id": "evt-1773468524898-a3f55637",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T06:08:44.898Z",
+      "featureName": "Server-Authoritative Game State Architecture",
+      "featureId": "server-authoritative-state"
+    },
+    {
+      "id": "evt-1773468488661-f09ccc6e",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T06:08:08.662Z",
+      "featureName": "Newtonian Flight Model",
+      "featureId": "newtonian-flight-model"
+    },
+    {
+      "id": "evt-1773467908952-2e2848d2",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T05:58:28.952Z",
+      "featureName": "Newtonian Flight Model",
+      "featureId": "newtonian-flight-model"
+    },
+    {
+      "id": "evt-1773467908938-59927398",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T05:58:28.939Z",
+      "featureName": "Newtonian Flight Model",
+      "featureId": "newtonian-flight-model"
+    },
+    {
+      "id": "evt-1773467201234-1537dfce",
+      "trigger": "auto_mode_complete",
+      "timestamp": "2026-03-14T05:46:41.234Z"
+    },
+    {
+      "id": "evt-1773464462446-56b2b99b",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T05:01:02.446Z",
+      "featureName": "webUI for game edits",
+      "featureId": "feature-1773461839884-a6ntmynxk29"
+    },
+    {
+      "id": "evt-1773464455682-8126b259",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T05:00:55.682Z",
+      "featureName": "webUI for game edits",
+      "featureId": "feature-1773461839884-a6ntmynxk29"
+    },
+    {
+      "id": "evt-1773463074186-17c13ac6",
+      "trigger": "feature_success",
+      "timestamp": "2026-03-14T04:37:54.186Z",
+      "featureName": "webUI for game edits",
+      "featureId": "feature-1773461839884-a6ntmynxk29"
+    },
+    {
+      "id": "evt-1773461840063-2f08b3e8",
+      "trigger": "feature_created",
+      "timestamp": "2026-03-14T04:17:20.063Z",
+      "featureName": "webUI for game edits",
+      "featureId": "feature-1773461839884-a6ntmynxk29"
+    },
+    {
+      "id": "evt-1773461352949-2dd6441b",
+      "trigger": "feature_created",
+      "timestamp": "2026-03-14T04:09:12.949Z",
+      "featureName": "I want a web interface to be able to edit view modify and create game assets such as ship , local sp",
+      "featureId": "feature-1773461352772-58na8inf35i"
+    }
+  ]
+}

@@ -126,13 +126,17 @@ def get_ship_telemetry(ship, sim_time: float = None) -> Dict[str, Any]:
         dry_mass = getattr(ship, "dry_mass", max(0.0, ship.mass - fuel_level))
         delta_v_remaining = calculate_delta_v(dry_mass, fuel_level, isp)
 
-    # Get targeting data
+    # Get targeting data — expose the full pipeline state so the GUI
+    # can render each stage: contact → track → lock → solution → fire.
     target_id = getattr(ship, "target_id", None)
     target_subsystem = getattr(ship, "target_subsystem", None)
     targeting = ship.systems.get("targeting")
+    targeting_state = None
     if targeting:
         target_id = target_id or getattr(targeting, "locked_target", target_id)
         target_subsystem = getattr(targeting, "target_subsystem", target_subsystem)
+        if hasattr(targeting, "get_state"):
+            targeting_state = targeting.get_state()
 
     # Get navigation mode
     nav = ship.systems.get("navigation")
@@ -163,6 +167,21 @@ def get_ship_telemetry(ship, sim_time: float = None) -> Dict[str, Any]:
     # Get own-ship emission data (what others can see)
     emissions = _get_ship_emissions(ship)
 
+    # Get thermal system state
+    thermal_state = _get_thermal_state(ship)
+
+    # Get ops system state (power allocation, repair teams, priorities)
+    ops_state = _get_ops_state(ship)
+
+    # Get ECM system state (jamming, chaff, flares, EMCON)
+    ecm_state = _get_ecm_state(ship)
+
+    # Get engineering system state (reactor output, drive limit, radiators, fuel, vent)
+    engineering_state = _get_engineering_state(ship)
+
+    # Get comms system state (transponder, radio, distress)
+    comms_state = _get_comms_state(ship)
+
     # Drift state: moving with no thrust applied
     is_drifting = acceleration_magnitude < 0.001 and velocity_magnitude > 0.01
 
@@ -177,6 +196,15 @@ def get_ship_telemetry(ship, sim_time: float = None) -> Dict[str, Any]:
         fuel_level=fuel_level,
         dry_mass=dry_mass,
     )
+
+    # Trajectory projection for navigation displays
+    trajectory = _compute_trajectory_projection(
+        ship, velocity_magnitude, acceleration_magnitude,
+        max_thrust, delta_v_remaining,
+    )
+
+    # Flight computer status
+    flight_computer_status = _get_flight_computer_status(ship)
 
     return {
         "id": ship.id,
@@ -203,14 +231,23 @@ def get_ship_telemetry(ship, sim_time: float = None) -> Dict[str, Any]:
         "ponr": ponr,
         "target_id": target_id,
         "target_subsystem": target_subsystem,
+        "targeting": targeting_state,
         "nav_mode": nav_mode,
         "autopilot_program": autopilot_program,
         "autopilot_state": autopilot_state,
         "course": course_info,
         "helm_queue": helm_queue,
+        "trajectory": trajectory,
+        "flight_computer": flight_computer_status,
         "weapons": weapons_status,
+        "ammo_mass": weapons_status.get("total_ammo_mass", 0.0),
         "sensors": sensor_contacts,
         "emissions": emissions,
+        "thermal": thermal_state,
+        "ops": ops_state,
+        "ecm": ecm_state,
+        "engineering": engineering_state,
+        "comms": comms_state,
         "subsystem_health": ship.damage_model.get_report() if hasattr(ship, "damage_model") else {},
         "cascade_effects": ship.cascade_manager.get_report() if hasattr(ship, "cascade_manager") else {},
         "systems": {
@@ -218,8 +255,198 @@ def get_ship_telemetry(ship, sim_time: float = None) -> Dict[str, Any]:
                          system.get_state().get("status", "online") if hasattr(system, "get_state") else "online"
             for system_name, system in ship.systems.items()
         },
+        # Ship class metadata (from modular ship definitions)
+        "dimensions": getattr(ship, "dimensions", None),
+        "armor": getattr(ship, "armor", None),
+        "crew_complement": getattr(ship, "crew_complement", None),
+        "weapon_mounts": getattr(ship, "weapon_mounts", None),
         "timestamp": sim_time
     }
+
+def _compute_trajectory_projection(ship, velocity_magnitude: float,
+                                     acceleration_magnitude: float,
+                                     max_thrust: float,
+                                     delta_v_remaining: float) -> Dict[str, Any]:
+    """Compute trajectory projection data for navigation displays.
+
+    Projects the ship's future position based on current velocity and
+    acceleration, and calculates useful navigation metrics.
+
+    Args:
+        ship: Ship object
+        velocity_magnitude: Current speed (m/s)
+        acceleration_magnitude: Current acceleration magnitude (m/s^2)
+        max_thrust: Maximum thrust (N)
+        delta_v_remaining: Remaining delta-v budget (m/s)
+
+    Returns:
+        dict: Trajectory projection data
+    """
+    max_accel = max_thrust / ship.mass if ship.mass > 0 and max_thrust > 0 else 0
+
+    # Velocity heading (prograde direction)
+    vel_heading = {"pitch": 0.0, "yaw": 0.0}
+    if velocity_magnitude > 0.01:
+        vx = ship.velocity.get("x", 0)
+        vy = ship.velocity.get("y", 0)
+        vz = ship.velocity.get("z", 0)
+        yaw = math.degrees(math.atan2(vy, vx))
+        horiz = math.sqrt(vx**2 + vy**2)
+        pitch = math.degrees(math.atan2(vz, horiz)) if horiz > 0.001 else 0.0
+        vel_heading = {"pitch": round(pitch, 1), "yaw": round(yaw, 1)}
+
+    # Projected position at t+10s, t+30s, t+60s (linear extrapolation)
+    projections = []
+    for dt in (10, 30, 60):
+        proj_pos = {
+            "x": round(ship.position["x"] + ship.velocity["x"] * dt + 0.5 * ship.acceleration["x"] * dt**2, 1),
+            "y": round(ship.position["y"] + ship.velocity["y"] * dt + 0.5 * ship.acceleration["y"] * dt**2, 1),
+            "z": round(ship.position["z"] + ship.velocity["z"] * dt + 0.5 * ship.acceleration["z"] * dt**2, 1),
+        }
+        projections.append({"t": dt, "position": proj_pos})
+
+    # Ship heading vs velocity heading drift angle
+    drift_angle = 0.0
+    if velocity_magnitude > 0.1:
+        # Angle between ship forward and velocity vector
+        ship_yaw = ship.orientation.get("yaw", 0)
+        drift_angle = abs(((vel_heading["yaw"] - ship_yaw + 180) % 360) - 180)
+
+    return {
+        "velocity_heading": vel_heading,
+        "drift_angle": round(drift_angle, 1),
+        "max_accel_g": round(max_accel / 9.81, 2) if max_accel > 0 else 0,
+        "projected_positions": projections,
+        "time_to_zero": round(velocity_magnitude / max_accel, 1) if max_accel > 0 and velocity_magnitude > 0.1 else None,
+    }
+
+
+def _get_flight_computer_status(ship) -> Optional[Dict[str, Any]]:
+    """Get flight computer status for telemetry.
+
+    Args:
+        ship: Ship object
+
+    Returns:
+        dict or None: Flight computer status
+    """
+    fc = ship.systems.get("flight_computer")
+    if fc and hasattr(fc, "get_flight_status"):
+        try:
+            status = fc.get_flight_status(ship)
+            if hasattr(status, "to_dict"):
+                return status.to_dict()
+            return status
+        except Exception:
+            pass
+    return None
+
+
+def _get_thermal_state(ship) -> Dict[str, Any]:
+    """Get thermal system state for telemetry.
+
+    Args:
+        ship: Ship object
+
+    Returns:
+        dict: Thermal state (hull_temperature, radiator status, etc.)
+    """
+    thermal = ship.systems.get("thermal")
+    if thermal and hasattr(thermal, "get_state"):
+        try:
+            return thermal.get_state()
+        except Exception:
+            pass
+    return {
+        "enabled": False,
+        "hull_temperature": 300.0,
+        "status": "unavailable",
+    }
+
+
+def _get_ops_state(ship) -> Dict[str, Any]:
+    """Get ops system state for telemetry.
+
+    Args:
+        ship: Ship object
+
+    Returns:
+        dict: Ops state (power allocation, repair teams, priorities, shutdowns)
+    """
+    ops = ship.systems.get("ops")
+    if ops and hasattr(ops, "get_state"):
+        try:
+            return ops.get_state()
+        except Exception:
+            pass
+    return {
+        "enabled": False,
+        "status": "unavailable",
+    }
+
+
+def _get_ecm_state(ship) -> Dict[str, Any]:
+    """Get ECM system state for telemetry.
+
+    Args:
+        ship: Ship object
+
+    Returns:
+        dict: ECM state (jamming, chaff, flares, EMCON)
+    """
+    ecm = ship.systems.get("ecm")
+    if ecm and hasattr(ecm, "get_state"):
+        try:
+            return ecm.get_state()
+        except Exception:
+            pass
+    return {
+        "enabled": False,
+        "status": "unavailable",
+    }
+
+
+def _get_comms_state(ship) -> Dict[str, Any]:
+    """Get comms system state for telemetry.
+
+    Args:
+        ship: Ship object
+
+    Returns:
+        dict: Comms state (transponder, radio, distress, messages)
+    """
+    comms = ship.systems.get("comms")
+    if comms and hasattr(comms, "get_state"):
+        try:
+            return comms.get_state()
+        except Exception:
+            pass
+    return {
+        "enabled": False,
+        "status": "unavailable",
+    }
+
+
+def _get_engineering_state(ship) -> Dict[str, Any]:
+    """Get engineering system state for telemetry.
+
+    Args:
+        ship: Ship object
+
+    Returns:
+        dict: Engineering state (reactor output, drive limit, radiators, vent)
+    """
+    engineering = ship.systems.get("engineering")
+    if engineering and hasattr(engineering, "get_state"):
+        try:
+            return engineering.get_state()
+        except Exception:
+            pass
+    return {
+        "enabled": False,
+        "status": "unavailable",
+    }
+
 
 def _get_ship_emissions(ship) -> Dict[str, Any]:
     """Get own-ship emission data for telemetry.
@@ -247,36 +474,54 @@ def _get_ship_emissions(ship) -> Dict[str, Any]:
 
 
 def get_weapons_status(ship) -> Dict[str, Any]:
-    """Get weapons system status.
+    """Get weapons system status including truth weapons and ammo mass.
 
     Args:
         ship: Ship object
 
     Returns:
-        dict: Weapons status
+        dict: Weapons status with ammunition tracking data
     """
     weapons = ship.systems.get("weapons")
+    combat = ship.systems.get("combat")
 
-    if not weapons:
+    if not weapons and not combat:
         return {
             "available": False,
             "armed": [],
             "status": "offline"
         }
 
-    if hasattr(weapons, "get_state"):
-        weapon_state = weapons.get_state()
-        return {
-            "available": True,
-            "armed": weapon_state.get("armed_weapons", []),
-            "status": weapon_state.get("status", "online"),
-            "weapons": weapon_state.get("weapons", {})
-        }
-
-    return {
+    result: Dict[str, Any] = {
         "available": True,
-        "status": "online"
+        "status": "online",
+        "armed": [],
+        "weapons": {},
+        "total_ammo_mass": 0.0,
     }
+
+    # Legacy weapon system state
+    if weapons and hasattr(weapons, "get_state"):
+        weapon_state = weapons.get_state()
+        result["armed"] = weapon_state.get("armed_weapons", [])
+        result["status"] = weapon_state.get("status", "online")
+        result["weapons"] = weapon_state.get("weapons", {})
+
+    # Truth weapons from combat system (railguns, PDCs)
+    if combat and hasattr(combat, "get_state"):
+        combat_state = combat.get_state()
+        truth_weapons = combat_state.get("truth_weapons", {})
+        result["truth_weapons"] = truth_weapons
+        result["total_ammo_mass"] = combat_state.get("total_ammo_mass", 0.0)
+        result["ready_weapons"] = combat_state.get("ready_weapons", [])
+
+        # Merge status: if combat system has a damage factor
+        if combat_state.get("damage_factor", 1.0) <= 0.0:
+            result["status"] = "failed"
+        elif combat_state.get("damage_factor", 1.0) < 1.0:
+            result["status"] = "degraded"
+
+    return result
 
 def get_sensor_contacts(ship) -> Dict[str, Any]:
     """Get sensor contacts for a ship.
@@ -445,6 +690,11 @@ def get_telemetry_snapshot(sim, recent_events_limit: int = 50) -> Dict[str, Any]
                 "target": getattr(proj, "target_id", None),
             })
 
+    # Get active torpedoes from TorpedoManager
+    torpedoes = []
+    if hasattr(sim, "torpedo_manager"):
+        torpedoes = sim.torpedo_manager.get_state()
+
     # Get recent events
     events = []
     if hasattr(sim, "event_log"):
@@ -463,6 +713,7 @@ def get_telemetry_snapshot(sim, recent_events_limit: int = 50) -> Dict[str, Any]
         "dt": dt,
         "ships": ships_telemetry,
         "projectiles": projectiles,
+        "torpedoes": torpedoes,
         "events": events,
         "tick_metrics": tick_metrics,
         "timestamp": time.time()

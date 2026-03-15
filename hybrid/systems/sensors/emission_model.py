@@ -30,13 +30,20 @@ RADAR_POWER_DEFAULT = 1.0e6  # Default radar transmit power (W)
 RADAR_SENSITIVITY = 1.0e-12  # Radar receiver noise floor (W)
 LIDAR_SENSITIVITY = 1.0e-10  # Lidar receiver noise floor (W)
 
+# Drive plume thermal decay constants
+# After cutting engines, residual plume/nozzle heat decays exponentially
+# tau ~ 15s: nozzle glow fades over ~30-45s (2-3 time constants)
+PLUME_DECAY_TAU = 15.0  # Seconds — thermal decay time constant
+PLUME_RESIDUAL_FRACTION = 0.05  # 5% of peak plume IR lingers as nozzle glow
+
 
 def calculate_ir_signature(ship) -> float:
     """Calculate a ship's infrared emission power in watts.
 
     IR signature comes from three sources:
     1. Drive plume: dominant when thrusting. Exhaust temperature scales
-       with thrust magnitude (hotter exhaust = more IR).
+       with thrust magnitude (hotter exhaust = more IR). After cutting
+       engines, residual nozzle glow decays exponentially.
     2. Radiator heat: ships must radiate waste heat from reactor and
        systems. Always present but modest compared to a drive plume.
     3. Base hull emission: warm hull in cold space. Minimal but non-zero.
@@ -52,44 +59,89 @@ def calculate_ir_signature(ship) -> float:
     # --- 1. Drive plume (dominant source) ---
     # Thrust produces enormous IR from superheated exhaust
     thrust_magnitude = _get_thrust_magnitude(ship)
-    if thrust_magnitude > 0:
-        # Exhaust temperature roughly proportional to thrust
-        # At full thrust (~50kN), exhaust temp ~3000K for Epstein-class
-        propulsion = ship.systems.get("propulsion")
-        max_thrust = getattr(propulsion, "max_thrust", 50000.0) if propulsion else 50000.0
-        throttle_fraction = min(1.0, thrust_magnitude / max(max_thrust, 1.0))
+    propulsion = ship.systems.get("propulsion")
+    max_thrust = getattr(propulsion, "max_thrust", 50000.0) if propulsion else 50000.0
+    throttle_fraction = min(1.0, thrust_magnitude / max(max_thrust, 1.0))
 
+    # Track plume thermal history for post-burn decay
+    ir_history = _get_ir_history(ship)
+    current_time = getattr(ship, "sim_time", 0.0)
+
+    if thrust_magnitude > 0:
         # Drive plume IR scales with thrust^1.5 (non-linear: hotter + bigger plume)
         # A ship at full burn radiates ~10MW of IR
         plume_power = 1.0e7 * (throttle_fraction ** 1.5)
         ir_watts += plume_power
 
+        # Record peak plume power and time for decay calculation
+        ir_history["peak_plume_power"] = plume_power
+        ir_history["last_burn_time"] = current_time
+        ir_history["is_burning"] = True
+    else:
+        # Post-burn nozzle glow: exponential decay from last plume power
+        # Physical basis: nozzle and exhaust bell retain heat after cutoff
+        peak = ir_history.get("peak_plume_power", 0.0)
+        last_burn = ir_history.get("last_burn_time", 0.0)
+        was_burning = ir_history.get("is_burning", False)
+        ir_history["is_burning"] = False
+
+        if peak > 0 and current_time > last_burn:
+            dt_since_burn = current_time - last_burn
+            # Exponential decay: P(t) = P_peak * exp(-t/tau)
+            decay = math.exp(-dt_since_burn / PLUME_DECAY_TAU)
+            residual_power = peak * max(decay, PLUME_RESIDUAL_FRACTION)
+
+            # Below 5% of peak, nozzle has cooled enough to ignore
+            if residual_power > peak * PLUME_RESIDUAL_FRACTION * 1.01:
+                ir_watts += residual_power
+            else:
+                # Fully cooled — clear the history
+                ir_history["peak_plume_power"] = 0.0
+
+    # Store decay metadata for telemetry
+    ir_history["current_plume_ir"] = ir_watts
+
     # --- 2. Radiator / reactor waste heat ---
-    # Ships must dump waste heat. Even idle reactors produce some IR.
-    reactor_heat_fraction = _get_reactor_heat_fraction(ship)
-    # Idle reactor: ~50kW IR. Full load: ~500kW IR.
-    radiator_power = 5.0e4 + reactor_heat_fraction * 4.5e5
-    ir_watts += radiator_power
+    # If thermal system exists, use its physics-based radiator IR emission.
+    # This makes heat management directly visible to enemy sensors:
+    # hotter ship = brighter IR = easier to detect.
+    thermal = ship.systems.get("thermal")
+    if thermal and hasattr(thermal, "get_radiator_ir_emission"):
+        radiator_power = thermal.get_radiator_ir_emission()
+        ir_watts += radiator_power
+    else:
+        # Legacy fallback: estimate from reactor heat
+        reactor_heat_fraction = _get_reactor_heat_fraction(ship)
+        radiator_power = 5.0e4 + reactor_heat_fraction * 4.5e5
+        ir_watts += radiator_power
 
     # --- 3. Infrastructure heat ---
-    # Larger ships/stations have more active systems: life support, comms,
-    # computers, docking bays, manufacturing, lighting. This waste heat
-    # scales roughly with mass — a 100,000 kg station radiates ~2 MW from
-    # infrastructure alone, making it visible at long range even when idle.
-    mass = getattr(ship, "mass", 1000.0)
-    infrastructure_watts = mass * 20.0  # 20 W/kg baseline
-    ir_watts += infrastructure_watts
+    # With thermal system: infrastructure heat is already captured in hull
+    # temperature. Without: use mass-based estimate.
+    if not thermal:
+        mass = getattr(ship, "mass", 1000.0)
+        infrastructure_watts = mass * 20.0  # 20 W/kg baseline
+        ir_watts += infrastructure_watts
 
     # --- 4. Base hull thermal emission ---
-    # Warm hull (~300K) in cold space. Small ship ~100m^2 surface.
+    # Use dynamic hull temperature from thermal system if available.
     hull_area = _estimate_hull_area(ship)
-    hull_temp = 300.0  # K (room temperature)
+    hull_temp = 300.0  # K default
+    if thermal and hasattr(thermal, "hull_temperature"):
+        hull_temp = thermal.hull_temperature
     hull_ir = STEFAN_BOLTZMANN * hull_area * (hull_temp**4 - SPACE_BACKGROUND_TEMP**4)
     ir_watts += hull_ir
 
     # Apply ship-specific IR modifier (stealth coating, etc.)
     ir_modifier = _get_ship_signature_modifier(ship, "ir_modifier")
     ir_watts *= ir_modifier
+
+    # ECM: EMCON mode reduces IR emissions (shutting down non-essential
+    # systems, minimising thermal output). This is the physical basis
+    # for signature reduction — you actually emit less, not a magic cloak.
+    ecm = ship.systems.get("ecm")
+    if ecm and hasattr(ecm, "get_emcon_ir_modifier"):
+        ir_watts *= ecm.get_emcon_ir_modifier()
 
     return ir_watts
 
@@ -116,6 +168,12 @@ def calculate_radar_cross_section(ship) -> float:
     # Apply ship-specific RCS modifier (stealth shaping)
     rcs_modifier = _get_ship_signature_modifier(ship, "rcs_modifier")
     base_rcs *= rcs_modifier
+
+    # ECM: EMCON mode slightly reduces RCS (power down active emitters,
+    # retract movable surfaces). Effect is modest — you can't change hull shape.
+    ecm = ship.systems.get("ecm")
+    if ecm and hasattr(ecm, "get_emcon_rcs_modifier"):
+        base_rcs *= ecm.get_emcon_rcs_modifier()
 
     return base_rcs
 
@@ -249,12 +307,23 @@ def get_ship_emissions(ship) -> Dict[str, Any]:
     thrust_magnitude = _get_thrust_magnitude(ship)
     is_thrusting = thrust_magnitude > 1.0
 
+    # IR profile data for tactical awareness
+    ir_history = _get_ir_history(ship)
+    cold_drift = getattr(ship, "_cold_drift_active", False)
+
+    # Compute IR level category for status display
+    ir_level = _categorize_ir_level(ir_watts, is_thrusting, cold_drift)
+
     return {
         "ir_watts": ir_watts,
         "rcs_m2": rcs,
         "ir_detection_range": calculate_ir_detection_range(ir_watts),
         "is_thrusting": is_thrusting,
         "thrust_magnitude": thrust_magnitude,
+        # IR signature profile
+        "ir_level": ir_level,  # "minimal" | "low" | "moderate" | "high" | "extreme"
+        "plume_cooling": ir_history.get("peak_plume_power", 0) > 0 and not is_thrusting,
+        "cold_drift_active": cold_drift,
     }
 
 
@@ -327,3 +396,46 @@ def _get_ship_signature_modifier(ship, modifier_name: str) -> float:
             sensors_config = sensors
 
     return float(sensors_config.get(modifier_name, 1.0))
+
+
+def _get_ir_history(ship) -> dict:
+    """Get or initialize the IR thermal history for a ship.
+
+    Tracks plume power over time for post-burn decay calculations.
+    Stored on the ship object to persist across ticks.
+    """
+    if not hasattr(ship, "_ir_history"):
+        ship._ir_history = {
+            "peak_plume_power": 0.0,
+            "last_burn_time": 0.0,
+            "is_burning": False,
+            "current_plume_ir": 0.0,
+        }
+    return ship._ir_history
+
+
+def _categorize_ir_level(ir_watts: float, is_thrusting: bool,
+                         cold_drift: bool) -> str:
+    """Categorize IR signature into human-readable levels.
+
+    Used by the GUI to display signature status at a glance.
+
+    Args:
+        ir_watts: Total IR emission in watts.
+        is_thrusting: Whether engines are active.
+        cold_drift: Whether emergency cold-drift mode is active.
+
+    Returns:
+        str: IR level category.
+    """
+    if cold_drift:
+        return "minimal"
+    if ir_watts < 1.0e4:
+        return "minimal"  # <10kW — nearly invisible
+    if ir_watts < 1.0e5:
+        return "low"      # 10-100kW — radiator/hull heat only
+    if ir_watts < 1.0e6:
+        return "moderate"  # 100kW-1MW — partial thrust or post-burn glow
+    if ir_watts < 5.0e6:
+        return "high"     # 1-5MW — significant thrust
+    return "extreme"      # >5MW — full burn, visible system-wide

@@ -1,0 +1,10 @@
+{
+  "id": "evt-1773496155801-cb4efed6",
+  "trigger": "feature_success",
+  "timestamp": "2026-03-14T13:49:15.801Z",
+  "projectPath": "/projects/spaceship-sim",
+  "projectName": "spaceship-sim",
+  "featureId": "tactical-station",
+  "featureName": "Tactical Station: Weapons & Targeting Commands",
+  "passes": true
+}

@@ -1,0 +1,146 @@
+{
+  "class_id": "frigate",
+  "class_name": "Frigate",
+  "description": "Multi-role combat vessel balancing speed, firepower, and endurance. The workhorse of any fleet, capable of patrol, escort, and independent operations.",
+  "dimensions": {
+    "length_m": 50.0,
+    "beam_m": 12.0,
+    "draft_m": 10.0
+  },
+  "crew_complement": {
+    "minimum": 10,
+    "standard": 25,
+    "maximum": 35
+  },
+  "mass": {
+    "dry_mass": 2200.0,
+    "max_fuel": 700.0,
+    "max_hull_integrity": 250.0
+  },
+  "armor": {
+    "fore": { "thickness_cm": 5.0, "material": "composite_cermet" },
+    "aft": { "thickness_cm": 2.5, "material": "composite_cermet" },
+    "port": { "thickness_cm": 3.5, "material": "composite_cermet" },
+    "starboard": { "thickness_cm": 3.5, "material": "composite_cermet" },
+    "dorsal": { "thickness_cm": 3.0, "material": "composite_cermet" },
+    "ventral": { "thickness_cm": 3.0, "material": "composite_cermet" }
+  },
+  "systems": {
+    "propulsion": {
+      "enabled": true,
+      "power_draw": 70,
+      "max_thrust": 380.0,
+      "isp": 3800,
+      "max_fuel": 700.0,
+      "fuel_level": 700.0,
+      "drive_type": "epstein",
+      "placement": { "section": "aft", "position": { "x": -24.0, "y": 0.0, "z": 0.0 } }
+    },
+    "rcs": {
+      "enabled": true,
+      "max_torque": 50.0,
+      "attitude_rate": 15.0,
+      "thruster_count": 16,
+      "placement": [
+        { "section": "fore", "position": { "x": 24.0, "y": 0.0, "z": 0.0 } },
+        { "section": "aft", "position": { "x": -22.0, "y": 0.0, "z": 0.0 } }
+      ]
+    },
+    "sensors": {
+      "enabled": true,
+      "power_draw": 25,
+      "passive": { "range": 40000.0 },
+      "active": { "scan_range": 80000.0, "cooldown_time": 4.0 },
+      "signature_base": 1.3,
+      "ir_modifier": 1.0,
+      "rcs_modifier": 1.0,
+      "placement": { "section": "fore", "position": { "x": 24.5, "y": 0.0, "z": 2.0 } }
+    },
+    "navigation": {
+      "enabled": true,
+      "power_draw": 10
+    },
+    "targeting": {
+      "enabled": true,
+      "lock_time": 1.5,
+      "lock_range": 80000.0
+    },
+    "combat": {
+      "enabled": true,
+      "railguns": 2,
+      "pdcs": 4,
+      "torpedoes": 1,
+      "torpedo_capacity": 4
+    },
+    "power_management": {
+      "primary": { "output": 150.0 },
+      "secondary": { "output": 80.0 },
+      "tertiary": { "output": 40.0 },
+      "system_map": {
+        "propulsion": "primary",
+        "weapons": "primary",
+        "combat": "primary",
+        "sensors": "secondary",
+        "targeting": "secondary",
+        "rcs": "secondary",
+        "navigation": "tertiary"
+      }
+    }
+  },
+  "weapon_mounts": [
+    {
+      "mount_id": "railgun_1",
+      "weapon_type": "railgun",
+      "placement": { "section": "fore_dorsal", "position": { "x": 20.0, "y": 2.0, "z": 4.0 } },
+      "firing_arc": { "azimuth_min": -30, "azimuth_max": 30, "elevation_min": -15, "elevation_max": 25 }
+    },
+    {
+      "mount_id": "railgun_2",
+      "weapon_type": "railgun",
+      "placement": { "section": "fore_ventral", "position": { "x": 20.0, "y": -2.0, "z": -4.0 } },
+      "firing_arc": { "azimuth_min": -30, "azimuth_max": 30, "elevation_min": -25, "elevation_max": 15 }
+    },
+    {
+      "mount_id": "torpedo_1",
+      "weapon_type": "torpedo",
+      "placement": { "section": "fore", "position": { "x": 18.0, "y": 0.0, "z": 0.0 } },
+      "firing_arc": { "azimuth_min": -60, "azimuth_max": 60, "elevation_min": -30, "elevation_max": 30 }
+    },
+    {
+      "mount_id": "pdc_1",
+      "weapon_type": "pdc",
+      "placement": { "section": "fore_dorsal", "position": { "x": 15.0, "y": 3.0, "z": 4.5 } },
+      "firing_arc": { "azimuth_min": -90, "azimuth_max": 90, "elevation_min": 0, "elevation_max": 90 },
+      "coverage": "fore_upper"
+    },
+    {
+      "mount_id": "pdc_2",
+      "weapon_type": "pdc",
+      "placement": { "section": "fore_ventral", "position": { "x": 15.0, "y": -3.0, "z": -4.5 } },
+      "firing_arc": { "azimuth_min": -90, "azimuth_max": 90, "elevation_min": -90, "elevation_max": 0 },
+      "coverage": "fore_lower"
+    },
+    {
+      "mount_id": "pdc_3",
+      "weapon_type": "pdc",
+      "placement": { "section": "aft_dorsal", "position": { "x": -15.0, "y": 3.0, "z": 4.0 } },
+      "firing_arc": { "azimuth_min": 90, "azimuth_max": 270, "elevation_min": 0, "elevation_max": 90 },
+      "coverage": "aft_upper"
+    },
+    {
+      "mount_id": "pdc_4",
+      "weapon_type": "pdc",
+      "placement": { "section": "aft_ventral", "position": { "x": -15.0, "y": -3.0, "z": -4.0 } },
+      "firing_arc": { "azimuth_min": 90, "azimuth_max": 270, "elevation_min": -90, "elevation_max": 0 },
+      "coverage": "aft_lower"
+    }
+  ],
+  "damage_model": {
+    "propulsion": { "max_health": 100.0, "health": 100.0, "criticality": 5.0, "failure_threshold": 0.2 },
+    "rcs": { "max_health": 80.0, "health": 80.0, "criticality": 3.0, "failure_threshold": 0.2 },
+    "weapons": { "max_health": 90.0, "health": 90.0, "criticality": 4.0, "failure_threshold": 0.2 },
+    "sensors": { "max_health": 70.0, "health": 70.0, "criticality": 3.0, "failure_threshold": 0.2 },
+    "reactor": { "max_health": 130.0, "health": 130.0, "criticality": 5.0, "failure_threshold": 0.15 },
+    "life_support": { "max_health": 70.0, "health": 70.0, "criticality": 2.0, "failure_threshold": 0.25 }
+  }
+}

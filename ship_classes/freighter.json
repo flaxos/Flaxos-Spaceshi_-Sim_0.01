@@ -1,0 +1,112 @@
+{
+  "class_id": "freighter",
+  "class_name": "Freighter",
+  "description": "Large hauling vessel with powerful drives for moving cargo mass but minimal weapons. Relies on thick hull and escort ships for protection. High fuel capacity for long-haul routes.",
+  "dimensions": {
+    "length_m": 120.0,
+    "beam_m": 25.0,
+    "draft_m": 20.0
+  },
+  "crew_complement": {
+    "minimum": 6,
+    "standard": 15,
+    "maximum": 25
+  },
+  "mass": {
+    "dry_mass": 8000.0,
+    "max_fuel": 3000.0,
+    "max_hull_integrity": 600.0
+  },
+  "armor": {
+    "fore": { "thickness_cm": 5.0, "material": "steel_composite" },
+    "aft": { "thickness_cm": 3.0, "material": "steel_composite" },
+    "port": { "thickness_cm": 4.0, "material": "steel_composite" },
+    "starboard": { "thickness_cm": 4.0, "material": "steel_composite" },
+    "dorsal": { "thickness_cm": 3.0, "material": "steel_composite" },
+    "ventral": { "thickness_cm": 3.0, "material": "steel_composite" }
+  },
+  "systems": {
+    "propulsion": {
+      "enabled": true,
+      "power_draw": 120,
+      "max_thrust": 600.0,
+      "isp": 4200,
+      "max_fuel": 3000.0,
+      "fuel_level": 3000.0,
+      "drive_type": "epstein_heavy",
+      "placement": { "section": "aft", "position": { "x": -58.0, "y": 0.0, "z": 0.0 } }
+    },
+    "rcs": {
+      "enabled": true,
+      "max_torque": 100.0,
+      "attitude_rate": 5.0,
+      "thruster_count": 16,
+      "placement": [
+        { "section": "fore", "position": { "x": 58.0, "y": 0.0, "z": 0.0 } },
+        { "section": "aft", "position": { "x": -55.0, "y": 0.0, "z": 0.0 } }
+      ]
+    },
+    "sensors": {
+      "enabled": true,
+      "power_draw": 15,
+      "passive": { "range": 20000.0 },
+      "active": { "scan_range": 40000.0, "cooldown_time": 8.0 },
+      "signature_base": 2.0,
+      "ir_modifier": 1.5,
+      "rcs_modifier": 2.5,
+      "placement": { "section": "fore", "position": { "x": 59.0, "y": 0.0, "z": 5.0 } }
+    },
+    "navigation": {
+      "enabled": true,
+      "power_draw": 10
+    },
+    "targeting": {
+      "enabled": true,
+      "lock_time": 3.0,
+      "lock_range": 30000.0
+    },
+    "combat": {
+      "enabled": true,
+      "railguns": 0,
+      "pdcs": 2
+    },
+    "power_management": {
+      "primary": { "output": 180.0 },
+      "secondary": { "output": 60.0 },
+      "tertiary": { "output": 40.0 },
+      "system_map": {
+        "propulsion": "primary",
+        "weapons": "primary",
+        "combat": "primary",
+        "sensors": "secondary",
+        "targeting": "secondary",
+        "rcs": "secondary",
+        "navigation": "tertiary"
+      }
+    }
+  },
+  "weapon_mounts": [
+    {
+      "mount_id": "pdc_1",
+      "weapon_type": "pdc",
+      "placement": { "section": "dorsal_midship", "position": { "x": 10.0, "y": 0.0, "z": 10.0 } },
+      "firing_arc": { "azimuth_min": -180, "azimuth_max": 180, "elevation_min": 0, "elevation_max": 90 },
+      "coverage": "upper_hemisphere"
+    },
+    {
+      "mount_id": "pdc_2",
+      "weapon_type": "pdc",
+      "placement": { "section": "ventral_midship", "position": { "x": -10.0, "y": 0.0, "z": -10.0 } },
+      "firing_arc": { "azimuth_min": -180, "azimuth_max": 180, "elevation_min": -90, "elevation_max": 0 },
+      "coverage": "lower_hemisphere"
+    }
+  ],
+  "damage_model": {
+    "propulsion": { "max_health": 130.0, "health": 130.0, "criticality": 5.0, "failure_threshold": 0.2 },
+    "rcs": { "max_health": 70.0, "health": 70.0, "criticality": 3.0, "failure_threshold": 0.2 },
+    "weapons": { "max_health": 40.0, "health": 40.0, "criticality": 2.0, "failure_threshold": 0.2 },
+    "sensors": { "max_health": 50.0, "health": 50.0, "criticality": 2.0, "failure_threshold": 0.2 },
+    "reactor": { "max_health": 160.0, "health": 160.0, "criticality": 5.0, "failure_threshold": 0.15 },
+    "life_support": { "max_health": 90.0, "health": 90.0, "criticality": 3.0, "failure_threshold": 0.25 }
+  }
+}

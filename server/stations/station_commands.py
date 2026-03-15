@@ -746,6 +746,101 @@ def register_station_commands(
             }
         )
 
+    # --- Inter-station messaging ---
+    # Shared message store: ship_id -> list of messages
+    _station_messages: Dict[str, List[Dict[str, Any]]] = {}
+    _message_counter = [0]  # mutable counter in closure
+
+    def cmd_station_message(client_id: str, ship_id: str, args: Dict[str, Any]) -> CommandResult:
+        """
+        Send a text message to another station on the same ship.
+
+        Args:
+            to: Target station name (e.g. "helm", "tactical") or "all" for broadcast
+            text: Message text
+        """
+        session = station_manager.get_session(client_id)
+        if not session or not session.ship_id:
+            return CommandResult(success=False, message="Not assigned to a ship")
+        if not session.station:
+            return CommandResult(success=False, message="No station claimed")
+
+        target = args.get("to", "all")
+        text = args.get("text", "").strip()
+        if not text:
+            return CommandResult(success=False, message="Message text required")
+        if len(text) > 500:
+            text = text[:500]
+
+        # Validate target station (unless broadcast)
+        if target != "all":
+            try:
+                StationType(target.lower())
+            except ValueError:
+                return CommandResult(
+                    success=False,
+                    message=f"Invalid station: {target}"
+                )
+
+        _message_counter[0] += 1
+        import time
+        msg = {
+            "id": _message_counter[0],
+            "from_station": session.station.value,
+            "from_player": session.player_name,
+            "to": target.lower(),
+            "text": text,
+            "timestamp": time.time(),
+        }
+
+        ship_id_key = session.ship_id
+        if ship_id_key not in _station_messages:
+            _station_messages[ship_id_key] = []
+        _station_messages[ship_id_key].append(msg)
+
+        # Keep only last 200 messages per ship
+        if len(_station_messages[ship_id_key]) > 200:
+            _station_messages[ship_id_key] = _station_messages[ship_id_key][-200:]
+
+        return CommandResult(
+            success=True,
+            message=f"Message sent to {target}",
+            data=msg
+        )
+
+    def cmd_get_station_messages(client_id: str, ship_id: str, args: Dict[str, Any]) -> CommandResult:
+        """
+        Get messages for this station (includes broadcasts and directed messages).
+
+        Args:
+            since_id: Only return messages with id > since_id (default: 0)
+        """
+        session = station_manager.get_session(client_id)
+        if not session or not session.ship_id:
+            return CommandResult(success=False, message="Not assigned to a ship")
+        if not session.station:
+            return CommandResult(success=False, message="No station claimed")
+
+        since_id = int(args.get("since_id", 0))
+        ship_id_key = session.ship_id
+        all_msgs = _station_messages.get(ship_id_key, [])
+
+        my_station = session.station.value
+        # Captain sees all; others see messages to them or to "all"
+        is_captain = session.station == StationType.CAPTAIN
+        filtered = []
+        for m in all_msgs:
+            if m["id"] <= since_id:
+                continue
+            if is_captain or m["to"] == "all" or m["to"] == my_station or m["from_station"] == my_station:
+                filtered.append(m)
+
+        return CommandResult(
+            success=True,
+            message=f"{len(filtered)} messages",
+            data={"messages": filtered}
+        )
+
     # Register all commands
     # These bypass normal permission checks since they're meta-commands
     dispatcher.register_command(
@@ -877,3 +972,20 @@ def register_station_commands(
         logger.info("Registered 15 station management commands (with crew system)")
     else:
         logger.info("Registered 12 station management commands")
+
+    # Inter-station messaging (available to any station)
+    dispatcher.register_command(
+        "station_message",
+        cmd_station_message,
+        requires_ship=False,
+        bypass_permission_check=True
+    )
+
+    dispatcher.register_command(
+        "get_station_messages",
+        cmd_get_station_messages,
+        requires_ship=False,
+        bypass_permission_check=True
+    )
+
+    logger.info("Registered station_message and get_station_messages commands")

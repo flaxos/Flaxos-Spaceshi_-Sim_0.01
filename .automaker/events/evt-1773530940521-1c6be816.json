@@ -1,0 +1,10 @@
+{
+  "id": "evt-1773530940521-1c6be816",
+  "trigger": "feature_success",
+  "timestamp": "2026-03-14T23:29:00.521Z",
+  "projectPath": "/projects/spaceship-sim",
+  "projectName": "spaceship-sim",
+  "featureId": "science-station-analysis",
+  "featureName": "Science Station: Sensor Analysis & Contact Classification",
+  "passes": true
+}

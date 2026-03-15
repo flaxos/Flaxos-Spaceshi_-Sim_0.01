@@ -1,0 +1,10 @@
+{
+  "id": "evt-1773471632291-b3ff7874",
+  "trigger": "feature_success",
+  "timestamp": "2026-03-14T07:00:32.291Z",
+  "projectPath": "/projects/spaceship-sim",
+  "projectName": "spaceship-sim",
+  "featureId": "sensor-detection-model",
+  "featureName": "Physics-Based Sensor Detection",
+  "passes": true
+}

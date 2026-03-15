@@ -99,6 +99,20 @@ SUBSYSTEM_HEALTH_SCHEMA = {
         "overheat_threshold": 0.80,
         "overheat_penalty": 0.6,     # Reduced environmental control when overheated
     },
+    "radiators": {
+        # Radiator panels — exposed heat rejection surfaces
+        # Damage reduces ship's ability to radiate waste heat, causing
+        # thermal buildup across all systems. Radiators are large, fragile,
+        # and the most exposed subsystem on any ship.
+        "max_health": 80.0,
+        "criticality": 3.0,          # Loss causes cascading thermal crisis
+        "failure_threshold": 0.15,   # Even damaged radiators help somewhat
+        "max_heat": 40.0,            # Radiators themselves don't overheat much
+        "heat_generation": 0.1,
+        "heat_dissipation": 2.0,
+        "overheat_threshold": 0.90,
+        "overheat_penalty": 0.7,
+    },
 }
 
 # v0.6.0: Default heat values for subsystems not in schema

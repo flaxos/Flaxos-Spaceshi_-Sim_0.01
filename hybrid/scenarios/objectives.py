@@ -23,6 +23,8 @@ class ObjectiveType(Enum):
     SCAN_TARGET = "scan_target"
     AVOID_DETECTION = "avoid_detection"
     COLLECT_ITEM = "collect_item"
+    ESCAPE_RANGE = "escape_range"
+    AMMO_DEPLETED = "ammo_depleted"
 
 class ObjectiveStatus(Enum):
     """Status of an objective."""
@@ -93,6 +95,10 @@ class Objective:
             return self._check_scan_target(sim, player_ship)
         elif self.type == ObjectiveType.AVOID_DETECTION:
             return self._check_avoid_detection(sim, player_ship)
+        elif self.type == ObjectiveType.ESCAPE_RANGE:
+            return self._check_escape_range(sim, player_ship)
+        elif self.type == ObjectiveType.AMMO_DEPLETED:
+            return self._check_ammo_depleted(sim, player_ship)
 
         return False
 
@@ -433,6 +439,59 @@ class Objective:
             self.completion_time = sim.time
             logger.info(f"Objective {self.id} completed: Avoided detection for {elapsed:.0f}s")
             return True
+
+        return False
+
+    def _check_escape_range(self, sim, player_ship) -> bool:
+        """Check if target has escaped beyond the threshold range.
+
+        Fails when target ship exceeds ``escape_range`` from the player.
+        """
+        target_id = self.params.get("target")
+        escape_range = self.params.get("escape_range", 500000)  # 500km default
+
+        target_ship = sim.ships.get(target_id)
+        if not target_ship:
+            return False
+
+        from hybrid.utils.math_utils import calculate_distance
+        current_range = calculate_distance(player_ship.position, target_ship.position)
+
+        self.progress = min(1.0, current_range / escape_range)
+
+        if current_range >= escape_range:
+            self.status = ObjectiveStatus.FAILED
+            self.failure_reason = f"{target_id} escaped (range {current_range:.0f}m)"
+            logger.info(f"Objective {self.id} failed: {target_id} escaped at {current_range:.0f}m")
+            return False
+
+        return False
+
+    def _check_ammo_depleted(self, sim, player_ship) -> bool:
+        """Check if ship has run out of ammunition.
+
+        Fails when the target ship's combat system reports zero ammo remaining.
+        """
+        target_id = self.params.get("target")
+        target_ship = sim.ships.get(target_id)
+        if not target_ship:
+            return False
+
+        combat = target_ship.systems.get("combat")
+        if not combat:
+            return False
+
+        total_ammo = 0
+        if hasattr(combat, "weapons"):
+            for weapon in combat.weapons:
+                if hasattr(weapon, "ammo"):
+                    total_ammo += weapon.ammo
+
+        if total_ammo <= 0:
+            self.status = ObjectiveStatus.FAILED
+            self.failure_reason = f"{target_id} ammunition depleted"
+            logger.info(f"Objective {self.id} failed: {target_id} out of ammo")
+            return False
 
         return False
 

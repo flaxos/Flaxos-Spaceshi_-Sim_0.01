@@ -19,10 +19,24 @@ class WSClient extends EventTarget {
     this.tcpPort = null;
     this._connectPromise = null;
     this._reconnectTimer = null;
-    
+
+    // Server-assigned client ID (from TCP welcome via bridge)
+    this.serverClientId = null;
+    // Server mode (station or minimal)
+    this.serverMode = null;
+
     // Request tracking for concurrent command handling
     this._pendingRequests = new Map();
     this._requestIdCounter = 0;
+  }
+
+  /**
+   * Whether the WebSocket is currently connected.
+   */
+  get isConnected() {
+    return this.status === "connected" &&
+      this.socket !== null &&
+      this.socket.readyState === WebSocket.OPEN;
   }
 
   /**
@@ -235,6 +249,13 @@ class WSClient extends EventTarget {
         this.tcpConnected = payload.tcp_connected;
         this.tcpHost = payload.tcp_host;
         this.tcpPort = payload.tcp_port;
+        // Capture server-assigned client_id from bridge (per-client TCP)
+        if (payload.client_id) {
+          this.serverClientId = payload.client_id;
+        }
+        if (payload.server_mode) {
+          this.serverMode = payload.server_mode;
+        }
         this._emit("connection_status", payload);
         break;
 

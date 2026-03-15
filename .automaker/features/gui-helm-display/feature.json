@@ -1,0 +1,22 @@
+{
+  "category": "feature",
+  "description": "Navigation display for the helm station: current velocity vector (magnitude and direction), current acceleration, orientation, fuel remaining with delta-v budget, trajectory projection (where will the ship be in 1/5/10 minutes at current burn), intercept trajectory calculator (required burns to reach a target), and flip-and-burn indicators (when to flip for deceleration to reach zero relative velocity at target). Shows physical quantities in meaningful units (km, km/s, g, kg of reaction mass).",
+  "id": "gui-helm-display",
+  "title": "Web GUI: Helm Navigation Display",
+  "dependencies": [
+    "server-authoritative-state",
+    "helm-navigation",
+    "fuel-delta-v-budget"
+  ],
+  "priority": 4,
+  "status": "verified",
+  "descriptionHistory": [
+    {
+      "description": "Navigation display for the helm station: current velocity vector (magnitude and direction), current acceleration, orientation, fuel remaining with delta-v budget, trajectory projection (where will the ship be in 1/5/10 minutes at current burn), intercept trajectory calculator (required burns to reach a target), and flip-and-burn indicators (when to flip for deceleration to reach zero relative velocity at target). Shows physical quantities in meaningful units (km, km/s, g, kg of reaction mass).",
+      "timestamp": "2026-03-14T04:07:48.942Z",
+      "source": "initial"
+    }
+  ],
+  "updatedAt": "2026-03-14T14:33:10.882Z",
+  "summary": "## Summary: Navigation Display for the Helm Station\n\n### Changes Implemented\n- Created `helm-nav-display.js` — a comprehensive Web Component for the helm station that displays:\n  - **Velocity vector**: hero display showing current speed (km/s or m/s) with thrusting/drifting/idle status\n  - **Orientation**: pitch, yaw, roll readout\n  - **Velocity heading & drift angle**: shows prograde direction and angle between ship heading and velocity vector, with color-coded drift badges (on-axis/drifting/sideways)\n  - **Acceleration**: current accel in m/s² and G, plus max available G\n  - **Flip-and-burn indicators**: computed timing for when to flip for deceleration, with urgency levels (nominal/active/urgent), deceleration distance, and time to zero velocity\n  - **Fuel & delta-v budget**: remaining delta-v, delta-v to stop, margin with PONR alerts, fuel bar with mass, burn time remaining, ship mass breakdown (wet/dry)\n  - **Trajectory projection**: client-side projections at 1, 5, and 10 minutes showing travel distance, plus server-provided detailed projections with 3D coordinates\n  - **Intercept trajectory calculator**: when a target is locked, shows distance, relative velocity, closing rate, ETA, delta-v required to match velocity, and insufficient delta-v warnings\n  - All values in physical units (km, km/s, g, kg/tonnes)\n- Follows existing codebase patterns: Shadow DOM, stateManager subscription, tier-aware, design token colors, responsive layout\n- Integrated into the Helm view's \"Situational Awareness\" panel group\n\n### Files Modified\n- `gui/components/helm-nav-display.js` — **new file**, 280 lines, comprehensive helm navigation display Web Component\n- `gui/js/main.js` — added import for `helm-nav-display.js`\n- `gui/index.html` — added `<helm-nav-display>` panel to helm view, added `.helm-nav-display-panel` CSS grid sizing (span 6, medium height)\n\n### Notes for Developer\n- The component computes trajectory projections and flip-and-burn timing client-side from server telemetry (velocity, acceleration, PONR data)\n- Intercept calculations appear automatically when a target is locked (uses `target_id` from ship state)\n- The existing `helm-navigation-panel.js` remains unchanged — it provides action buttons (execute burn, flip & burn, etc.) while this new component focuses on the read-only navigation display\n- No server-side changes needed — all required telemetry fields (velocity, acceleration, orientation, fuel, delta-v, PONR, trajectory, sensor contacts) already exist in `hybrid/telemetry.py`\n\n### Verification Status\n- Verified with Playwright: 2 tests passed confirming the component renders in the DOM with Shadow DOM content, proper CSS structure (hero, flip indicator, trajectory, intercept, drift badge, alert classes), correct panel attributes, and proper custom element registration. Test file was created, executed successfully, and deleted."
+}

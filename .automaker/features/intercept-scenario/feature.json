@@ -1,0 +1,24 @@
+{
+  "category": "feature",
+  "description": "Core gameplay scenario: player corvette intercepts a fleeing freighter. Win condition: destroy target's drive (mission kill, target cannot escape). Lose conditions: own drive destroyed, target reaches escape trajectory, or ammunition depleted. The freighter is burning at maximum thrust on an escape vector — the player must close range while managing fuel for deceleration, choose engagement timing (fire early with low confidence or close for better solutions), and decide whether to risk torpedo attack (freighter may have PDCs). This scenario exercises the full targeting pipeline, weapon systems, and maneuvering mechanics.",
+  "id": "intercept-scenario",
+  "title": "Intercept Combat Scenario",
+  "dependencies": [
+    "newtonian-flight-model",
+    "targeting-pipeline",
+    "railgun-ballistics",
+    "subsystem-model",
+    "damage-cascade-system"
+  ],
+  "priority": 4,
+  "status": "verified",
+  "descriptionHistory": [
+    {
+      "description": "Core gameplay scenario: player corvette intercepts a fleeing freighter. Win condition: destroy target's drive (mission kill, target cannot escape). Lose conditions: own drive destroyed, target reaches escape trajectory, or ammunition depleted. The freighter is burning at maximum thrust on an escape vector — the player must close range while managing fuel for deceleration, choose engagement timing (fire early with low confidence or close for better solutions), and decide whether to risk torpedo attack (freighter may have PDCs). This scenario exercises the full targeting pipeline, weapon systems, and maneuvering mechanics.",
+      "timestamp": "2026-03-14T04:07:48.937Z",
+      "source": "initial"
+    }
+  ],
+  "updatedAt": "2026-03-14T14:57:46.826Z",
+  "summary": "## Summary: Core gameplay scenario: player corvette intercepts a fleeing freighter\n\n### Changes Implemented\n- Added two new objective types to the mission system: `ESCAPE_RANGE` (fails when target exceeds distance threshold) and `AMMO_DEPLETED` (fails when ship runs out of ammunition)\n- Created the freighter intercept scenario with full mission definition, win/lose conditions, tactical hints, and briefing messages\n- **Scenario design**: Player corvette (1200kg, 280N thrust, 1 railgun + 2 PDCs) pursues a fleeing freighter (8000kg, 600N thrust, 2 PDCs) that starts 80km away at 300 m/s. Player has acceleration advantage (0.23g vs 0.075g) but must manage fuel and ammo carefully\n- **Win condition**: Mission kill on target freighter (disable propulsion or weapons)\n- **Lose conditions**: (1) Player ship mission killed, (2) Target escapes beyond 500km, (3) Player ammo depleted, (4) 600-second time limit exceeded\n- Freighter AI set to `evade` behavior, using existing AI controller to flee from player\n- 5 mission hints triggered by time and range thresholds to guide gameplay\n- Scenario uses `ship_class` references (corvette, freighter) for clean, modern format\n\n### Files Modified\n- `hybrid/scenarios/objectives.py` — Added `ESCAPE_RANGE` and `AMMO_DEPLETED` to `ObjectiveType` enum, added dispatch entries in `check()`, implemented `_check_escape_range()` and `_check_ammo_depleted()` methods\n\n### Files Created\n- `scenarios/freighter_intercept.json` — Complete scenario definition with 2 ships, 5 objectives, 5 hints, 4 timed events, tactical notes\n\n### Notes for Developer\n- The scenario uses `ship_class` references which are resolved by the `ShipClassRegistry` at load time — corvette gets 1 railgun + 2 PDCs, freighter gets 2 PDCs\n- Player corvette starts at 200 m/s, freighter at 300 m/s, giving ~100 m/s closing velocity deficit that must be overcome with thrust\n- Player has 500 fuel (overridden from corvette default of 400) to give enough delta-V for the pursuit\n- The `escape_range` objective tracks distance in real-time and fails at 500km — this creates tension as the freighter pulls away\n- The `ammo_depleted` objective checks the combat system's weapon ammo counts each tick\n- The freighter's `evade` AI behavior computes an evasion vector away from threats and commands autopilot to flee\n\n### Verification Status\n- 11 Playwright tests written and all passed, covering: JSON validity, ship configuration, objective types, win/lose conditions, mission metadata, ship class file existence, and Python code structure verification\n- Temporary test file deleted after successful verification\n- Additional Node.js validation confirmed all 9 structural assertions pass"
+}

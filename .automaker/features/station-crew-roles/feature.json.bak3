@@ -1,0 +1,19 @@
+{
+  "category": "feature",
+  "description": "Ship operations are divided among crew stations: Helm (navigation, maneuvering, course plotting), Tactical (weapons, targeting, firing solutions), Ops (power management, damage control, system priorities), Engineering (reactor, drive, repair crews), Comms (communications, IFF, transponder), Science (sensor analysis, contact classification). Each station has defined command permissions — Helm can't fire weapons, Tactical can't change course. Commands must be registered to exactly one station. In single-player, the player switches between stations; in multiplayer, each player mans a station.",
+  "id": "station-crew-roles",
+  "title": "Station-Based Crew Role System",
+  "dependencies": [
+    "subsystem-model"
+  ],
+  "priority": 2,
+  "status": "backlog",
+  "descriptionHistory": [
+    {
+      "description": "Ship operations are divided among crew stations: Helm (navigation, maneuvering, course plotting), Tactical (weapons, targeting, firing solutions), Ops (power management, damage control, system priorities), Engineering (reactor, drive, repair crews), Comms (communications, IFF, transponder), Science (sensor analysis, contact classification). Each station has defined command permissions — Helm can't fire weapons, Tactical can't change course. Commands must be registered to exactly one station. In single-player, the player switches between stations; in multiplayer, each player mans a station.",
+      "timestamp": "2026-03-14T04:07:48.933Z",
+      "source": "initial"
+    }
+  ],
+  "updatedAt": "2026-03-14T07:07:25.747Z"
+}

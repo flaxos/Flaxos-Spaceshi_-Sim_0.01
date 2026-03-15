@@ -13,7 +13,7 @@
       "name": "UNS Hunter",
       "class": "frigate",
       "faction": "unsa",
-      "mass": 2500.0,
+      "mass": 3100.0,
       "dry_mass": 1800.0,
       "max_hull_integrity": 250.0,
       "hull_integrity": 250.0,
@@ -74,6 +74,12 @@
           "railguns": 2,
           "pdcs": 4
         },
+        "ecm": {
+          "enabled": true,
+          "jammer_power": 50000.0,
+          "chaff_count": 10,
+          "flare_count": 10
+        },
         "weapons": {
           "enabled": true,
           "power_draw": 40,
@@ -86,6 +92,18 @@
               "damage": 50.0
             }
           ]
+        },
+        "thermal": {
+          "enabled": true,
+          "radiator_area": 100.0,
+          "radiator_emissivity": 0.9,
+          "hull_heat_capacity": 600000.0,
+          "max_temperature": 500.0,
+          "warning_temperature": 400.0,
+          "nominal_temperature": 300.0,
+          "initial_temperature": 300.0,
+          "heat_sink_capacity": 500000.0,
+          "heat_sink_rate": 50000.0
         },
         "power_management": {
           "primary": {"output": 150.0},
@@ -108,7 +126,8 @@
         "weapons": {"max_health": 90.0, "health": 90.0},
         "sensors": {"max_health": 70.0, "health": 70.0},
         "reactor": {"max_health": 130.0, "health": 130.0},
-        "life_support": {"max_health": 70.0, "health": 70.0}
+        "life_support": {"max_health": 70.0, "health": 70.0},
+        "radiators": {"max_health": 80.0, "health": 80.0}
       }
     },
     {
@@ -116,7 +135,7 @@
       "name": "Pirate Raider",
       "class": "corvette",
       "faction": "hostile",
-      "mass": 1500.0,
+      "mass": 1800.0,
       "dry_mass": 1100.0,
       "max_hull_integrity": 150.0,
       "hull_integrity": 150.0,
@@ -190,6 +209,18 @@
             }
           ]
         },
+        "thermal": {
+          "enabled": true,
+          "radiator_area": 60.0,
+          "radiator_emissivity": 0.85,
+          "hull_heat_capacity": 400000.0,
+          "max_temperature": 480.0,
+          "warning_temperature": 390.0,
+          "nominal_temperature": 295.0,
+          "initial_temperature": 295.0,
+          "heat_sink_capacity": 200000.0,
+          "heat_sink_rate": 30000.0
+        },
         "power_management": {
           "primary": {"output": 100.0},
           "secondary": {"output": 50.0},
@@ -211,7 +242,8 @@
         "weapons": {"max_health": 70.0, "health": 70.0},
         "sensors": {"max_health": 50.0, "health": 50.0},
         "reactor": {"max_health": 100.0, "health": 100.0},
-        "life_support": {"max_health": 50.0, "health": 50.0}
+        "life_support": {"max_health": 50.0, "health": 50.0},
+        "radiators": {"max_health": 60.0, "health": 60.0}
       }
     }
   ],

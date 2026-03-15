@@ -43,7 +43,8 @@ class ScenarioLoader:
             "dt": data.get("dt", 0.1),
             "ships": ScenarioLoader._parse_ships(data.get("ships", [])),
             "mission": ScenarioLoader._parse_mission(data.get("mission", {})),
-            "config": data.get("config", {})
+            "config": data.get("config", {}),
+            "fleets": data.get("fleets", []),
         }
 
         return scenario
@@ -52,32 +53,48 @@ class ScenarioLoader:
     def _parse_ships(ships_data: List[Dict]) -> List[Dict]:
         """Parse ship definitions.
 
+        If a ship definition contains a ``ship_class`` field, the class
+        template is resolved from the ship class registry and merged with
+        the instance-specific overrides.  Ships without ``ship_class``
+        are passed through unchanged for backward compatibility.
+
         Args:
             ships_data: List of ship configuration dicts
 
         Returns:
             list: Parsed ship configs
         """
+        from hybrid.ship_class_registry import resolve_ship_config
+
         ships = []
 
         for ship_def in ships_data:
-            # Ensure position/velocity/orientation are in correct format
+            # Resolve ship class template (no-op if no ship_class field)
+            resolved = resolve_ship_config(ship_def)
+
+            # Ensure minimum required fields with defaults
             ship_config = {
-                "id": ship_def.get("id", "ship"),
-                "name": ship_def.get("name", ship_def.get("id", "ship")),
-                "class": ship_def.get("class", "corvette"),
-                "faction": ship_def.get("faction", "neutral"),
-                "mass": ship_def.get("mass", 1000),
-                "player_controlled": ship_def.get("player_controlled", False),
-                "position": ship_def.get("position", {"x": 0, "y": 0, "z": 0}),
-                "velocity": ship_def.get("velocity", {"x": 0, "y": 0, "z": 0}),
-                "orientation": ship_def.get("orientation", {"pitch": 0, "yaw": 0, "roll": 0}),
-                "systems": ship_def.get("systems", {})
+                "id": resolved.get("id", "ship"),
+                "name": resolved.get("name", resolved.get("id", "ship")),
+                "class": resolved.get("class", "corvette"),
+                "faction": resolved.get("faction", "neutral"),
+                "mass": resolved.get("mass", 1000),
+                "player_controlled": resolved.get("player_controlled", False),
+                "position": resolved.get("position", {"x": 0, "y": 0, "z": 0}),
+                "velocity": resolved.get("velocity", {"x": 0, "y": 0, "z": 0}),
+                "orientation": resolved.get("orientation", {"pitch": 0, "yaw": 0, "roll": 0}),
+                "systems": resolved.get("systems", {}),
             }
 
+            # Carry through all other resolved fields (dry_mass, damage_model,
+            # armor, dimensions, weapon_mounts, crew_complement, etc.)
+            for key in resolved:
+                if key not in ship_config:
+                    ship_config[key] = resolved[key]
+
             # Add AI behavior if specified
-            if "ai" in ship_def:
-                ship_config["ai"] = ship_def["ai"]
+            if "ai" in resolved:
+                ship_config["ai"] = resolved["ai"]
 
             ships.append(ship_config)
 

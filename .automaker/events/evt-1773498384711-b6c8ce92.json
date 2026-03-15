@@ -1,0 +1,10 @@
+{
+  "id": "evt-1773498384711-b6c8ce92",
+  "trigger": "feature_success",
+  "timestamp": "2026-03-14T14:26:24.711Z",
+  "projectPath": "/projects/spaceship-sim",
+  "projectName": "spaceship-sim",
+  "featureId": "engineering-station",
+  "featureName": "Engineering Station: Reactor & Drive Management",
+  "passes": true
+}

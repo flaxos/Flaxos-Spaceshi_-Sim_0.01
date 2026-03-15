@@ -1,0 +1,19 @@
+{
+  "category": "feature",
+  "description": "All ammunition is tracked as physical objects with mass and volume. Railgun slugs, PDC magazines, and torpedoes have finite counts. Ammunition mass affects ship total mass and therefore acceleration (F=ma). Expending ammo makes the ship lighter and more maneuverable — a real tactical consideration. Reloading takes physical time (magazine changes, torpedo loading). Running dry on PDC ammo while torpedoes are inbound is a death sentence. Display remaining counts prominently so the player can make informed decisions.",
+  "id": "ammunition-tracking",
+  "title": "Physical Ammunition & Resource Tracking",
+  "dependencies": [
+    "newtonian-flight-model",
+    "subsystem-model"
+  ],
+  "priority": 3,
+  "status": "backlog",
+  "descriptionHistory": [
+    {
+      "description": "All ammunition is tracked as physical objects with mass and volume. Railgun slugs, PDC magazines, and torpedoes have finite counts. Ammunition mass affects ship total mass and therefore acceleration (F=ma). Expending ammo makes the ship lighter and more maneuverable — a real tactical consideration. Reloading takes physical time (magazine changes, torpedo loading). Running dry on PDC ammo while torpedoes are inbound is a death sentence. Display remaining counts prominently so the player can make informed decisions.",
+      "timestamp": "2026-03-14T04:07:48.933Z",
+      "source": "initial"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "id": "evt-1773497323056-191a4f0b",
+  "trigger": "feature_success",
+  "timestamp": "2026-03-14T14:08:43.056Z",
+  "projectPath": "/projects/spaceship-sim",
+  "projectName": "spaceship-sim",
+  "featureId": "ecm-electronic-warfare",
+  "featureName": "Electronic Countermeasures & Electronic Warfare",
+  "passes": true
+}

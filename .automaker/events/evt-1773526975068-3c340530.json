@@ -1,0 +1,10 @@
+{
+  "id": "evt-1773526975068-3c340530",
+  "trigger": "feature_success",
+  "timestamp": "2026-03-14T22:22:55.068Z",
+  "projectPath": "/projects/spaceship-sim",
+  "projectName": "spaceship-sim",
+  "featureId": "maneuvering-ir-signature",
+  "featureName": "Maneuver-IR Signature Tradeoff",
+  "passes": true
+}

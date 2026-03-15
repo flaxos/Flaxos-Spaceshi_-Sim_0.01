@@ -1,0 +1,10 @@
+{
+  "id": "evt-1773530234359-b1852e5c",
+  "trigger": "feature_success",
+  "timestamp": "2026-03-14T23:17:14.359Z",
+  "projectPath": "/projects/spaceship-sim",
+  "projectName": "spaceship-sim",
+  "featureId": "crew-fatigue-performance",
+  "featureName": "Crew Fatigue & Performance Modeling",
+  "passes": true
+}

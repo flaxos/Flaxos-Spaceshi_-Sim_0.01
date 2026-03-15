@@ -1,0 +1,10 @@
+{
+  "id": "evt-1773500266824-c61471d2",
+  "trigger": "feature_success",
+  "timestamp": "2026-03-14T14:57:46.824Z",
+  "projectPath": "/projects/spaceship-sim",
+  "projectName": "spaceship-sim",
+  "featureId": "intercept-scenario",
+  "featureName": "Intercept Combat Scenario",
+  "passes": true
+}

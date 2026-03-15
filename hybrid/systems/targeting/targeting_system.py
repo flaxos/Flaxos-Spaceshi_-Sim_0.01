@@ -81,6 +81,7 @@ class TargetingSystem(BaseSystem):
 
         # Sensor damage tracking
         self._sensor_factor = 1.0
+        self._target_is_drifting = False
 
         # Ship reference for tick
         self._ship_ref = None
@@ -178,12 +179,30 @@ class TargetingSystem(BaseSystem):
         # Range penalty: quality drops linearly from 1.0 at 0m to 0.2 at max_lock_range
         range_factor = max(0.2, 1.0 - 0.8 * (range_to_target / self.max_lock_range))
 
+        # Store target acceleration for firing solution confidence
+        self._last_target_accel = {"x": accel_x, "y": accel_y, "z": accel_z}
+
         # Acceleration penalty: high-G maneuvers degrade track
         # 10 m/s^2 (~1G) = no penalty, 100 m/s^2 (~10G) = 50% penalty
         accel_factor = max(0.3, 1.0 - target_accel_magnitude / 200.0)
 
+        # Drift predictability bonus: constant-velocity targets are easy to
+        # compute firing solutions against. No acceleration means perfect
+        # trajectory extrapolation — the fundamental tactical cost of drifting.
+        # Bonus builds up over ~5s of continuous drift (track_time weighted).
+        is_target_drifting = target_accel_magnitude < 0.5  # Near-zero accel
+        if is_target_drifting and self.track_time > 2.0:
+            # Up to 20% quality bonus for drifting targets
+            drift_seconds = min(self.track_time, 10.0)
+            predictability_bonus = 0.2 * min(1.0, (drift_seconds - 2.0) / 5.0)
+            accel_factor = min(1.0, accel_factor + predictability_bonus)
+        self._target_is_drifting = is_target_drifting
+
+        # ECM penalty: target's ECM degrades our tracking pipeline
+        ecm_factor = self._get_target_ecm_factor(ship, range_to_target)
+
         # Sensor damage penalty
-        ideal_track_quality = range_factor * accel_factor * self._sensor_factor
+        ideal_track_quality = range_factor * accel_factor * self._sensor_factor * ecm_factor
         ideal_track_quality *= self.target_data["confidence"]
 
         # Smooth track quality toward ideal (builds up over time)
@@ -261,6 +280,52 @@ class TargetingSystem(BaseSystem):
             self.track_quality *= 0.5  # Partial track retention
             self.lock_progress = 0.0
 
+    def _get_target_ecm_factor(self, ship, range_to_target: float) -> float:
+        """Get combined ECM degradation from target ship.
+
+        Queries the target's ECM system for jamming and chaff effects
+        that degrade our targeting pipeline.
+
+        Args:
+            ship: Observer ship
+            range_to_target: Distance to target in metres
+
+        Returns:
+            float: Combined ECM factor (0-1, lower = more degraded)
+        """
+        if not self.locked_target or not hasattr(ship, "_all_ships_ref"):
+            return 1.0
+
+        # Find target ship object
+        target_ship = None
+        for s in ship._all_ships_ref:
+            if s.id == self.locked_target:
+                target_ship = s
+                break
+
+        if not target_ship:
+            return 1.0
+
+        target_ecm = target_ship.systems.get("ecm")
+        if not target_ecm:
+            return 1.0
+
+        factor = 1.0
+
+        # Radar jamming degrades track quality
+        if hasattr(target_ecm, "get_jammer_effect_at_range"):
+            factor *= target_ecm.get_jammer_effect_at_range(range_to_target)
+
+        # Active chaff degrades position accuracy
+        if hasattr(target_ecm, "is_chaff_active") and target_ecm.is_chaff_active():
+            factor *= 0.7  # Chaff reduces targeting by 30%
+
+        # Active flares degrade IR-based tracking
+        if hasattr(target_ecm, "is_flare_active") and target_ecm.is_flare_active():
+            factor *= 0.8  # Flares reduce targeting by 20%
+
+        return max(0.05, factor)
+
     def _degrade_lock(self, dt: float, reason: str):
         """Degrade lock when contact is lost or out of range."""
         self.lock_quality *= 0.9  # Decay
@@ -283,6 +348,14 @@ class TargetingSystem(BaseSystem):
         # Get truth weapons if available
         truth_weapons = getattr(weapons_system, 'truth_weapons', {})
 
+        # Compute target acceleration for confidence calculation
+        target_accel = self._get_target_accel()
+
+        # Get weapon damage factor for confidence
+        weapon_damage_factor = 1.0
+        if hasattr(ship, 'get_effective_factor'):
+            weapon_damage_factor = ship.get_effective_factor("weapons")
+
         for weapon_id, weapon in truth_weapons.items():
             if hasattr(weapon, 'calculate_solution'):
                 solution = weapon.calculate_solution(
@@ -293,11 +366,17 @@ class TargetingSystem(BaseSystem):
                     target_id=self.locked_target,
                     sim_time=self._sim_time,
                     track_quality=self.track_quality,
+                    shooter_angular_vel=getattr(ship, 'angular_velocity', None),
+                    weapon_damage_factor=weapon_damage_factor,
+                    target_accel=target_accel,
                 )
                 self.firing_solutions[weapon_id] = {
                     "valid": solution.valid,
                     "ready": solution.ready_to_fire,
                     "confidence": solution.confidence,
+                    "confidence_factors": solution.confidence_factors,
+                    "cone_radius_m": solution.cone_radius_m,
+                    "cone_angle_deg": solution.cone_angle_deg,
                     "hit_probability": solution.hit_probability,
                     "range": solution.range_to_target,
                     "time_of_flight": solution.time_of_flight,
@@ -317,6 +396,19 @@ class TargetingSystem(BaseSystem):
             "cpa_distance": rel_motion.get("closest_approach_distance"),
             "target_subsystem": self.target_subsystem,
         }
+
+    def _get_target_accel(self) -> Optional[Dict[str, float]]:
+        """Estimate target acceleration from velocity changes.
+
+        Returns:
+            Acceleration vector {x, y, z} in m/s², or None if unavailable.
+        """
+        if not self.target_data:
+            return None
+        # The targeting system already computes acceleration in _update_lock
+        # by comparing current and previous velocities. We store the most
+        # recent acceleration estimate for use by firing solutions.
+        return getattr(self, "_last_target_accel", None)
 
     def lock_target(
         self,
@@ -556,10 +648,83 @@ class TargetingSystem(BaseSystem):
             ship = params.get("ship") or self._ship_ref
             return self.set_target_subsystem(target_subsystem, ship)
 
+        elif action == "assess_damage":
+            return self.assess_target_damage(params)
+
         elif action == "status":
             return self.get_state()
 
         return super().command(action, params)
+
+    def assess_target_damage(self, params: dict) -> dict:
+        """Assess damage state of the locked target's subsystems.
+
+        Uses sensor quality and track quality to estimate target health.
+        Accuracy degrades with poor sensors or low track quality.
+
+        Args:
+            params: Command parameters (may include all_ships for lookup)
+
+        Returns:
+            dict: Subsystem health estimates with confidence levels
+        """
+        if not self.locked_target:
+            return error_dict("NO_TARGET", "No target locked for damage assessment")
+
+        if self.lock_state.value not in ("locked", "tracking", "acquiring"):
+            return error_dict("INSUFFICIENT_TRACK",
+                              f"Lock state '{self.lock_state.value}' insufficient for damage assessment")
+
+        sensor_factor = self._sensor_factor
+        assessment_quality = min(sensor_factor, self.track_quality)
+
+        all_ships = params.get("all_ships", {})
+        target_ship = all_ships.get(self.locked_target)
+
+        subsystems = {}
+        if target_ship and hasattr(target_ship, "damage_model"):
+            dm = target_ship.damage_model
+            for subsys_name in dm.subsystems:
+                actual_health = dm.get_combined_factor(subsys_name)
+                if assessment_quality > 0.8:
+                    reported_health = actual_health
+                    confidence = "high"
+                elif assessment_quality > 0.5:
+                    reported_health = round(actual_health * 4) / 4
+                    confidence = "moderate"
+                elif assessment_quality > 0.2:
+                    reported_health = round(actual_health * 2) / 2
+                    confidence = "low"
+                else:
+                    reported_health = None
+                    confidence = "none"
+
+                status = "unknown"
+                if reported_health is not None:
+                    if reported_health > 0.75:
+                        status = "nominal"
+                    elif reported_health > 0.25:
+                        status = "impaired"
+                    elif reported_health > 0:
+                        status = "critical"
+                    else:
+                        status = "destroyed"
+
+                subsystems[subsys_name] = {
+                    "health": reported_health,
+                    "status": status,
+                    "confidence": confidence,
+                }
+        else:
+            for subsys in ["propulsion", "rcs", "sensors", "weapons", "reactor"]:
+                subsystems[subsys] = {"health": None, "status": "unknown", "confidence": "none"}
+
+        return success_dict(
+            f"Damage assessment for {self.locked_target}",
+            target_id=self.locked_target,
+            assessment_quality=round(assessment_quality, 2),
+            subsystems=subsystems,
+        )
 
     def get_state(self) -> dict:
         """Get targeting system state.
@@ -576,14 +741,20 @@ class TargetingSystem(BaseSystem):
             "lock_quality": self.lock_quality,
             "is_firing": self.is_firing,
             "target_subsystem": self.target_subsystem,
+            "target_is_drifting": self._target_is_drifting if self.locked_target else None,
             "target_data": self.target_data if self.locked_target else None,
             "solutions": {
                 k: {
                     "valid": v.get("valid"),
                     "ready": v.get("ready"),
                     "confidence": v.get("confidence"),
+                    "confidence_factors": v.get("confidence_factors"),
+                    "cone_radius_m": v.get("cone_radius_m"),
+                    "cone_angle_deg": v.get("cone_angle_deg"),
                     "hit_probability": v.get("hit_probability"),
                     "range": v.get("range"),
+                    "time_of_flight": v.get("time_of_flight"),
+                    "lead_angle": v.get("lead_angle"),
                     "reason": v.get("reason"),
                     "target_subsystem": v.get("target_subsystem"),
                 }

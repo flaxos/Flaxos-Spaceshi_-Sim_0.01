@@ -1,0 +1,19 @@
+{
+  "category": "feature",
+  "description": "All active systems generate heat: reactor (continuous), drive (proportional to thrust), weapons (per firing), sensors (active radar). Heat must be radiated through heat sinks and radiators, which have finite capacity and radiate based on surface area and temperature differential with space (Stefan-Boltzmann law). Overheating forces system shutdowns — reactor scrams, weapons lock out, drives throttle down. Radiators are exposed and vulnerable to damage. Heat signature is what makes ships visible on IR sensors — managing heat IS managing stealth. No abstract cooldown timers; heat is a physical quantity in joules.",
+  "id": "heat-management",
+  "title": "Thermal Management System",
+  "dependencies": [
+    "subsystem-model",
+    "sensor-detection-model"
+  ],
+  "priority": 3,
+  "status": "backlog",
+  "descriptionHistory": [
+    {
+      "description": "All active systems generate heat: reactor (continuous), drive (proportional to thrust), weapons (per firing), sensors (active radar). Heat must be radiated through heat sinks and radiators, which have finite capacity and radiate based on surface area and temperature differential with space (Stefan-Boltzmann law). Overheating forces system shutdowns — reactor scrams, weapons lock out, drives throttle down. Radiators are exposed and vulnerable to damage. Heat signature is what makes ships visible on IR sensors — managing heat IS managing stealth. No abstract cooldown timers; heat is a physical quantity in joules.",
+      "timestamp": "2026-03-14T04:07:48.932Z",
+      "source": "initial"
+    }
+  ]
+}

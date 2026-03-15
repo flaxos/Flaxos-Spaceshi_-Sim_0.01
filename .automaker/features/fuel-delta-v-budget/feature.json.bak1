@@ -1,0 +1,19 @@
+{
+  "category": "feature",
+  "description": "Ships carry finite reaction mass. Every burn consumes fuel proportional to thrust and duration (Tsiolkovsky rocket equation). Current delta-v remaining is always displayed — this tells the player how much total velocity change they can still make. Fuel mass affects ship mass, so burning fuel increases acceleration over time. Navigation displays should show 'point of no return' calculations — if you burn this hard to intercept, can you still decelerate? Running out of fuel means drifting on current trajectory with only RCS for orientation. This is the fundamental resource constraint of space combat.",
+  "id": "fuel-delta-v-budget",
+  "title": "Fuel & Delta-V Budget System",
+  "dependencies": [
+    "newtonian-flight-model"
+  ],
+  "priority": 2,
+  "status": "verified",
+  "descriptionHistory": [
+    {
+      "description": "Ships carry finite reaction mass. Every burn consumes fuel proportional to thrust and duration (Tsiolkovsky rocket equation). Current delta-v remaining is always displayed — this tells the player how much total velocity change they can still make. Fuel mass affects ship mass, so burning fuel increases acceleration over time. Navigation displays should show 'point of no return' calculations — if you burn this hard to intercept, can you still decelerate? Running out of fuel means drifting on current trajectory with only RCS for orientation. This is the fundamental resource constraint of space combat.",
+      "timestamp": "2026-03-14T04:07:48.938Z",
+      "source": "initial"
+    }
+  ],
+  "updatedAt": "2026-03-14T06:36:40.200Z"
+}

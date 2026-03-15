@@ -79,6 +79,15 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             "request_docking",
             "cancel_docking",
             "get_nav_solutions",
+            "execute_burn",
+            "plot_intercept",
+            "flip_and_burn",
+            "emergency_burn",
+            # Stealth maneuver
+            "cold_drift",
+            "exit_cold_drift",
+            # Inter-station comms
+            "station_message",
         },
         displays={
             "nav_status", "position", "velocity", "orientation",
@@ -92,18 +101,49 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
     StationType.TACTICAL: StationDefinition(
         station_type=StationType.TACTICAL,
         commands={
-            # Implemented tactical commands (registered with dispatcher)
+            # Targeting pipeline commands
             "lock_target",
             "unlock_target",
             "get_target_solution",
+            "get_weapon_solution",
+            "best_weapon",
             "set_target_subsystem",
+            # Tactical station commands (designate, solution, fire, PDC, assess)
+            "designate_target",
+            "request_solution",
+            "set_pdc_mode",
+            "launch_torpedo",
+            "torpedo_status",
+            "assess_damage",
+            # Weapon fire commands
             "fire",
             "fire_weapon",
+            "fire_railgun",
+            "fire_pdc",
+            "fire_combat",
+            "fire_all",
+            # Weapon status commands
+            "ready_weapons",
+            "combat_status",
+            "weapon_status",
+            # Sensor commands (TACTICAL needs contacts for targeting)
+            "ping_sensors",
+            # ECM commands (electronic warfare is a tactical function)
+            "activate_jammer",
+            "deactivate_jammer",
+            "deploy_chaff",
+            "deploy_flare",
+            "set_emcon",
+            "ecm_status",
+            # Inter-station comms
+            "station_message",
         },
         displays={
             "weapons_status", "ammunition", "hardpoints",
             "target_info", "firing_solution", "threat_board",
             "pdc_status", "weapon_arcs", "targeting_status",
+            "damage_assessment", "engagement_envelope",
+            "ecm_status",
         },
         required_systems={"weapons", "targeting"},
     ),
@@ -117,12 +157,34 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             "set_power_allocation",
             "get_draw_profile",
             "override_bio_monitor",
+            # Thermal management
+            "activate_heat_sink",
+            "deactivate_heat_sink",
+            "cold_drift",
+            "exit_cold_drift",
+            # Ops station commands
+            "allocate_power",
+            "dispatch_repair",
+            "set_system_priority",
+            "report_status",
+            "emergency_shutdown",
+            "restart_system",
+            # ECM (OPS can also manage countermeasures)
+            "set_emcon",
+            "ecm_status",
+            # Crew fatigue management
+            "crew_rest",
+            "cancel_rest",
+            "crew_fatigue_status",
+            # Inter-station comms
+            "station_message",
         },
         displays={
             "power_grid", "reactor_status", "system_status",
             "damage_report", "repair_queue", "hull_integrity",
-            "compartment_status", "heat_status",
-            "power_management_status",
+            "compartment_status", "heat_status", "thermal_status",
+            "power_management_status", "ops_status", "ecm_status",
+            "crew_fatigue_status",
         },
         required_systems={"power", "power_management"},
     ),
@@ -134,22 +196,60 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             "set_power_profile",
             "get_power_profiles",
             "get_draw_profile",
+            # Thermal management
+            "activate_heat_sink",
+            "deactivate_heat_sink",
+            # Shared ops commands (engineering can also dispatch repairs)
+            "dispatch_repair",
+            "report_status",
+            # Thermal stealth
+            "cold_drift",
+            "exit_cold_drift",
+            # Engineering station commands
+            "set_reactor_output",
+            "throttle_drive",
+            "manage_radiators",
+            "monitor_fuel",
+            "emergency_vent",
+            # Crew fatigue (view only + rest authority)
+            "crew_rest",
+            "cancel_rest",
+            "crew_fatigue_status",
+            # Inter-station comms
+            "station_message",
         },
         displays={
             "reactor_status", "system_status", "fuel_status",
-            "propulsion_status", "heat_status",
-            "damage_report", "hull_integrity",
+            "propulsion_status", "heat_status", "thermal_status",
+            "damage_report", "hull_integrity", "engineering_status",
+            "crew_fatigue_status",
         },
-        required_systems={"power", "propulsion"},
+        required_systems={"power", "propulsion", "engineering"},
     ),
 
     StationType.COMMS: StationDefinition(
         station_type=StationType.COMMS,
-        commands=set(),
+        commands={
+            # IFF transponder control
+            "set_transponder",
+            # Radio communications
+            "hail_contact",
+            "broadcast_message",
+            # Distress beacon
+            "set_distress",
+            # Status readout
+            "comms_status",
+            # EMCON control (comms officer can also manage emissions)
+            "set_emcon",
+            "ecm_status",
+            # Inter-station comms
+            "station_message",
+        },
         displays={
             "comm_log", "channels", "fleet_status",
             "message_queue", "encryption_status",
             "iff_contacts", "jamming_status",
+            "comms_status",
         },
         required_systems={"comms"},
     ),
@@ -159,11 +259,19 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
         commands={
             # Sensor analysis and contact classification
             "ping_sensors",
+            # Science analysis commands
+            "analyze_contact",
+            "spectral_analysis",
+            "estimate_mass",
+            "assess_threat",
+            "science_status",
+            # Inter-station comms
+            "station_message",
         },
         displays={
             "contacts", "sensor_status", "contact_details",
             "signature_analysis", "sensor_coverage",
-            "detection_log",
+            "detection_log", "science_status",
         },
         required_systems={"sensors"},
     ),
@@ -183,6 +291,8 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             "fleet_status",
             "fleet_tactical",
             "share_contact",
+            # Inter-station comms
+            "station_message",
         },
         displays={
             # Fleet overview

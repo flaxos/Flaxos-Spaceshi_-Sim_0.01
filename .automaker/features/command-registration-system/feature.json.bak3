@@ -1,0 +1,18 @@
+{
+  "category": "feature",
+  "description": "Every player command must be registered in exactly three places: (1) hybrid/command_handler.py system_commands dict mapping command name to system and action, (2) the relevant domain command spec file in hybrid/commands/ defining arguments and handler, (3) server/stations/station_types.py STATION_DEFINITIONS adding the command to the correct station's command set. Missing any registration causes silent failure. Build tooling to verify all three registrations exist for every command — a registration lint check that runs on startup and in tests.",
+  "id": "command-registration-system",
+  "title": "Three-Place Command Registration System",
+  "dependencies": [
+    "station-crew-roles"
+  ],
+  "priority": 2,
+  "status": "backlog",
+  "descriptionHistory": [
+    {
+      "description": "Every player command must be registered in exactly three places: (1) hybrid/command_handler.py system_commands dict mapping command name to system and action, (2) the relevant domain command spec file in hybrid/commands/ defining arguments and handler, (3) server/stations/station_types.py STATION_DEFINITIONS adding the command to the correct station's command set. Missing any registration causes silent failure. Build tooling to verify all three registrations exist for every command — a registration lint check that runs on startup and in tests.",
+      "timestamp": "2026-03-14T04:07:48.940Z",
+      "source": "initial"
+    }
+  ]
+}

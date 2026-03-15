@@ -1,0 +1,10 @@
+{
+  "id": "evt-1773493953464-8d83c6a1",
+  "trigger": "feature_success",
+  "timestamp": "2026-03-14T13:12:33.464Z",
+  "projectPath": "/projects/spaceship-sim",
+  "projectName": "spaceship-sim",
+  "featureId": "pdc-system",
+  "featureName": "Point Defense Cannon System (Narwhal-III)",
+  "passes": true
+}

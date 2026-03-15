@@ -1,0 +1,10 @@
+{
+  "id": "evt-1773480561688-756ebabf",
+  "trigger": "feature_success",
+  "timestamp": "2026-03-14T09:29:21.688Z",
+  "projectPath": "/projects/spaceship-sim",
+  "projectName": "spaceship-sim",
+  "featureId": "modular-ship-definitions",
+  "featureName": "Modular Ship Class Definitions",
+  "passes": true
+}

@@ -213,6 +213,9 @@ class HelmSystem(BaseSystem):
             return self._cmd_interrupt_queue(params)
         if action == "queue_status":
             return self._cmd_queue_status(params)
+        # Helm navigation commands (delegated to helm_commands module)
+        if action in ("execute_burn", "plot_intercept", "flip_and_burn", "emergency_burn"):
+            return self._dispatch_helm_command(action, params)
         if action == "status":
             return self.get_state()
         if action == "power_on":
@@ -1185,6 +1188,31 @@ class HelmSystem(BaseSystem):
             "active": self._format_queue_entry(self.active_command),
             "pending": [self._format_queue_entry(entry) for entry in self.command_queue]
         }
+
+    def _dispatch_helm_command(self, action, params):
+        """Dispatch to helm_commands module handlers.
+
+        The helm_commands module contains execute_burn, plot_intercept,
+        flip_and_burn, and emergency_burn implementations.
+        """
+        from hybrid.commands.helm_commands import (
+            cmd_execute_burn, cmd_plot_intercept,
+            cmd_flip_and_burn, cmd_emergency_burn,
+        )
+        ship = params.get("_ship") or params.get("ship")
+        if not ship:
+            return {"error": "Ship reference required"}
+
+        dispatch = {
+            "execute_burn": cmd_execute_burn,
+            "plot_intercept": cmd_plot_intercept,
+            "flip_and_burn": cmd_flip_and_burn,
+            "emergency_burn": cmd_emergency_burn,
+        }
+        handler = dispatch.get(action)
+        if handler:
+            return handler(self, ship, params)
+        return {"error": f"Unknown helm command: {action}"}
 
     def get_state(self):
         state = super().get_state()

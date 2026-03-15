@@ -1,0 +1,10 @@
+{
+  "id": "evt-1773478313866-a9c6270f",
+  "trigger": "feature_success",
+  "timestamp": "2026-03-14T08:51:53.866Z",
+  "projectPath": "/projects/spaceship-sim",
+  "projectName": "spaceship-sim",
+  "featureId": "ammunition-tracking",
+  "featureName": "Physical Ammunition & Resource Tracking",
+  "passes": true
+}

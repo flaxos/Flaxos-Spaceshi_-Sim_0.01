@@ -1,0 +1,21 @@
+{
+  "category": "feature",
+  "description": "When a projectile hits a ship, the impact location is determined by the actual intercept geometry — slug trajectory vs ship position and orientation. The hit location determines which subsystem is affected based on physical proximity to the impact point. Penetration depends on projectile velocity, mass, and angle of incidence vs hull thickness at that point. Oblique hits may ricochet or cause reduced damage. Interior damage propagation follows physical adjacency — a slug that penetrates the hull near the reactor damages the reactor, not a random subsystem. No hit tables or random subsystem selection.",
+  "id": "hit-location-physics",
+  "title": "Physics-Based Hit Location & Penetration",
+  "dependencies": [
+    "railgun-ballistics",
+    "subsystem-model",
+    "modular-ship-definitions"
+  ],
+  "priority": 4,
+  "status": "in_progress",
+  "descriptionHistory": [
+    {
+      "description": "When a projectile hits a ship, the impact location is determined by the actual intercept geometry — slug trajectory vs ship position and orientation. The hit location determines which subsystem is affected based on physical proximity to the impact point. Penetration depends on projectile velocity, mass, and angle of incidence vs hull thickness at that point. Oblique hits may ricochet or cause reduced damage. Interior damage propagation follows physical adjacency — a slug that penetrates the hull near the reactor damages the reactor, not a random subsystem. No hit tables or random subsystem selection.",
+      "timestamp": "2026-03-14T04:07:48.943Z",
+      "source": "initial"
+    }
+  ],
+  "updatedAt": "2026-03-14T14:33:11.927Z"
+}

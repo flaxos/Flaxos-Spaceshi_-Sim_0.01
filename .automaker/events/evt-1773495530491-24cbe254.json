@@ -1,0 +1,10 @@
+{
+  "id": "evt-1773495530491-24cbe254",
+  "trigger": "feature_success",
+  "timestamp": "2026-03-14T13:38:50.491Z",
+  "projectPath": "/projects/spaceship-sim",
+  "projectName": "spaceship-sim",
+  "featureId": "firing-solution-confidence",
+  "featureName": "Firing Solution Confidence & Feedback System",
+  "passes": true
+}

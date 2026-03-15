@@ -18,6 +18,7 @@ import "../components/navigation-display.js";
 import "../components/sensor-contacts.js";
 import "../components/targeting-display.js";
 import "../components/weapons-status.js";
+import "../components/firing-solution-display.js";
 // Phase 4: Visual Controls
 import "../components/throttle-control.js";
 import "../components/heading-control.js";
@@ -67,10 +68,14 @@ import "../components/helm-workflow-strip.js";
 // Phase 11: Tactical Completion
 import "../components/subsystem-selector.js";
 import "../components/threat-board.js";
+import "../components/combat-log.js";
 // Phase 12: Engineering & Power
 import "../components/power-profile-selector.js";
 import "../components/power-draw-display.js";
 import "../components/crew-panel.js";
+import "../components/subsystem-status.js";
+// Thermal Management
+import "../components/thermal-display.js";
 // Phase 13: Fleet Commander Console
 import "../components/fleet-roster.js";
 import "../components/formation-control.js";
@@ -78,8 +83,28 @@ import "../components/fleet-orders.js";
 import "../components/fleet-fire-control.js";
 import "../components/shared-contacts.js";
 import "../components/fleet-tactical-display.js";
+// Helm Navigation Commands
+import "../components/helm-navigation-panel.js";
+// Helm Navigation Display (comprehensive nav readout)
+import "../components/helm-nav-display.js";
+// Ops Station Controls
+import "../components/ops-control-panel.js";
+// ECM Electronic Warfare
+import "../components/ecm-control-panel.js";
+// Torpedo System
+import "../components/torpedo-status.js";
+// Engineering Station Controls
+import "../components/engineering-control-panel.js";
+// Comms Station Controls
+import "../components/comms-control-panel.js";
+// Crew Fatigue System
+import "../components/crew-fatigue-display.js";
+// Science Station Analysis
+import "../components/science-analysis-panel.js";
 // Tutorial System
 import "../components/tutorial-overlay.js";
+// Inter-station messaging
+import "../components/station-chat.js";
 
 // App state
 const app = {

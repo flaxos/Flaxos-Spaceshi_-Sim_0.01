@@ -1,0 +1,20 @@
+{
+  "category": "feature",
+  "description": "Crew members have fatigue levels that degrade performance over time under high-g maneuvers and sustained combat. High-g burns physically impair crew: at 5g+, manual tasks take longer, error rates increase, and crew can black out at extreme sustained g-loads. Fatigue accumulates and is only recovered by rest periods at low-g. Crew skill levels affect station performance: experienced tactical officers compute firing solutions faster, experienced helmsmen execute maneuvers more precisely. This is not an abstract buff system — it models human physical limits under acceleration.",
+  "id": "crew-fatigue-performance",
+  "title": "Crew Fatigue & Performance Modeling",
+  "dependencies": [
+    "station-crew-roles",
+    "newtonian-flight-model"
+  ],
+  "priority": 5,
+  "status": "in_progress",
+  "descriptionHistory": [
+    {
+      "description": "Crew members have fatigue levels that degrade performance over time under high-g maneuvers and sustained combat. High-g burns physically impair crew: at 5g+, manual tasks take longer, error rates increase, and crew can black out at extreme sustained g-loads. Fatigue accumulates and is only recovered by rest periods at low-g. Crew skill levels affect station performance: experienced tactical officers compute firing solutions faster, experienced helmsmen execute maneuvers more precisely. This is not an abstract buff system — it models human physical limits under acceleration.",
+      "timestamp": "2026-03-14T04:07:48.939Z",
+      "source": "initial"
+    }
+  ],
+  "updatedAt": "2026-03-14T23:01:35.615Z"
+}

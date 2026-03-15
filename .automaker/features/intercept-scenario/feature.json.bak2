@@ -1,0 +1,23 @@
+{
+  "category": "feature",
+  "description": "Core gameplay scenario: player corvette intercepts a fleeing freighter. Win condition: destroy target's drive (mission kill, target cannot escape). Lose conditions: own drive destroyed, target reaches escape trajectory, or ammunition depleted. The freighter is burning at maximum thrust on an escape vector — the player must close range while managing fuel for deceleration, choose engagement timing (fire early with low confidence or close for better solutions), and decide whether to risk torpedo attack (freighter may have PDCs). This scenario exercises the full targeting pipeline, weapon systems, and maneuvering mechanics.",
+  "id": "intercept-scenario",
+  "title": "Intercept Combat Scenario",
+  "dependencies": [
+    "newtonian-flight-model",
+    "targeting-pipeline",
+    "railgun-ballistics",
+    "subsystem-model",
+    "damage-cascade-system"
+  ],
+  "priority": 4,
+  "status": "in_progress",
+  "descriptionHistory": [
+    {
+      "description": "Core gameplay scenario: player corvette intercepts a fleeing freighter. Win condition: destroy target's drive (mission kill, target cannot escape). Lose conditions: own drive destroyed, target reaches escape trajectory, or ammunition depleted. The freighter is burning at maximum thrust on an escape vector — the player must close range while managing fuel for deceleration, choose engagement timing (fire early with low confidence or close for better solutions), and decide whether to risk torpedo attack (freighter may have PDCs). This scenario exercises the full targeting pipeline, weapon systems, and maneuvering mechanics.",
+      "timestamp": "2026-03-14T04:07:48.937Z",
+      "source": "initial"
+    }
+  ],
+  "updatedAt": "2026-03-14T14:46:29.725Z"
+}

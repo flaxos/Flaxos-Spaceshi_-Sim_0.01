@@ -1,0 +1,10 @@
+{
+  "id": "evt-1773498790880-4ebb0b89",
+  "trigger": "feature_success",
+  "timestamp": "2026-03-14T14:33:10.880Z",
+  "projectPath": "/projects/spaceship-sim",
+  "projectName": "spaceship-sim",
+  "featureId": "gui-helm-display",
+  "featureName": "Web GUI: Helm Navigation Display",
+  "passes": true
+}

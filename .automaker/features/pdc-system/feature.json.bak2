@@ -1,0 +1,20 @@
+{
+  "category": "feature",
+  "description": "PDCs are rapid-fire autocannons effective at 0-5km. They fire bursts of smaller rounds at 3 km/s. Primary role is point defense (intercepting incoming torpedoes) and close-range suppression. PDCs are auto-aimed by the ship's fire control but constrained by turret traverse rates, ammunition feed, and barrel heat. Damage is ablative — PDC rounds chip away at hull and subsystems over sustained fire rather than one-shot kills. Ammunition is finite and heavy. PDC coverage depends on turret placement — ships have blind spots.",
+  "id": "pdc-system",
+  "title": "Point Defense Cannon System (Narwhal-III)",
+  "dependencies": [
+    "targeting-pipeline",
+    "subsystem-model"
+  ],
+  "priority": 3,
+  "status": "in_progress",
+  "descriptionHistory": [
+    {
+      "description": "PDCs are rapid-fire autocannons effective at 0-5km. They fire bursts of smaller rounds at 3 km/s. Primary role is point defense (intercepting incoming torpedoes) and close-range suppression. PDCs are auto-aimed by the ship's fire control but constrained by turret traverse rates, ammunition feed, and barrel heat. Damage is ablative — PDC rounds chip away at hull and subsystems over sustained fire rather than one-shot kills. Ammunition is finite and heavy. PDC coverage depends on turret placement — ships have blind spots.",
+      "timestamp": "2026-03-14T04:07:48.931Z",
+      "source": "initial"
+    }
+  ],
+  "updatedAt": "2026-03-14T13:03:32.499Z"
+}

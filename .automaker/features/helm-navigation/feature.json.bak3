@@ -1,0 +1,19 @@
+{
+  "category": "feature",
+  "description": "Helm station commands for ship control: set-thrust (direction and magnitude), execute-burn (timed burn with specified parameters), plot-intercept (calculate burn sequence to reach a target position/velocity), flip-and-burn (rotate 180° and decelerate), set-orientation (RCS rotation to specified heading), emergency-burn (maximum thrust override). All commands produce physically simulated results — plot-intercept calculates actual delta-v requirements and fuel consumption. Navigation displays show trajectory projections, fuel remaining, and current velocity vector.",
+  "id": "helm-navigation",
+  "title": "Helm Station: Navigation & Maneuvering Commands",
+  "dependencies": [
+    "station-crew-roles",
+    "newtonian-flight-model"
+  ],
+  "priority": 3,
+  "status": "backlog",
+  "descriptionHistory": [
+    {
+      "description": "Helm station commands for ship control: set-thrust (direction and magnitude), execute-burn (timed burn with specified parameters), plot-intercept (calculate burn sequence to reach a target position/velocity), flip-and-burn (rotate 180° and decelerate), set-orientation (RCS rotation to specified heading), emergency-burn (maximum thrust override). All commands produce physically simulated results — plot-intercept calculates actual delta-v requirements and fuel consumption. Navigation displays show trajectory projections, fuel remaining, and current velocity vector.",
+      "timestamp": "2026-03-14T04:07:48.934Z",
+      "source": "initial"
+    }
+  ]
+}

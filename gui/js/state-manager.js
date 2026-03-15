@@ -345,11 +345,19 @@ class StateManager extends EventTarget {
   }
 
   /**
-   * Get targeting info (convenience)
+   * Get targeting info (convenience).
+   * Returns the full targeting pipeline state including lock_state,
+   * track_quality, lock_progress, and per-weapon firing solutions.
    */
   getTargeting() {
     const ship = this.getShipState();
-    return ship?.systems?.targeting || ship?.targeting || ship?.target || null;
+    // Prefer the dedicated targeting telemetry (includes full pipeline state)
+    const targeting = ship?.targeting || ship?.systems?.targeting || ship?.target || null;
+    if (!targeting) return null;
+
+    // Normalize: ensure common fields are accessible at top level
+    // so components can check targeting.locked_target or targeting.lock_state
+    return targeting;
   }
 
   /**
@@ -358,6 +366,22 @@ class StateManager extends EventTarget {
   getWeapons() {
     const ship = this.getShipState();
     return ship?.systems?.weapons || ship?.weapons || {};
+  }
+
+  /**
+   * Get combat system info including truth weapons (convenience)
+   */
+  getCombat() {
+    const ship = this.getShipState();
+    return ship?.systems?.combat || ship?.combat || null;
+  }
+
+  /**
+   * Get thermal system state (convenience)
+   */
+  getThermal() {
+    const ship = this.getShipState();
+    return ship?.thermal || null;
   }
 
   /**
@@ -458,6 +482,15 @@ class StateManager extends EventTarget {
   getSystems() {
     const ship = this.getShipState();
     return ship?.systems || ship?.power_system?.systems || {};
+  }
+
+  /**
+   * Get projectiles (convenience).
+   * Projectile data is available at the top level of the state response
+   * for TACTICAL and CAPTAIN stations.
+   */
+  getProjectiles() {
+    return this._state?.projectiles || [];
   }
 
   /**

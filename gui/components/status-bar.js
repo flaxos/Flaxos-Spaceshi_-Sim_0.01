@@ -231,6 +231,259 @@ class StatusBar extends HTMLElement {
         <span class="status-label">VEL</span>
         <span class="status-value info">${this._formatSpeed(speed)}</span>
       </div>
+
+      ${this._getCrewFatigueHtml(ship)}
+      ${this._getIrSignatureHtml(ship)}
+      ${this._getThermalHtml(ship)}
+      ${this._getOpsHtml(ship)}
+      ${this._getEcmHtml(ship)}
+      ${this._getEngineeringHtml(ship)}
+      ${this._getCommsHtml(ship)}
+      ${this._getFleetHtml(ship)}
+    `;
+  }
+
+  _getIrSignatureHtml(ship) {
+    const emissions = ship.emissions;
+    if (!emissions) return "";
+
+    const level = emissions.ir_level || "low";
+    const coldDrift = emissions.cold_drift_active;
+    const cooling = emissions.plume_cooling;
+
+    const levelMap = {
+      minimal: { label: "MIN", cls: "nominal" },
+      low: { label: "LOW", cls: "nominal" },
+      moderate: { label: "MED", cls: "warning" },
+      high: { label: "HIGH", cls: "warning" },
+      extreme: { label: "MAX", cls: "critical" },
+    };
+
+    const info = levelMap[level] || levelMap.low;
+    let extra = "";
+    if (coldDrift) extra = " COLD";
+    else if (cooling) extra = " COOL";
+
+    return `
+      <div class="separator"></div>
+      <div class="status-group">
+        <span class="status-label">IR</span>
+        <span class="status-value ${info.cls}">${info.label}${extra}</span>
+      </div>
+    `;
+  }
+
+  _getThermalHtml(ship) {
+    const thermal = ship.thermal;
+    if (!thermal || !thermal.enabled) return "";
+    const temp = thermal.hull_temperature ?? 300;
+    const maxTemp = thermal.max_temperature ?? 500;
+    const pct = Math.min(100, ((temp - 2.7) / (maxTemp - 2.7)) * 100);
+    const cls = thermal.is_emergency ? "critical"
+      : thermal.is_overheating ? "warning"
+      : temp > (thermal.nominal_temperature ?? 300) + 20 ? "warning"
+      : "nominal";
+    return `
+      <div class="separator"></div>
+      <div class="status-group">
+        <span class="status-label">TEMP</span>
+        <span class="status-value ${cls}">${temp.toFixed(0)}K</span>
+        <div class="mini-bar">
+          <div class="mini-bar-fill ${cls}" style="width: ${pct}%"></div>
+        </div>
+      </div>
+    `;
+  }
+
+  _getOpsHtml(ship) {
+    const ops = ship.ops;
+    if (!ops || !ops.enabled) return "";
+
+    const teams = ops.repair_teams || [];
+    const activeTeams = teams.filter(t => t.status !== "idle");
+    const shutdowns = ops.shutdown_systems || [];
+
+    if (activeTeams.length === 0 && shutdowns.length === 0) return "";
+
+    let parts = [];
+    if (activeTeams.length > 0) {
+      const cls = activeTeams.some(t => t.status === "repairing") ? "warning" : "info";
+      parts.push(`<span class="status-value ${cls}">DC:${activeTeams.length}</span>`);
+    }
+    if (shutdowns.length > 0) {
+      parts.push(`<span class="status-value critical">SCRAM:${shutdowns.length}</span>`);
+    }
+
+    return `
+      <div class="separator"></div>
+      <div class="status-group">
+        <span class="status-label">OPS</span>
+        ${parts.join(" ")}
+      </div>
+    `;
+  }
+
+  _getEcmHtml(ship) {
+    const ecm = ship.ecm;
+    if (!ecm || !ecm.enabled) return "";
+
+    const modes = [];
+    if (ecm.emcon_active) modes.push("EMCON");
+    if (ecm.jammer_enabled) modes.push("JAM");
+    if (ecm.chaff_active) modes.push("CHF");
+    if (ecm.flare_active) modes.push("FLR");
+
+    if (modes.length === 0) return "";
+
+    const cls = ecm.emcon_active ? "info" : "warning";
+    return `
+      <div class="separator"></div>
+      <div class="status-group">
+        <span class="status-label">ECM</span>
+        <span class="status-value ${cls}">${modes.join(" ")}</span>
+      </div>
+    `;
+  }
+
+  _getEngineeringHtml(ship) {
+    const eng = ship.engineering;
+    if (!eng || !eng.enabled) return "";
+
+    const parts = [];
+    // Show reactor output if not at 100%
+    const rPct = eng.reactor_percent ?? (eng.reactor_output ?? 1) * 100;
+    if (rPct < 99) {
+      const cls = rPct < 50 ? "warning" : "info";
+      parts.push(`<span class="status-value ${cls}">RX:${rPct.toFixed(0)}%</span>`);
+    }
+    // Show drive limit if not at 100%
+    const dPct = eng.drive_limit_percent ?? (eng.drive_limit ?? 1) * 100;
+    if (dPct < 99) {
+      parts.push(`<span class="status-value warning">DRV:${dPct.toFixed(0)}%</span>`);
+    }
+    // Show radiator state if retracted
+    if (eng.radiators_deployed === false) {
+      parts.push(`<span class="status-value critical">RAD:RETR</span>`);
+    } else if (eng.radiator_priority && eng.radiator_priority !== "balanced") {
+      const cls = eng.radiator_priority === "stealth" ? "info" : "nominal";
+      parts.push(`<span class="status-value ${cls}">RAD:${eng.radiator_priority.toUpperCase().slice(0, 4)}</span>`);
+    }
+    // Show emergency vent if active
+    if (eng.emergency_vent_active) {
+      parts.push(`<span class="status-value critical">VENT</span>`);
+    }
+
+    if (parts.length === 0) return "";
+    return `
+      <div class="separator"></div>
+      <div class="status-group">
+        <span class="status-label">ENG</span>
+        ${parts.join(" ")}
+      </div>
+    `;
+  }
+
+  _getCommsHtml(ship) {
+    const comms = ship.comms;
+    if (!comms || !comms.enabled) return "";
+
+    const parts = [];
+    if (comms.distress_active) parts.push("DISTRESS");
+    else if (comms.emcon_suppressed) parts.push("EMCON");
+    else if (!comms.transponder_enabled) parts.push("SILENT");
+
+    if (comms.transponder_active) {
+      parts.push(`IFF:${(comms.transponder_code || "---").slice(0, 6)}`);
+    }
+
+    if (parts.length === 0) return "";
+
+    const cls = comms.distress_active ? "critical" : comms.emcon_suppressed ? "info" : "nominal";
+    return `
+      <div class="separator"></div>
+      <div class="status-group">
+        <span class="status-label">COM</span>
+        <span class="status-value ${cls}">${parts.join(" ")}</span>
+      </div>
+    `;
+  }
+
+  _getCrewFatigueHtml(ship) {
+    const cf = ship.crew_fatigue || ship.systems?.crew_fatigue;
+    if (!cf || !cf.enabled) return "";
+
+    const fatigue = cf.fatigue ?? 0;
+    const perf = cf.performance ?? 1;
+    const gLoad = cf.g_load ?? 0;
+    const isBlackedOut = cf.is_blacked_out ?? false;
+
+    if (isBlackedOut) {
+      return `
+        <div class="separator"></div>
+        <div class="status-group">
+          <span class="status-label">CREW</span>
+          <span class="status-value critical">BLACKOUT</span>
+        </div>
+      `;
+    }
+
+    if (fatigue < 0.3 && gLoad < 3) return "";
+
+    const parts = [];
+    if (fatigue > 0.5) {
+      const cls = fatigue > 0.7 ? "critical" : "warning";
+      parts.push(`<span class="status-value ${cls}">${(perf * 100).toFixed(0)}%</span>`);
+    }
+    if (gLoad > 5) {
+      const cls = gLoad > 7 ? "critical" : "warning";
+      parts.push(`<span class="status-value ${cls}">${gLoad.toFixed(1)}g</span>`);
+    } else if (gLoad > 3) {
+      parts.push(`<span class="status-value info">${gLoad.toFixed(1)}g</span>`);
+    }
+    if (cf.rest_ordered) {
+      parts.push(`<span class="status-value nominal">REST</span>`);
+    }
+
+    if (parts.length === 0) return "";
+
+    return `
+      <div class="separator"></div>
+      <div class="status-group">
+        <span class="status-label">CREW</span>
+        ${parts.join(" ")}
+      </div>
+    `;
+  }
+
+  _getFleetHtml(ship) {
+    const fc = ship.fleet_coord || ship.systems?.fleet_coord;
+    if (!fc || !fc.enabled) return "";
+
+    const fleetCount = fc.fleet_count ?? 0;
+    if (fleetCount === 0) return "";
+
+    const fleets = fc.fleets || [];
+    const activeFleet = fleets[0];
+    const shipCount = activeFleet?.ship_count ?? 0;
+    const status = activeFleet?.status ?? "forming";
+
+    const statusMap = {
+      forming: { label: "FORM", cls: "info" },
+      in_formation: { label: "FMT", cls: "nominal" },
+      maneuvering: { label: "MNV", cls: "warning" },
+      engaging: { label: "ENGAG", cls: "critical" },
+      scattered: { label: "SCAT", cls: "warning" },
+      disbanded: { label: "DISB", cls: "info" },
+    };
+
+    const info = statusMap[status] || { label: status.toUpperCase().slice(0, 5), cls: "info" };
+
+    return `
+      <div class="separator"></div>
+      <div class="status-group">
+        <span class="status-label">FLT</span>
+        <span class="status-value ${info.cls}">${info.label} ${shipCount}S</span>
+      </div>
     `;
   }
 
@@ -251,21 +504,48 @@ class StatusBar extends HTMLElement {
 
   _getAmmoSummary(ship) {
     const weapons = ship.systems?.weapons || ship.weapons || {};
-    const torpedoes = weapons.torpedoes || weapons.torpedo || ship.torpedoes || {};
-    const pdc = weapons.pdc || weapons.point_defense || ship.pdc || {};
+    const combat = ship.systems?.combat || ship.combat || {};
+    const truthWeapons = weapons.truth_weapons || combat.truth_weapons || {};
 
-    const torpCount = torpedoes.loaded ?? torpedoes.count ?? torpedoes.ammo ?? 0;
-    const torpMax = torpedoes.max ?? torpedoes.capacity ?? 12;
-    const pdcCount = pdc.ammo ?? pdc.rounds ?? 0;
-    const pdcMax = pdc.max ?? pdc.capacity ?? 1000;
+    // Aggregate truth weapons by type
+    let railgunAmmo = 0, railgunMax = 0;
+    let pdcAmmo = 0, pdcMax = 0;
 
-    const torpPercent = torpMax > 0 ? (torpCount / torpMax) * 100 : 100;
-    const pdcPercent = pdcMax > 0 ? (pdcCount / pdcMax) * 100 : 100;
-    const minPercent = Math.min(torpPercent, pdcPercent);
+    for (const [mountId, w] of Object.entries(truthWeapons)) {
+      const ammo = w.ammo ?? 0;
+      const capacity = w.ammo_capacity ?? 0;
+      if (mountId.startsWith("railgun")) {
+        railgunAmmo += ammo;
+        railgunMax += capacity;
+      } else if (mountId.startsWith("pdc")) {
+        pdcAmmo += ammo;
+        pdcMax += capacity;
+      }
+    }
+
+    // Fallback to legacy torpedo data if no truth weapons found
+    if (railgunMax === 0 && pdcMax === 0) {
+      const torpedoes = weapons.torpedoes || weapons.torpedo || ship.torpedoes || {};
+      const pdc = weapons.pdc || weapons.point_defense || ship.pdc || {};
+      railgunAmmo = torpedoes.loaded ?? torpedoes.count ?? torpedoes.ammo ?? 0;
+      railgunMax = torpedoes.max ?? torpedoes.capacity ?? 12;
+      pdcAmmo = pdc.ammo ?? pdc.rounds ?? 0;
+      pdcMax = pdc.max ?? pdc.capacity ?? 1000;
+    }
+
+    // Torpedo count from combat system
+    const torpedoData = combat.torpedoes || {};
+    const torpLoaded = torpedoData.loaded ?? 0;
+    const torpTotal = torpedoData.total_capacity ?? 0;
+
+    const railPercent = railgunMax > 0 ? (railgunAmmo / railgunMax) * 100 : 100;
+    const pdcPercent = pdcMax > 0 ? (pdcAmmo / pdcMax) * 100 : 100;
+    const minPercent = Math.min(railPercent, pdcPercent);
 
     const cls = minPercent > 50 ? "nominal" : minPercent > 20 ? "warning" : "critical";
 
-    return { text: `T:${torpCount} P:${pdcCount}`, cls };
+    const torpStr = torpTotal > 0 ? ` T:${torpLoaded}` : "";
+    return { text: `R:${railgunAmmo} P:${pdcAmmo}${torpStr}`, cls };
   }
 
   _getSubsystems(ship) {

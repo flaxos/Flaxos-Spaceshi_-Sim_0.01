@@ -183,6 +183,16 @@ def create_default_dispatcher() -> CommandDispatcher:
     from hybrid.commands import sensor_commands
     from hybrid.commands import weapon_commands
     from hybrid.commands import flight_computer_commands
+    from hybrid.commands import helm_commands
+    from hybrid.commands import ops_commands
+    from hybrid.commands import tactical_commands
+    from hybrid.commands import ecm_commands
+    from hybrid.commands import engineering_commands
+    from hybrid.commands import thermal_commands
+    from hybrid.commands import comms_commands
+    from hybrid.commands import crew_commands
+    from hybrid.commands import science_commands
+    from hybrid.commands import fleet_commands
 
     # Register all commands from modules
     ship_commands.register_commands(dispatcher)
@@ -190,5 +200,15 @@ def create_default_dispatcher() -> CommandDispatcher:
     sensor_commands.register_commands(dispatcher)
     weapon_commands.register_commands(dispatcher)
     flight_computer_commands.register_commands(dispatcher)
+    helm_commands.register_commands(dispatcher)
+    ops_commands.register_commands(dispatcher)
+    tactical_commands.register_commands(dispatcher)
+    ecm_commands.register_commands(dispatcher)
+    engineering_commands.register_commands(dispatcher)
+    thermal_commands.register_commands(dispatcher)
+    comms_commands.register_commands(dispatcher)
+    crew_commands.register_commands(dispatcher)
+    science_commands.register_commands(dispatcher)
+    fleet_commands.register_commands(dispatcher)
 
     return dispatcher

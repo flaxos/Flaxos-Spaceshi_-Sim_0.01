@@ -1,0 +1,10 @@
+{
+  "id": "evt-1773481400731-c63fbd30",
+  "trigger": "feature_success",
+  "timestamp": "2026-03-14T09:43:20.731Z",
+  "projectPath": "/projects/spaceship-sim",
+  "projectName": "spaceship-sim",
+  "featureId": "ops-station",
+  "featureName": "Ops Station: Power & Damage Control Commands",
+  "passes": true
+}

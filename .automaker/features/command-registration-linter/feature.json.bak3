@@ -1,0 +1,18 @@
+{
+  "category": "enhancement",
+  "description": "Automated tool (runs at server startup and in CI) that verifies every command is properly registered in all three places: command_handler.py, domain command spec, and station_types.py. Reports mismatches: commands in handler but not in any station, commands in station but not in handler, commands with specs but no handler mapping. Prevents the most common class of bugs in the codebase — commands that silently fail because one registration is missing.",
+  "id": "command-registration-linter",
+  "title": "Command Registration Validation Tool",
+  "dependencies": [
+    "command-registration-system"
+  ],
+  "priority": 3,
+  "status": "backlog",
+  "descriptionHistory": [
+    {
+      "description": "Automated tool (runs at server startup and in CI) that verifies every command is properly registered in all three places: command_handler.py, domain command spec, and station_types.py. Reports mismatches: commands in handler but not in any station, commands in station but not in handler, commands with specs but no handler mapping. Prevents the most common class of bugs in the codebase — commands that silently fail because one registration is missing.",
+      "timestamp": "2026-03-14T04:07:48.945Z",
+      "source": "initial"
+    }
+  ]
+}

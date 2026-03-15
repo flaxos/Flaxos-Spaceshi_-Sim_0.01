@@ -1,0 +1,21 @@
+{
+  "category": "feature",
+  "description": "Drive burns produce massive IR signatures visible at extreme range. The harder you burn, the brighter you are on enemy sensors. Drifting (engines off) minimizes IR signature but makes trajectory predictable (constant velocity, easy to compute firing solutions against). This creates a fundamental tactical dilemma: burn to evade but become visible, or drift to hide but become predictable. Cooldown after burns follows physical heat dissipation curves. Emergency cold-drift tactics: shut down reactor, retract radiators, coast on battery — nearly invisible but defenseless.",
+  "id": "maneuvering-ir-signature",
+  "title": "Maneuver-IR Signature Tradeoff",
+  "dependencies": [
+    "newtonian-flight-model",
+    "sensor-detection-model",
+    "heat-management"
+  ],
+  "priority": 4,
+  "status": "in_progress",
+  "descriptionHistory": [
+    {
+      "description": "Drive burns produce massive IR signatures visible at extreme range. The harder you burn, the brighter you are on enemy sensors. Drifting (engines off) minimizes IR signature but makes trajectory predictable (constant velocity, easy to compute firing solutions against). This creates a fundamental tactical dilemma: burn to evade but become visible, or drift to hide but become predictable. Cooldown after burns follows physical heat dissipation curves. Emergency cold-drift tactics: shut down reactor, retract radiators, coast on battery — nearly invisible but defenseless.",
+      "timestamp": "2026-03-14T04:07:48.944Z",
+      "source": "initial"
+    }
+  ],
+  "updatedAt": "2026-03-14T22:15:00.064Z"
+}

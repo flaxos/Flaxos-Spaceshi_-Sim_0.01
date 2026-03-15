@@ -1,0 +1,10 @@
+{
+  "id": "evt-1773494624604-deeb9e8d",
+  "trigger": "feature_success",
+  "timestamp": "2026-03-14T13:23:44.604Z",
+  "projectPath": "/projects/spaceship-sim",
+  "projectName": "spaceship-sim",
+  "featureId": "railgun-ballistics",
+  "featureName": "Railgun Weapon System (UNE-440)",
+  "passes": true
+}

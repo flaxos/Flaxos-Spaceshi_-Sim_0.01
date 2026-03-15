@@ -1,0 +1,19 @@
+{
+  "category": "feature",
+  "description": "Every firing solution has a confidence score derived from physical factors: track quality (sensor data freshness and accuracy), target range (longer range = more time for target to maneuver during slug flight), target acceleration (maneuvering targets are harder to predict), own ship vibration/rotation (affects aim), and weapon system health. Confidence is displayed as a cone showing possible impact area at target range. After firing, the system provides causal feedback: 'Miss — target executed 2g lateral burn during slug flight time, solution was based on ballistic trajectory assumption' or 'Hit — reactor subsystem, slug penetrated hull frame 47.' The player always knows WHY.",
+  "id": "firing-solution-confidence",
+  "title": "Firing Solution Confidence & Feedback System",
+  "dependencies": [
+    "targeting-pipeline",
+    "railgun-ballistics"
+  ],
+  "priority": 3,
+  "status": "backlog",
+  "descriptionHistory": [
+    {
+      "description": "Every firing solution has a confidence score derived from physical factors: track quality (sensor data freshness and accuracy), target range (longer range = more time for target to maneuver during slug flight), target acceleration (maneuvering targets are harder to predict), own ship vibration/rotation (affects aim), and weapon system health. Confidence is displayed as a cone showing possible impact area at target range. After firing, the system provides causal feedback: 'Miss — target executed 2g lateral burn during slug flight time, solution was based on ballistic trajectory assumption' or 'Hit — reactor subsystem, slug penetrated hull frame 47.' The player always knows WHY.",
+      "timestamp": "2026-03-14T04:07:48.937Z",
+      "source": "initial"
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "category": "feature",
+  "description": "Tactical station commands: designate-target (select a sensor contact for tracking), request-solution (compute firing solution for designated target), fire-railgun (execute firing solution), set-pdc-mode (point-defense auto, manual aim, hold fire), launch-torpedo (with target designation and attack profile), assess-damage (request sensor analysis of target subsystem state). Each command feeds through the targeting pipeline. Tactical displays show: weapon readiness, ammunition counts, active tracks, solution confidence, and engagement envelopes.",
+  "id": "tactical-station",
+  "title": "Tactical Station: Weapons & Targeting Commands",
+  "dependencies": [
+    "station-crew-roles",
+    "targeting-pipeline",
+    "railgun-ballistics",
+    "pdc-system"
+  ],
+  "priority": 3,
+  "status": "in_progress",
+  "descriptionHistory": [
+    {
+      "description": "Tactical station commands: designate-target (select a sensor contact for tracking), request-solution (compute firing solution for designated target), fire-railgun (execute firing solution), set-pdc-mode (point-defense auto, manual aim, hold fire), launch-torpedo (with target designation and attack profile), assess-damage (request sensor analysis of target subsystem state). Each command feeds through the targeting pipeline. Tactical displays show: weapon readiness, ammunition counts, active tracks, solution confidence, and engagement envelopes.",
+      "timestamp": "2026-03-14T04:07:48.934Z",
+      "source": "initial"
+    }
+  ],
+  "updatedAt": "2026-03-14T13:38:50.792Z"
+}

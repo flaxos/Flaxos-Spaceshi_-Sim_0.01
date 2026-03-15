@@ -1,0 +1,21 @@
+{
+  "category": "feature",
+  "description": "Torpedoes are self-propelled guided munitions with their own drive, fuel, sensor, and warhead. They accelerate toward the target using onboard guidance (can be updated via datalink). Torpedoes are interceptable by PDCs — this is the primary PDC role. Torpedo effectiveness depends on: launch geometry (closing speed matters), target PDC coverage and ammunition, torpedo fuel budget (limited delta-v for terminal maneuvers), and whether the target detects the launch. Torpedoes have physical mass and limited magazine capacity. Warheads are explosive/fragmentation — area effect against subsystems near impact point.",
+  "id": "torpedo-system",
+  "title": "Guided Torpedo System",
+  "dependencies": [
+    "newtonian-flight-model",
+    "targeting-pipeline",
+    "pdc-system"
+  ],
+  "priority": 4,
+  "status": "in_progress",
+  "descriptionHistory": [
+    {
+      "description": "Torpedoes are self-propelled guided munitions with their own drive, fuel, sensor, and warhead. They accelerate toward the target using onboard guidance (can be updated via datalink). Torpedoes are interceptable by PDCs — this is the primary PDC role. Torpedo effectiveness depends on: launch geometry (closing speed matters), target PDC coverage and ammunition, torpedo fuel budget (limited delta-v for terminal maneuvers), and whether the target detects the launch. Torpedoes have physical mass and limited magazine capacity. Warheads are explosive/fragmentation — area effect against subsystems near impact point.",
+      "timestamp": "2026-03-14T04:07:48.931Z",
+      "source": "initial"
+    }
+  ],
+  "updatedAt": "2026-03-14T22:22:57.957Z"
+}
