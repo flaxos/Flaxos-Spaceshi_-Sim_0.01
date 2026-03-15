@@ -46,12 +46,15 @@ SUBSYSTEM_HEALTH_SCHEMA = {
         "failure_threshold": 0.2,
         # v0.6.0: Heat settings (RCS thrusters generate less heat)
         # Formula: heat_amount = heat_generation * torque_magnitude * dt
-        # Typical attitude hold: ~50 Nm torque → 0.002 * 50 = 0.1 °C/s (negligible)
-        # Aggressive combat maneuvering: ~2500 Nm → 0.002 * 2500 = 5.0 °C/s
-        # Net at combat maneuvering: 5.0 - 2.0 = 3.0 °C/s → overheat (64°C) in ~21s
-        # Normal flight should never overheat RCS; only sustained evasive burns.
+        # Typical attitude hold: ~50 Nm torque → 0.0005 * 50 = 0.025 °C/s (negligible)
+        # 180° flip (multi-axis torque up to ~7300 Nm, ~12s):
+        #   heat = 0.0005 * 7300 * 12 - 2.0 * 12 = 43.8 - 24 = 19.8 °C (well under 64°C)
+        # Sustained evasive burns (45s+ of continuous manoeuvring):
+        #   heat = 0.0005 * 7300 * 45 - 2.0 * 45 = 164 - 90 = 74 → overheat after ~35s
+        # Normal flight (flips, attitude holds) should never overheat.
+        # Only sustained combat evasion triggers the overheat penalty.
         "max_heat": 80.0,
-        "heat_generation": 0.002,    # Heat per Nm-second of torque
+        "heat_generation": 0.0005,   # Heat per Nm-second of torque
         "heat_dissipation": 2.0,
         "overheat_threshold": 0.80,
         "overheat_penalty": 0.4,     # Torque reduction when overheated

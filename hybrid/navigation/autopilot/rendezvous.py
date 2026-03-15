@@ -30,6 +30,12 @@ Key design decisions (bug fixes from 2026-03-15):
     re-burn, flip, brake, repeat -- each cycle making only 25-80 km of
     progress.  APPROACH's proportional controller handles convergence
     from any range, eliminating the oscillation entirely.
+  - APPROACH only re-enters BURN if closing_speed is significantly
+    negative (opening faster than APPROACH_SPEED_LIMIT), not based on
+    a fixed distance threshold.  The old range-based check
+    (range > approach_range * 3) false-triggered at 302 km when the
+    ship entered APPROACH after braking from long range, immediately
+    re-entering BURN and restarting the oscillation cycle.
 """
 
 import logging
@@ -261,7 +267,20 @@ class RendezvousAutopilot(BaseAutopilot):
                 # velocity vector drifts (lateral motion, target velocity),
                 # and chasing a moving heading caused ~50% of flips to time
                 # out because the RCS could never converge.
-                self._flip_target_heading = self._retrograde_heading(rel)
+                #
+                # Flatten to yaw-only (pitch=0, roll=0) so the flip is a
+                # single-axis rotation.  Sensor noise adds spurious Z
+                # velocity that gives the retrograde heading a pitch
+                # component; a 180-degree rotation with pitch makes the
+                # quaternion error decompose into multi-axis torque
+                # requests that the single-axis RCS thrusters cannot
+                # satisfy, causing total thruster allocation failure.
+                # The braking phase uses the full 3D retrograde heading
+                # for precision alignment.
+                retro = self._retrograde_heading(rel)
+                retro["pitch"] = 0.0
+                retro["roll"] = 0.0
+                self._flip_target_heading = retro
         elif self.phase == "flip":
             # Check alignment against the SNAPSHOT heading, not live
             # retrograde.  This is the key fix for the flip timeout bug.
@@ -305,13 +324,17 @@ class RendezvousAutopilot(BaseAutopilot):
                     rel_speed, current_range)
                 self.phase = "approach"
         elif self.phase == "approach":
-            # Approach can also transition to stationkeep (handled at top)
-            # or back to brake if we somehow built too much speed and
-            # overshot approach_range
-            if current_range > self.approach_range * 3.0:
+            # Approach can also transition to stationkeep (handled at top).
+            # Safety valve: only re-enter BURN if the ship is actively
+            # flying AWAY from the target faster than the approach P
+            # controller can correct.  A range-based check here would
+            # false-trigger when BRAKE exits to APPROACH at long range
+            # (e.g. 302 km >> approach_range), restarting the oscillation.
+            if closing_speed < -self.APPROACH_SPEED_LIMIT:
                 logger.info(
-                    "Rendezvous: APPROACH -> BURN (drifted to %.0f m, "
-                    "outside approach envelope)", current_range)
+                    "Rendezvous: APPROACH -> BURN (opening at %.1f m/s, "
+                    "exceeds approach speed limit %.1f m/s)",
+                    -closing_speed, self.APPROACH_SPEED_LIMIT)
                 self.phase = "burn"
 
         # Execute current phase
@@ -339,18 +362,24 @@ class RendezvousAutopilot(BaseAutopilot):
                 "heading": vector_to_heading(vec)}
 
     def _compute_flip(self, rel: Dict) -> Dict:
-        """Command the snapshot retrograde heading, zero thrust while RCS rotates.
+        """Command yaw-only rotation toward retrograde, zero thrust.
 
-        Uses the heading captured at flip entry rather than the live
-        retrograde vector.  This gives the RCS a fixed target to converge
-        on instead of chasing a moving heading as the velocity vector
-        drifts during unpowered coast.
+        Only commands yaw rotation, preserving current pitch/roll.
+        This keeps the flip as a single-axis maneuver so the RCS
+        thrusters can deliver maximum torque without cross-axis
+        contamination.  Pitch/roll alignment is handled by the
+        subsequent BRAKE phase which uses the full 3D retrograde.
         """
         heading = self._flip_target_heading
         if heading is None:
-            # Fallback if somehow no snapshot (should not happen)
             heading = self._retrograde_heading(rel)
-        return {"thrust": 0.0, "heading": heading}
+        # Command only yaw — keep current pitch/roll to avoid
+        # multi-axis torque that the allocator struggles with.
+        return {"thrust": 0.0, "heading": {
+            "yaw": heading.get("yaw", 0),
+            "pitch": self.ship.orientation.get("pitch", 0),
+            "roll": self.ship.orientation.get("roll", 0),
+        }}
 
     def _compute_brake(self, rel: Dict) -> Dict:
         """Thrust retrograde to bleed closing speed."""
@@ -442,11 +471,12 @@ class RendezvousAutopilot(BaseAutopilot):
         return yaw_err < self.FLIP_TOLERANCE_DEG and pitch_err < self.FLIP_TOLERANCE_DEG
 
     def _flip_heading_aligned(self, rel: Optional[Dict] = None) -> bool:
-        """True if ship heading is within FLIP_TOLERANCE_DEG of the snapshot heading.
+        """True if ship yaw is within FLIP_TOLERANCE_DEG of the snapshot heading.
 
-        Uses the heading captured at flip entry (self._flip_target_heading)
-        rather than the live retrograde vector.  This is what allows the RCS
-        to converge -- it has a fixed target instead of chasing a moving one.
+        Only checks yaw alignment — pitch/roll are irrelevant for the flip
+        because the BRAKE phase will correct them using the full 3D retrograde
+        heading.  Requiring pitch alignment was causing 17% of flips to timeout
+        when the ship had accumulated pitch drift during the burn phase.
 
         Falls back to live retrograde if no snapshot is available (e.g. when
         phase was set externally without going through BURN->FLIP transition).
@@ -459,9 +489,7 @@ class RendezvousAutopilot(BaseAutopilot):
         cur = self.ship.orientation
         yaw_err = abs(self._normalize_angle(
             target_heading.get("yaw", 0) - cur.get("yaw", 0)))
-        pitch_err = abs(self._normalize_angle(
-            target_heading.get("pitch", 0) - cur.get("pitch", 0)))
-        return yaw_err < self.FLIP_TOLERANCE_DEG and pitch_err < self.FLIP_TOLERANCE_DEG
+        return yaw_err < self.FLIP_TOLERANCE_DEG
 
     # ----- state / telemetry -----------------------------------------------
 

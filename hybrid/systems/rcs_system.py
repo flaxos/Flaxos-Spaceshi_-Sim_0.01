@@ -318,10 +318,22 @@ class RCSSystem(BaseSystem):
         desired_rate_yaw = self.kp * yaw_error - self.kd * omega.get("yaw", 0)
         desired_rate_roll = self.kp * roll_error - self.kd * omega.get("roll", 0)
 
-        # Clamp to max angular rate
-        desired_rate_pitch = max(-self.max_rate, min(self.max_rate, desired_rate_pitch))
-        desired_rate_yaw = max(-self.max_rate, min(self.max_rate, desired_rate_yaw))
-        desired_rate_roll = max(-self.max_rate, min(self.max_rate, desired_rate_roll))
+        # Clamp to max angular rate using proportional scaling.
+        # Independent per-axis clamping distorts the torque direction when
+        # multiple axes saturate: a rotation that is mostly yaw with some
+        # pitch/roll gets flattened to (30, 30, 30) deg/s, pointing the
+        # torque vector along (1,1,1) instead of primarily along yaw.
+        # The thruster allocator then rejects all thrusters because every
+        # thruster's cross-axis torque exceeds its useful contribution.
+        # Proportional scaling preserves the direction so the dominant
+        # axis still dominates the torque request.
+        max_abs = max(abs(desired_rate_pitch), abs(desired_rate_yaw),
+                      abs(desired_rate_roll))
+        if max_abs > self.max_rate:
+            rate_scale = self.max_rate / max_abs
+            desired_rate_pitch *= rate_scale
+            desired_rate_yaw *= rate_scale
+            desired_rate_roll *= rate_scale
 
         # Convert desired rates to torque request.
         # scale = I so that the requested torque produces angular acceleration
