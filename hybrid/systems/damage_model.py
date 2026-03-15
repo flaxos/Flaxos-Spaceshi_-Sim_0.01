@@ -162,6 +162,11 @@ class DamageModel:
     MOBILITY_SYSTEMS = ["propulsion", "rcs"]
     COMBAT_SYSTEMS = ["weapons", "targeting"]
 
+    # Minimum seconds between overheat warnings for the same subsystem.
+    # Prevents log spam when heat oscillates around the overheat threshold,
+    # which causes rapid overheated→cooled→overheated transitions each tick.
+    OVERHEAT_LOG_COOLDOWN = 30.0
+
     def __init__(
         self,
         config: Optional[dict] = None,
@@ -178,6 +183,10 @@ class DamageModel:
         # Damage history for combat analysis
         self.damage_history: List[dict] = []
         self._total_damage_taken = 0.0
+
+        # Rate-limiting for overheat log warnings (subsystem_name → last warning time)
+        self._overheat_log_times: Dict[str, float] = {}
+        self._elapsed_time = 0.0
 
         for subsystem_name, defaults in schema.items():
             self._register_subsystem(subsystem_name, defaults, subsystem_configs.get(subsystem_name, {}))
@@ -518,15 +527,22 @@ class DamageModel:
         now_overheated = data.is_overheated()
 
         # Publish overheat event on transition
-        if now_overheated and not was_overheated and event_bus:
-            event_bus.publish("subsystem_overheat", {
-                "ship_id": ship_id,
-                "subsystem": subsystem,
-                "heat": data.heat,
-                "heat_percent": data.heat_percent(),
-                "penalty": data.overheat_penalty,
-            })
-            logger.warning(f"Subsystem {subsystem} OVERHEATED")
+        if now_overheated and not was_overheated:
+            if event_bus:
+                event_bus.publish("subsystem_overheat", {
+                    "ship_id": ship_id,
+                    "subsystem": subsystem,
+                    "heat": data.heat,
+                    "heat_percent": data.heat_percent(),
+                    "penalty": data.overheat_penalty,
+                })
+            # Rate-limit the log warning to prevent spam when heat oscillates
+            # around the overheat threshold (overheat→cool→overheat each tick).
+            last_warned = self._overheat_log_times.get(subsystem, -999.0)
+            if self._elapsed_time - last_warned >= self.OVERHEAT_LOG_COOLDOWN:
+                logger.warning(f"Subsystem {subsystem} OVERHEATED "
+                               f"(heat={data.heat:.1f}/{data.max_heat:.1f})")
+                self._overheat_log_times[subsystem] = self._elapsed_time
 
         return {
             "ok": True,
@@ -548,6 +564,7 @@ class DamageModel:
             event_bus: Optional EventBus for cooldown events
             ship_id: Optional ship ID for event context
         """
+        self._elapsed_time += dt
         for name, data in self.subsystems.items():
             was_overheated = data.is_overheated()
             data.dissipate_heat(dt)

@@ -176,7 +176,7 @@ class UnifiedServer:
             return Response.error("missing cmd", ErrorCode.MISSING_PARAM).to_dict()
 
         # Rate limiting (skip for state polling and discovery)
-        if cmd not in ("get_state", "get_events", "get_combat_log", "_discover", "_ping", "list_ship_classes"):
+        if cmd not in ("get_state", "get_events", "get_combat_log", "_discover", "_ping", "_resume_session", "list_ship_classes"):
             if not self.rate_limiter.allow(client_id):
                 return Response.error(
                     "Rate limited: too many commands", ErrorCode.BAD_REQUEST
@@ -188,6 +188,10 @@ class UnifiedServer:
                 "ok": True,
                 **self.config.to_discovery_info(),
             }
+
+        # Handle session resumption (ws_bridge reconnect)
+        if cmd == "_resume_session":
+            return self._handle_resume_session(client_id, req)
 
         # Server-authoritative parameter validation
         is_valid, error_msg, sanitized = validate_command_params(cmd, req)
@@ -405,6 +409,51 @@ class UnifiedServer:
                 self.ai_crew_manager.activate_station(_pre_release_ship, _pre_release_station)
 
         return result.to_dict()
+
+    def _handle_resume_session(self, client_id: str, req: dict) -> dict:
+        """
+        Handle session resumption after ws_bridge TCP reconnect.
+
+        When the ws_bridge loses its TCP connection and reconnects, the
+        server assigns a new client_id. This command lets the bridge
+        send its old client_id so the server can migrate the old
+        session state (ship assignment, station claim) to the new ID,
+        preventing orphan sessions.
+
+        Args:
+            client_id: The new client_id assigned on this connection
+            req: Request with 'old_client_id' field
+
+        Returns:
+            Response indicating whether migration succeeded
+        """
+        if not self.station_manager:
+            return {"ok": False, "error": "Session resume only available in station mode"}
+
+        old_client_id = req.get("old_client_id")
+        if not old_client_id:
+            return Response.error("missing old_client_id", ErrorCode.MISSING_PARAM).to_dict()
+
+        if old_client_id == client_id:
+            return {"ok": True, "message": "Same session, no migration needed"}
+
+        migrated = self.station_manager.migrate_session(old_client_id, client_id)
+
+        if migrated:
+            session = self.station_manager.get_session(client_id)
+            return {
+                "ok": True,
+                "message": "Session resumed",
+                "client_id": client_id,
+                "ship_id": session.ship_id if session else None,
+                "station": session.station.value if session and session.station else None,
+            }
+
+        return {
+            "ok": True,
+            "message": "No previous session to resume",
+            "client_id": client_id,
+        }
 
     def _handle_get_state_minimal(self, req: dict) -> dict:
         """Handle get_state in minimal mode."""
