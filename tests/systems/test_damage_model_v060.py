@@ -512,7 +512,7 @@ class TestSchemaHeatDefaults:
 
         settings = get_heat_settings("propulsion")
         assert settings["max_heat"] == 200.0
-        assert settings["heat_generation"] == 9e-05
+        assert settings["heat_generation"] == 5e-05
         assert settings["overheat_penalty"] == 0.6
 
     def test_weapons_heat_settings(self):

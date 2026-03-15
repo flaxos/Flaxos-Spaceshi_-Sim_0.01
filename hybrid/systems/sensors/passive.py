@@ -178,9 +178,12 @@ class PassiveSensor:
         # Merge new detections with existing contacts (don't drop on failed re-detect)
         for existing_id, existing_contact in self.contacts.items():
             if existing_id not in detected:
+                # Degrade confidence on missed re-detection, but never drop below
+                # a minimum floor — the ship still exists and emits IR, so it
+                # should remain as a degraded contact rather than vanishing.
                 existing_contact.confidence *= 0.95
-                if existing_contact.confidence > 0.1:
-                    detected[existing_id] = existing_contact
+                existing_contact.confidence = max(existing_contact.confidence, 0.05)
+                detected[existing_id] = existing_contact
             else:
                 new_contact = detected[existing_id]
                 new_contact.confidence = max(new_contact.confidence, existing_contact.confidence)

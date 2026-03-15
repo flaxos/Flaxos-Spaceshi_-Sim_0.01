@@ -58,6 +58,7 @@ class TCPConnection:
         self._lock = asyncio.Lock()
         self.client_id: Optional[str] = None
         self.welcome_data: Optional[dict] = None
+        self._previous_client_id: Optional[str] = None
 
     async def connect(self) -> bool:
         """Establish connection to TCP server."""
@@ -89,6 +90,13 @@ class TCPConnection:
                     # Minimal mode doesn't send a welcome -- timeout is fine
                     pass
 
+                # Resume previous session if we had one (reconnect case).
+                # This tells the server to migrate the old session's ship
+                # assignment and station claim to our new client_id, instead
+                # of leaving an orphan session behind.
+                if self._previous_client_id and self.client_id:
+                    await self._resume_session()
+
                 return True
             except (ConnectionRefusedError, asyncio.TimeoutError, OSError) as e:
                 logger.warning(f"TCP connection failed: {e}")
@@ -96,7 +104,7 @@ class TCPConnection:
                 return False
 
     async def disconnect(self):
-        """Close TCP connection."""
+        """Close TCP connection, preserving client_id for session resume."""
         async with self._lock:
             if self.writer:
                 try:
@@ -107,8 +115,40 @@ class TCPConnection:
             self.reader = None
             self.writer = None
             self.connected = False
+            # Preserve client_id as _previous_client_id so reconnect can
+            # resume the server-side session instead of leaking an orphan.
+            if self.client_id:
+                self._previous_client_id = self.client_id
             self.client_id = None
             self.welcome_data = None
+
+    async def _resume_session(self) -> None:
+        """Send _resume_session to migrate the old server session to our new client_id."""
+        resume_msg = json.dumps({
+            "cmd": "_resume_session",
+            "old_client_id": self._previous_client_id,
+        }) + "\n"
+        try:
+            self.writer.write(resume_msg.encode("utf-8"))
+            await self.writer.drain()
+            response = await asyncio.wait_for(
+                self.reader.readline(), timeout=5.0
+            )
+            if response:
+                data = json.loads(response.decode("utf-8"))
+                if data.get("ok"):
+                    logger.info(
+                        f"Session resumed: {self._previous_client_id} -> "
+                        f"{self.client_id} ({data.get('message', '')})"
+                    )
+                else:
+                    logger.warning(
+                        f"Session resume failed: {data.get('error', 'unknown')}"
+                    )
+        except (asyncio.TimeoutError, json.JSONDecodeError, OSError) as e:
+            logger.warning(f"Session resume error: {e}")
+        finally:
+            self._previous_client_id = None
 
     async def send_receive(self, message: str) -> Optional[str]:
         """Send message and receive response from TCP server."""
@@ -130,6 +170,10 @@ class TCPConnection:
                 return response.decode("utf-8").strip()
             except (asyncio.TimeoutError, ConnectionResetError, BrokenPipeError) as e:
                 logger.warning(f"TCP communication error: {e}")
+                # Preserve client_id for session resume on reconnect
+                if self.client_id:
+                    self._previous_client_id = self.client_id
+                    self.client_id = None
                 self.connected = False
                 return None
 
@@ -343,7 +387,20 @@ class WSBridge:
                 if not tcp.connected:
                     connected = await tcp.connect()
                     if connected:
-                        await self._send_status(ws, "tcp_connected", tcp)
+                        # Send reconnect status with updated client_id
+                        status_data = {
+                            "status": "tcp_reconnected",
+                            "tcp_connected": True,
+                            "tcp_host": tcp.host,
+                            "tcp_port": tcp.port,
+                        }
+                        if tcp.client_id:
+                            status_data["client_id"] = tcp.client_id
+                        envelope = WSEnvelope.status(**status_data)
+                        try:
+                            await ws.send(envelope.to_wire())
+                        except Exception:
+                            pass
             await asyncio.sleep(5)
 
     async def start(self):

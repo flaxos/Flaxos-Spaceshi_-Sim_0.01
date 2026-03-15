@@ -249,3 +249,56 @@ def test_disconnect_client(manager):
     # Station should be released
     owner = manager.get_station_owner("test_ship_001", StationType.HELM)
     assert owner is None
+
+
+def test_reassign_same_ship_preserves_station(manager):
+    """Re-assigning a client to the same ship must NOT release its station.
+
+    Regression test: the GUI's station-selector sends assign_ship after
+    load_scenario already auto-assigned the client.  The second assign_to_ship
+    was releasing the captain station claim, leaving the client with no station
+    and all subsequent commands failing with 'No station claimed'.
+    """
+    client_id = manager.generate_client_id()
+    manager.register_client(client_id, "test_player")
+    manager.assign_to_ship(client_id, "test_ship_001")
+    manager.claim_station(client_id, "test_ship_001", StationType.CAPTAIN)
+
+    session = manager.sessions[client_id]
+    assert session.station == StationType.CAPTAIN
+
+    # Re-assign to the SAME ship — station must survive
+    result = manager.assign_to_ship(client_id, "test_ship_001")
+    assert result is True
+
+    session = manager.sessions[client_id]
+    assert session.station == StationType.CAPTAIN
+    assert session.ship_id == "test_ship_001"
+
+    # The station claim itself must still be in the claims dict
+    owner = manager.get_station_owner("test_ship_001", StationType.CAPTAIN)
+    assert owner == client_id
+
+
+def test_reregister_preserves_session(manager):
+    """Re-registering the same client_id must preserve the existing session.
+
+    Regression test: the GUI sends register_client on reconnect, which was
+    creating a brand-new ClientSession with station=None, wiping the previous
+    ship assignment and station claim.
+    """
+    client_id = manager.generate_client_id()
+    manager.register_client(client_id, "test_player")
+    manager.assign_to_ship(client_id, "test_ship_001")
+    manager.claim_station(client_id, "test_ship_001", StationType.CAPTAIN)
+
+    # Re-register with a different name — session must survive
+    session = manager.register_client(client_id, "new_name")
+
+    assert session.player_name == "new_name"
+    assert session.ship_id == "test_ship_001"
+    assert session.station == StationType.CAPTAIN
+
+    # Ensure can_issue_command still works
+    allowed, _ = manager.can_issue_command(client_id, "test_ship_001", "set_thrust")
+    assert allowed is True

@@ -61,8 +61,24 @@ class BaseAutopilot(ABC):
 
         # Fallback: look up directly in all_ships (handles raw ship IDs like target_station)
         all_ships = getattr(self.ship, "_all_ships_ref", [])
+
+        # If target_id is a stable contact ID (e.g. C001), resolve to the
+        # original ship ID via the contact tracker's id_mapping so the
+        # all_ships fallback can match.
+        lookup_ids = {self.target_id}
+        if sensors and hasattr(sensors, "contact_tracker"):
+            tracker = sensors.contact_tracker
+            # Reverse lookup: stable_id -> real_ship_id
+            for real_id, stable_id in tracker.id_mapping.items():
+                if stable_id == self.target_id:
+                    lookup_ids.add(real_id)
+            # Forward lookup: real_ship_id -> stable_id (in case target_id is a real id)
+            mapped = tracker.id_mapping.get(self.target_id)
+            if mapped:
+                lookup_ids.add(mapped)
+
         for ship in all_ships:
-            if getattr(ship, "id", None) == self.target_id:
+            if getattr(ship, "id", None) in lookup_ids:
                 if not self._target_warned:
                     logger.info(f"Autopilot: target '{self.target_id}' found via direct ship lookup (not in sensor contacts)")
                     self._target_warned = True

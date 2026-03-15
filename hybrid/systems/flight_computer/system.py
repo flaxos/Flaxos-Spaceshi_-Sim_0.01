@@ -188,7 +188,9 @@ class FlightComputer(BaseSystem):
         """Disengage flight computer, pass-through to manual control."""
         nav = ship.systems.get("navigation")
         if nav and nav.controller:
-            nav.controller.disengage_autopilot()
+            nav.controller.disengage_autopilot(
+                reason="flight computer manual override"
+            )
 
         self._mode = "manual"
         self._command_name = ""
@@ -203,7 +205,7 @@ class FlightComputer(BaseSystem):
 
         nav = ship.systems.get("navigation")
         if nav and nav.controller:
-            nav.controller.disengage_autopilot()
+            nav.controller.disengage_autopilot(reason="flight computer abort")
 
         self._mode = "idle"
         self._command_name = ""
