@@ -186,6 +186,11 @@ class CombatSystem(BaseSystem):
             return error_dict("UNKNOWN_WEAPON", f"Weapon '{weapon_id}' not found")
 
         if self._damage_factor <= 0.0:
+            # Distinguish overheated (temporary) from destroyed (permanent)
+            if hasattr(self._ship_ref, 'damage_model'):
+                weapons_sub = self._ship_ref.damage_model.subsystems.get("weapons")
+                if weapons_sub and weapons_sub.is_overheated():
+                    return error_dict("WEAPONS_OVERHEATED", "Weapons offline — overheating, wait for cooldown")
             return error_dict("WEAPONS_DESTROYED", "Weapons system has failed")
 
         # Cold-drift mode disables all weapons (reactor offline)
@@ -316,6 +321,11 @@ class CombatSystem(BaseSystem):
                               f"Torpedo tube cycling ({self._torpedo_cooldown:.1f}s remaining)")
 
         if self._damage_factor <= 0.0:
+            # Distinguish overheated (temporary) from destroyed (permanent)
+            if hasattr(self._ship_ref, 'damage_model'):
+                weapons_sub = self._ship_ref.damage_model.subsystems.get("weapons")
+                if weapons_sub and weapons_sub.is_overheated():
+                    return error_dict("WEAPONS_OVERHEATED", "Weapons offline — overheating, wait for cooldown")
             return error_dict("WEAPONS_DESTROYED", "Weapons system has failed")
 
         if getattr(self._ship_ref, "_cold_drift_active", False):

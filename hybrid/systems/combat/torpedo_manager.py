@@ -338,16 +338,18 @@ class TorpedoManager:
         # Fallback: check sensor contacts
         sensors = launcher.systems.get("sensors") if hasattr(launcher, "systems") else None
         if sensors and hasattr(sensors, "contact_tracker"):
-            contacts = sensors.contact_tracker.get_all_contacts(getattr(launcher, "sim_time", 0))
-            for cid, contact in contacts.items():
-                real_id = getattr(contact, "real_ship_id", None)
-                if real_id == torpedo.target_id:
+            # Reverse-lookup: find the stable contact ID for the torpedo's target ship ID
+            tracker = sensors.contact_tracker
+            stable_id = tracker.id_mapping.get(torpedo.target_id)
+            if stable_id:
+                contact = tracker.contacts.get(stable_id)
+                if contact:
                     pos = getattr(contact, "position", None)
                     vel = getattr(contact, "velocity", None)
                     if pos:
-                        torpedo.last_target_pos = dict(pos) if isinstance(pos, dict) else {"x": pos.get("x", 0), "y": pos.get("y", 0), "z": pos.get("z", 0)}
+                        torpedo.last_target_pos = dict(pos)
                     if vel:
-                        torpedo.last_target_vel = dict(vel) if isinstance(vel, dict) else {"x": vel.get("x", 0), "y": vel.get("y", 0), "z": vel.get("z", 0)}
+                        torpedo.last_target_vel = dict(vel)
                     return
 
     def _update_guidance(self, torpedo: Torpedo, target_ship, dt: float, sim_time: float):

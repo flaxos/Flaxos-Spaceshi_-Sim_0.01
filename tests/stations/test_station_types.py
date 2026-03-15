@@ -66,7 +66,7 @@ def test_ops_commands():
     ops_cmds = get_station_commands(StationType.OPS)
     assert "set_power_profile" in ops_cmds
     assert "get_power_profiles" in ops_cmds
-    assert "override_bio_monitor" in ops_cmds
+    assert "set_power_allocation" in ops_cmds
 
 
 def test_engineering_commands():
@@ -114,7 +114,7 @@ def test_captain_can_issue_all_commands():
         "set_thrust",
         "fire_weapon",
         "ping_sensors",
-        "override_bio_monitor",
+        "set_power_allocation",
         "autopilot",
     ]
     for cmd in test_commands:

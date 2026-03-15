@@ -9,7 +9,7 @@ import json
 import logging
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 import time
 from hybrid_runner import HybridRunner
 
@@ -54,7 +54,7 @@ def save_ship_state(ship, output_dir="fleet_state"):
     try:
         os.makedirs(output_dir, exist_ok=True)
         
-        filename = f"{ship.id}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
+        filename = f"{ship.id}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.json"
         filepath = os.path.join(output_dir, filename)
         
         with open(filepath, 'w') as f:

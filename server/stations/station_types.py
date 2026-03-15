@@ -83,6 +83,11 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             "plot_intercept",
             "flip_and_burn",
             "emergency_burn",
+            # Helm control authority
+            "take_manual_control",
+            "release_to_autopilot",
+            # Flight computer
+            "flight_computer",
             # Stealth maneuver
             "cold_drift",
             "exit_cold_drift",
@@ -115,6 +120,8 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             "launch_torpedo",
             "torpedo_status",
             "assess_damage",
+            # Resupply
+            "resupply",
             # Weapon fire commands
             "fire",
             "fire_weapon",
@@ -156,7 +163,6 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             "get_power_profiles",
             "set_power_allocation",
             "get_draw_profile",
-            "override_bio_monitor",
             # Thermal management
             "activate_heat_sink",
             "deactivate_heat_sink",
