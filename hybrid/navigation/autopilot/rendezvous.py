@@ -338,19 +338,45 @@ class RendezvousAutopilot(BaseAutopilot):
                 self.phase = "burn"
 
         # Execute current phase
+        cmd: Optional[Dict] = None
         if self.phase == "burn":
             self.status = "burning"
-            return self._compute_burn(target)
+            cmd = self._compute_burn(target)
         elif self.phase == "flip":
             self.status = "flipping"
-            return self._compute_flip(rel)
+            cmd = self._compute_flip(rel)
         elif self.phase == "brake":
             self.status = "braking"
-            return self._compute_brake(rel)
+            cmd = self._compute_brake(rel)
         elif self.phase == "approach":
             self.status = "approaching"
-            return self._compute_approach(target, rel, current_range, rel_speed)
-        return self._compute_stationkeep(dt, sim_time)
+            cmd = self._compute_approach(target, rel, current_range, rel_speed)
+        else:
+            cmd = self._compute_stationkeep(dt, sim_time)
+
+        # -- Alignment guard ------------------------------------------------
+        # Expanse-style rule: NEVER fire the main drive while the ship is
+        # significantly misaligned with the commanded heading.  In hard
+        # sci-fi, thrust acts along the ship's physical nose, not the
+        # commanded direction.  Firing while pointed the wrong way pushes
+        # the ship off-course (or backward after a BRAKE->APPROACH
+        # transition where the ship is still retrograde but needs to
+        # thrust prograde).
+        #
+        # The FLIP phase is excluded because it already commands thrust=0
+        # and exists solely to rotate the ship.  Stationkeep delegates to
+        # MatchVelocityAutopilot which is a separate concern.
+        if (cmd and cmd.get("thrust", 0) > 0
+                and self.phase not in ("flip", "stationkeep")):
+            heading_err = self._heading_error(cmd.get("heading"))
+            if heading_err > 30.0:
+                logger.debug(
+                    "Rendezvous alignment guard: zeroing thrust in %s phase "
+                    "(heading error %.1f° > 30°, waiting for RCS rotation)",
+                    self.phase, heading_err)
+                cmd["thrust"] = 0.0
+
+        return cmd
 
     # ----- phase implementations -------------------------------------------
 
@@ -469,6 +495,30 @@ class RendezvousAutopilot(BaseAutopilot):
         pitch_err = abs(self._normalize_angle(
             desired.get("pitch", 0) - cur.get("pitch", 0)))
         return yaw_err < self.FLIP_TOLERANCE_DEG and pitch_err < self.FLIP_TOLERANCE_DEG
+
+    def _heading_error(self, desired_heading: Optional[Dict]) -> float:
+        """Angular error between ship's current orientation and a desired heading.
+
+        Computes the max of yaw and pitch error so that ANY axis being
+        significantly misaligned triggers the guard.  This is the right
+        metric because thrust acts along the ship's nose -- even pure
+        pitch misalignment sends thrust off-course.
+
+        Args:
+            desired_heading: Target heading {yaw, pitch, ...} in degrees,
+                             or None (returns 0.0 -- no error if no heading).
+
+        Returns:
+            Maximum of absolute yaw error and absolute pitch error in degrees.
+        """
+        if desired_heading is None:
+            return 0.0
+        cur = self.ship.orientation
+        yaw_err = abs(self._normalize_angle(
+            desired_heading.get("yaw", 0) - cur.get("yaw", 0)))
+        pitch_err = abs(self._normalize_angle(
+            desired_heading.get("pitch", 0) - cur.get("pitch", 0)))
+        return max(yaw_err, pitch_err)
 
     def _flip_heading_aligned(self, rel: Optional[Dict] = None) -> bool:
         """True if ship yaw is within FLIP_TOLERANCE_DEG of the snapshot heading.
