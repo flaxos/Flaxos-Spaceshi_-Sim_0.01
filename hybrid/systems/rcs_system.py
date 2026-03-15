@@ -194,12 +194,23 @@ class RCSSystem(BaseSystem):
         if moment_of_inertia > 0:
             # Angular acceleration (rad/s²)
             angular_accel = self.total_torque / moment_of_inertia
-            
+
             # Convert to degrees/s² and apply
             # Axis mapping: torque[0]=roll (X), torque[1]=pitch (Y), torque[2]=yaw (Z)
             ship.angular_velocity["roll"] += math.degrees(angular_accel[0]) * dt
             ship.angular_velocity["pitch"] += math.degrees(angular_accel[1]) * dt
             ship.angular_velocity["yaw"] += math.degrees(angular_accel[2]) * dt
+
+            # Clamp angular velocity to max_rate.  RCS thrusters physically
+            # cannot spin the ship faster than the control authority allows;
+            # without this clamp the PD controller can overshoot by building
+            # unchecked angular momentum during large rotations (e.g. a
+            # 180-degree flip-and-burn maneuver).
+            for axis in ("roll", "pitch", "yaw"):
+                ship.angular_velocity[axis] = max(
+                    -self.max_rate,
+                    min(self.max_rate, ship.angular_velocity[axis]),
+                )
         
         # Fuel consumption (simplified - use ship's fuel or separate RCS fuel)
         self.fuel_used += total_fuel_rate * dt
@@ -312,9 +323,14 @@ class RCSSystem(BaseSystem):
         desired_rate_yaw = max(-self.max_rate, min(self.max_rate, desired_rate_yaw))
         desired_rate_roll = max(-self.max_rate, min(self.max_rate, desired_rate_roll))
 
-        # Convert desired rates to torque request
+        # Convert desired rates to torque request.
+        # scale = I so that the requested torque produces angular acceleration
+        # equal to desired_rate (in rad/s) per second: τ = I * α.
+        # Previously scale was I*0.1, which meant the controller only
+        # requested ~3% of available RCS torque -- a 180° flip took 30+
+        # seconds instead of the theoretical ~6s.
         inertia = getattr(ship, 'moment_of_inertia', ship.mass * 10.0)
-        scale = inertia * 0.1
+        scale = inertia
 
         # Torque axes: [roll (X), pitch (Y), yaw (Z)]
         return np.array([
@@ -341,9 +357,10 @@ class RCSSystem(BaseSystem):
         yaw_error = target.get("yaw", 0) - current.get("yaw", 0)
         roll_error = target.get("roll", 0) - current.get("roll", 0)
         
-        # Simple proportional control for rate
-        scale = getattr(ship, 'moment_of_inertia', ship.mass * 10.0) * 0.1
-        
+        # Proportional control for rate: τ = I * rate_error (in rad/s)
+        # The 2x multiplier gives faster convergence to the target rate.
+        scale = getattr(ship, 'moment_of_inertia', ship.mass * 10.0)
+
         return np.array([
             math.radians(roll_error) * scale * 2.0,
             math.radians(pitch_error) * scale * 2.0,

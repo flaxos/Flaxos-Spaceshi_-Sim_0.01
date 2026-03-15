@@ -975,3 +975,201 @@ class TestAggressiveConvergence:
             "Phase history did not contain 'approach' — the phase was never entered. "
             f"Distinct phases seen: {sorted(set(result['phase_history']))}"
         )
+
+    def test_long_range_convergence_balanced(self):
+        """Balanced profile must converge from 400 km (Mission 1 distances).
+
+        This is the primary regression test for the oscillation bug where the
+        autopilot cycled BURN->FLIP->BRAKE->BURN indefinitely at long range.
+        The fix uses rel_speed for BRAKE exit and snapshot headings for FLIP.
+
+        Uses dt=0.5 for better RCS rotation resolution during the approach
+        phase (the ship must rotate from retrograde back to prograde after
+        braking, and coarse 1s ticks make this sluggish).
+        """
+        result = self._run_sim(
+            profile="balanced",
+            start_range_m=400_000.0,
+            max_ticks=30000,
+            dt=0.5,
+        )
+
+        assert result["converged"], (
+            f"Balanced profile did NOT converge from 400 km in 15000 sim-seconds. "
+            f"Final phase: {result['final_phase']!r}, "
+            f"final range: {result['final_range_m']:.1f} m, "
+            f"oscillations: {result['oscillation_count']}"
+        )
+
+        # Should converge in at most 2 burn-brake cycles (one main
+        # deceleration plus possibly one correction).  The old bug
+        # caused 10+ oscillations.
+        assert result["oscillation_count"] <= 2, (
+            f"Balanced profile oscillated {result['oscillation_count']} times "
+            f"between burn/brake from 400 km -- should be at most 2. "
+            f"Phase sequence (last 40): {result['phase_history'][-40:]}"
+        )
+
+    def test_long_range_convergence_aggressive(self):
+        """Aggressive profile must converge from 400 km without excessive oscillation."""
+        result = self._run_sim(
+            profile="aggressive",
+            start_range_m=400_000.0,
+            max_ticks=30000,
+            dt=0.5,
+        )
+
+        assert result["converged"], (
+            f"Aggressive profile did NOT converge from 400 km in 15000 sim-seconds. "
+            f"Final phase: {result['final_phase']!r}, "
+            f"final range: {result['final_range_m']:.1f} m, "
+            f"oscillations: {result['oscillation_count']}"
+        )
+
+        assert result["oscillation_count"] <= 2, (
+            f"Aggressive profile oscillated {result['oscillation_count']} times "
+            f"from 400 km -- should be at most 2."
+        )
+
+
+# ---------------------------------------------------------------------------
+# FLIP snapshot heading -- regression tests for the flip timeout bug
+# ---------------------------------------------------------------------------
+
+
+class TestFlipSnapshotHeading:
+    """Verify that FLIP uses a snapshot heading instead of live retrograde.
+
+    The old code recomputed retrograde heading each tick during flip.  If the
+    ship had lateral velocity, the retrograde direction shifted as it coasted,
+    and the RCS chased a moving target.  This caused ~50% of flips to time out.
+    """
+
+    def test_flip_stores_snapshot_heading(self):
+        """When transitioning BURN->FLIP, the autopilot must store
+        _flip_target_heading as a snapshot of the retrograde heading."""
+        target = _make_target({"x": 1000.0, "y": 0.0, "z": 0.0})
+        ship = _make_ship(
+            position={"x": 0.0, "y": 0.0, "z": 0.0},
+            velocity={"x": 200.0, "y": 10.0, "z": 0.0},
+            target=target,
+        )
+        ap = RendezvousAutopilot(ship, target_id="T001")
+        ap.phase = "burn"
+
+        assert ap._flip_target_heading is None
+
+        ap.compute(0.1, 0.0)
+
+        # Should have transitioned to flip and stored the heading
+        assert ap.phase == "flip"
+        assert ap._flip_target_heading is not None
+        assert "yaw" in ap._flip_target_heading
+
+    def test_flip_heading_does_not_change_during_coast(self):
+        """Once in FLIP, the snapshot heading must not change even if the
+        ship's velocity vector shifts (simulating lateral drift during coast)."""
+        target = _make_target({"x": 5000.0, "y": 0.0, "z": 0.0})
+        ship = _make_ship(
+            position={"x": 0.0, "y": 0.0, "z": 0.0},
+            velocity={"x": 50.0, "y": 5.0, "z": 0.0},
+            target=target,
+        )
+        ap = RendezvousAutopilot(ship, target_id="T001")
+        ap.phase = "burn"
+
+        # Force into flip
+        ap.compute(0.1, 0.0)
+        if ap.phase != "flip":
+            ap.phase = "flip"
+            ap._flip_target_heading = {"yaw": 170.0, "pitch": 0.0, "roll": 0.0}
+
+        snapshot = dict(ap._flip_target_heading)
+
+        # Simulate drift: change ship velocity to alter retrograde direction
+        ship.velocity = {"x": 50.0, "y": 30.0, "z": 0.0}
+        ap.compute(0.1, 1.0)
+
+        # Snapshot must be unchanged
+        assert ap._flip_target_heading == snapshot, (
+            f"Flip heading changed during coast: was {snapshot}, "
+            f"now {ap._flip_target_heading}"
+        )
+
+    def test_flip_snapshot_cleared_on_brake_entry(self):
+        """The snapshot heading should be cleared when transitioning to BRAKE."""
+        target = _make_target({"x": 5000.0, "y": 0.0, "z": 0.0})
+        ship = _make_ship(
+            position={"x": 0.0, "y": 0.0, "z": 0.0},
+            velocity={"x": 50.0, "y": 0.0, "z": 0.0},
+            # Ship already facing retrograde
+            orientation={"pitch": 0.0, "yaw": 180.0, "roll": 0.0},
+            target=target,
+        )
+        ap = RendezvousAutopilot(ship, target_id="T001")
+        ap.phase = "flip"
+        ap._flip_target_heading = {"yaw": 180.0, "pitch": 0.0, "roll": 0.0}
+        ap._flip_entered_time = 0.0
+
+        ap.compute(0.1, 1.0)
+
+        assert ap.phase == "brake"
+        assert ap._flip_target_heading is None
+
+
+# ---------------------------------------------------------------------------
+# BRAKE exit uses rel_speed not clamped closing_speed
+# ---------------------------------------------------------------------------
+
+
+class TestBrakeRelSpeedThreshold:
+    """Verify BRAKE phase uses rel_speed (full velocity magnitude) for exit,
+    not just the radial closing_speed which was clamped to 0 when opening.
+
+    The old bug: ship decelerates from 2000 m/s to 0 closing speed.  The
+    range_rate flips slightly positive (ship starts drifting away).  The old
+    code clamped closing_speed to 0 and immediately exited BRAKE, even though
+    the ship still had massive velocity in the lateral component.
+    """
+
+    def test_brake_stays_when_high_rel_speed(self):
+        """BRAKE must NOT exit when closing_speed is near zero but rel_speed
+        is still high (e.g. ship has lateral velocity)."""
+        target = _make_target({"x": 20000.0, "y": 0.0, "z": 0.0})
+        ship = _make_ship(
+            position={"x": 0.0, "y": 0.0, "z": 0.0},
+            # Mostly lateral velocity: closing_speed ~ 0 but rel_speed = 200 m/s
+            velocity={"x": 0.5, "y": 200.0, "z": 0.0},
+            target=target,
+        )
+        ap = RendezvousAutopilot(ship, target_id="T001")
+        ap.phase = "brake"
+
+        ap.compute(0.1, 0.0)
+
+        # Should stay in brake because rel_speed (200 m/s) is still high
+        assert ap.phase == "brake", (
+            f"Expected to stay in brake with high lateral velocity, "
+            f"got {ap.phase!r}"
+        )
+
+    def test_brake_exits_when_rel_speed_is_low(self):
+        """BRAKE exits normally when rel_speed drops below threshold."""
+        target = _make_target({"x": 20000.0, "y": 0.0, "z": 0.0})
+        ship = _make_ship(
+            position={"x": 0.0, "y": 0.0, "z": 0.0},
+            # Very low velocity in all components
+            velocity={"x": -0.1, "y": 0.5, "z": 0.0},
+            target=target,
+        )
+        ap = RendezvousAutopilot(ship, target_id="T001")
+        ap.phase = "brake"
+
+        ap.compute(0.1, 0.0)
+
+        # rel_speed ~ 0.5 m/s, well below threshold (25 m/s)
+        # range 20km > approach_range 5km, so should go to BURN
+        assert ap.phase == "burn", (
+            f"Expected BRAKE->BURN with low rel_speed at long range, "
+            f"got {ap.phase!r}"
+        )

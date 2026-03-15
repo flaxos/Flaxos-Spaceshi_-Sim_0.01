@@ -9,8 +9,26 @@ from hybrid.navigation.relative_motion import vector_to_heading
 
 logger = logging.getLogger(__name__)
 
+# --- Deadband thresholds ---
+# Below these values the ship is considered "stopped" or "on station".
+# Prevents thruster chatter from floating-point drift or sub-meter oscillation.
+_VELOCITY_DEADBAND = 0.5      # m/s — below this, velocity is "zero"
+_POSITION_DEADBAND = 50.0     # m — below this, position is "on station"
+
+
 class HoldPositionAutopilot(BaseAutopilot):
-    """Autopilot to hold current position (station-keeping)."""
+    """Autopilot to hold current position (station-keeping).
+
+    Two-phase approach:
+      1. DECEL — kill all velocity with a retrograde burn.
+      2. HOLD  — maintain position with small correction burns.
+
+    Phase 1 always takes priority.  If the ship is engaged at 500 m/s
+    it will burn retrograde until speed drops below the velocity deadband
+    before it even looks at positional drift.  This prevents the old bug
+    where the autopilot aimed at the hold point while still carrying
+    enormous velocity, producing an endless spiral.
+    """
 
     def __init__(self, ship, target_id: Optional[str] = None, params: Dict = None):
         """Initialize hold position autopilot.
@@ -19,76 +37,102 @@ class HoldPositionAutopilot(BaseAutopilot):
             ship: Ship under control
             target_id: Unused (holds current position)
             params: Additional parameters:
-                - tolerance: Position hold tolerance (m), default 10.0
-                - max_thrust: Maximum thrust to use (0-1), default 0.5
+                - tolerance: Position hold tolerance (m), default 50.0
+                - velocity_tolerance: Speed tolerance (m/s), default 0.5
+                - max_thrust: Maximum thrust to use (0-1), default 1.0
         """
         super().__init__(ship, target_id, params)
 
         # Record initial position to hold
         self.hold_position = dict(ship.position)
-        self.tolerance = params.get("tolerance", 10.0)
-        self.max_thrust = params.get("max_thrust", 0.5)
+        self.tolerance = params.get("tolerance", _POSITION_DEADBAND)
+        self.velocity_tolerance = params.get("velocity_tolerance", _VELOCITY_DEADBAND)
+        self.max_thrust = params.get("max_thrust", 1.0)
 
-        self.status = "active"
+        self.status = "decelerating"
         logger.info(f"Hold position engaged at {self.hold_position}")
 
     def compute(self, dt: float, sim_time: float) -> Optional[Dict]:
-        """Compute thrust to maintain position.
+        """Compute thrust to decelerate then maintain position.
+
+        Priority order:
+          1. If speed > deadband → burn retrograde (decel phase).
+          2. If position drift > tolerance → correct back toward hold point,
+             but blend in a braking component so we don't overshoot.
+          3. Otherwise → thrust zero, hold station.
 
         Args:
             dt: Time delta
             sim_time: Current simulation time
 
         Returns:
-            dict: Thrust command or None
+            dict: Thrust command {thrust, heading}
         """
-        # Calculate drift from hold position
+        current_speed = magnitude(self.ship.velocity)
         drift = subtract_vectors(self.hold_position, self.ship.position)
         drift_magnitude = magnitude(drift)
 
-        # Check if within tolerance
-        if drift_magnitude < self.tolerance:
-            # Close enough - just null velocity
-            current_speed = magnitude(self.ship.velocity)
-
-            if current_speed < 0.1:
-                self.status = "holding"
-                return {
-                    "thrust": 0.0,
-                    "heading": self.ship.orientation
-                }
-
-            # Thrust against velocity to stop drift
-            # Reverse velocity vector
-            velocity_reversed = {
+        # ----- Phase 1: Kill velocity -----
+        # This fires whenever the ship has meaningful velocity, regardless
+        # of position.  Without this the old code would aim at the hold
+        # point while still doing hundreds of m/s and never converge.
+        if current_speed > self.velocity_tolerance:
+            # Pure retrograde burn — point opposite to velocity vector.
+            retro = {
                 "x": -self.ship.velocity["x"],
                 "y": -self.ship.velocity["y"],
-                "z": -self.ship.velocity["z"]
+                "z": -self.ship.velocity["z"],
             }
+            desired_heading = vector_to_heading(retro)
 
-            desired_heading = vector_to_heading(velocity_reversed)
-            thrust = min(self.max_thrust, current_speed / 10.0)  # Proportional to speed
+            # Proportional thrust: full power when fast, gentle when slow.
+            # The divisor (10 m/s) means we reach max_thrust at 10 m/s and
+            # taper linearly below that to avoid overshoot.
+            thrust = min(self.max_thrust, current_speed / 10.0)
 
-            logger.debug(f"Hold: Nulling velocity {current_speed:.2f} m/s")
+            # If we're also drifting away from the hold point AND our
+            # velocity is carrying us further away, use full thrust — no
+            # reason to be gentle when we're both fast and diverging.
+            if drift_magnitude > self.tolerance:
+                thrust = self.max_thrust
 
+            self.status = "decelerating"
+            logger.debug(
+                "Hold: Decelerating — speed %.1f m/s, drift %.0f m, thrust %.2f",
+                current_speed, drift_magnitude, thrust,
+            )
             return {
                 "thrust": self._clamp_thrust(thrust),
-                "heading": desired_heading
+                "heading": desired_heading,
             }
 
-        # Drifted too far - thrust back toward hold position
-        self.status = "correcting"
+        # ----- Phase 2: Correct positional drift -----
+        if drift_magnitude > self.tolerance:
+            self.status = "correcting"
 
-        desired_heading = vector_to_heading(drift)
+            desired_heading = vector_to_heading(drift)
 
-        # Thrust proportional to drift
-        thrust = min(self.max_thrust, drift_magnitude / 100.0)
+            # Gentle proportional thrust — we're nearly stopped, so a
+            # small nudge goes a long way.  Cap relative to drift so we
+            # don't slam back and oscillate.
+            thrust = min(self.max_thrust, drift_magnitude / 500.0)
+            # Floor at a tiny value so we actually move
+            thrust = max(0.02, thrust)
 
-        logger.debug(f"Hold: Correcting drift {drift_magnitude:.1f}m, thrust={thrust:.2f}")
+            logger.debug(
+                "Hold: Correcting drift %.1f m, thrust %.2f",
+                drift_magnitude, thrust,
+            )
+            return {
+                "thrust": self._clamp_thrust(thrust),
+                "heading": desired_heading,
+            }
 
+        # ----- Phase 3: On station -----
+        self.status = "holding"
         return {
-            "thrust": self._clamp_thrust(thrust),
-            "heading": desired_heading
+            "thrust": 0.0,
+            "heading": self.ship.orientation,
         }
 
     def get_state(self) -> Dict:

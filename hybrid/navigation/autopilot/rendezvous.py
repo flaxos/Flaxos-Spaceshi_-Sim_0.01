@@ -14,6 +14,20 @@ has bled most of its closing speed but is still too far for stationkeep,
 approach uses proportional thrust to creep in without rebuilding excessive
 velocity.  This eliminates the oscillation where aggressive profiles
 would overshoot, re-burn, overshoot again and never converge.
+
+Key design decisions (bug fixes from 2026-03-15):
+  - FLIP uses a snapshot of the retrograde heading at entry, not the
+    live (shifting) retrograde vector.  This prevents RCS from chasing
+    a moving target and timing out.
+  - BRAKE exit uses rel_speed (magnitude of relative velocity) instead
+    of clamped closing_speed.  The old code clamped closing_speed to 0
+    when range_rate flipped positive, causing immediate BRAKE exit even
+    though the ship still had significant velocity.  Now BRAKE stays
+    active until rel_speed drops below a threshold proportional to the
+    approach speed limit.
+  - BRAKE->BURN only fires when rel_speed is low AND range is large.
+    This prevents the oscillation where the ship decelerates, briefly
+    hits zero closing speed, re-burns, and repeats forever.
 """
 
 import logging
@@ -38,7 +52,7 @@ NAV_PROFILES: Dict[str, Dict] = {
         "max_thrust": 1.0,
         "brake_margin": 1.1,
         "flip_safety_factor": 1.0,
-        "approach_range": 10_000.0,      # metres — enter approach phase within this range
+        "approach_range": 10_000.0,      # metres -- enter approach phase within this range
         "description": "Full burn, minimal safety margin. Fastest but risks overshoot.",
         "risk_level": "high",
     },
@@ -60,6 +74,12 @@ NAV_PROFILES: Dict[str, Dict] = {
     },
 }
 
+# Threshold for considering braking "done": rel_speed must drop below
+# this fraction of APPROACH_SPEED_LIMIT before BRAKE will exit.
+# This prevents premature BRAKE exit when closing_speed briefly hits
+# zero but the ship still has significant lateral or residual velocity.
+_BRAKE_DONE_SPEED_FACTOR = 0.5
+
 
 class RendezvousAutopilot(BaseAutopilot):
     """Flip-and-burn autopilot for arriving at a stationary or slow target.
@@ -78,7 +98,7 @@ class RendezvousAutopilot(BaseAutopilot):
     STATIONKEEP_RANGE = 100.0       # metres
     STATIONKEEP_SPEED = 1.0         # m/s relative
     FLIP_TOLERANCE_DEG = 10.0       # degrees
-    APPROACH_SPEED_LIMIT = 50.0     # m/s — mini-brake in approach if exceeded
+    APPROACH_SPEED_LIMIT = 50.0     # m/s -- mini-brake in approach if exceeded
 
     def __init__(self, ship, target_id: Optional[str] = None,
                  params: Optional[Dict] = None):
@@ -117,6 +137,10 @@ class RendezvousAutopilot(BaseAutopilot):
         self._match_ap: Optional[MatchVelocityAutopilot] = None
         self._flip_entered_time: Optional[float] = None
         self._flip_entered_range: Optional[float] = None
+        # Snapshot of the retrograde heading at flip entry.  Using a fixed
+        # heading prevents the RCS from chasing a moving target as the
+        # velocity vector drifts during unpowered coast.
+        self._flip_target_heading: Optional[Dict] = None
         self.status = "active"
         if not target_id:
             self.status = "error"
@@ -190,17 +214,31 @@ class RendezvousAutopilot(BaseAutopilot):
 
         rel = calculate_relative_motion(self.ship, target)
         current_range: float = rel["range"]
-        closing_speed: float = -rel["range_rate"] if rel["closing"] else 0.0
+        # Signed closing speed: positive = closing, negative = opening.
+        # Unlike the old code which clamped to 0 when not closing, we
+        # keep the true value so BRAKE can distinguish "just stopped"
+        # from "drifting away".
+        closing_speed: float = -rel["range_rate"]
 
         # Station-keep handoff (highest priority)
         rel_speed = magnitude(rel["relative_velocity_vector"])
         if current_range <= self.stationkeep_range and rel_speed < self.stationkeep_speed:
             self.phase = "stationkeep"
             self.status = "stationkeeping"
+            self._flip_target_heading = None
             return self._compute_stationkeep(dt, sim_time)
 
         a_max = self._get_max_accel()
-        d_trigger = self._corrected_braking_distance(closing_speed, a_max)
+        # Use max(closing_speed, 0) for braking distance calc -- negative
+        # closing speed means we are opening, so braking distance is 0.
+        d_trigger = self._corrected_braking_distance(
+            max(closing_speed, 0.0), a_max)
+
+        # Speed threshold below which BRAKE considers deceleration "done".
+        # Using rel_speed (magnitude of full relative velocity vector)
+        # instead of just the radial closing_speed prevents premature exit
+        # when the ship has significant lateral drift.
+        brake_done_speed = self.APPROACH_SPEED_LIMIT * _BRAKE_DONE_SPEED_FACTOR
 
         # Phase transitions
         if self.phase == "burn":
@@ -213,11 +251,22 @@ class RendezvousAutopilot(BaseAutopilot):
                 self.phase = "flip"
                 self._flip_entered_time = sim_time
                 self._flip_entered_range = current_range
+                # Snapshot the retrograde heading at flip entry so the RCS
+                # has a stable target to rotate toward.  During coast the
+                # velocity vector drifts (lateral motion, target velocity),
+                # and chasing a moving heading caused ~50% of flips to time
+                # out because the RCS could never converge.
+                self._flip_target_heading = self._retrograde_heading(rel)
         elif self.phase == "flip":
-            if self._heading_is_retrograde(rel):
-                logger.info("Rendezvous: FLIP -> BRAKE (aligned retrograde)")
+            # Check alignment against the SNAPSHOT heading, not live
+            # retrograde.  This is the key fix for the flip timeout bug.
+            # Pass rel as fallback in case no snapshot exists (external
+            # phase override or edge case).
+            if self._flip_heading_aligned(rel):
+                logger.info("Rendezvous: FLIP -> BRAKE (aligned to snapshot heading)")
                 self.phase = "brake"
                 self._flip_entered_time = None
+                self._flip_target_heading = None
             elif self._flip_entered_time is not None:
                 # Safety: if the flip takes much longer than expected the
                 # ship is overshooting while coasting unpowered.  Cap at
@@ -234,16 +283,24 @@ class RendezvousAutopilot(BaseAutopilot):
                     )
                     self.phase = "brake"
                     self._flip_entered_time = None
+                    self._flip_target_heading = None
         elif self.phase == "brake":
-            if closing_speed <= 0 and current_range > self.stationkeep_range:
-                # Only re-burn if we're far away.  If within approach_range
-                # the full burn-flip-brake cycle would just oscillate, so
-                # switch to gentle proportional approach instead.
+            # BRAKE exit condition: rel_speed must be LOW, not just
+            # closing_speed <= 0.  The old code used the clamped
+            # closing_speed which dropped to 0 the instant range_rate
+            # flipped positive, causing immediate BRAKE exit even with
+            # 2000 m/s of relative velocity.  Now we require the ship
+            # to actually slow down before deciding what to do next.
+            if rel_speed < brake_done_speed and current_range > self.stationkeep_range:
                 if current_range > self.approach_range:
+                    # Still far away -- need another burn cycle.  But
+                    # rel_speed is low, so this is a controlled re-burn,
+                    # not the old oscillation where BRAKE exited at full
+                    # speed and immediately re-triggered the flip.
                     logger.info(
-                        "Rendezvous: BRAKE -> BURN (lost closing speed, "
+                        "Rendezvous: BRAKE -> BURN (decelerated to %.1f m/s, "
                         "range %.0f m > approach_range %.0f m)",
-                        current_range, self.approach_range)
+                        rel_speed, current_range, self.approach_range)
                     self.phase = "burn"
                 else:
                     logger.info(
@@ -286,8 +343,18 @@ class RendezvousAutopilot(BaseAutopilot):
                 "heading": vector_to_heading(vec)}
 
     def _compute_flip(self, rel: Dict) -> Dict:
-        """Command retrograde heading, zero thrust while RCS rotates."""
-        return {"thrust": 0.0, "heading": self._retrograde_heading(rel)}
+        """Command the snapshot retrograde heading, zero thrust while RCS rotates.
+
+        Uses the heading captured at flip entry rather than the live
+        retrograde vector.  This gives the RCS a fixed target to converge
+        on instead of chasing a moving heading as the velocity vector
+        drifts during unpowered coast.
+        """
+        heading = self._flip_target_heading
+        if heading is None:
+            # Fallback if somehow no snapshot (should not happen)
+            heading = self._retrograde_heading(rel)
+        return {"thrust": 0.0, "heading": heading}
 
     def _compute_brake(self, rel: Dict) -> Dict:
         """Thrust retrograde to bleed closing speed."""
@@ -296,28 +363,55 @@ class RendezvousAutopilot(BaseAutopilot):
 
     def _compute_approach(self, target, rel: Dict, current_range: float,
                           rel_speed: float) -> Dict:
-        """Proportional thrust to close remaining distance without oscillating.
+        """Velocity-governed approach: desired closing speed proportional to range.
 
-        If relative speed is too high, point retrograde and gently brake.
-        Otherwise, point toward target with thrust proportional to distance
-        so the ship naturally decelerates as it gets closer.
+        Uses a P controller that targets a closing speed proportional to
+        distance.  Far from the target the desired speed is high (up to
+        APPROACH_SPEED_LIMIT), near the target it tapers to near-zero.
+        The thrust is then proportional to (desired_speed - actual_speed),
+        which naturally prevents both overshooting and stalling.
+
+        When closing faster than desired, the ship points retrograde and
+        brakes.  When closing slower (or drifting away), it points prograde
+        and thrusts.  This eliminates the mini-oscillation where the old
+        proportional-thrust approach would build speed, hit the speed
+        limit, mini-brake, rotate back, and repeat.
         """
-        # Safety: if speed exceeds limit, mini-brake rather than
-        # risk another overshoot
-        if rel_speed > self.APPROACH_SPEED_LIMIT:
-            return {
-                "thrust": self._clamp_thrust(0.5 * self.max_thrust),
-                "heading": self._retrograde_heading(rel),
-            }
+        # Desired closing speed: proportional to distance, capped at
+        # APPROACH_SPEED_LIMIT.  Linear ramp from 0 at stationkeep_range
+        # to APPROACH_SPEED_LIMIT at approach_range.
+        effective_range = max(current_range - self.stationkeep_range, 0.0)
+        effective_approach = self.approach_range - self.stationkeep_range
+        if effective_approach > 0:
+            speed_frac = min(effective_range / effective_approach, 1.0)
+        else:
+            speed_frac = 0.0
+        desired_closing = speed_frac * self.APPROACH_SPEED_LIMIT
 
-        # Proportional thrust: more thrust when far, tapering to near-zero
-        # at stationkeep range.  Floor of 5% keeps the ship creeping in.
-        thrust_frac = max(0.05, current_range / self.approach_range)
-        thrust = self._clamp_thrust(thrust_frac * 0.5 * self.max_thrust)
+        # Actual closing speed along the line to target (positive = closing)
+        actual_closing = -rel["range_rate"]
 
-        target_pos = target.position if hasattr(target, "position") else target
-        vec = subtract_vectors(target_pos, self.ship.position)
-        return {"thrust": thrust, "heading": vector_to_heading(vec)}
+        # Speed error: positive means we need to close faster (thrust prograde),
+        # negative means we are closing too fast (thrust retrograde to brake).
+        speed_error = desired_closing - actual_closing
+
+        # Proportional thrust: scale by the ratio of speed error to max accel
+        # so the response is smooth across different ship sizes.
+        a_max = self._get_max_accel()
+        # Time constant: how many seconds of full thrust to correct the error
+        tau = 5.0  # seconds -- overdamped for stability
+        thrust_frac = abs(speed_error) / (a_max * tau) if a_max > 0 else 0.05
+        thrust_frac = max(0.02, min(thrust_frac, 0.5))
+        thrust = self._clamp_thrust(thrust_frac * self.max_thrust)
+
+        if speed_error >= 0:
+            # Need to close faster (or maintain) -- thrust toward target
+            target_pos = target.position if hasattr(target, "position") else target
+            vec = subtract_vectors(target_pos, self.ship.position)
+            return {"thrust": thrust, "heading": vector_to_heading(vec)}
+        else:
+            # Closing too fast -- brake
+            return {"thrust": thrust, "heading": self._retrograde_heading(rel)}
 
     def _compute_stationkeep(self, dt: float, sim_time: float) -> Optional[Dict]:
         """Delegate to MatchVelocityAutopilot for station-keeping."""
@@ -351,6 +445,28 @@ class RendezvousAutopilot(BaseAutopilot):
             desired.get("pitch", 0) - cur.get("pitch", 0)))
         return yaw_err < self.FLIP_TOLERANCE_DEG and pitch_err < self.FLIP_TOLERANCE_DEG
 
+    def _flip_heading_aligned(self, rel: Optional[Dict] = None) -> bool:
+        """True if ship heading is within FLIP_TOLERANCE_DEG of the snapshot heading.
+
+        Uses the heading captured at flip entry (self._flip_target_heading)
+        rather than the live retrograde vector.  This is what allows the RCS
+        to converge -- it has a fixed target instead of chasing a moving one.
+
+        Falls back to live retrograde if no snapshot is available (e.g. when
+        phase was set externally without going through BURN->FLIP transition).
+        """
+        target_heading = self._flip_target_heading
+        if target_heading is None and rel is not None:
+            target_heading = self._retrograde_heading(rel)
+        if target_heading is None:
+            return False
+        cur = self.ship.orientation
+        yaw_err = abs(self._normalize_angle(
+            target_heading.get("yaw", 0) - cur.get("yaw", 0)))
+        pitch_err = abs(self._normalize_angle(
+            target_heading.get("pitch", 0) - cur.get("pitch", 0)))
+        return yaw_err < self.FLIP_TOLERANCE_DEG and pitch_err < self.FLIP_TOLERANCE_DEG
+
     # ----- state / telemetry -----------------------------------------------
 
     def get_state(self) -> Dict:
@@ -367,7 +483,7 @@ class RendezvousAutopilot(BaseAutopilot):
 
         rel = calculate_relative_motion(self.ship, target)
         current_range = rel["range"]
-        closing_speed = -rel["range_rate"] if rel["closing"] else 0.0
+        closing_speed = max(-rel["range_rate"], 0.0)
         a_max = self._get_max_accel()
         d_brake = self._braking_distance(closing_speed, a_max)
         eta = self._estimate_eta(current_range, closing_speed, a_max)
@@ -397,7 +513,7 @@ class RendezvousAutopilot(BaseAutopilot):
             # distance / current closing speed, with a floor guess.
             if closing_speed > 0.5:
                 return distance / closing_speed
-            # Creeping — rough estimate assuming ~5 m/s average approach
+            # Creeping -- rough estimate assuming ~5 m/s average approach
             if distance > 0:
                 return distance / 5.0
             return 0.0
