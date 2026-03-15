@@ -87,6 +87,10 @@ class StationManager:
         """
         Register a new client connection.
 
+        Idempotent: if the client is already registered, returns the existing
+        session (preserving ship assignment and station claim) instead of
+        creating a blank one.
+
         Args:
             client_id: Unique client identifier
             player_name: Display name for the player
@@ -94,6 +98,12 @@ class StationManager:
         Returns:
             ClientSession object
         """
+        existing = self.sessions.get(client_id)
+        if existing is not None:
+            existing.player_name = player_name
+            logger.info(f"Client re-registered (session preserved): {client_id} ({player_name})")
+            return existing
+
         session = ClientSession(
             client_id=client_id,
             player_name=player_name,
@@ -144,6 +154,18 @@ class StationManager:
             return False
 
         session = self.sessions[client_id]
+
+        # Already assigned to this ship — preserve existing station claim
+        if session.ship_id == ship_id:
+            logger.info(
+                f"Client {client_id} already assigned to ship {ship_id}"
+                f" (station={session.station.value if session.station else 'none'}"
+                f") — skipping re-assignment"
+            )
+            # Ensure ship's station tracking is initialized
+            if ship_id not in self.claims:
+                self.claims[ship_id] = {}
+            return True
 
         # Release any existing station claim on old ship
         if session.ship_id and session.station:
@@ -429,6 +451,62 @@ class StationManager:
             session for session in self.sessions.values()
             if session.ship_id == ship_id
         ]
+
+    def migrate_session(self, old_client_id: str, new_client_id: str) -> bool:
+        """
+        Migrate an old client session's state to a new client ID.
+
+        Used when a ws_bridge TCP connection drops and reconnects: the
+        reconnected socket gets a new client_id from generate_client_id(),
+        but should inherit the old session's ship assignment and station
+        claim so the player doesn't lose their seat.
+
+        Args:
+            old_client_id: Previous client ID whose session state to transfer
+            new_client_id: New client ID to receive the state
+
+        Returns:
+            True if migration succeeded, False if old session not found
+        """
+        old_session = self.sessions.get(old_client_id)
+        new_session = self.sessions.get(new_client_id)
+
+        if not old_session:
+            logger.info(f"Session migration: old session {old_client_id} not found")
+            return False
+
+        if not new_session:
+            logger.warning(f"Session migration: new session {new_client_id} not found")
+            return False
+
+        # Transfer ship and station state
+        new_session.ship_id = old_session.ship_id
+        new_session.station = old_session.station
+        new_session.permission_level = old_session.permission_level
+        new_session.player_name = old_session.player_name
+
+        # Update station claims to point to the new client_id
+        if old_session.ship_id and old_session.station:
+            ship_claims = self.claims.get(old_session.ship_id, {})
+            claim = ship_claims.get(old_session.station)
+            if claim and claim.client_id == old_client_id:
+                claim.client_id = new_client_id
+                logger.info(
+                    f"Migrated station claim {old_session.station.value} "
+                    f"on ship {old_session.ship_id}: "
+                    f"{old_client_id} -> {new_client_id}"
+                )
+
+        # Remove old session (don't call unregister_client — that releases
+        # the station claim, which we just transferred)
+        del self.sessions[old_client_id]
+
+        logger.info(
+            f"Session migrated: {old_client_id} -> {new_client_id} "
+            f"(ship={new_session.ship_id}, "
+            f"station={new_session.station.value if new_session.station else 'none'})"
+        )
+        return True
 
     def get_all_clients(self) -> List[ClientSession]:
         """

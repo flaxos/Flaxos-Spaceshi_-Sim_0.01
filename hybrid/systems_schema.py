@@ -28,13 +28,13 @@ SUBSYSTEM_HEALTH_SCHEMA = {
         "failure_threshold": 0.25,
         # v0.6.0: Heat settings (main drive generates significant heat)
         # Formula: heat_amount = heat_generation * thrust_magnitude * dt
-        # At full thrust (50,000 N): generation = 0.00009 * 50,000 = 4.5 °C/s
-        # Net gain at full thrust: 4.5 - 2.5 (dissipation) = 2.0 °C/s
-        # Time to 60% of max_heat (120°C): 60 seconds of continuous burn
-        # Overheat (180°C): ~90 seconds — enough for a sustained intercept burn
-        # but not indefinite full thrust, forcing players to manage throttle.
+        # At full thrust (50,000 N): generation = 0.00005 * 50,000 = 2.5 °C/s
+        # Dissipation: 2.5 °C/s — equilibrium at full sustained thrust.
+        # Normal autopilot burns (< 100% throttle) never overheat.
+        # Overheat only occurs with damaged radiators, cascade effects,
+        # or combat overdrive conditions — not routine flight.
         "max_heat": 200.0,           # Drives run hot
-        "heat_generation": 0.00009,  # Heat per Newton-second of thrust
+        "heat_generation": 0.00005,  # Heat per Newton-second of thrust
         "heat_dissipation": 2.5,     # Passive cooling rate (°C/s)
         "overheat_threshold": 0.90,  # Higher tolerance for drives
         "overheat_penalty": 0.6,     # Thrust reduction when overheated
@@ -45,8 +45,13 @@ SUBSYSTEM_HEALTH_SCHEMA = {
         "criticality": 4.0,
         "failure_threshold": 0.2,
         # v0.6.0: Heat settings (RCS thrusters generate less heat)
+        # Formula: heat_amount = heat_generation * torque_magnitude * dt
+        # Typical attitude hold: ~50 Nm torque → 0.002 * 50 = 0.1 °C/s (negligible)
+        # Aggressive combat maneuvering: ~2500 Nm → 0.002 * 2500 = 5.0 °C/s
+        # Net at combat maneuvering: 5.0 - 2.0 = 3.0 °C/s → overheat (64°C) in ~21s
+        # Normal flight should never overheat RCS; only sustained evasive burns.
         "max_heat": 80.0,
-        "heat_generation": 0.5,      # Low heat per thruster pulse
+        "heat_generation": 0.002,    # Heat per Nm-second of torque
         "heat_dissipation": 2.0,
         "overheat_threshold": 0.80,
         "overheat_penalty": 0.4,     # Torque reduction when overheated
