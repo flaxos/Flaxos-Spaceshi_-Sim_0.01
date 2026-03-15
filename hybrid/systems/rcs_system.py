@@ -506,12 +506,19 @@ class RCSSystem(BaseSystem):
 
         if angle <= 2.0 * angle_accel_to_max:
             # Pure bang-bang: accelerate half, decelerate half
-            return 2.0 * math.sqrt(angle / alpha)
+            ideal = 2.0 * math.sqrt(angle / alpha)
         else:
             # Trapezoidal: accel -> coast at max_rate -> decel
             coast_angle = angle - 2.0 * angle_accel_to_max
             coast_time = coast_angle / self.max_rate
-            return 2.0 * t_accel_to_max + coast_time
+            ideal = 2.0 * t_accel_to_max + coast_time
+
+        # The bang-bang model assumes instantaneous torque reversal, but
+        # the actual PD attitude controller (kd-overdamped) overshoots
+        # the ideal profile by ~30% due to damping lag and finite-rate
+        # thruster allocation.  The 1.5x factor keeps flip timeout
+        # calculations conservative enough to avoid false timeouts.
+        return ideal * 1.5
 
     # ----- Commands -----
     def command(self, action, params):

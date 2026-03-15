@@ -287,8 +287,11 @@ class TestPhaseTransitions:
             f"Expected brake phase after retrograde alignment, got {ap.phase!r}"
         )
 
-    def test_brake_to_burn_when_closing_speed_lost(self):
-        """Brake phase re-enters burn if closing speed drops to zero outside stationkeep range."""
+    def test_brake_to_approach_when_closing_speed_lost(self):
+        """Brake phase exits to approach when speed drops to zero, regardless of range.
+
+        BRAKE never re-enters BURN -- the old path caused oscillation.
+        """
         target = _make_target({"x": 50000.0, "y": 0.0, "z": 0.0})
         ship = _make_ship(
             position={"x": 0.0, "y": 0.0, "z": 0.0},
@@ -298,11 +301,11 @@ class TestPhaseTransitions:
         ap = RendezvousAutopilot(ship, target_id="T001")
         ap.phase = "brake"
 
-        # range=50 km, closing_speed=0 → overshoot recovery to burn
+        # range=50 km, closing_speed=0 → approach (never re-enters burn)
         ap.compute(0.1, 0.0)
 
-        assert ap.phase == "burn", (
-            f"Expected overshoot recovery to burn, got {ap.phase!r}"
+        assert ap.phase == "approach", (
+            f"Expected approach (BRAKE never re-enters BURN), got {ap.phase!r}"
         )
 
     def test_stationkeep_entered_within_range_and_speed(self):
@@ -514,20 +517,22 @@ class TestApproachPhaseTransitions:
             f"got {ap.phase!r}"
         )
 
-    def test_brake_to_burn_when_far_outside_approach_range(self):
-        """In BRAKE, closing_speed ≈ 0, range > approach_range → BURN (existing behaviour).
+    def test_brake_to_approach_when_far_outside_approach_range(self):
+        """In BRAKE, closing_speed ~ 0, range > approach_range -> APPROACH.
 
-        The new code must not alter the far-field overshoot-recovery path.
+        BRAKE always exits to APPROACH (never back to BURN) to prevent
+        the BURN->FLIP->BRAKE->BURN oscillation.  The APPROACH phase's
+        proportional controller handles convergence from any distance.
         """
-        approach_range = NAV_PROFILES["balanced"].get("approach_range", 5000)
+        approach_range = NAV_PROFILES["balanced"].get("approach_range", 50000)
         far_range = approach_range * 3.0  # well outside approach funnel
 
         _, ap = self._make_close_slow_ship_and_ap(far_range, profile="balanced")
 
         ap.compute(0.1, 0.0)
 
-        assert ap.phase == "burn", (
-            f"Expected 'burn' (overshoot recovery) at {far_range:.0f} m, "
+        assert ap.phase == "approach", (
+            f"Expected 'approach' at {far_range:.0f} m (BRAKE never re-enters BURN), "
             f"got {ap.phase!r}"
         )
 
@@ -1134,12 +1139,16 @@ class TestBrakeRelSpeedThreshold:
 
     def test_brake_stays_when_high_rel_speed(self):
         """BRAKE must NOT exit when closing_speed is near zero but rel_speed
-        is still high (e.g. ship has lateral velocity)."""
+        is still high (e.g. ship has lateral velocity above brake_done_speed).
+
+        brake_done_speed = APPROACH_SPEED_LIMIT (500) * factor (0.5) = 250 m/s.
+        A ship with 400 m/s lateral velocity must stay in BRAKE.
+        """
         target = _make_target({"x": 20000.0, "y": 0.0, "z": 0.0})
         ship = _make_ship(
             position={"x": 0.0, "y": 0.0, "z": 0.0},
-            # Mostly lateral velocity: closing_speed ~ 0 but rel_speed = 200 m/s
-            velocity={"x": 0.5, "y": 200.0, "z": 0.0},
+            # Mostly lateral velocity: closing_speed ~ 0 but rel_speed = 400 m/s
+            velocity={"x": 0.5, "y": 400.0, "z": 0.0},
             target=target,
         )
         ap = RendezvousAutopilot(ship, target_id="T001")
@@ -1147,14 +1156,19 @@ class TestBrakeRelSpeedThreshold:
 
         ap.compute(0.1, 0.0)
 
-        # Should stay in brake because rel_speed (200 m/s) is still high
+        # Should stay in brake because rel_speed (400 m/s) exceeds
+        # brake_done_speed (250 m/s)
         assert ap.phase == "brake", (
             f"Expected to stay in brake with high lateral velocity, "
             f"got {ap.phase!r}"
         )
 
     def test_brake_exits_when_rel_speed_is_low(self):
-        """BRAKE exits normally when rel_speed drops below threshold."""
+        """BRAKE exits to APPROACH when rel_speed drops below threshold.
+
+        BRAKE always exits to APPROACH regardless of range -- the old
+        BRAKE->BURN path caused oscillation at ~300km.
+        """
         target = _make_target({"x": 20000.0, "y": 0.0, "z": 0.0})
         ship = _make_ship(
             position={"x": 0.0, "y": 0.0, "z": 0.0},
@@ -1167,9 +1181,9 @@ class TestBrakeRelSpeedThreshold:
 
         ap.compute(0.1, 0.0)
 
-        # rel_speed ~ 0.5 m/s, well below threshold (25 m/s)
-        # range 20km > approach_range 5km, so should go to BURN
-        assert ap.phase == "burn", (
-            f"Expected BRAKE->BURN with low rel_speed at long range, "
+        # rel_speed ~ 0.5 m/s, well below threshold (250 m/s)
+        # range 20km -- BRAKE always exits to APPROACH now
+        assert ap.phase == "approach", (
+            f"Expected BRAKE->APPROACH with low rel_speed at long range, "
             f"got {ap.phase!r}"
         )

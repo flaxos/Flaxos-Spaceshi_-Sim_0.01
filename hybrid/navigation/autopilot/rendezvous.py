@@ -25,9 +25,11 @@ Key design decisions (bug fixes from 2026-03-15):
     though the ship still had significant velocity.  Now BRAKE stays
     active until rel_speed drops below a threshold proportional to the
     approach speed limit.
-  - BRAKE->BURN only fires when rel_speed is low AND range is large.
-    This prevents the oscillation where the ship decelerates, briefly
-    hits zero closing speed, re-burns, and repeats forever.
+  - BRAKE ALWAYS exits to APPROACH, never back to BURN.  The old
+    BRAKE->BURN path caused oscillation where the ship would decelerate,
+    re-burn, flip, brake, repeat -- each cycle making only 25-80 km of
+    progress.  APPROACH's proportional controller handles convergence
+    from any range, eliminating the oscillation entirely.
 """
 
 import logging
@@ -52,7 +54,7 @@ NAV_PROFILES: Dict[str, Dict] = {
         "max_thrust": 1.0,
         "brake_margin": 1.1,
         "flip_safety_factor": 1.0,
-        "approach_range": 10_000.0,      # metres -- enter approach phase within this range
+        "approach_range": 100_000.0,     # 100 km — proportional controller converges from here
         "description": "Full burn, minimal safety margin. Fastest but risks overshoot.",
         "risk_level": "high",
     },
@@ -60,7 +62,7 @@ NAV_PROFILES: Dict[str, Dict] = {
         "max_thrust": 0.8,
         "brake_margin": 1.3,
         "flip_safety_factor": 1.5,
-        "approach_range": 5_000.0,
+        "approach_range": 50_000.0,      # 50 km
         "description": "Moderate thrust and safety. Good balance of speed and control.",
         "risk_level": "medium",
     },
@@ -68,7 +70,7 @@ NAV_PROFILES: Dict[str, Dict] = {
         "max_thrust": 0.5,
         "brake_margin": 1.6,
         "flip_safety_factor": 2.0,
-        "approach_range": 2_000.0,
+        "approach_range": 20_000.0,      # 20 km
         "description": "Half thrust, generous margins. Slowest but very precise.",
         "risk_level": "low",
     },
@@ -98,7 +100,10 @@ class RendezvousAutopilot(BaseAutopilot):
     STATIONKEEP_RANGE = 100.0       # metres
     STATIONKEEP_SPEED = 1.0         # m/s relative
     FLIP_TOLERANCE_DEG = 10.0       # degrees
-    APPROACH_SPEED_LIMIT = 50.0     # m/s -- mini-brake in approach if exceeded
+    APPROACH_SPEED_LIMIT = 500.0    # m/s -- max speed during approach; the P
+                                    # controller tapers speed proportional to
+                                    # range, so this only governs far-approach.
+                                    # Near stationkeep range, speed drops to ~1 m/s.
 
     def __init__(self, ship, target_id: Optional[str] = None,
                  params: Optional[Dict] = None):
@@ -270,9 +275,11 @@ class RendezvousAutopilot(BaseAutopilot):
             elif self._flip_entered_time is not None:
                 # Safety: if the flip takes much longer than expected the
                 # ship is overshooting while coasting unpowered.  Cap at
-                # 4x estimated flip time to prevent infinite coasting.
+                # 8x estimated flip time to prevent infinite coasting.
+                # The generous multiplier absorbs PD controller overhead
+                # (~1.5x ideal) plus thruster allocation variance.
                 flip_elapsed = sim_time - self._flip_entered_time
-                flip_limit = self._estimate_flip_time() * 4.0
+                flip_limit = self._estimate_flip_time() * 8.0
                 if flip_elapsed > flip_limit:
                     logger.warning(
                         "Rendezvous: FLIP timed out after %.1fs "
@@ -285,34 +292,23 @@ class RendezvousAutopilot(BaseAutopilot):
                     self._flip_entered_time = None
                     self._flip_target_heading = None
         elif self.phase == "brake":
-            # BRAKE exit condition: rel_speed must be LOW, not just
-            # closing_speed <= 0.  The old code used the clamped
-            # closing_speed which dropped to 0 the instant range_rate
-            # flipped positive, causing immediate BRAKE exit even with
-            # 2000 m/s of relative velocity.  Now we require the ship
-            # to actually slow down before deciding what to do next.
+            # BRAKE exit: once rel_speed is low, ALWAYS enter APPROACH.
+            # The old code re-entered BURN when range > approach_range,
+            # which caused BURN->FLIP->BRAKE->BURN oscillations that
+            # each made only 25-80 km of net progress.  APPROACH handles
+            # convergence from any range using its proportional controller
+            # (desired speed scales linearly with distance).
             if rel_speed < brake_done_speed and current_range > self.stationkeep_range:
-                if current_range > self.approach_range:
-                    # Still far away -- need another burn cycle.  But
-                    # rel_speed is low, so this is a controlled re-burn,
-                    # not the old oscillation where BRAKE exited at full
-                    # speed and immediately re-triggered the flip.
-                    logger.info(
-                        "Rendezvous: BRAKE -> BURN (decelerated to %.1f m/s, "
-                        "range %.0f m > approach_range %.0f m)",
-                        rel_speed, current_range, self.approach_range)
-                    self.phase = "burn"
-                else:
-                    logger.info(
-                        "Rendezvous: BRAKE -> APPROACH (range %.0f m "
-                        "within approach_range %.0f m, rel_speed %.1f m/s)",
-                        current_range, self.approach_range, rel_speed)
-                    self.phase = "approach"
+                logger.info(
+                    "Rendezvous: BRAKE -> APPROACH (decelerated to %.1f m/s, "
+                    "range %.0f m)",
+                    rel_speed, current_range)
+                self.phase = "approach"
         elif self.phase == "approach":
             # Approach can also transition to stationkeep (handled at top)
             # or back to brake if we somehow built too much speed and
             # overshot approach_range
-            if current_range > self.approach_range * 1.5:
+            if current_range > self.approach_range * 3.0:
                 logger.info(
                     "Rendezvous: APPROACH -> BURN (drifted to %.0f m, "
                     "outside approach envelope)", current_range)
