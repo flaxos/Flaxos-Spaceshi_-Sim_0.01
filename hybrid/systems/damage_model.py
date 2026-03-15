@@ -487,10 +487,7 @@ class DamageModel:
         Returns:
             list: Names of critical subsystems
         """
-        return [
-            name for name, data in self.subsystems.items()
-            if data.get_status() == SubsystemStatus.CRITICAL
-        ]
+        return [name for name, data in self.subsystems.items() if data.is_critical()]
 
     def add_heat(
         self,

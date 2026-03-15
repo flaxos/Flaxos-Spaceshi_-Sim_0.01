@@ -121,6 +121,8 @@ META_COMMANDS = frozenset({
     "my_crew_status",
     "crew_rest",
     "fleet_status",  # Also registered as station meta-command
+    "station_message",  # Inter-station comms, bypass_permission_check=True
+    "get_station_messages",  # Inter-station comms, bypass_permission_check=True
 })
 
 # Commands registered directly with the StationAwareDispatcher (not via

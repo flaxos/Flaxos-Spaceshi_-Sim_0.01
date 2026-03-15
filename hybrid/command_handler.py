@@ -6,7 +6,7 @@ Provides functions for routing commands to appropriate systems.
 
 import logging
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +48,8 @@ system_commands = {
     "interrupt_helm_queue": ("helm", "interrupt_queue"),
     "helm_queue_status": ("helm", "queue_status"),
     "ping_sensors": ("sensors", "ping"),
-    "override_bio_monitor": ("bio_monitor", "override"),
+    "set_power_profile": ("power_management", "set_power_profile"),
+    "get_power_profiles": ("power_management", "get_power_profiles"),
     "set_power_allocation": ("power_management", "set_power_allocation"),
     "get_draw_profile": ("power_management", "get_draw_profile"),
     "request_docking": ("docking", "request_docking"),
@@ -120,6 +121,8 @@ system_commands = {
     "estimate_mass": ("science", "estimate_mass"),
     "assess_threat": ("science", "assess_threat"),
     "science_status": ("science", "science_status"),
+    # Flight computer
+    "flight_computer": ("flight_computer", "flight_computer"),
     # Fleet coordination commands
     "fleet_create": ("fleet_coord", "fleet_create"),
     "fleet_add_ship": ("fleet_coord", "fleet_add_ship"),
@@ -187,12 +190,12 @@ def route_command(ship, command_data, all_ships=None):
         # Add timestamp to response
         if isinstance(response, dict):
             if "timestamp" not in response:
-                response["timestamp"] = datetime.utcnow().isoformat()
+                response["timestamp"] = datetime.now(timezone.utc).isoformat()
         else:
             # Convert non-dict responses to dict
             response = {
                 "result": response,
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
             
         return response
@@ -201,7 +204,7 @@ def route_command(ship, command_data, all_ships=None):
         logger.error(f"Error routing command: {e}")
         return {
             "error": f"Command processing error: {str(e)}",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
 def execute_command(ship, command_type, command_data, all_ships=None):
@@ -289,57 +292,6 @@ def handle_command_request(request, ship):
         logger.error(f"Error handling command request: {e}")
         error_response = {
             "error": f"Command processing error: {str(e)}",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
         return format_response(error_response)
-# hybrid/command_handler.py
-"""
-Command handler for the hybrid architecture.
-This module provides a central registry for command handlers.
-"""
-
-class CommandHandler:
-    """Registry for command handlers"""
-    
-    def __init__(self):
-        """Initialize the command handler registry"""
-        self.handlers = {}
-    
-    def register_handler(self, command_type, handler_function):
-        """
-        Register a handler for a command type
-        
-        Args:
-            command_type (str): The command type to handle
-            handler_function (callable): Function to call with command parameters
-            
-        Returns:
-            bool: True if registered, False if already exists
-        """
-        if command_type in self.handlers:
-            return False
-            
-        self.handlers[command_type] = handler_function
-        return True
-    
-    def handle_command(self, command_type, params=None):
-        """
-        Handle a command by dispatching to the appropriate handler
-        
-        Args:
-            command_type (str): The command type to handle
-            params (dict): Parameters for the command
-            
-        Returns:
-            dict: Response from the handler, or error if not found
-        """
-        if params is None:
-            params = {}
-            
-        if command_type in self.handlers:
-            try:
-                return self.handlers[command_type](params)
-            except Exception as e:
-                return {"error": f"Error handling command {command_type}: {e}"}
-        else:
-            return {"error": f"No handler for command type: {command_type}"}
