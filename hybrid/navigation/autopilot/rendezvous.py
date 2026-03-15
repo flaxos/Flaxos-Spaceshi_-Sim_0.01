@@ -362,18 +362,24 @@ class RendezvousAutopilot(BaseAutopilot):
                 "heading": vector_to_heading(vec)}
 
     def _compute_flip(self, rel: Dict) -> Dict:
-        """Command the snapshot retrograde heading, zero thrust while RCS rotates.
+        """Command yaw-only rotation toward retrograde, zero thrust.
 
-        Uses the heading captured at flip entry rather than the live
-        retrograde vector.  This gives the RCS a fixed target to converge
-        on instead of chasing a moving heading as the velocity vector
-        drifts during unpowered coast.
+        Only commands yaw rotation, preserving current pitch/roll.
+        This keeps the flip as a single-axis maneuver so the RCS
+        thrusters can deliver maximum torque without cross-axis
+        contamination.  Pitch/roll alignment is handled by the
+        subsequent BRAKE phase which uses the full 3D retrograde.
         """
         heading = self._flip_target_heading
         if heading is None:
-            # Fallback if somehow no snapshot (should not happen)
             heading = self._retrograde_heading(rel)
-        return {"thrust": 0.0, "heading": heading}
+        # Command only yaw — keep current pitch/roll to avoid
+        # multi-axis torque that the allocator struggles with.
+        return {"thrust": 0.0, "heading": {
+            "yaw": heading.get("yaw", 0),
+            "pitch": self.ship.orientation.get("pitch", 0),
+            "roll": self.ship.orientation.get("roll", 0),
+        }}
 
     def _compute_brake(self, rel: Dict) -> Dict:
         """Thrust retrograde to bleed closing speed."""
@@ -465,11 +471,12 @@ class RendezvousAutopilot(BaseAutopilot):
         return yaw_err < self.FLIP_TOLERANCE_DEG and pitch_err < self.FLIP_TOLERANCE_DEG
 
     def _flip_heading_aligned(self, rel: Optional[Dict] = None) -> bool:
-        """True if ship heading is within FLIP_TOLERANCE_DEG of the snapshot heading.
+        """True if ship yaw is within FLIP_TOLERANCE_DEG of the snapshot heading.
 
-        Uses the heading captured at flip entry (self._flip_target_heading)
-        rather than the live retrograde vector.  This is what allows the RCS
-        to converge -- it has a fixed target instead of chasing a moving one.
+        Only checks yaw alignment — pitch/roll are irrelevant for the flip
+        because the BRAKE phase will correct them using the full 3D retrograde
+        heading.  Requiring pitch alignment was causing 17% of flips to timeout
+        when the ship had accumulated pitch drift during the burn phase.
 
         Falls back to live retrograde if no snapshot is available (e.g. when
         phase was set externally without going through BURN->FLIP transition).
@@ -482,9 +489,7 @@ class RendezvousAutopilot(BaseAutopilot):
         cur = self.ship.orientation
         yaw_err = abs(self._normalize_angle(
             target_heading.get("yaw", 0) - cur.get("yaw", 0)))
-        pitch_err = abs(self._normalize_angle(
-            target_heading.get("pitch", 0) - cur.get("pitch", 0)))
-        return yaw_err < self.FLIP_TOLERANCE_DEG and pitch_err < self.FLIP_TOLERANCE_DEG
+        return yaw_err < self.FLIP_TOLERANCE_DEG
 
     # ----- state / telemetry -----------------------------------------------
 
