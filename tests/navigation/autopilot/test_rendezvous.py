@@ -1187,3 +1187,258 @@ class TestBrakeRelSpeedThreshold:
             f"Expected BRAKE->APPROACH with low rel_speed at long range, "
             f"got {ap.phase!r}"
         )
+
+
+# ---------------------------------------------------------------------------
+# Alignment guard -- regression test for the BRAKE->APPROACH retrograde
+# thrust bug.  After braking the ship is pointed retrograde.  APPROACH
+# commands prograde thrust.  Without the guard the main drive fires
+# retrograde for ~9 seconds (during RCS rotation), pushing the ship
+# AWAY from the target and triggering APPROACH->BURN re-entry.
+# ---------------------------------------------------------------------------
+
+
+class TestAlignmentGuard:
+    """The alignment guard must zero thrust when the ship's orientation
+    is significantly misaligned with the commanded heading."""
+
+    def test_heading_error_zero_when_aligned(self):
+        """_heading_error returns ~0 when ship faces the commanded heading."""
+        target = _make_target({"x": 10000.0, "y": 0.0, "z": 0.0})
+        ship = _make_ship(
+            orientation={"pitch": 0.0, "yaw": 45.0, "roll": 0.0},
+            target=target,
+        )
+        ap = RendezvousAutopilot(ship, target_id="T001")
+
+        err = ap._heading_error({"yaw": 45.0, "pitch": 0.0})
+        assert err == pytest.approx(0.0, abs=0.01)
+
+    def test_heading_error_yaw_only(self):
+        """_heading_error detects yaw misalignment."""
+        target = _make_target({"x": 10000.0, "y": 0.0, "z": 0.0})
+        ship = _make_ship(
+            orientation={"pitch": 0.0, "yaw": 0.0, "roll": 0.0},
+            target=target,
+        )
+        ap = RendezvousAutopilot(ship, target_id="T001")
+
+        err = ap._heading_error({"yaw": 90.0, "pitch": 0.0})
+        assert err == pytest.approx(90.0, abs=0.01)
+
+    def test_heading_error_wraps_around_180(self):
+        """_heading_error correctly handles the -180/+180 boundary."""
+        target = _make_target({"x": 10000.0, "y": 0.0, "z": 0.0})
+        ship = _make_ship(
+            orientation={"pitch": 0.0, "yaw": 170.0, "roll": 0.0},
+            target=target,
+        )
+        ap = RendezvousAutopilot(ship, target_id="T001")
+
+        # 170 -> -170 is 20 degrees, not 340
+        err = ap._heading_error({"yaw": -170.0, "pitch": 0.0})
+        assert err == pytest.approx(20.0, abs=0.01)
+
+    def test_heading_error_none_heading_returns_zero(self):
+        """_heading_error returns 0 when desired_heading is None."""
+        target = _make_target({"x": 10000.0, "y": 0.0, "z": 0.0})
+        ship = _make_ship(target=target)
+        ap = RendezvousAutopilot(ship, target_id="T001")
+
+        assert ap._heading_error(None) == 0.0
+
+    def test_burn_thrust_zeroed_when_misaligned(self):
+        """In BURN phase, if ship faces away from target (>30 deg error),
+        thrust must be zeroed but heading still commanded (so RCS rotates).
+
+        Ship at origin, target at +X, ship facing +Y (yaw=90).
+        BURN wants to thrust toward +X (yaw~0).  90 deg error > 30 deg
+        threshold, so thrust should be 0.
+        """
+        target = _make_target({"x": 100000.0, "y": 0.0, "z": 0.0})
+        ship = _make_ship(
+            position={"x": 0.0, "y": 0.0, "z": 0.0},
+            velocity={"x": 0.0, "y": 0.0, "z": 0.0},
+            orientation={"pitch": 0.0, "yaw": 90.0, "roll": 0.0},
+            target=target,
+        )
+        ap = RendezvousAutopilot(ship, target_id="T001")
+        ap.phase = "burn"
+
+        result = ap.compute(0.1, 0.0)
+
+        assert result is not None
+        assert result["thrust"] == 0.0, (
+            f"Thrust should be 0 when 90° misaligned, got {result['thrust']}"
+        )
+        # Heading must still be commanded so the RCS rotates the ship
+        assert "heading" in result
+
+    def test_burn_thrust_allowed_when_aligned(self):
+        """In BURN phase, if ship is roughly aligned (<30 deg error),
+        thrust must be positive.
+
+        Ship at origin, target at +X, ship facing ~+X (yaw=10).
+        10 deg error < 30 deg threshold, so thrust should be > 0.
+        """
+        target = _make_target({"x": 100000.0, "y": 0.0, "z": 0.0})
+        ship = _make_ship(
+            position={"x": 0.0, "y": 0.0, "z": 0.0},
+            velocity={"x": 0.0, "y": 0.0, "z": 0.0},
+            orientation={"pitch": 0.0, "yaw": 10.0, "roll": 0.0},
+            target=target,
+        )
+        ap = RendezvousAutopilot(ship, target_id="T001")
+        ap.phase = "burn"
+
+        result = ap.compute(0.1, 0.0)
+
+        assert result is not None
+        assert result["thrust"] > 0.0, (
+            f"Thrust should be positive when only 10° misaligned, "
+            f"got {result['thrust']}"
+        )
+
+    def test_brake_thrust_zeroed_when_misaligned(self):
+        """In BRAKE phase, thrust is zeroed when ship orientation is far
+        from the retrograde heading.
+
+        Ship closing on target along +X at 500 m/s.  Retrograde heading
+        is ~yaw=180.  Ship currently facing yaw=0 (prograde).  180 deg
+        error >> 30 deg threshold, so thrust must be 0.
+        """
+        target = _make_target({"x": 50000.0, "y": 0.0, "z": 0.0})
+        ship = _make_ship(
+            position={"x": 0.0, "y": 0.0, "z": 0.0},
+            velocity={"x": 500.0, "y": 0.0, "z": 0.0},
+            orientation={"pitch": 0.0, "yaw": 0.0, "roll": 0.0},
+            target=target,
+        )
+        ap = RendezvousAutopilot(ship, target_id="T001")
+        ap.phase = "brake"
+
+        result = ap.compute(0.1, 0.0)
+
+        assert result is not None
+        assert result["thrust"] == 0.0, (
+            f"Brake thrust should be 0 when 180° from retrograde, "
+            f"got {result['thrust']}"
+        )
+        # Heading must still point retrograde so RCS rotates the ship
+        assert "heading" in result
+
+    def test_approach_prograde_thrust_zeroed_when_facing_retrograde(self):
+        """The primary regression scenario: BRAKE just exited to APPROACH.
+        Ship is still facing retrograde (yaw~180) but APPROACH wants to
+        thrust prograde (yaw~0) toward the target.  Without the guard
+        the main drive fires retrograde, pushing the ship away.
+
+        This is the exact bug from the logs:
+          BRAKE -> APPROACH (decelerated to 167.4 m/s)
+          APPROACH -> BURN (opening at 594.7 m/s)
+        """
+        target = _make_target({"x": 50000.0, "y": 0.0, "z": 0.0})
+        ship = _make_ship(
+            position={"x": 0.0, "y": 0.0, "z": 0.0},
+            # Low closing speed (just exited BRAKE)
+            velocity={"x": 50.0, "y": 0.0, "z": 0.0},
+            # Still facing retrograde from the braking maneuver
+            orientation={"pitch": 0.0, "yaw": 180.0, "roll": 0.0},
+            target=target,
+        )
+        ap = RendezvousAutopilot(ship, target_id="T001")
+        ap.phase = "approach"
+
+        result = ap.compute(0.1, 0.0)
+
+        assert result is not None
+        assert result["thrust"] == 0.0, (
+            f"APPROACH must not fire thrust while facing retrograde "
+            f"(180° from prograde heading). Got thrust={result['thrust']}. "
+            f"This is the BRAKE->APPROACH retrograde thrust bug."
+        )
+
+    def test_approach_thrust_restored_after_rotation(self):
+        """After the ship has rotated to face the target (within 30 deg),
+        APPROACH must resume thrusting."""
+        target = _make_target({"x": 50000.0, "y": 0.0, "z": 0.0})
+        ship = _make_ship(
+            position={"x": 0.0, "y": 0.0, "z": 0.0},
+            velocity={"x": 50.0, "y": 0.0, "z": 0.0},
+            # Ship has rotated to face roughly toward target
+            orientation={"pitch": 0.0, "yaw": 15.0, "roll": 0.0},
+            target=target,
+        )
+        ap = RendezvousAutopilot(ship, target_id="T001")
+        ap.phase = "approach"
+
+        result = ap.compute(0.1, 0.0)
+
+        assert result is not None
+        assert result["thrust"] > 0.0, (
+            f"APPROACH must thrust when aligned within 30°. "
+            f"Got thrust={result['thrust']}"
+        )
+
+    def test_flip_phase_not_affected_by_guard(self):
+        """FLIP phase already sets thrust=0; the guard must not interfere
+        with it or add unexpected side effects."""
+        target = _make_target({"x": 5000.0, "y": 0.0, "z": 0.0})
+        ship = _make_ship(
+            position={"x": 0.0, "y": 0.0, "z": 0.0},
+            velocity={"x": 50.0, "y": 0.0, "z": 0.0},
+            orientation={"pitch": 0.0, "yaw": 0.0, "roll": 0.0},
+            target=target,
+        )
+        ap = RendezvousAutopilot(ship, target_id="T001")
+        ap.phase = "flip"
+        ap._flip_target_heading = {"yaw": 180.0, "pitch": 0.0, "roll": 0.0}
+        ap._flip_entered_time = 0.0
+
+        result = ap.compute(0.1, 1.0)
+
+        assert result is not None
+        assert result["thrust"] == 0.0, (
+            "FLIP phase must keep thrust=0 regardless of alignment guard"
+        )
+
+    def test_guard_at_boundary_30_degrees(self):
+        """At exactly the 30-degree threshold boundary, thrust should
+        still be allowed (guard triggers ABOVE 30, not at 30)."""
+        target = _make_target({"x": 100000.0, "y": 0.0, "z": 0.0})
+        ship = _make_ship(
+            position={"x": 0.0, "y": 0.0, "z": 0.0},
+            velocity={"x": 0.0, "y": 0.0, "z": 0.0},
+            orientation={"pitch": 0.0, "yaw": 30.0, "roll": 0.0},
+            target=target,
+        )
+        ap = RendezvousAutopilot(ship, target_id="T001")
+        ap.phase = "burn"
+
+        result = ap.compute(0.1, 0.0)
+
+        assert result is not None
+        assert result["thrust"] > 0.0, (
+            f"At exactly 30° error, thrust should be allowed (guard is >30, "
+            f"not >=30). Got thrust={result['thrust']}"
+        )
+
+    def test_guard_at_31_degrees_zeroes_thrust(self):
+        """At 31 degrees (just above threshold), thrust must be zeroed."""
+        target = _make_target({"x": 100000.0, "y": 0.0, "z": 0.0})
+        ship = _make_ship(
+            position={"x": 0.0, "y": 0.0, "z": 0.0},
+            velocity={"x": 0.0, "y": 0.0, "z": 0.0},
+            orientation={"pitch": 0.0, "yaw": 31.0, "roll": 0.0},
+            target=target,
+        )
+        ap = RendezvousAutopilot(ship, target_id="T001")
+        ap.phase = "burn"
+
+        result = ap.compute(0.1, 0.0)
+
+        assert result is not None
+        assert result["thrust"] == 0.0, (
+            f"At 31° error, thrust should be zeroed by alignment guard. "
+            f"Got thrust={result['thrust']}"
+        )
