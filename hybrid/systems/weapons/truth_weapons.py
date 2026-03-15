@@ -855,14 +855,13 @@ class TruthWeapon:
         burst_rounds = 0
         burst_results = []
 
-        for shot_i in range(self.specs.burst_count):
-            # Check ammo for each shot in burst
-            if self.ammo is not None and self.ammo <= 0:
-                break
+        # Consume one ammo unit per trigger pull (covers the entire burst)
+        if self.ammo is not None:
+            if self.ammo <= 0:
+                return {"ok": False, "reason": "no_ammo"}
+            self.ammo -= 1
 
-            # Consume ammo
-            if self.ammo is not None:
-                self.ammo -= 1
+        for shot_i in range(self.specs.burst_count):
             burst_rounds += 1
 
             # Magazine reload check per round (>= 0 so reload triggers on last round too)

@@ -250,11 +250,42 @@ class TorpedoManager:
                 if dist_from_launch >= TORPEDO_ARM_DISTANCE:
                     torpedo.armed = True
 
-            # Check proximity detonation against target
+            # Check proximity detonation against target.
+            # Two checks are needed:
+            # 1) Swept-line test — did the torpedo pass through the fuse
+            #    zone during this tick's position advance?
+            # 2) Predictive closest-approach — will the torpedo reach the
+            #    fuse zone on its current trajectory?  Real proximity fuses
+            #    fire when they detect minimum range is imminent and within
+            #    lethal distance.  Without this, a fast torpedo can be many
+            #    ticks away from the target at each check but still clearly
+            #    on a collision course.
             if target_ship and torpedo.armed:
-                dist_to_target = calculate_distance(torpedo.position, target_ship.position)
-                if dist_to_target <= TORPEDO_PROXIMITY_FUSE:
-                    event = self._detonate(torpedo, target_ship, sim_time, dist_to_target, ships)
+                # --- Swept-line check (handles pass-through in one tick) ---
+                closest_dist, closest_point = self._swept_closest_approach(
+                    old_pos, torpedo.position, target_ship.position
+                )
+                if closest_dist <= TORPEDO_PROXIMITY_FUSE:
+                    torpedo.position = closest_point
+                    event = self._detonate(torpedo, target_ship, sim_time, closest_dist, ships)
+                    events.append(event)
+                    continue
+
+                # --- Predictive proximity fuse ---
+                # A real proximity fuse triggers when it detects that the
+                # torpedo has reached (or is about to reach) its closest
+                # approach to the target and that distance is within the
+                # fuse radius.  We model this by computing the time of
+                # closest approach (TCA) from current relative kinematics.
+                # If the predicted miss distance is within fuse range, we
+                # detonate at that point — the fuse has done its job.
+                pred_dist, pred_point, tca = self._predict_closest_approach(
+                    torpedo, target_ship
+                )
+                if pred_dist <= TORPEDO_PROXIMITY_FUSE and tca > 0:
+                    # Advance torpedo to the detonation point
+                    torpedo.position = pred_point
+                    event = self._detonate(torpedo, target_ship, sim_time + tca, pred_dist, ships)
                     events.append(event)
                     continue
 
@@ -506,6 +537,94 @@ class TorpedoManager:
 
         self._event_bus.publish("torpedo_detonation", event)
         return event
+
+    @staticmethod
+    def _swept_closest_approach(
+        seg_start: Dict[str, float],
+        seg_end: Dict[str, float],
+        point: Dict[str, float],
+    ) -> Tuple[float, Dict[str, float]]:
+        """Find closest approach of a line segment to a point.
+
+        Used for proximity-fuse checks so that a fast torpedo cannot
+        skip over the detonation zone between ticks.  Projects the
+        target point onto the segment [seg_start, seg_end] and clamps
+        to the segment endpoints.
+
+        Returns:
+            (distance, closest_point_on_segment)
+        """
+        dx = seg_end["x"] - seg_start["x"]
+        dy = seg_end["y"] - seg_start["y"]
+        dz = seg_end["z"] - seg_start["z"]
+        seg_len_sq = dx * dx + dy * dy + dz * dz
+
+        if seg_len_sq < 1e-12:
+            # Torpedo barely moved this tick — just use endpoint
+            return calculate_distance(seg_end, point), dict(seg_end)
+
+        # Parameter t: projection of (point - seg_start) onto segment
+        t = (
+            (point["x"] - seg_start["x"]) * dx
+            + (point["y"] - seg_start["y"]) * dy
+            + (point["z"] - seg_start["z"]) * dz
+        ) / seg_len_sq
+        t = max(0.0, min(1.0, t))
+
+        closest = {
+            "x": seg_start["x"] + t * dx,
+            "y": seg_start["y"] + t * dy,
+            "z": seg_start["z"] + t * dz,
+        }
+        return calculate_distance(closest, point), closest
+
+    @staticmethod
+    def _predict_closest_approach(
+        torpedo: "Torpedo", target_ship,
+    ) -> Tuple[float, Dict[str, float], float]:
+        """Predict closest approach using current relative kinematics.
+
+        Models the proximity fuse's onboard computer: given current
+        positions and velocities, compute when the torpedo will be
+        closest to the target (time of closest approach) and the miss
+        distance at that moment.  This lets the fuse fire even when
+        discrete tick checks would otherwise miss the detonation window.
+
+        Assumes constant velocity over the prediction horizon (thrust
+        changes are small relative to closing speed).
+
+        Returns:
+            (predicted_distance, predicted_torpedo_position, time_to_closest_approach)
+        """
+        rel_pos = subtract_vectors(torpedo.position, target_ship.position)
+        rel_vel = subtract_vectors(torpedo.velocity, target_ship.velocity)
+
+        vel_sq = dot_product(rel_vel, rel_vel)
+        if vel_sq < 1e-12:
+            # Not closing — return current distance
+            dist = magnitude(rel_pos)
+            return dist, dict(torpedo.position), 0.0
+
+        # TCA: t = -dot(rel_pos, rel_vel) / dot(rel_vel, rel_vel)
+        tca = -dot_product(rel_pos, rel_vel) / vel_sq
+        if tca <= 0:
+            # Closest approach was in the past — already diverging
+            dist = magnitude(rel_pos)
+            return dist, dict(torpedo.position), 0.0
+
+        # Position at TCA
+        pred_pos = {
+            "x": torpedo.position["x"] + torpedo.velocity["x"] * tca,
+            "y": torpedo.position["y"] + torpedo.velocity["y"] * tca,
+            "z": torpedo.position["z"] + torpedo.velocity["z"] * tca,
+        }
+        target_at_tca = {
+            "x": target_ship.position["x"] + target_ship.velocity["x"] * tca,
+            "y": target_ship.position["y"] + target_ship.velocity["y"] * tca,
+            "z": target_ship.position["z"] + target_ship.velocity["z"] * tca,
+        }
+        pred_dist = calculate_distance(pred_pos, target_at_tca)
+        return pred_dist, pred_pos, tca
 
     def _determine_blast_subsystems(self, torpedo: Torpedo, ship) -> List[str]:
         """Determine which subsystems are affected by torpedo blast.
