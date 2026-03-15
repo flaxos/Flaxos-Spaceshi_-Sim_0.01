@@ -1,6 +1,12 @@
 /**
  * Tactical Map Component
- * 2D overhead mini-map showing ship position and contacts
+ * Primary combat display: 2D plot of sensor contacts, trajectory projection,
+ * weapon engagement envelopes, firing solution confidence cones, projectile
+ * tracks, error ellipses, and classification labels.
+ *
+ * All displayed information is limited by what own sensors can detect —
+ * contacts outside sensor range don't appear (server-enforced).
+ * Uncertain contacts show error ellipses reflecting track quality.
  */
 
 import { stateManager } from "../js/state-manager.js";
@@ -11,6 +17,10 @@ const WEAPON_RANGES = {
   PDC: 5000,        // 5km in meters
   RAILGUN: 500000,  // 500km in meters
 };
+
+// Trajectory projection: how many seconds ahead to draw
+const TRAJECTORY_SECONDS = 60;
+const TRAJECTORY_STEPS = 20;
 
 class TacticalMap extends HTMLElement {
   constructor() {
@@ -23,9 +33,13 @@ class TacticalMap extends HTMLElement {
     this._showHeading = true;
     this._showGrid = true;
     this._showWeaponArcs = false;
+    this._showTrajectory = true;
+    this._showSolutions = true;
     this._selectedContact = null;
     this._canvas = null;
     this._ctx = null;
+    // Track screen positions for click detection (separate from frozen state)
+    this._contactScreenPositions = new Map();
   }
 
   connectedCallback() {
@@ -209,7 +223,9 @@ class TacticalMap extends HTMLElement {
           <button class="control-btn" id="toggle-vectors" title="Velocity Vectors">V</button>
           <button class="control-btn" id="toggle-heading" title="Heading Indicator">H</button>
           <button class="control-btn" id="toggle-grid" title="Grid">G</button>
-          <button class="control-btn" id="toggle-weapon-arcs" title="Weapon Arcs">W</button>
+          <button class="control-btn" id="toggle-weapon-arcs" title="Weapon Envelopes">W</button>
+          <button class="control-btn" id="toggle-trajectory" title="Trajectory Projection">T</button>
+          <button class="control-btn" id="toggle-solutions" title="Firing Solutions">S</button>
         </div>
       </div>
 
@@ -256,6 +272,14 @@ class TacticalMap extends HTMLElement {
           <div class="contact-info-row">
             <span class="contact-info-label">Velocity:</span>
             <span class="contact-info-value" id="contact-velocity">---</span>
+          </div>
+          <div class="contact-info-row">
+            <span class="contact-info-label">Confidence:</span>
+            <span class="contact-info-value" id="contact-confidence">---</span>
+          </div>
+          <div class="contact-info-row">
+            <span class="contact-info-label">Method:</span>
+            <span class="contact-info-value" id="contact-method">---</span>
           </div>
         </div>
       </div>
@@ -317,38 +341,24 @@ class TacticalMap extends HTMLElement {
     });
 
     // Toggle buttons
-    const vectorsBtn = this.shadowRoot.getElementById("toggle-vectors");
-    const headingBtn = this.shadowRoot.getElementById("toggle-heading");
-    const gridBtn = this.shadowRoot.getElementById("toggle-grid");
+    const toggles = [
+      { id: "toggle-vectors", prop: "_showVelocityVectors" },
+      { id: "toggle-heading", prop: "_showHeading" },
+      { id: "toggle-grid", prop: "_showGrid" },
+      { id: "toggle-weapon-arcs", prop: "_showWeaponArcs" },
+      { id: "toggle-trajectory", prop: "_showTrajectory" },
+      { id: "toggle-solutions", prop: "_showSolutions" },
+    ];
 
-    vectorsBtn.classList.add("active");
-    headingBtn.classList.add("active");
-    gridBtn.classList.add("active");
-
-    vectorsBtn.addEventListener("click", () => {
-      this._showVelocityVectors = !this._showVelocityVectors;
-      vectorsBtn.classList.toggle("active", this._showVelocityVectors);
-      this._draw();
-    });
-
-    headingBtn.addEventListener("click", () => {
-      this._showHeading = !this._showHeading;
-      headingBtn.classList.toggle("active", this._showHeading);
-      this._draw();
-    });
-
-    gridBtn.addEventListener("click", () => {
-      this._showGrid = !this._showGrid;
-      gridBtn.classList.toggle("active", this._showGrid);
-      this._draw();
-    });
-
-    const weaponArcsBtn = this.shadowRoot.getElementById("toggle-weapon-arcs");
-    weaponArcsBtn.addEventListener("click", () => {
-      this._showWeaponArcs = !this._showWeaponArcs;
-      weaponArcsBtn.classList.toggle("active", this._showWeaponArcs);
-      this._draw();
-    });
+    for (const { id, prop } of toggles) {
+      const btn = this.shadowRoot.getElementById(id);
+      if (this[prop]) btn.classList.add("active");
+      btn.addEventListener("click", () => {
+        this[prop] = !this[prop];
+        btn.classList.toggle("active", this[prop]);
+        this._draw();
+      });
+    }
 
     // Canvas click for contact selection
     this._canvas.addEventListener("click", (e) => {
@@ -477,25 +487,38 @@ class TacticalMap extends HTMLElement {
       this._drawWeaponArcs(ctx, centerX, centerY, scale, pixelsPerMeter);
     }
 
+    // Draw own ship trajectory projection
+    if (this._showTrajectory) {
+      this._drawTrajectoryProjection(ctx, centerX, centerY, playerVel, pixelsPerMeter, scale);
+    }
+
     // Draw contacts
     const contacts = stateManager.getContacts() || [];
 
     // Auto-fit scale to show all contacts before rendering.
-    // We do this before drawing so the scale is correct for this frame.
     if (this._autoFit && contacts.length > 0) {
       const prevIndex = this._scaleIndex;
       this._autoFitScale(contacts, playerPos);
-      // If the scale changed, we need to redraw with the new pixelsPerMeter.
-      // Guard against repeated redraws by only redrawing once per auto-fit change.
       if (this._scaleIndex !== prevIndex) {
         this._draw();
         return;
       }
     }
 
+    // Draw firing solution confidence cones (behind contacts)
+    if (this._showSolutions) {
+      this._drawFiringSolutions(ctx, centerX, centerY, playerPos, contacts, pixelsPerMeter, scale);
+    }
+
+    // Clear screen position tracking for this frame
+    this._contactScreenPositions.clear();
+
     contacts.forEach(contact => {
       this._drawContact(ctx, contact, playerPos, centerX, centerY, pixelsPerMeter, playerVel, scale);
     });
+
+    // Draw projectile tracks
+    this._drawProjectiles(ctx, playerPos, centerX, centerY, pixelsPerMeter);
 
     // Draw player ship (always at center)
     this._drawPlayerShip(ctx, centerX, centerY, playerHeading, playerVel, pixelsPerMeter);
@@ -602,6 +625,205 @@ class TacticalMap extends HTMLElement {
     }
   }
 
+  /**
+   * Draw own ship trajectory projection — dotted line showing future position
+   * based on current velocity, projected forward in time.
+   */
+  _drawTrajectoryProjection(ctx, centerX, centerY, velocity, pixelsPerMeter, scale) {
+    const velMag = Math.sqrt(velocity.x ** 2 + velocity.y ** 2 + velocity.z ** 2);
+    if (velMag < 0.1) return;
+
+    ctx.save();
+    ctx.strokeStyle = "rgba(0, 170, 255, 0.3)";
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 6]);
+    ctx.beginPath();
+
+    let prevX = centerX;
+    let prevY = centerY;
+    let drawn = false;
+
+    for (let i = 1; i <= TRAJECTORY_STEPS; i++) {
+      const t = (TRAJECTORY_SECONDS / TRAJECTORY_STEPS) * i;
+      const futureX = velocity.x * t * pixelsPerMeter;
+      const futureZ = velocity.z * t * pixelsPerMeter;
+
+      const sx = centerX + futureX;
+      const sy = centerY - futureZ;
+
+      // Skip if projected point is way off screen
+      if (Math.abs(sx - centerX) > this._canvasWidth || Math.abs(sy - centerY) > this._canvasHeight) {
+        break;
+      }
+
+      if (!drawn) {
+        ctx.moveTo(prevX, prevY);
+        drawn = true;
+      }
+      ctx.lineTo(sx, sy);
+      prevX = sx;
+      prevY = sy;
+    }
+
+    if (drawn) {
+      ctx.stroke();
+
+      // Draw time markers at 15s and 30s and 60s
+      ctx.fillStyle = "rgba(0, 170, 255, 0.5)";
+      ctx.font = "9px 'JetBrains Mono', monospace";
+      for (const t of [15, 30, 60]) {
+        if (t > TRAJECTORY_SECONDS) break;
+        const mx = centerX + velocity.x * t * pixelsPerMeter;
+        const my = centerY - velocity.z * t * pixelsPerMeter;
+        if (Math.abs(mx - centerX) < this._canvasWidth && Math.abs(my - centerY) < this._canvasHeight) {
+          ctx.beginPath();
+          ctx.arc(mx, my, 2, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillText(`${t}s`, mx + 5, my - 3);
+        }
+      }
+    }
+
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
+  /**
+   * Draw firing solution confidence cones from player to locked target.
+   * The cone width reflects the hit probability — narrow = high confidence.
+   */
+  _drawFiringSolutions(ctx, centerX, centerY, playerPos, contacts, pixelsPerMeter, scale) {
+    const targeting = stateManager.getTargeting();
+    if (!targeting || !targeting.solutions) return;
+    if (targeting.lock_state !== "locked" && targeting.lock_state !== "acquiring") return;
+
+    const targetId = targeting.locked_target;
+    if (!targetId) return;
+
+    // Find the target contact
+    const targetContact = contacts.find(c => c.id === targetId);
+    if (!targetContact) return;
+
+    const targetPos = this._resolveContactPosition(targetContact, playerPos);
+    const dx = targetPos.x - playerPos.x;
+    const dz = targetPos.z - playerPos.z;
+    const dist = Math.sqrt(dx * dx + dz * dz);
+    if (dist < 1) return;
+
+    const angleToTarget = Math.atan2(dx, -dz); // screen-space angle
+
+    for (const [weaponId, solution] of Object.entries(targeting.solutions)) {
+      if (!solution) continue;
+      const confidence = solution.confidence || solution.hit_probability || 0;
+      if (confidence <= 0) continue;
+
+      // Cone half-angle: high confidence = narrow cone, low = wide
+      // At 1.0 confidence: ~2 degrees. At 0.1 confidence: ~20 degrees.
+      const halfAngle = ((1 - confidence) * 18 + 2) * (Math.PI / 180);
+
+      // Choose color based on weapon type
+      let color;
+      if (weaponId.includes("pdc")) {
+        color = `rgba(255, 68, 68, ${0.08 + confidence * 0.12})`;
+      } else {
+        color = `rgba(255, 170, 0, ${0.08 + confidence * 0.12})`;
+      }
+
+      // Cone length: distance to target in pixels, capped
+      const coneLengthPx = Math.min(dist * pixelsPerMeter, Math.min(this._canvasWidth, this._canvasHeight));
+
+      ctx.save();
+      ctx.translate(centerX, centerY);
+      ctx.rotate(angleToTarget);
+
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(Math.sin(halfAngle) * coneLengthPx, -coneLengthPx);
+      ctx.lineTo(-Math.sin(halfAngle) * coneLengthPx, -coneLengthPx);
+      ctx.closePath();
+      ctx.fill();
+
+      // Draw confidence label near the base of the cone
+      const labelDist = Math.min(coneLengthPx * 0.3, 60);
+      ctx.rotate(-angleToTarget);
+      const lx = Math.sin(angleToTarget) * labelDist;
+      const ly = -Math.cos(angleToTarget) * labelDist;
+      ctx.fillStyle = weaponId.includes("pdc") ? "rgba(255, 68, 68, 0.7)" : "rgba(255, 170, 0, 0.7)";
+      ctx.font = "9px 'JetBrains Mono', monospace";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      const pct = (confidence * 100).toFixed(0);
+      const shortName = weaponId.includes("pdc") ? "PDC" : "RG";
+      ctx.fillText(`${shortName} ${pct}%`, lx + 8, ly);
+      ctx.textAlign = "start";
+
+      ctx.restore();
+    }
+  }
+
+  /**
+   * Draw active projectiles on the map.
+   */
+  _drawProjectiles(ctx, playerPos, centerX, centerY, pixelsPerMeter) {
+    const projectiles = stateManager.getProjectiles();
+    if (!projectiles || projectiles.length === 0) return;
+
+    for (const proj of projectiles) {
+      const pos = proj.position;
+      if (!pos) continue;
+
+      const relX = (pos.x - playerPos.x) * pixelsPerMeter;
+      const relZ = (pos.z - playerPos.z) * pixelsPerMeter;
+      const sx = centerX + relX;
+      const sy = centerY - relZ;
+
+      // Skip if off-screen
+      if (sx < -10 || sx > this._canvasWidth + 10 ||
+          sy < -10 || sy > this._canvasHeight + 10) {
+        continue;
+      }
+
+      // Draw projectile as a small bright dot with trail
+      const projType = (proj.type || "").toLowerCase();
+      let color = "#ffffff";
+      if (projType.includes("railgun") || projType.includes("kinetic")) {
+        color = "#ffaa00";
+      } else if (projType.includes("pdc")) {
+        color = "#ff6666";
+      } else if (projType.includes("torpedo") || projType.includes("missile")) {
+        color = "#ff4444";
+      }
+
+      // Velocity trail
+      if (proj.velocity) {
+        const vel = proj.velocity;
+        const velMag = Math.sqrt(vel.x ** 2 + vel.y ** 2 + vel.z ** 2);
+        if (velMag > 1) {
+          const velAngle = Math.atan2(vel.x, vel.z);
+          const trailLen = Math.min(velMag * pixelsPerMeter * 0.5, 20);
+          ctx.strokeStyle = color;
+          ctx.globalAlpha = 0.4;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(sx, sy);
+          ctx.lineTo(
+            sx - Math.sin(velAngle) * trailLen,
+            sy + Math.cos(velAngle) * trailLen
+          );
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+        }
+      }
+
+      // Projectile dot
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
   _drawPlayerShip(ctx, centerX, centerY, heading, velocity, pixelsPerMeter) {
     ctx.save();
     ctx.translate(centerX, centerY);
@@ -693,21 +915,21 @@ class TacticalMap extends HTMLElement {
     }
 
     // Determine color based on faction/IFF
-    let color = "#888899"; // neutral
-    const faction = contact.faction?.toLowerCase() || contact.iff?.toLowerCase() || "";
-    if (faction.includes("friend") || faction.includes("ally") || faction === "player") {
-      color = "#00ff88";
-    } else if (faction.includes("host") || faction.includes("enemy")) {
-      color = "#ff4444";
-    } else if (faction.includes("unknown")) {
-      color = "#ffaa00";
+    const color = this._getContactColor(contact);
+    const confidence = contact.confidence ?? 1.0;
+
+    // Draw error ellipse for uncertain contacts (confidence < 0.8)
+    if (confidence < 0.8) {
+      this._drawErrorEllipse(ctx, screenX, screenY, contact, pixelsPerMeter, color);
     }
 
-    // Draw contact blip
+    // Draw contact blip — alpha scaled by confidence
+    ctx.globalAlpha = 0.4 + confidence * 0.6;
     ctx.fillStyle = color;
     ctx.beginPath();
     ctx.arc(screenX, screenY, 5, 0, Math.PI * 2);
     ctx.fill();
+    ctx.globalAlpha = 1;
 
     // Contact velocity vector
     if (this._showVelocityVectors && contact.velocity) {
@@ -731,11 +953,8 @@ class TacticalMap extends HTMLElement {
       }
     }
 
-    // Label
-    const label = contact.name || contact.id || "Unknown";
-    ctx.fillStyle = color;
-    ctx.font = "10px 'JetBrains Mono', monospace";
-    ctx.fillText(label, screenX + 8, screenY + 4);
+    // Classification label: name/id + class + detection method
+    this._drawContactLabel(ctx, contact, screenX, screenY, color, confidence);
 
     // Weapon engagement ring around contacts within range
     if (this._showWeaponArcs) {
@@ -744,14 +963,12 @@ class TacticalMap extends HTMLElement {
       const distance = Math.sqrt(dx * dx + dz * dz);
 
       if (distance <= WEAPON_RANGES.PDC) {
-        // Within PDC range — red ring
         ctx.strokeStyle = "rgba(255, 68, 68, 0.8)";
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.arc(screenX, screenY, 10, 0, Math.PI * 2);
         ctx.stroke();
       } else if (distance <= WEAPON_RANGES.RAILGUN) {
-        // Within railgun range but outside PDC — amber ring
         ctx.strokeStyle = "rgba(255, 170, 0, 0.8)";
         ctx.lineWidth = 2;
         ctx.beginPath();
@@ -760,9 +977,130 @@ class TacticalMap extends HTMLElement {
       }
     }
 
-    // Store screen position for click detection
-    contact._screenX = screenX;
-    contact._screenY = screenY;
+    // Highlight locked target
+    const targeting = stateManager.getTargeting();
+    if (targeting?.locked_target === contact.id &&
+        (targeting.lock_state === "locked" || targeting.lock_state === "acquiring")) {
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      // Draw targeting brackets
+      const bs = 12;
+      // Top-left
+      ctx.moveTo(screenX - bs, screenY - bs + 4);
+      ctx.lineTo(screenX - bs, screenY - bs);
+      ctx.lineTo(screenX - bs + 4, screenY - bs);
+      // Top-right
+      ctx.moveTo(screenX + bs - 4, screenY - bs);
+      ctx.lineTo(screenX + bs, screenY - bs);
+      ctx.lineTo(screenX + bs, screenY - bs + 4);
+      // Bottom-right
+      ctx.moveTo(screenX + bs, screenY + bs - 4);
+      ctx.lineTo(screenX + bs, screenY + bs);
+      ctx.lineTo(screenX + bs - 4, screenY + bs);
+      // Bottom-left
+      ctx.moveTo(screenX - bs + 4, screenY + bs);
+      ctx.lineTo(screenX - bs, screenY + bs);
+      ctx.lineTo(screenX - bs, screenY + bs - 4);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // Store screen position for click detection (in separate map, not on frozen contact)
+    this._contactScreenPositions.set(contact.id, { x: screenX, y: screenY });
+  }
+
+  /**
+   * Get contact color based on faction/IFF.
+   */
+  _getContactColor(contact) {
+    const faction = contact.faction?.toLowerCase() || contact.iff?.toLowerCase() || "";
+    if (faction.includes("friend") || faction.includes("ally") || faction === "player") {
+      return "#00ff88";
+    } else if (faction.includes("host") || faction.includes("enemy")) {
+      return "#ff4444";
+    } else if (faction.includes("unknown")) {
+      return "#ffaa00";
+    }
+    return "#888899";
+  }
+
+  /**
+   * Draw error ellipse around an uncertain contact.
+   * Size scales inversely with confidence and proportionally with distance.
+   */
+  _drawErrorEllipse(ctx, screenX, screenY, contact, pixelsPerMeter, color) {
+    const confidence = contact.confidence ?? 1.0;
+    // Error radius: lower confidence = bigger uncertainty zone
+    // Base error is proportional to distance and inversely to confidence
+    const distance = contact.distance || 1000;
+    // Uncertainty in meters: at 0 confidence, ~20% of distance; at 0.8, ~2%
+    const uncertaintyMeters = distance * (1 - confidence) * 0.2;
+    const radiusPx = Math.max(8, Math.min(uncertaintyMeters * pixelsPerMeter, 60));
+
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.globalAlpha = 0.25;
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    // Slight ellipse (wider along bearing axis to reflect range uncertainty)
+    ctx.ellipse(screenX, screenY, radiusPx, radiusPx * 0.7, 0, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Filled translucent interior
+    ctx.fillStyle = color;
+    ctx.globalAlpha = 0.05;
+    ctx.fill();
+
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+
+  /**
+   * Draw classification label for a contact.
+   * Shows: name/ID, classification, and detection method indicator.
+   */
+  _drawContactLabel(ctx, contact, screenX, screenY, color, confidence) {
+    const name = contact.name || contact.id || "Unknown";
+    const classification = contact.classification || contact.class || contact.type || "";
+    const method = contact.detection_method || "";
+
+    // Method indicator prefix
+    let methodPrefix = "";
+    if (method === "passive" || method === "ir") {
+      methodPrefix = "[P] ";
+    } else if (method === "active" || method === "radar") {
+      methodPrefix = "[A] ";
+    } else if (method === "visual") {
+      methodPrefix = "[V] ";
+    }
+
+    // Build label text
+    let label = methodPrefix + name;
+    if (classification && classification !== name) {
+      label += ` (${classification})`;
+    }
+
+    // Confidence bar under label (if not full)
+    ctx.font = "10px 'JetBrains Mono', monospace";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+    ctx.fillStyle = color;
+    ctx.globalAlpha = 0.5 + confidence * 0.5;
+    ctx.fillText(label, screenX + 8, screenY - 4);
+
+    if (confidence < 0.95) {
+      // Tiny confidence indicator
+      const confText = `${(confidence * 100).toFixed(0)}%`;
+      ctx.fillStyle = confidence > 0.5 ? "rgba(0, 170, 255, 0.6)" : "rgba(255, 170, 0, 0.6)";
+      ctx.font = "8px 'JetBrains Mono', monospace";
+      ctx.fillText(confText, screenX + 8, screenY + 8);
+    }
+
+    ctx.globalAlpha = 1;
   }
 
   _drawCompass(ctx, w, h) {
@@ -802,11 +1140,12 @@ class TacticalMap extends HTMLElement {
     const contacts = stateManager.getContacts() || [];
     let clickedContact = null;
 
-    // Check if click is near any contact
+    // Check if click is near any contact using stored screen positions
     for (const contact of contacts) {
-      if (contact._screenX !== undefined) {
-        const dx = x - contact._screenX;
-        const dy = y - contact._screenY;
+      const pos = this._contactScreenPositions.get(contact.id);
+      if (pos) {
+        const dx = x - pos.x;
+        const dy = y - pos.y;
         if (Math.sqrt(dx * dx + dy * dy) < 15) {
           clickedContact = contact;
           break;
@@ -816,6 +1155,13 @@ class TacticalMap extends HTMLElement {
 
     this._selectedContact = clickedContact;
     this._updateContactInfo(clickedContact);
+
+    // Dispatch contact-selected event for other components (targeting display etc.)
+    if (clickedContact) {
+      document.dispatchEvent(new CustomEvent("contact-selected", {
+        detail: { contactId: clickedContact.id }
+      }));
+    }
   }
 
   _updateContactInfo(contact) {
@@ -843,10 +1189,14 @@ class TacticalMap extends HTMLElement {
 
     // Update info panel
     this.shadowRoot.getElementById("contact-name").textContent = contact.name || contact.id || "Unknown";
-    this.shadowRoot.getElementById("contact-type").textContent = contact.class || contact.type || "---";
+    this.shadowRoot.getElementById("contact-type").textContent = contact.classification || contact.class || contact.type || "---";
     this.shadowRoot.getElementById("contact-distance").textContent = this._formatDistance(distance);
     this.shadowRoot.getElementById("contact-bearing").textContent = `${bearing.toFixed(1)}°`;
     this.shadowRoot.getElementById("contact-velocity").textContent = `${speed.toFixed(1)} m/s`;
+    this.shadowRoot.getElementById("contact-confidence").textContent =
+      contact.confidence != null ? `${(contact.confidence * 100).toFixed(0)}%` : "---";
+    this.shadowRoot.getElementById("contact-method").textContent =
+      contact.detection_method || "---";
   }
 
   _formatDistance(meters) {

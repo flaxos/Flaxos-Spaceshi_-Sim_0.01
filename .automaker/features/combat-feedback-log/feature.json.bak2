@@ -1,0 +1,20 @@
+{
+  "category": "feature",
+  "description": "A persistent log that records every combat event with full causal chain: 'Railgun fired → slug travel time 18.3s → target executed 1.2g burn at T+12s → slug passed 340m behind target → miss.' Or: 'PDC burst intercepted torpedo #3 → 12 rounds fired, 3 impacts → torpedo drive disabled at 2.1km range → torpedo tumbling, warhead did not detonate.' Every event links cause to effect. Log is filterable by event type, weapon, and target. This is the primary tool for player learning — understanding WHY things happen builds skill.",
+  "id": "combat-feedback-log",
+  "title": "Causal Combat Event Log",
+  "dependencies": [
+    "targeting-pipeline",
+    "subsystem-model"
+  ],
+  "priority": 3,
+  "status": "in_progress",
+  "descriptionHistory": [
+    {
+      "description": "A persistent log that records every combat event with full causal chain: 'Railgun fired → slug travel time 18.3s → target executed 1.2g burn at T+12s → slug passed 340m behind target → miss.' Or: 'PDC burst intercepted torpedo #3 → 12 rounds fired, 3 impacts → torpedo drive disabled at 2.1km range → torpedo tumbling, warhead did not detonate.' Every event links cause to effect. Log is filterable by event type, weapon, and target. This is the primary tool for player learning — understanding WHY things happen builds skill.",
+      "timestamp": "2026-03-14T04:07:48.938Z",
+      "source": "initial"
+    }
+  ],
+  "updatedAt": "2026-03-14T08:51:54.237Z"
+}

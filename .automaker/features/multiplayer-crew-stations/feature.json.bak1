@@ -1,0 +1,20 @@
+{
+  "category": "feature",
+  "description": "Multiple clients connect to the server and each claims a crew station (Helm, Tactical, Ops, Engineering, Comms, Science). Each player only sees UI relevant to their station and can only issue commands assigned to that station. Unclaimed stations can be operated by the captain (a player who can switch between any unclaimed station) or by AI crew with configurable competence. Voice chat integration or text comms between stations. The crew must coordinate — Helm needs to know when Tactical wants stable firing platform, Ops needs to know which systems Tactical needs powered.",
+  "id": "multiplayer-crew-stations",
+  "title": "Multiplayer: Multiple Players on One Ship",
+  "dependencies": [
+    "station-crew-roles",
+    "server-authoritative-state"
+  ],
+  "priority": 6,
+  "status": "verified",
+  "descriptionHistory": [
+    {
+      "description": "Multiple clients connect to the server and each claims a crew station (Helm, Tactical, Ops, Engineering, Comms, Science). Each player only sees UI relevant to their station and can only issue commands assigned to that station. Unclaimed stations can be operated by the captain (a player who can switch between any unclaimed station) or by AI crew with configurable competence. Voice chat integration or text comms between stations. The crew must coordinate — Helm needs to know when Tactical wants stable firing platform, Ops needs to know which systems Tactical needs powered.",
+      "timestamp": "2026-03-14T04:07:48.945Z",
+      "source": "initial"
+    }
+  ],
+  "updatedAt": "2026-03-15T00:00:12.673Z"
+}

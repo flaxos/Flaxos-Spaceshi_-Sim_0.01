@@ -1,0 +1,19 @@
+{
+  "category": "feature",
+  "description": "Comms station manages: IFF transponder (broadcast identity — can be spoofed or turned off), radio communications (speed-of-light delay at long range), contact hailing, and distress signals. IFF is not magic identification — it's a broadcast that can be faked. Without IFF, contacts must be identified by sensor analysis (drive signature, radar cross-section profile, visual identification at close range). Comms commands: hail-contact, set-transponder, broadcast-message, set-emcon-level (emissions control — reduce or eliminate all active emissions for stealth at cost of sensor capability).",
+  "id": "comms-iff-system",
+  "title": "Communications & IFF System",
+  "dependencies": [
+    "station-crew-roles",
+    "sensor-detection-model"
+  ],
+  "priority": 5,
+  "status": "backlog",
+  "descriptionHistory": [
+    {
+      "description": "Comms station manages: IFF transponder (broadcast identity — can be spoofed or turned off), radio communications (speed-of-light delay at long range), contact hailing, and distress signals. IFF is not magic identification — it's a broadcast that can be faked. Without IFF, contacts must be identified by sensor analysis (drive signature, radar cross-section profile, visual identification at close range). Comms commands: hail-contact, set-transponder, broadcast-message, set-emcon-level (emissions control — reduce or eliminate all active emissions for stealth at cost of sensor capability).",
+      "timestamp": "2026-03-14T04:07:48.943Z",
+      "source": "initial"
+    }
+  ]
+}

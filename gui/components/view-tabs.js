@@ -1,7 +1,7 @@
 /**
  * View Tabs Component
  * Tab bar for switching between station views.
- * Keyboard shortcuts: 1=Helm, 2=Tactical, 3=Ops, 4=Engineering, 5=Science, 6=Fleet, 7=Mission
+ * Keyboard shortcuts: 1=Helm, 2=Tactical, 3=Ops, 4=Engineering, 5=Comms, 6=Science, 7=Fleet, 8=Mission, 9=Editor
  */
 
 class ViewTabs extends HTMLElement {
@@ -14,6 +14,7 @@ class ViewTabs extends HTMLElement {
     this.attachShadow({ mode: "open" });
     this._activeView = "helm";
     this._keyHandler = null;
+    this._allowedViews = null; // null = all allowed, array = restricted
   }
 
   connectedCallback() {
@@ -40,11 +41,26 @@ class ViewTabs extends HTMLElement {
   }
 
   set activeView(value) {
+    // Reject switching to disallowed views
+    if (this._allowedViews && !this._allowedViews.includes(value)) return;
     if (this._activeView === value) return;
     this._activeView = value;
     this.setAttribute("active", value);
     this._updateActiveTab();
     this._emitChange();
+  }
+
+  /**
+   * Set which views are allowed. null = all allowed (captain/no station).
+   * @param {string[]|null} views - Array of view ids, or null for unrestricted
+   */
+  set allowedViews(views) {
+    this._allowedViews = views;
+    this._updateTabStates();
+  }
+
+  get allowedViews() {
+    return this._allowedViews;
   }
 
   render() {
@@ -53,10 +69,11 @@ class ViewTabs extends HTMLElement {
       { id: "tactical", label: "TACTICAL", shortcut: "2", icon: "T" },
       { id: "ops", label: "OPS", shortcut: "3", icon: "O" },
       { id: "engineering", label: "ENGINEERING", shortcut: "4", icon: "E" },
-      { id: "science", label: "SCIENCE", shortcut: "5", icon: "S" },
-      { id: "fleet", label: "FLEET", shortcut: "6", icon: "F" },
-      { id: "mission", label: "MISSION", shortcut: "7", icon: "M" },
-      { id: "editor", label: "EDITOR", shortcut: "8", icon: "W" },
+      { id: "comms", label: "COMMS", shortcut: "5", icon: "C" },
+      { id: "science", label: "SCIENCE", shortcut: "6", icon: "S" },
+      { id: "fleet", label: "FLEET", shortcut: "7", icon: "F" },
+      { id: "mission", label: "MISSION", shortcut: "8", icon: "M" },
+      { id: "editor", label: "EDITOR", shortcut: "9", icon: "W" },
     ];
 
     this.shadowRoot.innerHTML = `
@@ -133,6 +150,12 @@ class ViewTabs extends HTMLElement {
           color: var(--status-info, #00aaff);
         }
 
+        .tab.locked {
+          opacity: 0.25;
+          cursor: not-allowed;
+          pointer-events: none;
+        }
+
         .tab-icon {
           display: none;
         }
@@ -197,13 +220,14 @@ class ViewTabs extends HTMLElement {
     // Bind click events
     this.shadowRoot.querySelectorAll(".tab").forEach(tab => {
       tab.addEventListener("click", () => {
+        if (tab.classList.contains("locked")) return;
         this.activeView = tab.dataset.view;
       });
     });
   }
 
   _setupKeyboardShortcuts() {
-    const viewMap = { "1": "helm", "2": "tactical", "3": "ops", "4": "engineering", "5": "science", "6": "fleet", "7": "mission", "8": "editor" };
+    const viewMap = { "1": "helm", "2": "tactical", "3": "ops", "4": "engineering", "5": "comms", "6": "science", "7": "fleet", "8": "mission", "9": "editor" };
 
     this._keyHandler = (e) => {
       // Don't capture if user is typing in an input
@@ -216,8 +240,11 @@ class ViewTabs extends HTMLElement {
       })) return;
 
       if (viewMap[e.key]) {
+        const targetView = viewMap[e.key];
+        // Respect view locking
+        if (this._allowedViews && !this._allowedViews.includes(targetView)) return;
         e.preventDefault();
-        this.activeView = viewMap[e.key];
+        this.activeView = targetView;
       }
     };
 
@@ -230,6 +257,16 @@ class ViewTabs extends HTMLElement {
       const isActive = tab.dataset.view === this._activeView;
       tab.classList.toggle("active", isActive);
       tab.setAttribute("aria-selected", isActive);
+    });
+  }
+
+  _updateTabStates() {
+    const tabs = this.shadowRoot.querySelectorAll(".tab");
+    tabs.forEach(tab => {
+      const viewId = tab.dataset.view;
+      const isLocked = this._allowedViews && !this._allowedViews.includes(viewId);
+      tab.classList.toggle("locked", isLocked);
+      tab.setAttribute("aria-disabled", isLocked);
     });
   }
 

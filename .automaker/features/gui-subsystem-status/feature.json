@@ -1,0 +1,22 @@
+{
+  "category": "feature",
+  "description": "Display panel showing all ship subsystems with current integrity (nominal/impaired/destroyed), active damage effects, repair team assignments, power allocation, and heat levels. Color-coded for quick reading: green nominal, yellow impaired, red destroyed. Shows cascade effects clearly — if sensors are destroyed, the targeting pipeline section should indicate 'NO SENSOR DATA' rather than just showing empty tracks. Repair time estimates based on damage severity and crew assignment.",
+  "id": "gui-subsystem-status",
+  "title": "Web GUI: Subsystem Status Panel",
+  "dependencies": [
+    "server-authoritative-state",
+    "subsystem-model",
+    "damage-cascade-system"
+  ],
+  "priority": 3,
+  "status": "verified",
+  "descriptionHistory": [
+    {
+      "description": "Display panel showing all ship subsystems with current integrity (nominal/impaired/destroyed), active damage effects, repair team assignments, power allocation, and heat levels. Color-coded for quick reading: green nominal, yellow impaired, red destroyed. Shows cascade effects clearly — if sensors are destroyed, the targeting pipeline section should indicate 'NO SENSOR DATA' rather than just showing empty tracks. Repair time estimates based on damage severity and crew assignment.",
+      "timestamp": "2026-03-14T04:07:48.942Z",
+      "source": "initial"
+    }
+  ],
+  "updatedAt": "2026-03-14T09:20:22.163Z",
+  "summary": "## Summary: Subsystem Status Panel\n\n### Changes Implemented\n- Created a new Web Component `<subsystem-status-panel>` that displays all ship subsystems with comprehensive status information\n- **Health integrity**: Color-coded status per subsystem (green=online, yellow=damaged, gray=offline, red=destroyed) with health percentage bars\n- **Heat levels**: Secondary heat bars shown for subsystems with active heat, with pulsing animation and \"OVERHEATED\" indicator when threshold exceeded\n- **Cascade effects**: Dedicated section showing active cascade effects with human-readable descriptions (e.g., \"Sensors offline — targeting pipeline is blind\") and performance factor percentages\n- **NO SENSOR DATA overlay**: When sensors are destroyed and cascade factor is 0, the targeting subsystem row shows a prominent \"NO SENSOR DATA\" overlay\n- **Mission kill banners**: Animated alert banners for mission kill (mobility kill, firepower kill, or both) with descriptive text\n- **Repair time estimates**: Calculated from damage severity using the server's auto-repair rate (0.5 hp/s), displayed as formatted time strings\n- **Performance indicators**: Shows effective performance factor (damage x heat x cascade) when degraded below 100%\n- **CRITICAL indicators**: Shows critical state warning when health is below 25% but subsystem is still operational\n- Panel added to both Engineering view and Ops view (the damage control station)\n- Follows existing codebase patterns: Shadow DOM, stateManager subscription, CSS design tokens, monospace fonts for values\n\n### Files Modified\n- `gui/components/subsystem-status.js` — New file: SubsystemStatusPanel Web Component (~340 lines)\n- `gui/js/main.js` — Added import for the new component\n- `gui/index.html` — Added `<subsystem-status-panel>` to Engineering and Ops views with grid CSS sizing classes\n\n### Verification Status\n- Verified with 9 Playwright tests covering: component rendering with 7 subsystems, correct status badges (online/damaged/offline/destroyed), mission kill banner display, cascade effects section, NO SENSOR DATA overlay, health bar color coding (nominal/warning/critical), heat bars with overheated animation, OVERHEATED text indicator, and repair time estimates. All 9 tests passed.\n\n### Notes for Developer\n- The component reads from `ship.subsystem_health` (damage_model.get_report()) and `ship.cascade_effects` (cascade_manager.get_report()) in ship telemetry\n- Subsystem display order is: reactor, propulsion, rcs, sensors, targeting, weapons, life_support — any additional subsystems render after these\n- Repair time estimates use the server-side `AUTO_REPAIR_RATE` of 0.5 hp/s; destroyed subsystems show \"N/A\" as they cannot be auto-repaired\n- The component is registered as `<subsystem-status-panel>` (not `<subsystem-status>`) to avoid conflict with the existing `<subsystem-selector>` targeting component"
+}

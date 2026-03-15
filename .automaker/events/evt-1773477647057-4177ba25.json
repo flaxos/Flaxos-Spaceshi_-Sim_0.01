@@ -1,0 +1,10 @@
+{
+  "id": "evt-1773477647057-4177ba25",
+  "trigger": "feature_success",
+  "timestamp": "2026-03-14T08:40:47.057Z",
+  "projectPath": "/projects/spaceship-sim",
+  "projectName": "spaceship-sim",
+  "featureId": "targeting-pipeline",
+  "featureName": "Multi-Stage Targeting Pipeline",
+  "passes": true
+}

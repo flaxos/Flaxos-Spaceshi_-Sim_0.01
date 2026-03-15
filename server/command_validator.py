@@ -55,6 +55,18 @@ PARAM_RULES: Dict[str, Dict[str, Tuple]] = {
     "fire_combat": {
         "weapon_id": (str, None, None, None),
     },
+    "execute_burn": {
+        "duration": (float, 0.1, 3600.0, 10.0),
+        "throttle": (float, 0.0, 1.0, None),
+        "g": (float, 0.0, 20.0, None),
+        "pitch": (float, -90.0, 90.0, None),
+        "yaw": (float, -360.0, 360.0, None),
+    },
+    "emergency_burn": {
+        "pitch": (float, -90.0, 90.0, None),
+        "yaw": (float, -360.0, 360.0, None),
+        "duration": (float, 0.1, 300.0, None),
+    },
     "set_power_allocation": {
         "level": (float, 0.0, 1.0, None),
     },

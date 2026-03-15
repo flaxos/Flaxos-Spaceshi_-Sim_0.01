@@ -1,6 +1,10 @@
 /**
  * Weapon Fire Controls
- * Fire torpedo, PDC control, cease fire
+ * Tactical station fire control: railgun fire, PDC mode, torpedo launch,
+ * target designation, and damage assessment.
+ *
+ * Uses commands: designate_target, request_solution, fire_railgun,
+ * set_pdc_mode, launch_torpedo, assess_damage
  */
 
 import { stateManager } from "../js/state-manager.js";
@@ -11,18 +15,29 @@ class WeaponControls extends HTMLElement {
     super();
     this.attachShadow({ mode: "open" });
     this._unsubscribe = null;
-    this._pdcEnabled = false;
+    this._pdcMode = "auto";
+    this._assessmentData = null;
   }
 
   connectedCallback() {
     this.render();
     this._subscribe();
     this._setupInteraction();
+
+    this._contactSelectedHandler = (e) => {
+      this._selectedContact = e.detail.contactId;
+      this._updateDisplay();
+    };
+    document.addEventListener("contact-selected", this._contactSelectedHandler);
   }
 
   disconnectedCallback() {
     if (this._unsubscribe) {
       this._unsubscribe();
+    }
+    if (this._contactSelectedHandler) {
+      document.removeEventListener("contact-selected", this._contactSelectedHandler);
+      this._contactSelectedHandler = null;
     }
   }
 
@@ -71,6 +86,29 @@ class WeaponControls extends HTMLElement {
           justify-content: center;
           gap: 8px;
           transition: all 0.1s ease;
+          font-family: inherit;
+        }
+
+        .railgun-btn {
+          background: linear-gradient(135deg, #00aaff 0%, #0066cc 100%);
+          border: none;
+          color: white;
+          box-shadow: 0 4px 12px rgba(0, 170, 255, 0.3);
+        }
+
+        .railgun-btn:hover:not(:disabled) {
+          filter: brightness(1.1);
+          transform: translateY(-1px);
+        }
+
+        .railgun-btn:active:not(:disabled) {
+          transform: translateY(0);
+        }
+
+        .railgun-btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+          filter: grayscale(0.5);
         }
 
         .torpedo-btn {
@@ -100,68 +138,132 @@ class WeaponControls extends HTMLElement {
           opacity: 0.9;
         }
 
-        .pdc-row {
+        /* PDC Mode Selector */
+        .pdc-mode-group {
           display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 12px;
+          gap: 4px;
           background: var(--bg-input, #1a1a24);
           border-radius: 8px;
+          padding: 4px;
         }
 
-        .pdc-label {
+        .pdc-mode-btn {
+          flex: 1;
+          padding: 8px 6px;
+          border: 1px solid transparent;
+          border-radius: 6px;
+          background: transparent;
+          color: var(--text-dim, #555566);
+          font-family: inherit;
+          font-size: 0.7rem;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.3px;
+          cursor: pointer;
+          transition: all 0.15s ease;
+          min-height: 36px;
+        }
+
+        .pdc-mode-btn:hover {
+          color: var(--text-primary, #e0e0e0);
+          background: rgba(255, 255, 255, 0.05);
+        }
+
+        .pdc-mode-btn.active {
+          color: var(--status-nominal, #00ff88);
+          border-color: var(--status-nominal, #00ff88);
+          background: rgba(0, 255, 136, 0.1);
+        }
+
+        .pdc-mode-btn.active.hold-fire {
+          color: var(--status-warning, #ffaa00);
+          border-color: var(--status-warning, #ffaa00);
+          background: rgba(255, 170, 0, 0.1);
+        }
+
+        .pdc-mode-label {
           display: flex;
           align-items: center;
-          gap: 8px;
+          gap: 6px;
+          justify-content: center;
         }
 
         .pdc-indicator {
-          width: 10px;
-          height: 10px;
+          width: 6px;
+          height: 6px;
           border-radius: 50%;
-          background: var(--status-offline, #555566);
-          transition: all 0.2s ease;
+          background: currentColor;
+          flex-shrink: 0;
         }
 
-        .pdc-indicator.active {
-          background: var(--status-nominal, #00ff88);
-          box-shadow: 0 0 8px var(--status-nominal, #00ff88);
-        }
-
-        .pdc-status {
-          font-size: 0.85rem;
-          color: var(--text-primary, #e0e0e0);
-        }
-
-        .toggle-switch {
-          position: relative;
-          width: 48px;
-          height: 28px;
-          background: var(--bg-primary, #0a0a0f);
-          border-radius: 14px;
+        /* Assess damage button */
+        .assess-btn {
+          width: 100%;
+          padding: 10px 16px;
+          background: rgba(0, 170, 255, 0.08);
+          border: 1px solid var(--status-info, #00aaff);
+          border-radius: 6px;
+          color: var(--status-info, #00aaff);
+          font-family: inherit;
+          font-size: 0.75rem;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
           cursor: pointer;
-          transition: background 0.2s ease;
+          min-height: 40px;
+          transition: background 0.15s ease;
         }
 
-        .toggle-switch.active {
-          background: var(--status-nominal, #00ff88);
+        .assess-btn:hover:not(:disabled) {
+          background: rgba(0, 170, 255, 0.15);
         }
 
-        .toggle-switch::before {
-          content: '';
-          position: absolute;
-          top: 4px;
-          left: 4px;
-          width: 20px;
-          height: 20px;
-          background: var(--text-primary, #e0e0e0);
-          border-radius: 50%;
-          transition: transform 0.2s ease;
+        .assess-btn:disabled {
+          opacity: 0.4;
+          cursor: not-allowed;
         }
 
-        .toggle-switch.active::before {
-          transform: translateX(20px);
-          background: var(--bg-primary, #0a0a0f);
+        /* Assessment results */
+        .assessment-results {
+          margin-top: 8px;
+          padding: 10px 12px;
+          background: rgba(0, 0, 0, 0.25);
+          border-radius: 6px;
+          border: 1px solid var(--border-default, #2a2a3a);
+        }
+
+        .assessment-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 3px 0;
+          font-size: 0.75rem;
+        }
+
+        .assessment-label {
+          color: var(--text-secondary, #888899);
+          text-transform: uppercase;
+          font-size: 0.65rem;
+          letter-spacing: 0.3px;
+        }
+
+        .assessment-value {
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+          font-size: 0.75rem;
+        }
+
+        .assessment-value.nominal { color: var(--status-nominal, #00ff88); }
+        .assessment-value.impaired { color: var(--status-warning, #ffaa00); }
+        .assessment-value.critical { color: var(--status-critical, #ff4444); }
+        .assessment-value.destroyed { color: var(--text-dim, #555566); text-decoration: line-through; }
+        .assessment-value.unknown { color: var(--text-dim, #555566); }
+
+        .assessment-confidence {
+          font-size: 0.6rem;
+          color: var(--text-dim, #555566);
+          margin-top: 6px;
+          padding-top: 6px;
+          border-top: 1px solid var(--border-default, #2a2a3a);
         }
 
         .cease-fire-btn {
@@ -171,6 +273,7 @@ class WeaponControls extends HTMLElement {
           border: 2px solid var(--status-warning, #ffaa00);
           border-radius: 8px;
           color: var(--status-warning, #ffaa00);
+          font-family: inherit;
           font-size: 0.85rem;
           font-weight: 600;
           cursor: pointer;
@@ -182,21 +285,13 @@ class WeaponControls extends HTMLElement {
           background: rgba(255, 170, 0, 0.1);
         }
 
-        .warning-box {
-          margin-top: 12px;
-          padding: 10px 12px;
-          background: rgba(255, 170, 0, 0.1);
-          border: 1px solid var(--status-warning, #ffaa00);
-          border-radius: 6px;
-          font-size: 0.75rem;
-          color: var(--status-warning, #ffaa00);
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-
-        .warning-box.hidden {
-          display: none;
+        .fire-hint {
+          margin-top: 6px;
+          font-size: 0.7rem;
+          color: var(--text-dim, #555566);
+          text-align: center;
+          font-style: italic;
+          min-height: 1.2em;
         }
 
         .target-lock-row {
@@ -210,6 +305,7 @@ class WeaponControls extends HTMLElement {
           border: 1px solid var(--border-default, #2a2a3a);
           border-radius: 6px;
           color: var(--text-primary, #e0e0e0);
+          font-family: inherit;
           font-size: 0.85rem;
           cursor: pointer;
           min-height: 44px;
@@ -230,60 +326,86 @@ class WeaponControls extends HTMLElement {
           color: var(--status-info, #00aaff);
         }
 
-        .unlock-btn {
-          background: transparent;
-          border: 1px solid var(--text-dim, #555566);
-          color: var(--text-dim, #555566);
+        .warning-box {
+          margin-top: 8px;
+          padding: 10px 12px;
+          background: rgba(255, 170, 0, 0.1);
+          border: 1px solid var(--status-warning, #ffaa00);
+          border-radius: 6px;
+          font-size: 0.75rem;
+          color: var(--status-warning, #ffaa00);
+          display: flex;
+          align-items: center;
+          gap: 8px;
         }
 
-        .unlock-btn:hover {
-          border-color: var(--text-secondary, #888899);
-          color: var(--text-secondary, #888899);
+        .warning-box.hidden {
+          display: none;
         }
 
-        /* Inline status hint below fire button */
-        .fire-hint {
-          margin-top: 6px;
-          font-size: 0.7rem;
-          color: var(--text-dim, #555566);
-          text-align: center;
-          font-style: italic;
-          min-height: 1.2em;
+        .railgun-mount-row {
+          display: flex;
+          gap: 6px;
+          margin-bottom: 6px;
+        }
+
+        .railgun-mount-row .fire-btn {
+          flex: 1;
+          padding: 10px 8px;
+          font-size: 0.75rem;
+          min-height: 42px;
         }
       </style>
 
       <div class="weapon-group target-lock-row">
         <div class="group-title">Target Lock</div>
-        <button class="lock-btn" id="lock-btn">
-          🎯 LOCK TARGET
+        <button class="lock-btn" id="lock-btn" data-testid="lock-btn">
+          LOCK TARGET
         </button>
       </div>
 
-      <div class="weapon-group">
-        <div class="group-title">Torpedoes</div>
-        <button class="fire-btn torpedo-btn" id="torpedo-btn">
-          🚀 FIRE TORPEDO
-          <span class="torpedo-count" id="torpedo-count">(10)</span>
-        </button>
-        <div class="warning-box hidden" id="no-lock-warning">
-          ⚠ No target lock — torpedoes will fire dumb
-        </div>
-        <div class="fire-hint" id="fire-hint"></div>
+      <div class="weapon-group" id="railgun-group">
+        <div class="group-title">Railgun</div>
+        <div id="railgun-mounts"></div>
+        <div class="fire-hint" id="railgun-hint"></div>
       </div>
 
       <div class="weapon-group">
         <div class="group-title">Point Defense</div>
-        <div class="pdc-row">
-          <div class="pdc-label">
-            <span class="pdc-indicator" id="pdc-indicator"></span>
-            <span class="pdc-status" id="pdc-status">PDC AUTO</span>
-          </div>
-          <div class="toggle-switch" id="pdc-toggle"></div>
+        <div class="pdc-mode-group" id="pdc-mode-group" data-testid="pdc-mode-group">
+          <button class="pdc-mode-btn active" data-mode="auto" data-testid="pdc-auto">
+            <span class="pdc-mode-label"><span class="pdc-indicator"></span>AUTO</span>
+          </button>
+          <button class="pdc-mode-btn" data-mode="manual" data-testid="pdc-manual">
+            <span class="pdc-mode-label"><span class="pdc-indicator"></span>MANUAL</span>
+          </button>
+          <button class="pdc-mode-btn" data-mode="hold_fire" data-testid="pdc-hold">
+            <span class="pdc-mode-label"><span class="pdc-indicator"></span>HOLD</span>
+          </button>
         </div>
       </div>
 
       <div class="weapon-group">
-        <button class="cease-fire-btn" id="cease-fire-btn">⛔ CEASE FIRE</button>
+        <div class="group-title">Torpedoes</div>
+        <button class="fire-btn torpedo-btn" id="torpedo-btn" data-testid="torpedo-btn">
+          FIRE TORPEDO
+          <span class="torpedo-count" id="torpedo-count">(10)</span>
+        </button>
+        <div class="warning-box hidden" id="no-lock-warning">
+          No target lock - torpedoes will fire dumb
+        </div>
+      </div>
+
+      <div class="weapon-group">
+        <div class="group-title">Damage Assessment</div>
+        <button class="assess-btn" id="assess-btn" data-testid="assess-btn">
+          ASSESS TARGET DAMAGE
+        </button>
+        <div id="assessment-results"></div>
+      </div>
+
+      <div class="weapon-group">
+        <button class="cease-fire-btn" id="cease-fire-btn" data-testid="cease-fire-btn">CEASE FIRE</button>
       </div>
     `;
   }
@@ -296,12 +418,20 @@ class WeaponControls extends HTMLElement {
 
     // Fire torpedo
     this.shadowRoot.getElementById("torpedo-btn").addEventListener("click", () => {
-      this._fireTorpedo();
+      this._launchTorpedo();
     });
 
-    // PDC toggle
-    this.shadowRoot.getElementById("pdc-toggle").addEventListener("click", () => {
-      this._togglePDC();
+    // PDC mode buttons
+    this.shadowRoot.getElementById("pdc-mode-group").addEventListener("click", (e) => {
+      const btn = e.target.closest(".pdc-mode-btn");
+      if (btn) {
+        this._setPdcMode(btn.dataset.mode);
+      }
+    });
+
+    // Assess damage
+    this.shadowRoot.getElementById("assess-btn").addEventListener("click", () => {
+      this._assessDamage();
     });
 
     // Cease fire
@@ -313,124 +443,201 @@ class WeaponControls extends HTMLElement {
   _updateDisplay() {
     const targeting = stateManager.getTargeting();
     const weapons = stateManager.getWeapons();
+    const combat = stateManager.getCombat();
+    const ship = stateManager.getShipState();
 
     // Update target lock button
     const lockBtn = this.shadowRoot.getElementById("lock-btn");
-    const hasLock = targeting && (targeting.locked || targeting.target_locked || targeting.target_id);
+    const lockState = targeting?.lock_state || "none";
+    const lockedTarget = targeting?.locked_target || null;
+    const hasLock = lockedTarget != null && lockState !== "none";
 
     if (hasLock) {
       lockBtn.classList.add("locked");
-      lockBtn.innerHTML = `◉ LOCKED: ${targeting.target_id || "TARGET"}`;
+      const stateLabel = lockState === "locked" ? "LOCKED" : lockState.toUpperCase();
+      lockBtn.textContent = `${stateLabel}: ${lockedTarget}`;
     } else {
       lockBtn.classList.remove("locked");
-      lockBtn.innerHTML = "🎯 LOCK TARGET";
+      lockBtn.textContent = "LOCK TARGET";
     }
 
-    // Update no-lock warning
+    // No-lock warning
     const noLockWarning = this.shadowRoot.getElementById("no-lock-warning");
     noLockWarning.classList.toggle("hidden", hasLock);
 
-    // Update torpedo count and fire button tooltips
-    const torpedoData = weapons.torpedoes || weapons.torpedo || {};
+    // Railgun mounts
+    this._updateRailgunMounts(combat, targeting, hasLock);
+
+    // PDC mode from combat state
+    const currentPdcMode = combat?.pdc_mode || "auto";
+    this._pdcMode = currentPdcMode;
+    this.shadowRoot.querySelectorAll(".pdc-mode-btn").forEach((btn) => {
+      const isActive = btn.dataset.mode === currentPdcMode;
+      btn.classList.toggle("active", isActive);
+      if (btn.dataset.mode === "hold_fire") {
+        btn.classList.toggle("hold-fire", isActive);
+      }
+    });
+
+    // Torpedo count
+    const torpedoData = weapons?.torpedoes || weapons?.torpedo || {};
     const torpedoCount = torpedoData.loaded ?? torpedoData.count ?? 10;
     const torpedoBtn = this.shadowRoot.getElementById("torpedo-btn");
     const countSpan = this.shadowRoot.getElementById("torpedo-count");
-    const fireHint = this.shadowRoot.getElementById("fire-hint");
     countSpan.textContent = `(${torpedoCount})`;
-    torpedoBtn.disabled = torpedoCount <= 0;
+    torpedoBtn.disabled = torpedoCount <= 0 || !hasLock;
 
-    // Check if weapons subsystem is destroyed
-    const shipState = stateManager.getShipState();
-    const weaponsSys = shipState?.systems?.weapons || shipState?.subsystems?.weapons || {};
-    const weaponsDestroyed = weaponsSys.status === "destroyed" || weaponsSys.health === 0;
+    // Assess button - needs a lock
+    const assessBtn = this.shadowRoot.getElementById("assess-btn");
+    assessBtn.disabled = !hasLock;
 
-    // Set tooltip and hint based on weapon/targeting state
-    if (weaponsDestroyed) {
-      torpedoBtn.title = "Weapons system destroyed";
-      torpedoBtn.disabled = true;
-      if (fireHint) fireHint.textContent = "Weapons system destroyed";
-    } else if (torpedoCount <= 0) {
-      torpedoBtn.title = "No torpedoes remaining";
-      if (fireHint) fireHint.textContent = "No torpedoes remaining";
-    } else if (!hasLock) {
-      torpedoBtn.title = "No target locked \u2014 select and lock a target first";
-      if (fireHint) fireHint.textContent = "No target locked \u2014 torpedo will fire dumb";
-    } else {
-      torpedoBtn.title = "";
-      if (fireHint) fireHint.textContent = "";
+    // Render assessment data if available
+    this._renderAssessment();
+  }
+
+  _updateRailgunMounts(combat, targeting, hasLock) {
+    const mountsContainer = this.shadowRoot.getElementById("railgun-mounts");
+    const hintEl = this.shadowRoot.getElementById("railgun-hint");
+    const truthWeapons = combat?.truth_weapons || {};
+
+    const railguns = Object.entries(truthWeapons).filter(([id]) => id.startsWith("railgun"));
+
+    if (railguns.length === 0) {
+      mountsContainer.innerHTML = "";
+      hintEl.textContent = "No railgun mounts";
+      return;
     }
 
-    // Tooltip on lock button when no contact is selected
+    let html = '<div class="railgun-mount-row">';
+    for (const [mountId, w] of railguns) {
+      const ammo = w.ammo ?? 0;
+      const ready = w.solution?.ready_to_fire && ammo > 0 && !w.reloading;
+      const disabled = !ready || !hasLock ? "disabled" : "";
+      const displayName = mountId.replace(/_/g, " ").toUpperCase();
+
+      html += `
+        <button class="fire-btn railgun-btn" data-mount="${mountId}" ${disabled}
+                data-testid="fire-${mountId}">
+          ${displayName} (${ammo})
+        </button>
+      `;
+    }
+    html += "</div>";
+
+    mountsContainer.innerHTML = html;
+
+    // Bind fire handlers
+    mountsContainer.querySelectorAll(".railgun-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        this._fireRailgun(btn.dataset.mount);
+      });
+    });
+
+    // Hint
     if (!hasLock) {
-      lockBtn.title = "Select a contact from the sensor list, then click to lock";
+      hintEl.textContent = "Lock target to fire";
     } else {
-      lockBtn.title = "Click to unlock current target";
+      const anyReady = railguns.some(([, w]) => w.solution?.ready_to_fire);
+      hintEl.textContent = anyReady ? "" : "Waiting for firing solution";
+    }
+  }
+
+  _renderAssessment() {
+    const container = this.shadowRoot.getElementById("assessment-results");
+    if (!this._assessmentData || !this._assessmentData.ok) {
+      container.innerHTML = "";
+      return;
     }
 
-    // Update PDC status
-    const pdcData = weapons.pdc || weapons.point_defense || {};
-    const pdcStatus = pdcData.status || "offline";
-    const pdcIndicator = this.shadowRoot.getElementById("pdc-indicator");
-    const pdcStatusText = this.shadowRoot.getElementById("pdc-status");
-    const pdcToggle = this.shadowRoot.getElementById("pdc-toggle");
+    const data = this._assessmentData;
+    const subsystems = data.subsystems || {};
+    const quality = data.assessment_quality ?? 0;
 
-    this._pdcEnabled = pdcStatus === "tracking" || pdcStatus === "firing" || pdcStatus === "active" || pdcStatus === "ready";
-    pdcIndicator.classList.toggle("active", this._pdcEnabled);
-    pdcStatusText.textContent = this._pdcEnabled ? "PDC ACTIVE" : "PDC STANDBY";
-    pdcToggle.classList.toggle("active", this._pdcEnabled);
+    let html = '<div class="assessment-results">';
+    for (const [name, info] of Object.entries(subsystems)) {
+      const healthPct = info.health != null ? `${Math.round(info.health * 100)}%` : "???";
+      const status = info.status || "unknown";
+      html += `
+        <div class="assessment-row">
+          <span class="assessment-label">${name}</span>
+          <span class="assessment-value ${status}">${healthPct} ${status.toUpperCase()}</span>
+        </div>
+      `;
+    }
+    html += `
+      <div class="assessment-confidence">
+        Sensor confidence: ${Math.round(quality * 100)}%
+      </div>
+    </div>`;
+
+    container.innerHTML = html;
   }
 
   async _toggleTargetLock() {
     const targeting = stateManager.getTargeting();
-    const hasLock = targeting && (targeting.locked || targeting.target_locked || targeting.target_id);
+    const lockState = targeting?.lock_state || "none";
+    const lockedTarget = targeting?.locked_target || null;
+    const hasLock = lockedTarget != null && lockState !== "none";
 
     if (hasLock) {
-      // Unlock target
       try {
         await wsClient.sendShipCommand("unlock_target", {});
+        this._assessmentData = null;
       } catch (error) {
         console.error("Unlock target failed:", error);
       }
     } else {
-      // Try to lock selected contact
-      const sensorContacts = document.getElementById("sensor-contacts");
-      const selectedContact = sensorContacts?.getSelectedContact?.();
-
-      if (selectedContact) {
+      // Use the selected contact from sensor panel
+      const contactId = this._selectedContact;
+      if (contactId) {
         try {
-          await wsClient.sendShipCommand("lock_target", { target_id: selectedContact });
+          await wsClient.sendShipCommand("designate_target", { contact_id: contactId });
         } catch (error) {
-          console.error("Target lock failed:", error);
+          console.error("Designate target failed:", error);
         }
       }
     }
   }
 
-  async _fireTorpedo() {
+  async _fireRailgun(mountId) {
     try {
-      await wsClient.sendShipCommand("fire_weapon", { weapon_type: "torpedo" });
+      await wsClient.sendShipCommand("fire_railgun", { mount_id: mountId });
     } catch (error) {
-      console.error("Fire torpedo failed:", error);
+      console.error("Fire railgun failed:", error);
     }
   }
 
-  async _togglePDC() {
+  async _setPdcMode(mode) {
     try {
-      if (this._pdcEnabled) {
-        // Cease fire on PDC
-        await wsClient.sendShipCommand("fire_weapon", { weapon_type: "pdc", cease: true });
-      } else {
-        // Enable PDC auto-fire
-        await wsClient.sendShipCommand("fire_weapon", { weapon_type: "pdc", auto: true });
+      await wsClient.sendShipCommand("set_pdc_mode", { mode });
+    } catch (error) {
+      console.error("Set PDC mode failed:", error);
+    }
+  }
+
+  async _launchTorpedo() {
+    try {
+      await wsClient.sendShipCommand("launch_torpedo", {});
+    } catch (error) {
+      console.error("Launch torpedo failed:", error);
+    }
+  }
+
+  async _assessDamage() {
+    try {
+      const response = await wsClient.sendShipCommand("assess_damage", {});
+      if (response && response.ok) {
+        this._assessmentData = response;
+        this._renderAssessment();
       }
     } catch (error) {
-      console.error("PDC toggle failed:", error);
+      console.error("Assess damage failed:", error);
     }
   }
 
   async _ceaseFire() {
     try {
-      await wsClient.sendShipCommand("fire_weapon", { cease_all: true });
+      await wsClient.sendShipCommand("set_pdc_mode", { mode: "hold_fire" });
     } catch (error) {
       console.error("Cease fire failed:", error);
     }

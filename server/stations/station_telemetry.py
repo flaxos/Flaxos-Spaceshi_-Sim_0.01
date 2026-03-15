@@ -37,9 +37,11 @@ class StationTelemetryFilter:
 
             # Tactical displays
             "weapons_status": ["weapons"],
-            "ammunition": ["weapons"],
-            "target_info": ["target_id", "target_subsystem"],
-            "targeting_status": ["target_id", "target_subsystem"],
+            "ammunition": ["weapons", "ammo_mass"],
+            "target_info": ["target_id", "target_subsystem", "targeting"],
+            "targeting_status": ["target_id", "target_subsystem", "targeting"],
+            "firing_solution": ["targeting", "weapons"],
+            "threat_board": ["sensors", "targeting"],
 
             # Operations displays
             "contacts": ["sensors"],
@@ -52,8 +54,9 @@ class StationTelemetryFilter:
             "system_status": ["systems"],
             "damage_report": ["systems", "damage_model"],  # v0.6.0: Added damage_model
             # v0.6.0: New heat and subsystem displays
-            "heat_status": ["damage_model"],
+            "heat_status": ["damage_model", "thermal"],
             "subsystem_health": ["damage_model"],
+            "thermal_status": ["thermal"],
 
             # Common displays (available to most stations)
             "basic_status": ["id", "name", "class", "faction", "timestamp"],
@@ -210,8 +213,8 @@ class StationTelemetryFilter:
         Returns:
             True if station can see events
         """
-        # Captain, Ops (damage control), and Science (sensor events) see events
-        return station in [StationType.CAPTAIN, StationType.OPS, StationType.SCIENCE]
+        # Captain, Tactical (combat log), Ops (damage control), and Science (sensor events)
+        return station in [StationType.CAPTAIN, StationType.TACTICAL, StationType.OPS, StationType.SCIENCE]
 
     def get_telemetry_summary_for_client(self, client_id: str) -> Dict[str, Any]:
         """
@@ -287,7 +290,10 @@ def create_station_specific_telemetry(
             "weapons": ship_telemetry.get("weapons"),
             "target": {
                 "id": ship_telemetry.get("target_id"),
+                "subsystem": ship_telemetry.get("target_subsystem"),
             },
+            "targeting": ship_telemetry.get("targeting"),
+            "sensors": ship_telemetry.get("sensors"),
             "orientation": ship_telemetry.get("orientation"),
         }
 
@@ -328,7 +334,7 @@ def create_station_specific_telemetry(
         }
 
     elif station == StationType.ENGINEERING:
-        # Engineering handles reactor, drive, repair crews
+        # Engineering handles reactor, drive, repair crews, thermal management
         return {
             "station": "engineering",
             "systems": ship_telemetry.get("systems"),
@@ -340,6 +346,7 @@ def create_station_specific_telemetry(
             "damage_model": {
                 "subsystems": ship_telemetry.get("damage_model", {}).get("subsystems", {}),
             },
+            "thermal": ship_telemetry.get("thermal", {}),
             "hull": {
                 "integrity": ship_telemetry.get("hull_integrity"),
                 "max_integrity": ship_telemetry.get("max_hull_integrity"),

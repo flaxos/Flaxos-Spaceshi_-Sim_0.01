@@ -1,0 +1,19 @@
+{
+  "category": "feature",
+  "description": "Sensors detect targets based on physical emissions: IR signature (drive plumes, radiator heat), radar cross-section (active radar ping with inverse-square falloff), and lidar (precise but narrow beam). Detection range depends on target signature vs background noise, not arbitrary range limits. A ship burning hard at 5g is visible across the system on IR; a drifting cold ship might only appear at close radar range. Sensor resolution degrades with distance — at long range you get a bearing and maybe a range, not a detailed track.",
+  "id": "sensor-detection-model",
+  "title": "Physics-Based Sensor Detection",
+  "dependencies": [
+    "newtonian-flight-model"
+  ],
+  "priority": 2,
+  "status": "verified",
+  "descriptionHistory": [
+    {
+      "description": "Sensors detect targets based on physical emissions: IR signature (drive plumes, radiator heat), radar cross-section (active radar ping with inverse-square falloff), and lidar (precise but narrow beam). Detection range depends on target signature vs background noise, not arbitrary range limits. A ship burning hard at 5g is visible across the system on IR; a drifting cold ship might only appear at close radar range. Sensor resolution degrades with distance — at long range you get a bearing and maybe a range, not a detailed track.",
+      "timestamp": "2026-03-14T04:07:48.929Z",
+      "source": "initial"
+    }
+  ],
+  "updatedAt": "2026-03-14T07:00:32.290Z"
+}

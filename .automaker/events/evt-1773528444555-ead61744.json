@@ -1,0 +1,10 @@
+{
+  "id": "evt-1773528444555-ead61744",
+  "trigger": "feature_success",
+  "timestamp": "2026-03-14T22:47:24.555Z",
+  "projectPath": "/projects/spaceship-sim",
+  "projectName": "spaceship-sim",
+  "featureId": "torpedo-system",
+  "featureName": "Guided Torpedo System",
+  "passes": true
+}

@@ -1,0 +1,9 @@
+{
+  "id": "evt-1773461840063-2f08b3e8",
+  "trigger": "feature_created",
+  "timestamp": "2026-03-14T04:17:20.063Z",
+  "projectPath": "/projects/spaceship-sim",
+  "projectName": "spaceship-sim",
+  "featureId": "feature-1773461839884-a6ntmynxk29",
+  "featureName": "webUI for game edits"
+}

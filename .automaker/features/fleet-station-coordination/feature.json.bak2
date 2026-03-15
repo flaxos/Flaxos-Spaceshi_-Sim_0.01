@@ -1,0 +1,21 @@
+{
+  "category": "feature",
+  "description": "Fleet station (for command ships) manages multiple friendly ships: issue orders to AI-controlled escorts, coordinate firing solutions across multiple ships (distributed targeting), manage formation positioning, and allocate targets. Fleet-level tactics: bracket the target (ships approach from multiple vectors to deny evasion options), coordinate torpedo salvos to overwhelm PDC coverage, designate ships for sensor picket duty. This station only appears on command-capable vessels.",
+  "id": "fleet-station-coordination",
+  "title": "Fleet Station: Multi-Ship Coordination",
+  "dependencies": [
+    "station-crew-roles",
+    "targeting-pipeline",
+    "newtonian-flight-model"
+  ],
+  "priority": 6,
+  "status": "in_progress",
+  "descriptionHistory": [
+    {
+      "description": "Fleet station (for command ships) manages multiple friendly ships: issue orders to AI-controlled escorts, coordinate firing solutions across multiple ships (distributed targeting), manage formation positioning, and allocate targets. Fleet-level tactics: bracket the target (ships approach from multiple vectors to deny evasion options), coordinate torpedo salvos to overwhelm PDC coverage, designate ships for sensor picket duty. This station only appears on command-capable vessels.",
+      "timestamp": "2026-03-14T04:07:48.946Z",
+      "source": "initial"
+    }
+  ],
+  "updatedAt": "2026-03-14T23:29:02.286Z"
+}

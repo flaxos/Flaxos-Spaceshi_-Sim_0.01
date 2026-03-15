@@ -1,0 +1,21 @@
+{
+  "category": "feature",
+  "description": "Ops station commands: allocate-power (distribute reactor output among subsystems based on priority), dispatch-repair (send damage control teams to specific subsystems), set-system-priority (triage which systems get power when reactor is impaired), report-status (full subsystem integrity readout), emergency-shutdown (scram a system to prevent cascade failure). Power is a finite budget from the reactor — you cannot run everything at full simultaneously. Repair teams are physical crew members who take time to move through the ship and work on damaged systems.",
+  "id": "ops-station",
+  "title": "Ops Station: Power & Damage Control Commands",
+  "dependencies": [
+    "station-crew-roles",
+    "subsystem-model",
+    "damage-cascade-system"
+  ],
+  "priority": 3,
+  "status": "verified",
+  "descriptionHistory": [
+    {
+      "description": "Ops station commands: allocate-power (distribute reactor output among subsystems based on priority), dispatch-repair (send damage control teams to specific subsystems), set-system-priority (triage which systems get power when reactor is impaired), report-status (full subsystem integrity readout), emergency-shutdown (scram a system to prevent cascade failure). Power is a finite budget from the reactor — you cannot run everything at full simultaneously. Repair teams are physical crew members who take time to move through the ship and work on damaged systems.",
+      "timestamp": "2026-03-14T04:07:48.935Z",
+      "source": "initial"
+    }
+  ],
+  "updatedAt": "2026-03-14T09:43:20.729Z"
+}

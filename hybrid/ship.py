@@ -36,6 +36,12 @@ class Ship:
         self.class_type = config.get("class", "shuttle")
         self.faction = config.get("faction", "neutral")
 
+        # Ship class metadata (from ship class definitions)
+        self.dimensions = config.get("dimensions", None)
+        self.armor = config.get("armor", None)
+        self.crew_complement = config.get("crew_complement", None)
+        self.weapon_mounts = config.get("weapon_mounts", None)
+
         # Dynamic mass model: total mass = dry_mass + fuel + ammo
         # When dry_mass is explicitly set, mass updates each tick as
         # consumables are spent. When omitted, mass stays fixed for
@@ -108,7 +114,8 @@ class Ship:
 
         # Initialize systems
         self.systems = {}
-        self._load_systems(config.get("systems", {}))
+        self._systems_config = config.get("systems", {})  # Raw config for hit-location placement data
+        self._load_systems(self._systems_config)
 
         # Fleet and AI control
         self.fleet_id = None  # Fleet this ship belongs to
@@ -171,9 +178,14 @@ class Ship:
             fuel_mass = propulsion.fuel_level
 
         ammo_mass = 0.0
+        # Truth weapons (railguns, PDCs) live in the combat system
+        combat = self.systems.get("combat")
+        if combat and hasattr(combat, "get_total_ammo_mass"):
+            ammo_mass += combat.get_total_ammo_mass()
+        # Legacy weapons may also contribute ammo mass
         weapons = self.systems.get("weapons")
         if weapons and hasattr(weapons, "get_total_ammo_mass"):
-            ammo_mass = weapons.get_total_ammo_mass()
+            ammo_mass += weapons.get_total_ammo_mass()
 
         self.mass = self.dry_mass + fuel_mass + ammo_mass
 
@@ -184,23 +196,33 @@ class Ship:
     def _load_systems(self, systems_config):
         """
         Load ship systems from configuration
-        
+
         Args:
             systems_config (dict): Dictionary of system configurations
         """
         from hybrid.systems import get_system_class
-        
+
         # Ensure essential systems are always present with defaults
         # These systems are required for Expanse-style flight model
         essential_systems = {
             "helm": {},      # Helm for manual control interface
             "rcs": {},       # RCS for attitude control (torque-based rotation)
             "flight_computer": {},  # Flight computer for high-level manoeuvre commands
+            "ops": {},       # Ops for power allocation and damage control
+            "engineering": {},  # Engineering for reactor, drive, radiators, fuel
+            "crew_fatigue": {},  # Crew fatigue and g-load performance model
+            "science": {},   # Science for sensor analysis and contact classification
         }
-        
+
         # Merge config with defaults (config takes precedence)
         merged_config = {**essential_systems, **systems_config}
-        
+
+        # Inject weapon_mounts into combat config for firing arc enforcement
+        if "combat" in merged_config and self.weapon_mounts:
+            combat_cfg = merged_config["combat"]
+            if isinstance(combat_cfg, dict) and "weapon_mounts" not in combat_cfg:
+                combat_cfg["weapon_mounts"] = self.weapon_mounts
+
         # Load each system type
         for system_type, config in merged_config.items():
             # Skip systems with None config
@@ -530,6 +552,16 @@ class Ship:
             "damage_model": self.damage_model.get_report(),
             "cascade_effects": self.cascade_manager.get_report(),
         }
+
+        # Include ship class metadata when available
+        if self.dimensions:
+            state["dimensions"] = self.dimensions
+        if self.armor:
+            state["armor"] = self.armor
+        if self.crew_complement:
+            state["crew_complement"] = self.crew_complement
+        if self.weapon_mounts:
+            state["weapon_mounts"] = self.weapon_mounts
         
         # Add systems state
         for system_type, system in self.systems.items():
@@ -750,8 +782,8 @@ class Ship:
     def get_effective_factor(self, subsystem: str) -> float:
         """Get the effective performance factor for a subsystem, including cascades.
 
-        Combines damage degradation, heat penalty, and cascade effects from
-        upstream subsystem failures (e.g. reactor offline → no propulsion power).
+        Combines damage degradation, heat penalty, cascade effects from
+        upstream subsystem failures, and crew fatigue impairment.
 
         Args:
             subsystem: Subsystem name
@@ -760,7 +792,20 @@ class Ship:
             float: Combined factor (0.0-1.0)
         """
         cascade_factor = self.cascade_manager.get_cascade_factor(subsystem)
-        return self.damage_model.get_combined_factor(subsystem, cascade_factor)
+        base_factor = self.damage_model.get_combined_factor(subsystem, cascade_factor)
+
+        # Crew fatigue degrades operator-dependent subsystems
+        crew_fatigue = self.systems.get("crew_fatigue")
+        if crew_fatigue and hasattr(crew_fatigue, "get_performance_factor"):
+            crew_factor = crew_fatigue.get_performance_factor()
+            # Automated systems (reactor) less affected than manual systems
+            automated_systems = {"reactor", "life_support", "radiators"}
+            if subsystem in automated_systems:
+                # Automated systems only mildly affected (10% of crew degradation)
+                crew_factor = 1.0 - (1.0 - crew_factor) * 0.1
+            base_factor *= crew_factor
+
+        return base_factor
 
     def is_destroyed(self):
         """

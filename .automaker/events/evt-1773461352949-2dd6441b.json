@@ -1,0 +1,9 @@
+{
+  "id": "evt-1773461352949-2dd6441b",
+  "trigger": "feature_created",
+  "timestamp": "2026-03-14T04:09:12.949Z",
+  "projectPath": "/projects/spaceship-sim",
+  "projectName": "spaceship-sim",
+  "featureId": "feature-1773461352772-58na8inf35i",
+  "featureName": "I want a web interface to be able to edit view modify and create game assets such as ship , local sp"
+}

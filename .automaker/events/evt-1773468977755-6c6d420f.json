@@ -1,0 +1,10 @@
+{
+  "id": "evt-1773468977755-6c6d420f",
+  "trigger": "feature_success",
+  "timestamp": "2026-03-14T06:16:17.755Z",
+  "projectPath": "/projects/spaceship-sim",
+  "projectName": "spaceship-sim",
+  "featureId": "subsystem-model",
+  "featureName": "Ship Subsystem Architecture",
+  "passes": true
+}

@@ -1,0 +1,10 @@
+{
+  "id": "evt-1773532812675-ba5fac5f",
+  "trigger": "feature_success",
+  "timestamp": "2026-03-15T00:00:12.675Z",
+  "projectPath": "/projects/spaceship-sim",
+  "projectName": "spaceship-sim",
+  "featureId": "multiplayer-crew-stations",
+  "featureName": "Multiplayer: Multiple Players on One Ship",
+  "passes": true
+}

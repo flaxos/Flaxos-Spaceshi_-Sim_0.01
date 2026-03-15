@@ -1,0 +1,10 @@
+{
+  "id": "evt-1773531717155-c5a19764",
+  "trigger": "feature_success",
+  "timestamp": "2026-03-14T23:41:57.155Z",
+  "projectPath": "/projects/spaceship-sim",
+  "projectName": "spaceship-sim",
+  "featureId": "fleet-station-coordination",
+  "featureName": "Fleet Station: Multi-Ship Coordination",
+  "passes": true
+}

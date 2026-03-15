@@ -1,0 +1,10 @@
+{
+  "id": "evt-1773479656876-d02bd2d6",
+  "trigger": "feature_success",
+  "timestamp": "2026-03-14T09:14:16.876Z",
+  "projectPath": "/projects/spaceship-sim",
+  "projectName": "spaceship-sim",
+  "featureId": "command-registration-linter",
+  "featureName": "Command Registration Validation Tool",
+  "passes": true
+}

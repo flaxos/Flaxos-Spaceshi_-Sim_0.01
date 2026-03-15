@@ -1,0 +1,178 @@
+{
+  "name": "Freighter Intercept",
+  "description": "Intercept a fleeing freighter and disable its drive before it escapes. The freighter is burning hard on an escape vector. Close range, manage fuel, and choose your engagement timing carefully.",
+  "metadata": {
+    "author": "Core Gameplay Scenario",
+    "version": "1.0",
+    "tags": ["combat", "intercept", "mission_kill", "pursuit", "core_gameplay"],
+    "difficulty": "medium"
+  },
+  "ships": [
+    {
+      "id": "player_ship",
+      "ship_class": "corvette",
+      "name": "UNS Interceptor",
+      "faction": "unsa",
+      "ai_enabled": false,
+      "position": { "x": 0.0, "y": 0.0, "z": 0.0 },
+      "velocity": { "x": 200.0, "y": 0.0, "z": 0.0 },
+      "orientation": { "pitch": 0.0, "yaw": 0.0, "roll": 0.0 },
+      "systems": {
+        "propulsion": {
+          "max_fuel": 500.0,
+          "fuel_level": 500.0
+        }
+      }
+    },
+    {
+      "id": "target_freighter",
+      "ship_class": "freighter",
+      "name": "MV Stolen Horizon",
+      "faction": "hostile",
+      "ai_enabled": true,
+      "position": { "x": 80000.0, "y": 5000.0, "z": -2000.0 },
+      "velocity": { "x": 300.0, "y": 20.0, "z": -5.0 },
+      "orientation": { "pitch": 0.0, "yaw": 0.0, "roll": 0.0 },
+      "ai": {
+        "behavior": "evade",
+        "params": {}
+      }
+    }
+  ],
+  "mission": {
+    "name": "Freighter Intercept",
+    "description": "Disable the fleeing freighter's drive system before it escapes to open space.",
+    "briefing": "MISSION BRIEF: Hijacked freighter 'MV Stolen Horizon' is fleeing on an escape trajectory at 300 m/s. Your corvette has a speed advantage but limited fuel. Close to engagement range, acquire targeting solution, and disable the target's propulsion system. The freighter has 2 PDCs for self-defense -- close approach is risky. Fire early with low confidence or close for better solutions. Watch your fuel budget -- you need delta-V for deceleration.",
+    "success_message": "Target drive disabled. MV Stolen Horizon is dead in space. Mission kill confirmed. Good shooting, Commander.",
+    "failure_message": "Mission failed. The freighter has escaped or your ship has been neutralized.",
+    "time_limit": 600,
+    "objectives": [
+      {
+        "id": "primary_mission_kill",
+        "type": "mission_kill",
+        "description": "Achieve mission kill on target freighter (disable propulsion)",
+        "required": true,
+        "params": {
+          "target": "target_freighter"
+        }
+      },
+      {
+        "id": "avoid_own_mission_kill",
+        "type": "avoid_mission_kill",
+        "description": "Avoid being mission killed by the freighter's PDCs",
+        "required": true,
+        "params": {
+          "target": "player_ship"
+        }
+      },
+      {
+        "id": "target_escape",
+        "type": "escape_range",
+        "description": "Prevent the freighter from reaching escape distance (500km)",
+        "required": true,
+        "params": {
+          "target": "target_freighter",
+          "escape_range": 500000.0
+        }
+      },
+      {
+        "id": "ammo_check",
+        "type": "ammo_depleted",
+        "description": "Do not expend all ammunition without achieving mission kill",
+        "required": true,
+        "params": {
+          "target": "player_ship"
+        }
+      },
+      {
+        "id": "bonus_destroy",
+        "type": "destroy_target",
+        "description": "Destroy the freighter (optional bonus)",
+        "required": false,
+        "params": {
+          "target": "target_freighter"
+        }
+      }
+    ],
+    "hints": [
+      {
+        "id": "briefing",
+        "trigger": "start",
+        "message": "Target is 80km out, heading away at 300 m/s. Set intercept course and close range."
+      },
+      {
+        "id": "range_warning",
+        "trigger": "range < 50000",
+        "target": "target_freighter",
+        "message": "Entering engagement envelope. Consider acquiring targeting lock."
+      },
+      {
+        "id": "close_range",
+        "trigger": "range < 20000",
+        "target": "target_freighter",
+        "message": "Close range -- PDC defense zone. Railgun solutions are high confidence here, but watch for point defense fire."
+      },
+      {
+        "id": "fuel_warning",
+        "trigger": "time > 120",
+        "message": "Check your fuel budget. You'll need delta-V to decelerate after engagement."
+      },
+      {
+        "id": "mid_mission",
+        "trigger": "time > 300",
+        "message": "Half the time limit elapsed. If you haven't engaged yet, close range immediately."
+      }
+    ]
+  },
+  "events": [
+    {
+      "time": 0.0,
+      "type": "message",
+      "content": "MISSION: Intercept hijacked freighter 'MV Stolen Horizon'. Disable target drive to prevent escape."
+    },
+    {
+      "time": 3.0,
+      "type": "message",
+      "content": "Target bearing 000 relative, range 80km, velocity 300 m/s on escape heading. You have 500m fuel and a closing velocity advantage."
+    },
+    {
+      "time": 8.0,
+      "type": "message",
+      "content": "Intel: Freighter has 2 PDCs for self-defense. Approach with caution at close range. Railgun hits at range are preferred if you can get a solution."
+    },
+    {
+      "time": 15.0,
+      "type": "message",
+      "content": "Tactical: Fire railgun early with low confidence for chance at lucky hit, or close to <20km for high-confidence solution. Your call, Commander."
+    }
+  ],
+  "tactical_notes": {
+    "player_advantages": [
+      "Railgun -- long-range precision strike, one hit can disable drive",
+      "Higher acceleration (280N/1200kg vs 600N/8000kg = 0.23g vs 0.075g)",
+      "Better sensors and targeting systems",
+      "ECM suite for self-defense"
+    ],
+    "target_advantages": [
+      "80km head start with 300 m/s velocity",
+      "2 PDCs for close-range self-defense",
+      "Heavy armor (5cm fore) -- harder to penetrate",
+      "Large hull integrity (600 HP)",
+      "High fuel capacity (3000 units) -- can burn for a long time"
+    ],
+    "key_decisions": [
+      "When to fire: Early (low confidence, save fuel) vs close (high confidence, burn more fuel)",
+      "Fuel management: Hard burn to close risks not having fuel to decelerate",
+      "Approach vector: Head-on exposes you to PDCs but gives best railgun solutions",
+      "Ammo conservation: 20 railgun rounds -- every shot counts against a fleeing target"
+    ],
+    "recommended_tactics": [
+      "Set intercept course at full thrust to close the 80km gap",
+      "Acquire passive sensor track early, switch to active when in range",
+      "Lock target and begin computing firing solutions at 50km",
+      "Fire first railgun salvo at 30-40km if solution confidence is reasonable",
+      "Reserve some ammo for close-range follow-up shots if first salvo misses",
+      "Watch PONR indicator -- ensure you have enough delta-V to stop"
+    ]
+  }
+}

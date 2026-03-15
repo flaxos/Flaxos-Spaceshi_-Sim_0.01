@@ -1,0 +1,11 @@
+{
+  "id": "evt-1773481475939-9a5200f8",
+  "trigger": "feature_error",
+  "timestamp": "2026-03-14T09:44:35.939Z",
+  "projectPath": "/projects/spaceship-sim",
+  "projectName": "spaceship-sim",
+  "featureId": "pdc-system",
+  "featureName": "Point Defense Cannon System (Narwhal-III)",
+  "error": "Claude Code process exited with code 1",
+  "errorType": "execution"
+}

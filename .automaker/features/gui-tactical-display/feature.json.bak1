@@ -1,0 +1,22 @@
+{
+  "category": "feature",
+  "description": "Primary combat display showing: 2D plot of all sensor contacts with position/velocity vectors, own ship trajectory projection, weapon engagement envelopes (railgun effective range as a circle, PDC range as a smaller circle), firing solution confidence cones, torpedo tracks, and contact classification labels. Display updates from server state pushes. All information shown is limited by what own sensors can detect — no omniscient view. Contacts outside sensor range simply don't appear. Uncertain contacts show error ellipses reflecting track quality.",
+  "id": "gui-tactical-display",
+  "title": "Web GUI: Tactical Display",
+  "dependencies": [
+    "server-authoritative-state",
+    "sensor-detection-model",
+    "targeting-pipeline"
+  ],
+  "priority": 3,
+  "status": "verified",
+  "descriptionHistory": [
+    {
+      "description": "Primary combat display showing: 2D plot of all sensor contacts with position/velocity vectors, own ship trajectory projection, weapon engagement envelopes (railgun effective range as a circle, PDC range as a smaller circle), firing solution confidence cones, torpedo tracks, and contact classification labels. Display updates from server state pushes. All information shown is limited by what own sensors can detect — no omniscient view. Contacts outside sensor range simply don't appear. Uncertain contacts show error ellipses reflecting track quality.",
+      "timestamp": "2026-03-14T04:07:48.941Z",
+      "source": "initial"
+    }
+  ],
+  "startedAt": "2026-03-14T09:16:26.257Z",
+  "updatedAt": "2026-03-14T09:25:09.170Z"
+}

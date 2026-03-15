@@ -1,0 +1,24 @@
+{
+  "category": "",
+  "description": "I want a web interface to be able to edit view modify and create game assets such as ship , local space, missions / senarios , weapon and system stats",
+  "title": "I want a web interface to be able to edit view modify and create game assets such as ship , local sp",
+  "images": [],
+  "imagePaths": [],
+  "skipTests": true,
+  "model": "claude-opus-4-6",
+  "thinkingLevel": "adaptive",
+  "branchName": "automaker-run",
+  "priority": 2,
+  "planningMode": "skip",
+  "requirePlanApproval": false,
+  "dependencies": [],
+  "status": "backlog",
+  "id": "feature-1773461352772-58na8inf35i",
+  "descriptionHistory": [
+    {
+      "description": "I want a web interface to be able to edit view modify and create game assets such as ship , local space, missions / senarios , weapon and system stats",
+      "timestamp": "2026-03-14T04:09:12.947Z",
+      "source": "initial"
+    }
+  ]
+}

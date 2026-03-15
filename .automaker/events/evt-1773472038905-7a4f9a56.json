@@ -1,0 +1,11 @@
+{
+  "id": "evt-1773472038905-7a4f9a56",
+  "trigger": "feature_error",
+  "timestamp": "2026-03-14T07:07:18.905Z",
+  "projectPath": "/projects/spaceship-sim",
+  "projectName": "spaceship-sim",
+  "featureId": "station-crew-roles",
+  "featureName": "Station-Based Crew Role System",
+  "error": "Claude Code process exited with code 1",
+  "errorType": "execution"
+}

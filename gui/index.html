@@ -167,6 +167,11 @@
       min-height: var(--panel-height-sm);
     }
 
+    .helm-nav-display-panel {
+      grid-column: span 6;
+      min-height: var(--panel-height-md);
+    }
+
     .helm-autopilot-status-panel {
       grid-column: span 4;
       min-height: var(--panel-height-sm);
@@ -233,6 +238,12 @@
       min-height: var(--panel-height-md);
     }
 
+    .tac-combat-log-panel {
+      grid-column: span 12;
+      min-height: var(--panel-height-md);
+      max-height: 400px;
+    }
+
     /* Engineering view panels */
     .eng-status-panel {
       grid-column: span 4;
@@ -276,6 +287,17 @@
     .eng-thrust-panel {
       grid-column: span 4;
       min-height: var(--panel-height-sm);
+    }
+
+    /* Subsystem status panel */
+    .eng-subsystem-panel {
+      grid-column: span 4;
+      min-height: var(--panel-height-md);
+    }
+
+    .ops-subsystem-panel {
+      grid-column: span 4;
+      min-height: var(--panel-height-md);
     }
 
     /* Ops view panels (power management, damage control) */
@@ -442,6 +464,10 @@
           <flaxos-panel title="Flight Data" collapsible priority="secondary" domain="nav" class="helm-flight-data-panel">
             <flight-data-panel></flight-data-panel>
           </flaxos-panel>
+
+          <flaxos-panel title="Nav Display" collapsible priority="primary" domain="helm" class="helm-nav-display-panel">
+            <helm-nav-display></helm-nav-display>
+          </flaxos-panel>
         </div>
 
         <!-- CENTER: COMMAND & CONTROL — "What do I want to do?" -->
@@ -471,6 +497,10 @@
 
           <flaxos-panel title="Docking" collapsible domain="nav" class="helm-docking-panel">
             <docking-panel></docking-panel>
+          </flaxos-panel>
+
+          <flaxos-panel title="Navigation" collapsible priority="secondary" domain="nav" class="helm-nav-panel">
+            <helm-navigation-panel></helm-navigation-panel>
           </flaxos-panel>
 
           <flaxos-panel title="Maneuver Planner" collapsible priority="tertiary" domain="helm" class="helm-maneuver-panel">
@@ -503,6 +533,11 @@
           <weapons-status></weapons-status>
         </flaxos-panel>
 
+        <!-- Firing Solution Confidence -->
+        <flaxos-panel title="Firing Solution" collapsible class="tac-solution-panel">
+          <firing-solution-display></firing-solution-display>
+        </flaxos-panel>
+
         <!-- Fire Control -->
         <flaxos-panel title="Fire Control" collapsible class="tac-fire-ctrl-panel">
           <weapon-controls></weapon-controls>
@@ -517,6 +552,21 @@
         <flaxos-panel title="Threat Board" collapsible class="tac-threat-panel">
           <threat-board></threat-board>
         </flaxos-panel>
+
+        <!-- Torpedoes -->
+        <flaxos-panel title="Torpedoes" collapsible class="tac-torpedo-panel">
+          <torpedo-status></torpedo-status>
+        </flaxos-panel>
+
+        <!-- ECM (Electronic Countermeasures) -->
+        <flaxos-panel title="ECM" collapsible class="tac-ecm-panel">
+          <ecm-control-panel></ecm-control-panel>
+        </flaxos-panel>
+
+        <!-- Combat Log (causal chain feedback) -->
+        <flaxos-panel title="Combat Log" collapsible class="tac-combat-log-panel" domain="weapons">
+          <combat-log></combat-log>
+        </flaxos-panel>
       </div>
     </div>
 
@@ -528,9 +578,14 @@
           <ship-status></ship-status>
         </flaxos-panel>
 
-        <!-- System Toggles / Priorities -->
-        <flaxos-panel title="System Priorities" collapsible class="ops-systems-panel">
-          <system-toggles></system-toggles>
+        <!-- Subsystem Health & Damage Control -->
+        <flaxos-panel title="Subsystem Status" collapsible class="ops-subsystem-panel" domain="power">
+          <subsystem-status-panel></subsystem-status-panel>
+        </flaxos-panel>
+
+        <!-- Ops Control (Damage Control, Power Allocation, Shutdowns) -->
+        <flaxos-panel title="Ops Control" collapsible class="ops-systems-panel" domain="power">
+          <ops-control-panel></ops-control-panel>
         </flaxos-panel>
 
         <!-- Power Management -->
@@ -548,6 +603,11 @@
           <power-draw-display></power-draw-display>
         </flaxos-panel>
 
+        <!-- Crew Fatigue -->
+        <flaxos-panel title="Crew Fatigue" collapsible class="ops-crew-panel">
+          <crew-fatigue-display></crew-fatigue-display>
+        </flaxos-panel>
+
         <!-- Event Log (damage/system events) -->
         <flaxos-panel title="Event Log" collapsible class="ops-log-panel">
           <event-log></event-log>
@@ -561,6 +621,26 @@
         <!-- Ship Status -->
         <flaxos-panel title="Ship Status" collapsible class="eng-status-panel">
           <ship-status></ship-status>
+        </flaxos-panel>
+
+        <!-- Subsystem Health & Damage -->
+        <flaxos-panel title="Subsystem Status" collapsible class="eng-subsystem-panel" domain="power">
+          <subsystem-status-panel></subsystem-status-panel>
+        </flaxos-panel>
+
+        <!-- Thermal Management -->
+        <flaxos-panel title="Thermal Management" collapsible class="eng-thermal-panel" domain="power">
+          <thermal-display></thermal-display>
+        </flaxos-panel>
+
+        <!-- Crew Fatigue -->
+        <flaxos-panel title="Crew Fatigue" collapsible class="eng-crew-panel">
+          <crew-fatigue-display></crew-fatigue-display>
+        </flaxos-panel>
+
+        <!-- Engineering Controls (reactor, drive, radiators, fuel, vent) -->
+        <flaxos-panel title="Engineering Controls" collapsible class="eng-controls-panel" domain="power">
+          <engineering-control-panel></engineering-control-panel>
         </flaxos-panel>
 
         <!-- System Toggles -->
@@ -623,13 +703,43 @@
           <sensor-contacts></sensor-contacts>
         </flaxos-panel>
 
-        <!-- Tactical Map -->
-        <flaxos-panel title="Tactical Map" collapsible class="sci-map-panel">
-          <tactical-map></tactical-map>
+        <!-- Science Analysis Panel -->
+        <flaxos-panel title="Analysis" collapsible class="sci-map-panel">
+          <science-analysis-panel></science-analysis-panel>
         </flaxos-panel>
 
         <!-- Sensor Event Log -->
         <flaxos-panel title="Sensor Log" collapsible class="sci-log-panel">
+          <event-log></event-log>
+        </flaxos-panel>
+      </div>
+    </div>
+
+    <!-- ===== COMMS VIEW (IFF Transponder, Radio, Hailing, Distress) ===== -->
+    <div class="view-container" id="view-comms">
+      <div class="view-grid">
+        <!-- Comms Control Panel -->
+        <flaxos-panel title="Communications" collapsible class="comms-panel">
+          <comms-control-panel></comms-control-panel>
+        </flaxos-panel>
+
+        <!-- Sensor Contacts (comms officer needs contact list for hailing) -->
+        <flaxos-panel title="Contacts" collapsible class="comms-contacts-panel">
+          <sensor-contacts></sensor-contacts>
+        </flaxos-panel>
+
+        <!-- Tactical Map (situational awareness) -->
+        <flaxos-panel title="Tactical Map" collapsible class="comms-map-panel">
+          <tactical-map></tactical-map>
+        </flaxos-panel>
+
+        <!-- Inter-Station Chat -->
+        <flaxos-panel title="Crew Chat" collapsible class="comms-chat-panel">
+          <station-chat></station-chat>
+        </flaxos-panel>
+
+        <!-- Event Log (comms events) -->
+        <flaxos-panel title="Comms Log" collapsible class="comms-log-panel">
           <event-log></event-log>
         </flaxos-panel>
       </div>
@@ -688,6 +798,11 @@
           <command-prompt id="command-prompt"></command-prompt>
         </flaxos-panel>
 
+        <!-- Inter-Station Chat (accessible from any station via Mission tab) -->
+        <flaxos-panel title="Crew Chat" collapsible class="mis-chat-panel">
+          <station-chat></station-chat>
+        </flaxos-panel>
+
         <!-- Event Log (mission events) -->
         <flaxos-panel title="Event Log" collapsible class="mis-log-panel">
           <event-log></event-log>
@@ -721,6 +836,7 @@
       ops: document.getElementById("view-ops"),
       engineering: document.getElementById("view-engineering"),
       science: document.getElementById("view-science"),
+      comms: document.getElementById("view-comms"),
       fleet: document.getElementById("view-fleet"),
       mission: document.getElementById("view-mission"),
       editor: document.getElementById("view-editor"),
@@ -733,7 +849,7 @@
       tactical: "tactical",
       ops: "ops",
       engineering: "engineering",
-      comms: "fleet",
+      comms: "comms",
       science: "science",
       fleet_commander: "fleet",
     };
@@ -753,12 +869,42 @@
       }
     });
 
+    // Track claimed station for view locking
+    let claimedStation = null;
+
+    // Views each station is allowed to access (non-captain)
+    // Captain and unclaimed users can access all views
+    const stationAllowedViews = {
+      helm: ["helm", "mission"],
+      tactical: ["tactical", "mission"],
+      ops: ["ops", "mission"],
+      engineering: ["engineering", "mission"],
+      comms: ["comms", "mission"],
+      science: ["science", "mission"],
+      fleet_commander: ["fleet", "mission"],
+    };
+
     // Auto-switch view when a station is claimed
     document.addEventListener("station-claimed", (e) => {
       const station = e.detail.station;
+      claimedStation = station;
       const targetView = stationViewMap[station];
       if (targetView && viewTabs) {
         viewTabs.activeView = targetView;
+        // Lock view tabs for non-captain stations
+        if (station !== "captain") {
+          viewTabs.allowedViews = stationAllowedViews[station] || null;
+        } else {
+          viewTabs.allowedViews = null; // Captain sees all
+        }
+      }
+    });
+
+    // Unlock views when station is released
+    document.addEventListener("station-released", () => {
+      claimedStation = null;
+      if (viewTabs) {
+        viewTabs.allowedViews = null;
       }
     });
   </script>

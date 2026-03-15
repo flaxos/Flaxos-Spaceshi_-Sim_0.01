@@ -1,0 +1,11 @@
+{
+  "id": "evt-1773500917473-84806e50",
+  "trigger": "feature_error",
+  "timestamp": "2026-03-14T15:08:37.473Z",
+  "projectPath": "/projects/spaceship-sim",
+  "projectName": "spaceship-sim",
+  "featureId": "maneuvering-ir-signature",
+  "featureName": "Maneuver-IR Signature Tradeoff",
+  "error": "Claude Code process exited with code 1",
+  "errorType": "execution"
+}

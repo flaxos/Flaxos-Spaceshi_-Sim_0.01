@@ -1,0 +1,10 @@
+{
+  "id": "evt-1773480309172-f4054274",
+  "trigger": "feature_success",
+  "timestamp": "2026-03-14T09:25:09.172Z",
+  "projectPath": "/projects/spaceship-sim",
+  "projectName": "spaceship-sim",
+  "featureId": "gui-tactical-display",
+  "featureName": "Web GUI: Tactical Display",
+  "passes": true
+}

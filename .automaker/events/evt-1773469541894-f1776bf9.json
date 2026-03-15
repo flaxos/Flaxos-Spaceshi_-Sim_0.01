@@ -1,0 +1,10 @@
+{
+  "id": "evt-1773469541894-f1776bf9",
+  "trigger": "feature_success",
+  "timestamp": "2026-03-14T06:25:41.894Z",
+  "projectPath": "/projects/spaceship-sim",
+  "projectName": "spaceship-sim",
+  "featureId": "damage-cascade-system",
+  "featureName": "Subsystem Damage Cascade Effects",
+  "passes": true
+}

@@ -35,6 +35,14 @@ def get_system_class(system_type):
         "rcs": RCSSystem,
         "docking": DockingSystem,
         "flight_computer": FlightComputer,
+        "thermal": ThermalSystem,
+        "ops": OpsSystem,
+        "ecm": ECMSystem,
+        "engineering": EngineeringSystem,
+        "comms": CommsSystem,
+        "crew_fatigue": CrewFatigueSystem,
+        "science": ScienceSystem,
+        "fleet_coord": FleetCoordSystem,
     }
 
     return system_map.get(system_type)
@@ -55,6 +63,14 @@ from hybrid.systems.combat.combat_system import CombatSystem
 from hybrid.systems.rcs_system import RCSSystem
 from hybrid.systems.docking_system import DockingSystem
 from hybrid.systems.flight_computer.system import FlightComputer
+from hybrid.systems.thermal_system import ThermalSystem
+from hybrid.systems.ops_system import OpsSystem
+from hybrid.systems.ecm_system import ECMSystem
+from hybrid.systems.engineering_system import EngineeringSystem
+from hybrid.systems.comms_system import CommsSystem
+from hybrid.systems.crew_fatigue_system import CrewFatigueSystem
+from hybrid.systems.science_system import ScienceSystem
+from hybrid.systems.fleet_coord_system import FleetCoordSystem
 
 __all__ = [
     'PowerSystem',
@@ -70,4 +86,12 @@ __all__ = [
     'RCSSystem',
     'DockingSystem',
     'FlightComputer',
+    'ThermalSystem',
+    'OpsSystem',
+    'ECMSystem',
+    'EngineeringSystem',
+    'CommsSystem',
+    'CrewFatigueSystem',
+    'ScienceSystem',
+    'FleetCoordSystem',
 ]

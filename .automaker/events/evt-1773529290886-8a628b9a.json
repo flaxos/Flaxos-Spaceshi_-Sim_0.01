@@ -1,0 +1,10 @@
+{
+  "id": "evt-1773529290886-8a628b9a",
+  "trigger": "feature_success",
+  "timestamp": "2026-03-14T23:01:30.886Z",
+  "projectPath": "/projects/spaceship-sim",
+  "projectName": "spaceship-sim",
+  "featureId": "comms-iff-system",
+  "featureName": "Communications & IFF System",
+  "passes": true
+}

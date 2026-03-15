@@ -6,10 +6,14 @@ These weapons have proper ballistics, range calculations, and damage models.
 """
 
 import math
+import logging
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, Optional, Tuple
 from hybrid.core.event_bus import EventBus
+from hybrid.systems.combat.hit_location import compute_hit_location
+
+logger = logging.getLogger(__name__)
 
 
 class WeaponType(Enum):
@@ -50,6 +54,8 @@ class WeaponSpecs:
 
     # Ammunition
     ammo_capacity: Optional[int] = None  # None = unlimited
+    mass_per_round: float = 0.0  # kg per round (affects ship mass via F=ma)
+    reload_time: float = 0.0  # seconds to reload/cycle magazine (0 = no reload delay)
 
     # Power
     power_per_shot: float = 10.0  # power units consumed per shot
@@ -76,6 +82,8 @@ RAILGUN_SPECS = WeaponSpecs(
     burst_count=1,
     burst_delay=0.0,
     ammo_capacity=20,  # Limited heavy rounds
+    mass_per_round=5.0,  # 5 kg tungsten penetrator
+    reload_time=0.0,  # Railgun uses electromagnetic acceleration, no magazine reload
     power_per_shot=50.0,  # High power draw
     charge_time=2.0,  # 2 second charge
     base_accuracy=0.85,  # High accuracy
@@ -97,6 +105,8 @@ PDC_SPECS = WeaponSpecs(
     burst_count=5,  # 5-round bursts
     burst_delay=0.05,  # Fast burst
     ammo_capacity=2000,  # Large ammo supply
+    mass_per_round=0.05,  # 50g autocannon rounds
+    reload_time=3.0,  # 3 seconds to swap magazine (every 200 rounds)
     power_per_shot=2.0,  # Low power per shot
     charge_time=0.0,  # No charge needed
     base_accuracy=0.7,  # Moderate accuracy (auto-turret)
@@ -124,6 +134,23 @@ class FiringSolution:
     in_arc: bool = False  # Within weapon firing arc
     target_closing: bool = False  # Target is closing
     closing_speed: float = 0.0  # Relative closing velocity (m/s)
+
+    # Confidence breakdown — each physical factor that feeds into confidence
+    confidence_factors: Dict[str, float] = field(default_factory=lambda: {
+        "track_quality": 0.0,     # Sensor data freshness/accuracy (0-1)
+        "range_factor": 0.0,      # Range degradation (0-1, lower = further)
+        "target_accel": 0.0,      # Target maneuver penalty (0-1, lower = harder)
+        "own_rotation": 0.0,      # Own ship rotation/vibration penalty (0-1)
+        "weapon_health": 0.0,     # Weapon system damage factor (0-1)
+    })
+
+    # Confidence cone — dispersion area at target range
+    cone_radius_m: float = 0.0   # Radius of impact cone at target range (m)
+    cone_angle_deg: float = 0.0  # Half-angle of cone (degrees)
+
+    # Snapshot of conditions at solution time (for causal feedback after impact)
+    target_accel_magnitude: float = 0.0  # Target acceleration when fired (m/s²)
+    lateral_velocity: float = 0.0  # Target lateral velocity (m/s)
 
     # Status
     tracking: bool = False  # Turret is tracking target
@@ -155,6 +182,20 @@ class TruthWeapon:
         self.charge_start = None
         self.charging = False
 
+        # Reload state (magazine-based for PDCs, per-round for railguns)
+        self.reloading = False
+        self.reload_progress = 0.0  # 0.0 to 1.0
+        self._reload_timer = 0.0
+        # PDC magazine: reload triggers every N rounds
+        self._magazine_size = 200 if specs.reload_time > 0 else 0
+        self._rounds_since_reload = 0
+
+        # Firing arc constraints (set from ship_class weapon_mounts config)
+        self.firing_arc: Optional[Dict[str, float]] = None  # {azimuth_min, azimuth_max, elevation_min, elevation_max}
+
+        # PDC operating mode (auto=point defense, manual=fire on command, hold_fire=cease)
+        self.pdc_mode: str = "auto" if mount_id.startswith("pdc") else "manual"
+
         # Tracking
         self.current_solution: Optional[FiringSolution] = None
         self.turret_bearing = {"pitch": 0.0, "yaw": 0.0}
@@ -173,6 +214,21 @@ class TruthWeapon:
         # Passive heat dissipation
         if self.heat > 0:
             self.heat = max(0.0, self.heat - dt * 5.0)
+
+        # Reload timer
+        if self.reloading:
+            self._reload_timer -= dt
+            if self._reload_timer <= 0:
+                self.reloading = False
+                self._reload_timer = 0.0
+                self.reload_progress = 1.0
+                self._rounds_since_reload = 0
+                self.event_bus.publish("weapon_reloaded", {
+                    "weapon": self.specs.name,
+                    "mount_id": self.mount_id,
+                })
+            else:
+                self.reload_progress = 1.0 - (self._reload_timer / self.specs.reload_time)
 
         # Turret tracking
         if self.current_solution and self.current_solution.valid:
@@ -206,12 +262,16 @@ class TruthWeapon:
         target_id: str,
         sim_time: float,
         track_quality: float = 1.0,
+        shooter_angular_vel: Optional[Dict[str, float]] = None,
+        weapon_damage_factor: float = 1.0,
+        target_accel: Optional[Dict[str, float]] = None,
     ) -> FiringSolution:
         """Calculate firing solution for a target.
 
         Uses lead prediction to calculate where to aim to hit a moving target.
-        Incorporates track quality from the targeting system to compute an
-        overall solution confidence score (design spec requirement).
+        Computes a physics-derived confidence score from five factors:
+        track quality, range, target acceleration, own ship rotation, and
+        weapon system health.
 
         Args:
             shooter_pos: Shooter position {x, y, z}
@@ -222,6 +282,12 @@ class TruthWeapon:
             sim_time: Current simulation time
             track_quality: Track quality from targeting system (0-1).
                 Degrades with range and target acceleration. Defaults to 1.0.
+            shooter_angular_vel: Own ship angular velocity {pitch, yaw, roll}
+                in deg/s. Ship rotation degrades aim stability.
+            weapon_damage_factor: Weapon system health factor (0-1).
+                Damaged weapons have degraded firing solutions.
+            target_accel: Target acceleration vector {x, y, z} in m/s².
+                Maneuvering targets are harder to predict during slug flight.
 
         Returns:
             FiringSolution with engagement data including confidence score.
@@ -346,12 +412,75 @@ class TruthWeapon:
 
         solution.hit_probability = max(0.05, min(0.95, range_accuracy * lateral_factor))
 
-        # Compute overall solution confidence (design spec: firing solutions
-        # have confidence scores). Confidence combines track quality, range
-        # accuracy, and tracking convergence.
+        # --- Confidence from five physical factors (design spec) ---
+        # 1. Track quality: sensor data freshness and accuracy (from targeting system)
+        cf_track = max(0.0, min(1.0, track_quality))
+
+        # 2. Range factor: longer range = more time for target to maneuver
+        #    during slug flight. Normalised as accuracy at range.
+        cf_range = max(0.1, min(1.0, range_accuracy))
+
+        # 3. Target acceleration: maneuvering targets are unpredictable
+        #    during the slug's flight time. Even moderate burns during
+        #    a 25-second flight invalidate the ballistic assumption.
+        target_accel_mag = 0.0
+        if target_accel:
+            target_accel_mag = math.sqrt(
+                target_accel.get("x", 0)**2 +
+                target_accel.get("y", 0)**2 +
+                target_accel.get("z", 0)**2
+            )
+        # 1G (10 m/s²) = no penalty; 5G (50 m/s²) = 50% penalty; 10G+ = severe
+        cf_accel = max(0.2, 1.0 - target_accel_mag / 100.0)
+        solution.target_accel_magnitude = target_accel_mag
+        solution.lateral_velocity = lateral_vel
+
+        # 4. Own ship rotation/vibration: angular velocity degrades aim
+        #    stability. Turret gimbals can compensate for slow rotations
+        #    but fast spins blur the aim.
+        rotation_magnitude = 0.0
+        if shooter_angular_vel:
+            rotation_magnitude = math.sqrt(
+                shooter_angular_vel.get("pitch", 0)**2 +
+                shooter_angular_vel.get("yaw", 0)**2 +
+                shooter_angular_vel.get("roll", 0)**2
+            )
+        # 5 deg/s = no penalty; 30 deg/s = ~50% penalty; 60+ deg/s = severe
+        cf_rotation = max(0.3, 1.0 - rotation_magnitude / 60.0)
+
+        # 5. Weapon system health: damaged weapons have degraded fire control
+        cf_weapon = max(0.1, min(1.0, weapon_damage_factor))
+
+        # Store individual factors for telemetry/GUI breakdown
+        solution.confidence_factors = {
+            "track_quality": round(cf_track, 3),
+            "range_factor": round(cf_range, 3),
+            "target_accel": round(cf_accel, 3),
+            "own_rotation": round(cf_rotation, 3),
+            "weapon_health": round(cf_weapon, 3),
+        }
+
+        # Overall confidence is the product of all factors
         solution.confidence = max(0.0, min(1.0,
-            track_quality * range_accuracy * lateral_factor
+            cf_track * cf_range * cf_accel * cf_rotation * cf_weapon
         ))
+
+        # --- Confidence cone calculation ---
+        # The cone represents the dispersion area at target range.
+        # Lower confidence = wider cone = larger possible miss area.
+        # At confidence=1.0, cone angle is minimal (weapon base spread).
+        # Base angular spread from weapon accuracy at this range
+        base_spread_rad = math.asin(max(0.001, min(0.999,
+            1.0 - solution.hit_probability
+        )))
+        # Confidence scales the cone: low confidence widens dispersion
+        effective_spread = base_spread_rad / max(0.1, solution.confidence)
+        effective_spread = min(effective_spread, math.radians(15.0))  # Cap at 15 degrees
+
+        solution.cone_angle_deg = round(math.degrees(effective_spread), 2)
+        solution.cone_radius_m = round(
+            solution.range_to_target * math.tan(effective_spread), 1
+        )
 
         # Check turret tracking
         turret_error = math.sqrt(
@@ -359,7 +488,31 @@ class TruthWeapon:
             (self.turret_bearing["yaw"] - solution.lead_angle["yaw"])**2
         )
         solution.tracking = turret_error < 5.0  # Within 5 degrees
-        solution.in_arc = True  # TODO: implement firing arcs
+
+        # Check firing arc constraints from weapon mount config
+        if self.firing_arc:
+            az_min = self.firing_arc.get("azimuth_min", -180)
+            az_max = self.firing_arc.get("azimuth_max", 180)
+            el_min = self.firing_arc.get("elevation_min", -90)
+            el_max = self.firing_arc.get("elevation_max", 90)
+            yaw = solution.lead_angle["yaw"]
+            pitch = solution.lead_angle["pitch"]
+            # Normalize yaw to [-180, 180] for comparison
+            while yaw > 180:
+                yaw -= 360
+            while yaw < -180:
+                yaw += 360
+            # Azimuth check handles arcs that wrap past +/-180
+            # (e.g. rear-facing arc: az_min=170, az_max=-170)
+            if az_min <= az_max:
+                az_ok = az_min <= yaw <= az_max
+            else:
+                # Wrapping arc: valid if yaw >= min OR yaw <= max
+                az_ok = yaw >= az_min or yaw <= az_max
+            el_ok = el_min <= pitch <= el_max
+            solution.in_arc = az_ok and el_ok
+        else:
+            solution.in_arc = True  # No arc constraints defined
 
         # Ready to fire check
         time_since_fired = sim_time - self.last_fired
@@ -369,6 +522,7 @@ class TruthWeapon:
 
         solution.ready_to_fire = (
             self.enabled and
+            not self.reloading and
             solution.in_range and
             solution.in_arc and
             solution.tracking and
@@ -380,11 +534,15 @@ class TruthWeapon:
         if not solution.ready_to_fire:
             if not self.enabled:
                 solution.reason = "Weapon disabled"
+            elif self.reloading:
+                solution.reason = f"Reloading ({self.reload_progress * 100:.0f}%)"
             elif not solution.in_range:
                 if solution.range_to_target < self.specs.min_range:
                     solution.reason = f"Target too close ({solution.range_to_target:.0f}m < {self.specs.min_range:.0f}m)"
                 else:
                     solution.reason = f"Target out of range ({solution.range_to_target:.0f}m > {self.specs.effective_range:.0f}m)"
+            elif not solution.in_arc:
+                solution.reason = "Target outside firing arc"
             elif not solution.tracking:
                 solution.reason = f"Turret tracking ({turret_error:.1f} deg error)"
             elif not cooldown_ready:
@@ -409,8 +567,18 @@ class TruthWeapon:
         damage_model=None,
         event_bus=None,
         target_subsystem: str = None,
+        projectile_manager=None,
+        shooter_pos: Dict = None,
+        shooter_vel: Dict = None,
     ) -> Dict:
         """Attempt to fire the weapon.
+
+        For railguns (KINETIC_PENETRATOR), spawns a Newtonian projectile via
+        projectile_manager instead of resolving hits instantly. The slug
+        travels at muzzle_velocity along the firing solution's intercept
+        vector and hit/miss is determined when it reaches the target.
+
+        For PDCs and other weapons, hits are resolved instantly (short range).
 
         Args:
             sim_time: Current simulation time
@@ -418,6 +586,12 @@ class TruthWeapon:
             target_ship: Target ship object for damage application
             ship_id: Firing ship ID for events
             damage_factor: Weapon system damage degradation factor
+            damage_model: Shooter's damage model for heat tracking
+            event_bus: Ship event bus for publishing events
+            target_subsystem: Specific subsystem to target
+            projectile_manager: ProjectileManager for spawning ballistic slugs
+            shooter_pos: Shooter position {x,y,z} for projectile spawn
+            shooter_vel: Shooter velocity {x,y,z} for projectile velocity calc
 
         Returns:
             dict: Fire result
@@ -425,6 +599,13 @@ class TruthWeapon:
         # Check basic requirements
         if not self.enabled:
             return {"ok": False, "reason": "disabled"}
+
+        if self.reloading:
+            return {
+                "ok": False,
+                "reason": "reloading",
+                "reload_remaining": self._reload_timer,
+            }
 
         if damage_factor <= 0.0:
             return {"ok": False, "reason": "weapon_damaged"}
@@ -456,11 +637,76 @@ class TruthWeapon:
         if not self.current_solution.ready_to_fire:
             return {"ok": False, "reason": self.current_solution.reason}
 
-        # Fire!
+        # Railgun ballistic path: spawn projectile instead of instant hit
+        is_railgun = self.specs.damage_type == DamageType.KINETIC_PENETRATOR
+        if is_railgun and projectile_manager and shooter_pos:
+            return self._fire_ballistic(
+                sim_time=sim_time,
+                damage_factor=damage_factor,
+                damage_model=damage_model,
+                event_bus=event_bus,
+                target_subsystem=target_subsystem,
+                projectile_manager=projectile_manager,
+                shooter_pos=shooter_pos,
+                shooter_vel=shooter_vel or {"x": 0, "y": 0, "z": 0},
+                ship_id=ship_id,
+                target_ship=target_ship,
+            )
+
+        # PDC / instant-hit path (short range weapons)
+        return self._fire_instant(
+            sim_time=sim_time,
+            damage_factor=damage_factor,
+            damage_model=damage_model,
+            event_bus=event_bus,
+            target_subsystem=target_subsystem,
+            ship_id=ship_id,
+            target_ship=target_ship,
+        )
+
+    def _fire_ballistic(
+        self,
+        sim_time: float,
+        damage_factor: float,
+        damage_model,
+        event_bus,
+        target_subsystem: str,
+        projectile_manager,
+        shooter_pos: Dict,
+        shooter_vel: Dict,
+        ship_id: str,
+        target_ship,
+    ) -> Dict:
+        """Fire a railgun slug as a Newtonian projectile.
+
+        The slug is unguided after launch — it follows a straight-line
+        trajectory at muzzle_velocity toward the computed intercept point.
+        Hit/miss is determined by the ProjectileManager when the slug
+        reaches the target's vicinity.
+
+        Args:
+            sim_time: Current simulation time
+            damage_factor: Weapon degradation factor
+            damage_model: Shooter damage model (for heat)
+            event_bus: Ship event bus
+            target_subsystem: Subsystem to target
+            projectile_manager: ProjectileManager to spawn into
+            shooter_pos: Shooter world position
+            shooter_vel: Shooter world velocity
+            ship_id: Firing ship ID
+            target_ship: Target ship object
+
+        Returns:
+            dict: Fire result with projectile info
+        """
         self.last_fired = sim_time
+        target_id = getattr(target_ship, 'id', None) if target_ship else None
+
+        # Consume ammo
         if self.ammo is not None:
             self.ammo -= 1
 
+        # Heat generation (capacitor discharge)
         self.heat += 10.0 * (1.0 / max(0.5, damage_factor))
         if damage_model is not None:
             heat_scale = self.specs.subsystem_damage / max(1.0, self.specs.base_damage)
@@ -468,64 +714,256 @@ class TruthWeapon:
             if heat_amount > 0:
                 damage_model.add_heat("weapons", heat_amount, event_bus, ship_id)
 
-        # Determine hit
-        import random
-        hit_roll = random.random()
-        hit = hit_roll < self.current_solution.hit_probability
+        # Calculate projectile velocity in world frame
+        # Direction: toward the intercept point computed by the firing solution
+        solution = self.current_solution
+        aim_vec = {
+            "x": solution.intercept_point["x"] - shooter_pos["x"],
+            "y": solution.intercept_point["y"] - shooter_pos["y"],
+            "z": solution.intercept_point["z"] - shooter_pos["z"],
+        }
+        aim_dist = math.sqrt(aim_vec["x"]**2 + aim_vec["y"]**2 + aim_vec["z"]**2)
 
-        # Calculate damage
-        damage_result = None
-        effective_damage = 0.0
+        if aim_dist > 0.001:
+            aim_dir = {k: aim_vec[k] / aim_dist for k in ["x", "y", "z"]}
+        else:
+            aim_dir = {"x": 1.0, "y": 0.0, "z": 0.0}
 
-        if hit and target_ship:
-            # Apply damage
-            effective_damage = self.specs.base_damage * damage_factor
-            subsystem_damage = self.specs.subsystem_damage * damage_factor
+        # Slug velocity = shooter velocity + muzzle velocity in aim direction
+        proj_vel = {
+            "x": shooter_vel["x"] + aim_dir["x"] * self.specs.muzzle_velocity,
+            "y": shooter_vel["y"] + aim_dir["y"] * self.specs.muzzle_velocity,
+            "z": shooter_vel["z"] + aim_dir["z"] * self.specs.muzzle_velocity,
+        }
 
-            subsystem_target = target_subsystem or self._select_subsystem_target()
+        # Hit-location physics handles armor penetration at impact time,
+        # so we pass base damage scaled only by weapon degradation.
+        # The projectile carries mass and armor_pen for penetration calc on hit.
+        effective_damage = self.specs.base_damage * damage_factor
+        subsystem_dmg = self.specs.subsystem_damage * damage_factor
+        # No subsystem pre-selection — hit-location physics determines
+        # which subsystem is hit based on intercept geometry
+        subsystem_target = target_subsystem  # Only use explicit target, not random
 
-            # Apply to target
-            if hasattr(target_ship, 'take_damage'):
-                damage_result = target_ship.take_damage(
-                    effective_damage,
-                    source=f"{ship_id}:{self.specs.name}",
-                    target_subsystem=subsystem_target,
-                )
+        # Spawn projectile with firing conditions snapshot for causal feedback
+        target_pos = solution.intercept_point  # predicted intercept
+        target_vel_snapshot = {}
+        if hasattr(self, '_last_target_vel'):
+            target_vel_snapshot = self._last_target_vel
+        # Get target data from the solution's target_data if available
+        targeting = None
+        if target_ship and hasattr(target_ship, 'systems'):
+            # We're the shooter — get target pos/vel from our targeting system
+            pass
+        # Use the target_ship's current state for the snapshot
+        if target_ship:
+            target_vel_snapshot = getattr(target_ship, 'velocity', {"x": 0, "y": 0, "z": 0})
+            target_pos = getattr(target_ship, 'position', solution.intercept_point)
 
-            # Apply subsystem damage
-            if hasattr(target_ship, 'damage_model'):
-                target_ship.damage_model.apply_damage(
-                    subsystem_target, subsystem_damage
-                )
-                if damage_result:
-                    damage_result["subsystem_hit"] = subsystem_target
-                    damage_result["subsystem_damage"] = subsystem_damage
+        proj = projectile_manager.spawn(
+            weapon_name=self.specs.name,
+            weapon_mount=self.mount_id,
+            shooter_id=ship_id,
+            position=dict(shooter_pos),
+            velocity=proj_vel,
+            damage=effective_damage,
+            subsystem_damage=subsystem_dmg,
+            hit_probability=solution.hit_probability,
+            sim_time=sim_time,
+            target_id=target_id,
+            target_subsystem=subsystem_target,
+            hit_radius=50.0,
+            mass=self.specs.mass_per_round,
+            armor_penetration=self.specs.armor_penetration,
+            confidence=solution.confidence,
+            confidence_factors=dict(solution.confidence_factors),
+            target_vel_at_fire=dict(target_vel_snapshot) if target_vel_snapshot else {"x": 0, "y": 0, "z": 0},
+            target_pos_at_fire=dict(target_pos) if target_pos else {"x": 0, "y": 0, "z": 0},
+            target_accel_at_fire=solution.target_accel_magnitude,
+            intercept_point=dict(solution.intercept_point),
+        )
 
-        # Publish event
-        target_id = getattr(target_ship, 'id', None) if target_ship else None
+        # Publish weapon_fired event (slug launched, not yet hit)
         self.event_bus.publish("weapon_fired", {
             "weapon": self.specs.name,
             "mount_id": self.mount_id,
             "ship_id": ship_id,
             "target": target_id,
-            "hit": hit,
-            "hit_probability": self.current_solution.hit_probability,
-            "range": self.current_solution.range_to_target,
-            "damage": effective_damage if hit else 0,
-            "damage_result": damage_result,
+            "hit": None,  # Unknown — slug in flight
+            "hits": 0,
+            "rounds_fired": 1,
+            "hit_probability": solution.hit_probability,
+            "confidence": solution.confidence,
+            "confidence_factors": solution.confidence_factors,
+            "cone_radius_m": solution.cone_radius_m,
+            "range": solution.range_to_target,
+            "damage": 0,  # No damage yet — slug in flight
+            "projectile_id": proj.id,
+            "time_of_flight": solution.time_of_flight,
+            "ballistic": True,
         })
 
         return {
             "ok": True,
-            "hit": hit,
-            "damage": effective_damage if hit else 0,
+            "ballistic": True,
+            "projectile_id": proj.id,
+            "hit": None,  # Unknown — slug in flight
+            "rounds_fired": 1,
+            "damage": 0,
+            "target": target_id,
+            "range": solution.range_to_target,
+            "time_of_flight": solution.time_of_flight,
+            "hit_probability": solution.hit_probability,
+            "confidence": solution.confidence,
+            "confidence_factors": solution.confidence_factors,
+            "cone_radius_m": solution.cone_radius_m,
+            "ammo_remaining": self.ammo,
+            "heat": self.heat,
+        }
+
+    def _fire_instant(
+        self,
+        sim_time: float,
+        damage_factor: float,
+        damage_model,
+        event_bus,
+        target_subsystem: str,
+        ship_id: str,
+        target_ship,
+    ) -> Dict:
+        """Fire with instant hit resolution (PDC and short-range weapons).
+
+        Args:
+            sim_time: Current simulation time
+            damage_factor: Weapon degradation factor
+            damage_model: Shooter damage model (for heat)
+            event_bus: Ship event bus
+            target_subsystem: Subsystem to target
+            ship_id: Firing ship ID
+            target_ship: Target ship object
+
+        Returns:
+            dict: Fire result
+        """
+        import random
+
+        self.last_fired = sim_time
+        target_id = getattr(target_ship, 'id', None) if target_ship else None
+
+        burst_hits = 0
+        burst_damage = 0.0
+        burst_rounds = 0
+        burst_results = []
+
+        for shot_i in range(self.specs.burst_count):
+            # Check ammo for each shot in burst
+            if self.ammo is not None and self.ammo <= 0:
+                break
+
+            # Consume ammo
+            if self.ammo is not None:
+                self.ammo -= 1
+            burst_rounds += 1
+
+            # Magazine reload check per round (>= 0 so reload triggers on last round too)
+            if self._magazine_size > 0 and self.ammo is not None and self.ammo >= 0:
+                self._rounds_since_reload += 1
+                if self._rounds_since_reload >= self._magazine_size:
+                    self.reloading = True
+                    self._reload_timer = self.specs.reload_time
+                    self.reload_progress = 0.0
+                    self.event_bus.publish("weapon_reloading", {
+                        "weapon": self.specs.name,
+                        "mount_id": self.mount_id,
+                        "reload_time": self.specs.reload_time,
+                    })
+                    break  # Stop burst on reload
+
+            # Heat per round
+            self.heat += 10.0 * (1.0 / max(0.5, damage_factor))
+            if damage_model is not None:
+                heat_scale = self.specs.subsystem_damage / max(1.0, self.specs.base_damage)
+                heat_amount = self.specs.power_per_shot * (1.0 + heat_scale)
+                if heat_amount > 0:
+                    damage_model.add_heat("weapons", heat_amount, event_bus, ship_id)
+
+            # Hit roll per round
+            hit = random.random() < self.current_solution.hit_probability
+
+            shot_damage = 0.0
+            damage_result = None
+
+            if hit and target_ship:
+                # Use hit-location physics for PDC hits
+                hit_loc = self._compute_instant_hit_location(target_ship)
+                pen_factor = hit_loc.penetration_factor if hit_loc else 1.0
+                is_ricochet = hit_loc.is_ricochet if hit_loc else False
+
+                if is_ricochet:
+                    effective_damage = self.specs.base_damage * damage_factor * 0.1
+                    subsystem_dmg = 0.0
+                    subsystem_target = hit_loc.nearest_subsystem if hit_loc else (target_subsystem or self._select_subsystem_target())
+                else:
+                    effective_damage = self.specs.base_damage * damage_factor * pen_factor
+                    subsystem_dmg = self.specs.subsystem_damage * damage_factor * pen_factor
+                    subsystem_target = hit_loc.nearest_subsystem if hit_loc else (target_subsystem or self._select_subsystem_target())
+
+                if hasattr(target_ship, 'take_damage'):
+                    damage_result = target_ship.take_damage(
+                        effective_damage,
+                        source=f"{ship_id}:{self.specs.name}",
+                        target_subsystem=subsystem_target if subsystem_dmg > 0 else None,
+                    )
+
+                if subsystem_dmg > 0 and hasattr(target_ship, 'damage_model'):
+                    target_ship.damage_model.apply_damage(
+                        subsystem_target, subsystem_dmg
+                    )
+                    if damage_result:
+                        damage_result["subsystem_hit"] = subsystem_target
+                        damage_result["subsystem_damage"] = subsystem_dmg
+
+                shot_damage = effective_damage
+                burst_hits += 1
+                burst_damage += shot_damage
+
+            burst_results.append({
+                "hit": hit,
+                "damage": shot_damage,
+                "damage_result": damage_result,
+            })
+
+            # Stop burst if overheating
+            if self.heat >= self.max_heat * 0.95:
+                break
+
+        # Publish single event summarizing the burst
+        self.event_bus.publish("weapon_fired", {
+            "weapon": self.specs.name,
+            "mount_id": self.mount_id,
+            "ship_id": ship_id,
+            "target": target_id,
+            "hit": burst_hits > 0,
+            "hits": burst_hits,
+            "rounds_fired": burst_rounds,
+            "hit_probability": self.current_solution.hit_probability,
+            "range": self.current_solution.range_to_target,
+            "damage": burst_damage,
+        })
+
+        return {
+            "ok": True,
+            "hit": burst_hits > 0,
+            "hits": burst_hits,
+            "rounds_fired": burst_rounds,
+            "damage": burst_damage,
             "target": target_id,
             "range": self.current_solution.range_to_target,
             "time_of_flight": self.current_solution.time_of_flight,
             "hit_probability": self.current_solution.hit_probability,
             "ammo_remaining": self.ammo,
             "heat": self.heat,
-            "damage_result": damage_result,
+            "burst_results": burst_results,
         }
 
     def _select_subsystem_target(self) -> str:
@@ -567,9 +1005,120 @@ class TruthWeapon:
                 return subsystem
         return "weapons"  # fallback
 
+    def _calculate_armor_factor(self, armor: Dict) -> float:
+        """Calculate damage multiplier based on armor vs weapon penetration.
+
+        Armor sections have thickness_cm. Thicker armor reduces damage
+        more, but high armor_penetration weapons bypass it.
+
+        PDC (0.5 pen) vs 3cm armor → ~0.5x damage (struggles)
+        Railgun (1.5 pen) vs 3cm armor → ~1.0x damage (punches through)
+
+        Args:
+            armor: Ship armor dict with sections {fore, aft, ...} each
+                having thickness_cm.
+
+        Returns:
+            float: Damage multiplier (0.2 to 1.0).
+        """
+        # Average armor thickness across all sections
+        thicknesses = []
+        for section_data in armor.values():
+            if isinstance(section_data, dict):
+                thicknesses.append(section_data.get("thickness_cm", 0.0))
+        if not thicknesses:
+            return 1.0
+
+        avg_thickness = sum(thicknesses) / len(thicknesses)
+        # Armor resistance scales with thickness: 1cm = 0.1 resistance
+        armor_resistance = avg_thickness * 0.1
+        # Effective factor: penetration / (penetration + resistance)
+        pen = self.specs.armor_penetration
+        factor = pen / (pen + armor_resistance)
+        return max(0.2, min(1.0, factor))
+
+    def _compute_instant_hit_location(self, target_ship):
+        """Compute hit location for instant-hit weapons (PDC).
+
+        Uses the firing solution's intercept geometry to determine
+        which part of the target ship is hit.
+
+        Args:
+            target_ship: Target ship object
+
+        Returns:
+            HitLocation or None if ship lacks required data
+        """
+        if not target_ship or not hasattr(target_ship, 'position'):
+            return None
+
+        # Construct a synthetic projectile velocity from weapon → target
+        solution = self.current_solution
+        if not solution or not solution.valid:
+            return None
+
+        # PDC projectile velocity toward intercept point
+        intercept = solution.intercept_point
+        target_pos = target_ship.position
+        aim_vec = {
+            "x": intercept["x"] - target_pos["x"],
+            "y": intercept["y"] - target_pos["y"],
+            "z": intercept["z"] - target_pos["z"],
+        }
+        # Normalize and scale to muzzle velocity
+        aim_mag = math.sqrt(aim_vec["x"]**2 + aim_vec["y"]**2 + aim_vec["z"]**2)
+        if aim_mag < 1e-10:
+            proj_vel = {"x": self.specs.muzzle_velocity, "y": 0.0, "z": 0.0}
+        else:
+            proj_vel = {
+                "x": (aim_vec["x"] / aim_mag) * self.specs.muzzle_velocity,
+                "y": (aim_vec["y"] / aim_mag) * self.specs.muzzle_velocity,
+                "z": (aim_vec["z"] / aim_mag) * self.specs.muzzle_velocity,
+            }
+
+        ship_quat = getattr(target_ship, "quaternion", None)
+        ship_dims = getattr(target_ship, "dimensions", None)
+        ship_armor = getattr(target_ship, "armor", None)
+        ship_weapon_mounts = getattr(target_ship, "weapon_mounts", None)
+        # Use raw systems config for placement data, not loaded system objects
+        ship_systems = getattr(target_ship, "_systems_config", None)
+
+        subsystem_names = None
+        if hasattr(target_ship, "damage_model") and hasattr(target_ship.damage_model, "subsystems"):
+            subsystem_names = list(target_ship.damage_model.subsystems.keys())
+
+        try:
+            return compute_hit_location(
+                projectile_velocity=proj_vel,
+                projectile_mass=self.specs.mass_per_round,
+                projectile_armor_pen=self.specs.armor_penetration,
+                ship_position=target_ship.position,
+                ship_quaternion=ship_quat,
+                ship_dimensions=ship_dims,
+                ship_armor=ship_armor,
+                ship_systems=ship_systems,
+                ship_weapon_mounts=ship_weapon_mounts,
+                ship_subsystems=subsystem_names,
+            )
+        except Exception as e:
+            logger.warning(f"Hit location calc failed for PDC: {e}")
+            return None
+
+    def get_ammo_mass(self) -> float:
+        """Get total mass of remaining ammunition in kg.
+
+        Returns:
+            float: Mass of all remaining rounds.
+        """
+        if self.ammo is None:
+            return 0.0
+        return self.ammo * self.specs.mass_per_round
+
     def can_fire(self, sim_time: float) -> bool:
         """Quick check if weapon can fire."""
         if not self.enabled:
+            return False
+        if self.reloading:
             return False
         if self.ammo is not None and self.ammo <= 0:
             return False
@@ -584,22 +1133,33 @@ class TruthWeapon:
         return {
             "name": self.specs.name,
             "mount_id": self.mount_id,
+            "weapon_type": self.specs.weapon_type.value,
             "enabled": self.enabled,
             "ammo": self.ammo,
             "ammo_capacity": self.specs.ammo_capacity,
+            "ammo_mass": self.get_ammo_mass(),
+            "mass_per_round": self.specs.mass_per_round,
+            "reloading": self.reloading,
+            "reload_progress": round(self.reload_progress, 2),
+            "reload_time": self.specs.reload_time,
             "heat": self.heat,
             "max_heat": self.max_heat,
             "cycle_time": self.specs.cycle_time,
             "effective_range": self.specs.effective_range,
             "turret_bearing": self.turret_bearing,
+            "pdc_mode": self.pdc_mode,
             "solution": {
                 "valid": self.current_solution.valid if self.current_solution else False,
                 "target_id": self.current_solution.target_id if self.current_solution else None,
                 "range": self.current_solution.range_to_target if self.current_solution else 0,
                 "confidence": self.current_solution.confidence if self.current_solution else 0,
+                "confidence_factors": self.current_solution.confidence_factors if self.current_solution else {},
+                "cone_radius_m": self.current_solution.cone_radius_m if self.current_solution else 0,
+                "cone_angle_deg": self.current_solution.cone_angle_deg if self.current_solution else 0,
                 "hit_probability": self.current_solution.hit_probability if self.current_solution else 0,
                 "ready_to_fire": self.current_solution.ready_to_fire if self.current_solution else False,
                 "reason": self.current_solution.reason if self.current_solution else "",
+                "time_of_flight": self.current_solution.time_of_flight if self.current_solution else 0,
             } if self.current_solution else None,
         }
 

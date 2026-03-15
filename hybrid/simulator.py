@@ -9,6 +9,7 @@ from hybrid.ship import Ship
 from hybrid.fleet.fleet_manager import FleetManager
 from hybrid.core.event_bus import EventBus
 from hybrid.systems.combat.projectile_manager import ProjectileManager
+from hybrid.systems.combat.torpedo_manager import TorpedoManager
 
 logger = logging.getLogger(__name__)
 
@@ -71,6 +72,9 @@ class Simulator:
         # Projectile simulation
         self.projectile_manager = ProjectileManager()
 
+        # Torpedo simulation
+        self.torpedo_manager = TorpedoManager()
+
         # Initialize fleet manager
         self.fleet_manager = FleetManager(simulator=self)
 
@@ -78,17 +82,26 @@ class Simulator:
         self.event_log = EventLogBuffer(maxlen=1000)
         self._event_bus = EventBus.get_instance()
         self._event_bus.subscribe_all(self._record_event)
+
+        # Combat feedback log (causal chain narratives)
+        from hybrid.systems.combat.combat_log import get_combat_log
+        self.combat_log = get_combat_log()
         
     def load_ships_from_directory(self, directory):
         """
-        Load ships from JSON files in a directory
-        
+        Load ships from JSON files in a directory.
+
+        If a ship config contains a ``ship_class`` field, its class template
+        is resolved from the ship class registry before creating the ship.
+
         Args:
             directory (str): Path to directory containing ship JSON files
-            
+
         Returns:
             int: Number of ships loaded
         """
+        from hybrid.ship_class_registry import resolve_ship_config
+
         count = 0
         try:
             for filename in os.listdir(directory):
@@ -97,6 +110,7 @@ class Simulator:
                     try:
                         with open(filepath, 'r') as f:
                             config = json.load(f)
+                        config = resolve_ship_config(config)
                         ship_id = config.get("id") or os.path.splitext(filename)[0]
                         self.add_ship(ship_id, config)
                         count += 1
@@ -105,7 +119,7 @@ class Simulator:
                         logger.error(f"Failed to load ship from {filepath}: {e}")
         except Exception as e:
             logger.error(f"Failed to load ships from directory {directory}: {e}")
-            
+
         return count
         
     def add_ship(self, ship_id, config):
@@ -129,6 +143,10 @@ class Simulator:
                 )
             )
         self.ships[ship_id] = ship
+        # Inject fleet manager into fleet_coord system if present
+        fleet_coord = ship.systems.get("fleet_coord")
+        if fleet_coord and hasattr(fleet_coord, "set_fleet_manager"):
+            fleet_coord.set_fleet_manager(self.fleet_manager)
         return ship
         
     def remove_ship(self, ship_id):
@@ -212,6 +230,16 @@ class Simulator:
         for ship in all_ships:
             try:
                 ship._all_ships_ref = all_ships
+                # Inject projectile_manager and torpedo_manager into combat system
+                combat = ship.systems.get("combat")
+                if combat and hasattr(combat, "_projectile_manager"):
+                    combat._projectile_manager = self.projectile_manager
+                if combat and hasattr(combat, "_torpedo_manager"):
+                    combat._torpedo_manager = self.torpedo_manager
+                # Inject fleet manager into fleet_coord system
+                fleet_coord = ship.systems.get("fleet_coord")
+                if fleet_coord and hasattr(fleet_coord, "set_fleet_manager"):
+                    fleet_coord.set_fleet_manager(self.fleet_manager)
                 ship.tick(self.dt, all_ships, self.time)
             except Exception as e:
                 logger.error(f"Error in ship {ship.id} tick: {e}")
@@ -227,8 +255,14 @@ class Simulator:
         self._process_sensor_interactions(all_ships)
 
         # Advance projectiles and check for intercepts
-        if self.projectile_manager.active_count > 0:
-            self.projectile_manager.tick(self.dt, self.time, self.ships)
+        # Always tick — projectiles may have been spawned during ship ticks above
+        self.projectile_manager.tick(self.dt, self.time, self.ships)
+
+        # Advance torpedoes (guided munitions with their own drive)
+        self.torpedo_manager.tick(self.dt, self.time, self.ships)
+
+        # PDC auto-interception of incoming torpedoes
+        self._process_pdc_torpedo_intercept(all_ships)
 
         # D6: Remove destroyed ships
         destroyed_ships = [ship.id for ship in all_ships if ship.is_destroyed()]
@@ -269,6 +303,7 @@ class Simulator:
             "sim_time": self.time,
             "avg_tick_ms": avg_tick * 1000,
             "active_projectiles": self.projectile_manager.active_count,
+            "active_torpedoes": self.torpedo_manager.active_count,
         }
 
     def _record_event(self, event_name, payload, ship_id=None):
@@ -324,6 +359,79 @@ class Simulator:
             
         return self.time
         
+    def _process_pdc_torpedo_intercept(self, all_ships):
+        """Process PDC auto-interception of incoming torpedoes.
+
+        PDCs in 'auto' mode automatically engage incoming torpedoes.
+        This is the primary PDC role — point defense against guided munitions.
+
+        Args:
+            all_ships: List of all ships in simulation
+        """
+        from hybrid.utils.math_utils import calculate_distance
+
+        for ship in all_ships:
+            combat = ship.systems.get("combat") if hasattr(ship, "systems") else None
+            if not combat or not hasattr(combat, "truth_weapons"):
+                continue
+
+            # Get torpedoes targeting this ship
+            incoming = self.torpedo_manager.get_torpedoes_targeting(ship.id)
+            if not incoming:
+                continue
+
+            # Check each PDC in auto mode
+            for mount_id, weapon in combat.truth_weapons.items():
+                if not mount_id.startswith("pdc"):
+                    continue
+                if getattr(weapon, "pdc_mode", "auto") != "auto":
+                    continue
+                if not weapon.enabled:
+                    continue
+
+                # Find closest incoming torpedo within PDC range
+                best_torpedo = None
+                best_dist = float("inf")
+                for torp in incoming:
+                    dist = calculate_distance(ship.position, torp.position)
+                    if dist < weapon.specs.effective_range and dist < best_dist:
+                        best_dist = dist
+                        best_torpedo = torp
+
+                if not best_torpedo:
+                    continue
+
+                # Can this PDC fire right now?
+                if not weapon.can_fire(getattr(ship, "sim_time", self.time)):
+                    continue
+
+                # PDC fires at torpedo — simplified hit check
+                # PDC accuracy vs small fast target: range-based
+                range_factor = max(0.2, 1.0 - best_dist / weapon.specs.effective_range)
+                import random
+                if random.random() < range_factor * weapon.specs.base_accuracy:
+                    # Hit! Apply PDC damage to torpedo
+                    pdc_damage = weapon.specs.base_damage * weapon.specs.burst_count
+                    result = self.torpedo_manager.apply_pdc_damage(
+                        best_torpedo.id, pdc_damage,
+                        source=f"{ship.id}:{mount_id}",
+                    )
+
+                    # Consume ammo and set cooldown
+                    if weapon.ammo is not None:
+                        weapon.ammo = max(0, weapon.ammo - weapon.specs.burst_count)
+                    weapon.last_fired = getattr(ship, "sim_time", self.time)
+                    weapon.heat += 10.0
+
+                    self._event_bus.publish("pdc_torpedo_engage", {
+                        "ship_id": ship.id,
+                        "pdc_mount": mount_id,
+                        "torpedo_id": best_torpedo.id,
+                        "distance": best_dist,
+                        "hit": True,
+                        "destroyed": result.get("destroyed", False),
+                    })
+
     def _process_sensor_interactions(self, all_ships):
         """Process sensor interactions between ships.
 

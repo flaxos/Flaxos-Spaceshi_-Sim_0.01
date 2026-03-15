@@ -1,0 +1,21 @@
+{
+  "category": "feature",
+  "description": "Navigation display for the helm station: current velocity vector (magnitude and direction), current acceleration, orientation, fuel remaining with delta-v budget, trajectory projection (where will the ship be in 1/5/10 minutes at current burn), intercept trajectory calculator (required burns to reach a target), and flip-and-burn indicators (when to flip for deceleration to reach zero relative velocity at target). Shows physical quantities in meaningful units (km, km/s, g, kg of reaction mass).",
+  "id": "gui-helm-display",
+  "title": "Web GUI: Helm Navigation Display",
+  "dependencies": [
+    "server-authoritative-state",
+    "helm-navigation",
+    "fuel-delta-v-budget"
+  ],
+  "priority": 4,
+  "status": "in_progress",
+  "descriptionHistory": [
+    {
+      "description": "Navigation display for the helm station: current velocity vector (magnitude and direction), current acceleration, orientation, fuel remaining with delta-v budget, trajectory projection (where will the ship be in 1/5/10 minutes at current burn), intercept trajectory calculator (required burns to reach a target), and flip-and-burn indicators (when to flip for deceleration to reach zero relative velocity at target). Shows physical quantities in meaningful units (km, km/s, g, kg of reaction mass).",
+      "timestamp": "2026-03-14T04:07:48.942Z",
+      "source": "initial"
+    }
+  ],
+  "updatedAt": "2026-03-14T14:26:29.540Z"
+}

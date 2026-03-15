@@ -1,0 +1,19 @@
+{
+  "category": "feature",
+  "description": "Targeting follows a strict pipeline: contact (something detected on sensors) → track (sensor data refined into position/velocity estimate) → lock (continuous track with predicted trajectory) → firing solution (lead angle calculated based on weapon velocity, target trajectory, and confidence interval) → fire. Each stage can degrade: poor sensor data = noisy track, target maneuvering = lock breaks, long range = wide confidence cone on firing solution. Track quality is a continuous value affected by range, target acceleration, ECM, and own sensor health. The player sees each stage and understands why solutions are good or bad.",
+  "id": "targeting-pipeline",
+  "title": "Multi-Stage Targeting Pipeline",
+  "dependencies": [
+    "sensor-detection-model",
+    "subsystem-model"
+  ],
+  "priority": 2,
+  "status": "backlog",
+  "descriptionHistory": [
+    {
+      "description": "Targeting follows a strict pipeline: contact (something detected on sensors) → track (sensor data refined into position/velocity estimate) → lock (continuous track with predicted trajectory) → firing solution (lead angle calculated based on weapon velocity, target trajectory, and confidence interval) → fire. Each stage can degrade: poor sensor data = noisy track, target maneuvering = lock breaks, long range = wide confidence cone on firing solution. Track quality is a continuous value affected by range, target acceleration, ECM, and own sensor health. The player sees each stage and understands why solutions are good or bad.",
+      "timestamp": "2026-03-14T04:07:48.929Z",
+      "source": "initial"
+    }
+  ]
+}

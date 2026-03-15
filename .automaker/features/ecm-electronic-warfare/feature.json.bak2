@@ -1,0 +1,20 @@
+{
+  "category": "feature",
+  "description": "ECM systems that degrade enemy targeting through physical means: radar jamming (noise injection on enemy radar frequencies, reduces track quality at range), chaff deployment (radar-reflective particles that create false returns), flare deployment (IR decoys that create false thermal signatures), emissions control (EMCON — go passive, shut down active sensors and reduce own signature at the cost of sensor capability). ECM effectiveness degrades with range (inverse square) and can be countered by frequency hopping, multi-spectral sensors. Not a magic cloak — ECM makes the enemy's targeting pipeline noisier, not impossible.",
+  "id": "ecm-electronic-warfare",
+  "title": "Electronic Countermeasures & Electronic Warfare",
+  "dependencies": [
+    "sensor-detection-model",
+    "targeting-pipeline"
+  ],
+  "priority": 4,
+  "status": "in_progress",
+  "descriptionHistory": [
+    {
+      "description": "ECM systems that degrade enemy targeting through physical means: radar jamming (noise injection on enemy radar frequencies, reduces track quality at range), chaff deployment (radar-reflective particles that create false returns), flare deployment (IR decoys that create false thermal signatures), emissions control (EMCON — go passive, shut down active sensors and reduce own signature at the cost of sensor capability). ECM effectiveness degrades with range (inverse square) and can be countered by frequency hopping, multi-spectral sensors. Not a magic cloak — ECM makes the enemy's targeting pipeline noisier, not impossible.",
+      "timestamp": "2026-03-14T04:07:48.936Z",
+      "source": "initial"
+    }
+  ],
+  "updatedAt": "2026-03-14T13:49:18.431Z"
+}

@@ -3,6 +3,7 @@
 
 Sprint C: Combat loop v1 implementation.
 Integrates truth weapons with targeting pipeline.
+Torpedo tubes provide guided, self-propelled munitions.
 """
 
 import logging
@@ -14,6 +15,9 @@ from hybrid.systems.weapons.truth_weapons import (
     TruthWeapon, create_railgun, create_pdc,
     RAILGUN_SPECS, PDC_SPECS, WeaponSpecs
 )
+from hybrid.systems.combat.torpedo_manager import (
+    TORPEDO_MASS, TORPEDO_FUEL_MASS,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +27,7 @@ class CombatSystem(BaseSystem):
 
     Provides:
     - Truth weapon management (railgun, PDC)
+    - Torpedo tubes (guided self-propelled munitions)
     - Weapon firing coordination
     - Combat state tracking
     - Integration with targeting system
@@ -35,6 +40,8 @@ class CombatSystem(BaseSystem):
             config: Configuration dict with:
                 - railguns: Number of railgun mounts (default 1)
                 - pdcs: Number of PDC mounts (default 2)
+                - torpedoes: Number of torpedo tubes (default 0)
+                - torpedo_capacity: Torpedoes per tube (default 4)
                 - weapons: List of custom weapon configs
         """
         super().__init__(config)
@@ -42,17 +49,36 @@ class CombatSystem(BaseSystem):
         # Initialize truth weapons
         self.truth_weapons: Dict[str, TruthWeapon] = {}
 
+        # Build firing arc lookup from weapon_mounts config
+        arc_lookup: Dict[str, dict] = {}
+        for mount in config.get("weapon_mounts", []):
+            mid = mount.get("mount_id", "")
+            if "firing_arc" in mount:
+                arc_lookup[mid] = mount["firing_arc"]
+
         # Create railguns
         num_railguns = config.get("railguns", config.get("railgun_mounts", 1))
         for i in range(num_railguns):
             mount_id = f"railgun_{i+1}"
-            self.truth_weapons[mount_id] = create_railgun(mount_id)
+            weapon = create_railgun(mount_id)
+            weapon.firing_arc = arc_lookup.get(mount_id)
+            self.truth_weapons[mount_id] = weapon
 
         # Create PDCs
         num_pdcs = config.get("pdcs", config.get("pdc_turrets", 2))
         for i in range(num_pdcs):
             mount_id = f"pdc_{i+1}"
-            self.truth_weapons[mount_id] = create_pdc(mount_id)
+            weapon = create_pdc(mount_id)
+            weapon.firing_arc = arc_lookup.get(mount_id)
+            self.truth_weapons[mount_id] = weapon
+
+        # Torpedo tubes
+        self.torpedo_tubes = config.get("torpedoes", config.get("torpedo_tubes", 0))
+        self.torpedo_capacity = config.get("torpedo_capacity", 4)  # Per tube
+        self.torpedoes_loaded: int = self.torpedo_tubes * self.torpedo_capacity
+        self.torpedo_reload_time = config.get("torpedo_reload_time", 15.0)  # seconds
+        self._torpedo_cooldown = 0.0  # Time until next launch
+        self.torpedoes_launched = 0
 
         # Combat state
         self.engaging = False
@@ -66,6 +92,12 @@ class CombatSystem(BaseSystem):
         # Ship reference
         self._ship_ref = None
         self._sim_time = 0.0
+
+        # Projectile manager reference (set by simulator each tick)
+        self._projectile_manager = None
+
+        # Torpedo manager reference (set by simulator each tick)
+        self._torpedo_manager = None
 
         # Event bus
         self.event_bus = EventBus.get_instance()
@@ -96,6 +128,10 @@ class CombatSystem(BaseSystem):
         for weapon in self.truth_weapons.values():
             weapon.tick(dt, self._sim_time)
 
+        # Update torpedo tube cooldown
+        if self._torpedo_cooldown > 0:
+            self._torpedo_cooldown = max(0, self._torpedo_cooldown - dt)
+
         # Update firing solutions from targeting system
         self._update_weapon_solutions(ship)
 
@@ -112,6 +148,12 @@ class CombatSystem(BaseSystem):
         # Calculate solutions for each truth weapon
         target_data = targeting.target_data
         track_quality = getattr(targeting, 'track_quality', 1.0)
+
+        # Get target acceleration for confidence calculation
+        target_accel = None
+        if hasattr(targeting, '_get_target_accel'):
+            target_accel = targeting._get_target_accel()
+
         for weapon_id, weapon in self.truth_weapons.items():
             weapon.calculate_solution(
                 shooter_pos=ship.position,
@@ -121,6 +163,9 @@ class CombatSystem(BaseSystem):
                 target_id=targeting.locked_target,
                 sim_time=self._sim_time,
                 track_quality=track_quality,
+                shooter_angular_vel=getattr(ship, 'angular_velocity', None),
+                weapon_damage_factor=self._damage_factor,
+                target_accel=target_accel,
             )
 
     def fire_weapon(self, weapon_id: str, target_ship=None, target_subsystem: str = None) -> dict:
@@ -143,6 +188,10 @@ class CombatSystem(BaseSystem):
         if self._damage_factor <= 0.0:
             return error_dict("WEAPONS_DESTROYED", "Weapons system has failed")
 
+        # Cold-drift mode disables all weapons (reactor offline)
+        if getattr(self._ship_ref, "_cold_drift_active", False):
+            return error_dict("COLD_DRIFT", "Weapons offline — ship is in cold-drift mode")
+
         # Get power manager
         power = self._ship_ref.systems.get("power") or self._ship_ref.systems.get("power_management")
 
@@ -159,7 +208,7 @@ class CombatSystem(BaseSystem):
             if targeting and hasattr(targeting, "target_subsystem"):
                 target_subsystem = targeting.target_subsystem
 
-        # Fire!
+        # Fire! Pass projectile_manager for ballistic weapons (railgun)
         result = weapon.fire(
             sim_time=self._sim_time,
             power_manager=power,
@@ -169,13 +218,17 @@ class CombatSystem(BaseSystem):
             damage_model=self._ship_ref.damage_model if hasattr(self._ship_ref, "damage_model") else None,
             event_bus=self._ship_ref.event_bus if hasattr(self._ship_ref, "event_bus") else None,
             target_subsystem=target_subsystem,
+            projectile_manager=self._projectile_manager,
+            shooter_pos=self._ship_ref.position if hasattr(self._ship_ref, "position") else None,
+            shooter_vel=self._ship_ref.velocity if hasattr(self._ship_ref, "velocity") else None,
         )
 
         if result.get("ok"):
-            self.shots_fired += 1
-            if result.get("hit"):
-                self.hits += 1
-                self.damage_dealt += result.get("damage", 0)
+            rounds = result.get("rounds_fired", 1)
+            self.shots_fired += rounds
+            hits = result.get("hits", 1 if result.get("hit") else 0)
+            self.hits += hits
+            self.damage_dealt += result.get("damage", 0)
             self.engaging = True
 
         return result
@@ -237,6 +290,124 @@ class CombatSystem(BaseSystem):
             "ok": True,
             **weapon.get_state()
         }
+
+    def launch_torpedo(self, target_id: str, profile: str = "direct", all_ships: dict = None) -> dict:
+        """Launch a torpedo at a target.
+
+        Args:
+            target_id: Target ship ID
+            profile: Attack profile ("direct" or "evasive")
+            all_ships: Dict of all ships for target resolution
+
+        Returns:
+            dict: Launch result
+        """
+        if not self._ship_ref:
+            return error_dict("NO_SHIP", "Ship reference not available")
+
+        if self.torpedo_tubes <= 0:
+            return error_dict("NO_TUBES", "Ship has no torpedo tubes")
+
+        if self.torpedoes_loaded <= 0:
+            return error_dict("NO_TORPEDOES", "No torpedoes remaining")
+
+        if self._torpedo_cooldown > 0:
+            return error_dict("TORPEDO_CYCLING",
+                              f"Torpedo tube cycling ({self._torpedo_cooldown:.1f}s remaining)")
+
+        if self._damage_factor <= 0.0:
+            return error_dict("WEAPONS_DESTROYED", "Weapons system has failed")
+
+        if getattr(self._ship_ref, "_cold_drift_active", False):
+            return error_dict("COLD_DRIFT", "Weapons offline — ship is in cold-drift mode")
+
+        if not self._torpedo_manager:
+            return error_dict("NO_TORPEDO_MANAGER", "Torpedo manager not available")
+
+        # Resolve target
+        all_ships = all_ships or {}
+        target_ship = all_ships.get(target_id)
+
+        # Get target position/velocity from targeting system or direct reference
+        target_pos = None
+        target_vel = None
+        if target_ship:
+            target_pos = target_ship.position
+            target_vel = target_ship.velocity
+        else:
+            targeting = self._ship_ref.systems.get("targeting")
+            if targeting and hasattr(targeting, "target_data") and targeting.target_data:
+                target_pos = targeting.target_data.get("position")
+                target_vel = targeting.target_data.get("velocity", {"x": 0, "y": 0, "z": 0})
+
+        if not target_pos:
+            return error_dict("NO_TARGET_DATA", "No position data for target")
+
+        # Consume torpedo
+        self.torpedoes_loaded -= 1
+        self._torpedo_cooldown = self.torpedo_reload_time
+        self.torpedoes_launched += 1
+
+        # Spawn torpedo — inherits launcher velocity
+        torpedo = self._torpedo_manager.spawn(
+            shooter_id=self._ship_ref.id,
+            target_id=target_id,
+            position=dict(self._ship_ref.position),
+            velocity=dict(self._ship_ref.velocity),
+            sim_time=self._sim_time,
+            target_pos=dict(target_pos),
+            target_vel=dict(target_vel) if target_vel else {"x": 0, "y": 0, "z": 0},
+            profile=profile,
+        )
+
+        # Generate heat from torpedo launch (exhaust backblast)
+        if hasattr(self._ship_ref, "damage_model"):
+            self._ship_ref.damage_model.add_heat(
+                "weapons", 30.0,
+                self._ship_ref.event_bus if hasattr(self._ship_ref, "event_bus") else None,
+                self._ship_ref.id,
+            )
+
+        return success_dict(
+            f"Torpedo launched at {target_id}",
+            torpedo_id=torpedo.id,
+            target=target_id,
+            profile=profile,
+            torpedoes_remaining=self.torpedoes_loaded,
+            reload_time=self.torpedo_reload_time,
+        )
+
+    def get_torpedo_status(self) -> dict:
+        """Get torpedo system status.
+
+        Returns:
+            dict: Torpedo status
+        """
+        return success_dict(
+            "Torpedo status",
+            tubes=self.torpedo_tubes,
+            loaded=self.torpedoes_loaded,
+            capacity=self.torpedo_tubes * self.torpedo_capacity,
+            cooldown=round(self._torpedo_cooldown, 1),
+            launched=self.torpedoes_launched,
+        )
+
+    def get_total_ammo_mass(self) -> float:
+        """Get total mass of all ammunition across all weapons.
+
+        Used by ship._update_mass() for dynamic mass calculation (F=ma).
+        Expending ammo makes the ship lighter and more maneuverable.
+        Includes torpedo mass.
+
+        Returns:
+            float: Total ammunition mass in kg.
+        """
+        total = 0.0
+        for weapon in self.truth_weapons.values():
+            total += weapon.get_ammo_mass()
+        # Torpedoes are heavy ordnance
+        total += self.torpedoes_loaded * TORPEDO_MASS
+        return total
 
     def resupply(self) -> dict:
         """Resupply all weapons with ammunition.
@@ -310,6 +481,35 @@ class CombatSystem(BaseSystem):
         elif action == "resupply":
             return self.resupply()
 
+        elif action == "set_pdc_mode":
+            mode = params.get("mode")
+            if mode not in ("auto", "manual", "hold_fire"):
+                return error_dict("INVALID_MODE", "PDC mode must be 'auto', 'manual', or 'hold_fire'")
+            affected = []
+            for mount_id, weapon in self.truth_weapons.items():
+                if mount_id.startswith("pdc"):
+                    weapon.pdc_mode = mode
+                    weapon.enabled = mode != "hold_fire"
+                    affected.append(mount_id)
+            if not affected:
+                return error_dict("NO_PDC", "No PDC mounts available")
+            return success_dict(f"PDC mode set to {mode.upper()}", mode=mode, affected_mounts=affected)
+
+        elif action == "launch_torpedo":
+            target_id = params.get("target")
+            if not target_id and self._ship_ref:
+                targeting = self._ship_ref.systems.get("targeting")
+                if targeting and targeting.locked_target:
+                    target_id = targeting.locked_target
+            if not target_id:
+                return error_dict("NO_TARGET", "No target designated for torpedo launch")
+            profile = params.get("profile", "direct")
+            all_ships = params.get("all_ships", {})
+            return self.launch_torpedo(target_id, profile, all_ships)
+
+        elif action == "torpedo_status":
+            return self.get_torpedo_status()
+
         elif action == "status":
             return self.get_state()
 
@@ -327,6 +527,13 @@ class CombatSystem(BaseSystem):
         for weapon_id, weapon in self.truth_weapons.items():
             weapons_state[weapon_id] = weapon.get_state()
 
+        # Summarize PDC mode from PDC mounts
+        pdc_mode = "hold_fire"
+        for w in self.truth_weapons.values():
+            if w.mount_id.startswith("pdc"):
+                pdc_mode = getattr(w, "pdc_mode", "auto")
+                break
+
         state.update({
             "damage_factor": self._damage_factor,
             "engaging": self.engaging,
@@ -334,7 +541,17 @@ class CombatSystem(BaseSystem):
             "hits": self.hits,
             "accuracy": self.hits / self.shots_fired if self.shots_fired > 0 else 0.0,
             "damage_dealt": self.damage_dealt,
+            "total_ammo_mass": self.get_total_ammo_mass(),
             "truth_weapons": weapons_state,
             "ready_weapons": self.get_ready_weapons(),
+            "pdc_mode": pdc_mode,
+            "torpedoes": {
+                "tubes": self.torpedo_tubes,
+                "loaded": self.torpedoes_loaded,
+                "capacity": self.torpedo_tubes * self.torpedo_capacity,
+                "cooldown": round(self._torpedo_cooldown, 1),
+                "launched": self.torpedoes_launched,
+                "mass_per_torpedo": TORPEDO_MASS,
+            },
         })
         return state

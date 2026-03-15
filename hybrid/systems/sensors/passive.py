@@ -101,6 +101,17 @@ class PassiveSensor:
             # Calculate target's IR emission
             ir_watts = calculate_ir_signature(target_ship)
 
+            # ECM: If target has active flares, the flare IR competes with
+            # real signature, degrading passive lock quality (not range).
+            # Flares create a decoy source that adds noise to bearing.
+            ecm_flare_active = False
+            ecm_flare_ir = 0.0
+            target_ecm = target_ship.systems.get("ecm")
+            if target_ecm and hasattr(target_ecm, "is_flare_active"):
+                ecm_flare_active = target_ecm.is_flare_active()
+                if ecm_flare_active:
+                    ecm_flare_ir = target_ecm.get_flare_ir_power()
+
             # Skip targets with negligible emissions
             if ir_watts < self.min_signature:
                 continue
@@ -119,6 +130,16 @@ class PassiveSensor:
 
             # Calculate detection quality (resolution degrades with distance)
             quality = calculate_detection_quality(distance, effective_range)
+
+            # ECM: Flares degrade tracking quality — the decoy confuses
+            # bearing/range resolution. More effective when flare IR is
+            # comparable to target's real signature.
+            if ecm_flare_active and ecm_flare_ir > 0:
+                # Ratio of flare IR to target IR — higher = more confusion
+                flare_ratio = min(1.0, ecm_flare_ir / max(ir_watts, 1.0))
+                # At flare_ratio=1 (flare matches target), quality halved
+                quality *= max(0.2, 1.0 - flare_ratio * 0.5)
+
             accuracy = min(0.95, max(0.1, quality))
 
             # Detection probability

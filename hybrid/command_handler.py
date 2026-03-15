@@ -32,6 +32,11 @@ system_commands = {
     "autopilot": ("navigation", "set_autopilot"),
     "set_plan": ("navigation", "set_plan"),
     "get_nav_solutions": ("navigation", "get_nav_solutions"),
+    # Helm navigation commands
+    "execute_burn": ("helm", "execute_burn"),
+    "plot_intercept": ("helm", "plot_intercept"),
+    "flip_and_burn": ("helm", "flip_and_burn"),
+    "emergency_burn": ("helm", "emergency_burn"),
     # Helm control authority
     "helm_override": ("helm", "set_mode"),
     "take_manual_control": ("helm", "take_manual_control"),
@@ -67,6 +72,66 @@ system_commands = {
     "combat_status": ("combat", "status"),
     "weapon_status": ("combat", "weapon_status"),
     "resupply": ("combat", "resupply"),
+    # Thermal management commands
+    "activate_heat_sink": ("thermal", "activate_heat_sink"),
+    "deactivate_heat_sink": ("thermal", "deactivate_heat_sink"),
+    "cold_drift": ("thermal", "cold_drift"),
+    "exit_cold_drift": ("thermal", "exit_cold_drift"),
+    # Tactical station commands
+    "designate_target": ("targeting", "lock"),
+    "request_solution": ("targeting", "get_solution"),
+    "set_pdc_mode": ("combat", "set_pdc_mode"),
+    "launch_torpedo": ("combat", "launch_torpedo"),
+    "torpedo_status": ("combat", "torpedo_status"),
+    "assess_damage": ("targeting", "assess_damage"),
+    # ECM commands
+    "activate_jammer": ("ecm", "activate_jammer"),
+    "deactivate_jammer": ("ecm", "deactivate_jammer"),
+    "deploy_chaff": ("ecm", "deploy_chaff"),
+    "deploy_flare": ("ecm", "deploy_flare"),
+    "set_emcon": ("ecm", "set_emcon"),
+    "ecm_status": ("ecm", "ecm_status"),
+    # Ops station commands
+    "allocate_power": ("ops", "allocate_power"),
+    "dispatch_repair": ("ops", "dispatch_repair"),
+    "set_system_priority": ("ops", "set_system_priority"),
+    "report_status": ("ops", "report_status"),
+    "emergency_shutdown": ("ops", "emergency_shutdown"),
+    "restart_system": ("ops", "restart_system"),
+    # Engineering station commands
+    "set_reactor_output": ("engineering", "set_reactor_output"),
+    "throttle_drive": ("engineering", "throttle_drive"),
+    "manage_radiators": ("engineering", "manage_radiators"),
+    "monitor_fuel": ("engineering", "monitor_fuel"),
+    "emergency_vent": ("engineering", "emergency_vent"),
+    # Comms station commands
+    "set_transponder": ("comms", "set_transponder"),
+    "hail_contact": ("comms", "hail_contact"),
+    "broadcast_message": ("comms", "broadcast_message"),
+    "set_distress": ("comms", "set_distress"),
+    "comms_status": ("comms", "comms_status"),
+    # Crew fatigue commands
+    "crew_rest": ("crew_fatigue", "crew_rest"),
+    "cancel_rest": ("crew_fatigue", "cancel_rest"),
+    "crew_fatigue_status": ("crew_fatigue", "crew_status"),
+    # Science station commands
+    "analyze_contact": ("science", "analyze_contact"),
+    "spectral_analysis": ("science", "spectral_analysis"),
+    "estimate_mass": ("science", "estimate_mass"),
+    "assess_threat": ("science", "assess_threat"),
+    "science_status": ("science", "science_status"),
+    # Fleet coordination commands
+    "fleet_create": ("fleet_coord", "fleet_create"),
+    "fleet_add_ship": ("fleet_coord", "fleet_add_ship"),
+    "fleet_form": ("fleet_coord", "fleet_form"),
+    "fleet_break_formation": ("fleet_coord", "fleet_break_formation"),
+    "fleet_target": ("fleet_coord", "fleet_target"),
+    "fleet_fire": ("fleet_coord", "fleet_fire"),
+    "fleet_cease_fire": ("fleet_coord", "fleet_cease_fire"),
+    "fleet_maneuver": ("fleet_coord", "fleet_maneuver"),
+    "fleet_status": ("fleet_coord", "fleet_status"),
+    "fleet_tactical": ("fleet_coord", "fleet_tactical"),
+    "share_contact": ("fleet_coord", "share_contact"),
 }
 
 def parse_command(data):

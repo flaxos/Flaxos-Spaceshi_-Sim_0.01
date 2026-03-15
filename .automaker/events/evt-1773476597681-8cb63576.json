@@ -1,0 +1,10 @@
+{
+  "id": "evt-1773476597681-8cb63576",
+  "trigger": "feature_success",
+  "timestamp": "2026-03-14T08:23:17.681Z",
+  "projectPath": "/projects/spaceship-sim",
+  "projectName": "spaceship-sim",
+  "featureId": "station-crew-roles",
+  "featureName": "Station-Based Crew Role System",
+  "passes": true
+}

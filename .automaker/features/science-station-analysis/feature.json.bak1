@@ -1,0 +1,20 @@
+{
+  "category": "feature",
+  "description": "Science station commands: analyze-contact (deep sensor analysis to determine ship class, drive type, weapon loadout from sensor data), spectral-analysis (identify drive plume composition to determine engine type), estimate-mass (from drive plume brightness and observed acceleration, calculate target mass via F=ma), assess-threat (based on identified weapons and current geometry, what can this contact do to us). Science provides the intelligence that other stations use for decisions. Analysis takes time and improves with closer range and better sensor data.",
+  "id": "science-station-analysis",
+  "title": "Science Station: Sensor Analysis & Contact Classification",
+  "dependencies": [
+    "station-crew-roles",
+    "sensor-detection-model"
+  ],
+  "priority": 5,
+  "status": "verified",
+  "descriptionHistory": [
+    {
+      "description": "Science station commands: analyze-contact (deep sensor analysis to determine ship class, drive type, weapon loadout from sensor data), spectral-analysis (identify drive plume composition to determine engine type), estimate-mass (from drive plume brightness and observed acceleration, calculate target mass via F=ma), assess-threat (based on identified weapons and current geometry, what can this contact do to us). Science provides the intelligence that other stations use for decisions. Analysis takes time and improves with closer range and better sensor data.",
+      "timestamp": "2026-03-14T04:07:48.945Z",
+      "source": "initial"
+    }
+  ],
+  "updatedAt": "2026-03-14T23:29:00.503Z"
+}

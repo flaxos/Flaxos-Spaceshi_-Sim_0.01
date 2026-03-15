@@ -1,6 +1,7 @@
 /**
  * Weapons Status Panel
- * Displays torpedoes, PDC, fire control status
+ * Displays truth weapons (railguns, PDCs), legacy torpedoes, and fire control status.
+ * Shows ammo counts, ammo mass, reload state, and mass impact prominently.
  */
 
 import { stateManager } from "../js/state-manager.js";
@@ -79,6 +80,7 @@ class WeaponsStatus extends HTMLElement {
         .weapon-status.reloading {
           background: rgba(255, 170, 0, 0.2);
           color: var(--status-warning, #ffaa00);
+          animation: pulse 1s ease-in-out infinite;
         }
 
         .weapon-status.firing {
@@ -100,6 +102,7 @@ class WeaponsStatus extends HTMLElement {
         .weapon-status.empty {
           background: rgba(255, 68, 68, 0.2);
           color: var(--status-critical, #ff4444);
+          animation: pulse 0.8s ease-in-out infinite;
         }
 
         @keyframes pulse {
@@ -125,6 +128,15 @@ class WeaponsStatus extends HTMLElement {
         .ammo-count {
           font-family: var(--font-mono, "JetBrains Mono", monospace);
           color: var(--text-primary, #e0e0e0);
+          font-weight: 600;
+        }
+
+        .ammo-count.critical {
+          color: var(--status-critical, #ff4444);
+        }
+
+        .ammo-count.warning {
+          color: var(--status-warning, #ffaa00);
         }
 
         .bar {
@@ -161,6 +173,40 @@ class WeaponsStatus extends HTMLElement {
         .detail-value {
           color: var(--text-secondary, #888899);
           font-family: var(--font-mono, "JetBrains Mono", monospace);
+        }
+
+        .detail-value.warning {
+          color: var(--status-warning, #ffaa00);
+        }
+
+        .detail-value.critical {
+          color: var(--status-critical, #ff4444);
+        }
+
+        .ammo-mass-summary {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 8px 12px;
+          background: rgba(0, 0, 0, 0.2);
+          border-radius: 6px;
+          margin-bottom: 16px;
+          border: 1px solid var(--border-default, #2a2a3a);
+        }
+
+        .ammo-mass-label {
+          color: var(--text-dim, #555566);
+          font-size: 0.7rem;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          font-weight: 600;
+        }
+
+        .ammo-mass-value {
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+          color: var(--status-info, #00aaff);
+          font-size: 0.85rem;
+          font-weight: 600;
         }
 
         .fire-control {
@@ -218,6 +264,15 @@ class WeaponsStatus extends HTMLElement {
           color: var(--text-dim, #555566);
         }
 
+        .reload-bar {
+          margin-top: 4px;
+        }
+
+        .reload-bar .bar-fill {
+          background: var(--status-warning, #ffaa00);
+          transition: width 0.2s linear;
+        }
+
         .empty-state {
           text-align: center;
           color: var(--text-dim, #555566);
@@ -234,6 +289,7 @@ class WeaponsStatus extends HTMLElement {
 
   _updateDisplay() {
     const weapons = stateManager.getWeapons();
+    const combat = stateManager.getCombat();
     const ship = stateManager.getShipState();
     const content = this.shadowRoot.getElementById("content");
 
@@ -242,37 +298,168 @@ class WeaponsStatus extends HTMLElement {
       return;
     }
 
-    // Extract weapons data - handle various structures
+    // Get truth weapons from combat system or weapons telemetry
+    const truthWeapons = weapons?.truth_weapons || combat?.truth_weapons || {};
+    const totalAmmoMass = weapons?.total_ammo_mass ?? combat?.total_ammo_mass ?? 0;
+
+    // Get legacy weapon data
     const torpedoes = this._getTorpedoData(weapons, ship);
-    const pdc = this._getPDCData(weapons, ship);
     const fireControl = this._getFireControlMode(weapons, ship);
 
+    // Build truth weapon sections
+    let truthWeaponHtml = "";
+    const railguns = [];
+    const pdcs = [];
+
+    for (const [mountId, wState] of Object.entries(truthWeapons)) {
+      if (mountId.startsWith("railgun")) {
+        railguns.push({ mountId, ...wState });
+      } else if (mountId.startsWith("pdc")) {
+        pdcs.push({ mountId, ...wState });
+      }
+    }
+
+    if (railguns.length > 0) {
+      truthWeaponHtml += railguns.map(w => this._renderTruthWeapon(w)).join("");
+    }
+    if (pdcs.length > 0) {
+      truthWeaponHtml += pdcs.map(w => this._renderTruthWeapon(w)).join("");
+    }
+
+    // Ammo mass summary
+    const ammoMassHtml = totalAmmoMass > 0 ? `
+      <div class="ammo-mass-summary">
+        <span class="ammo-mass-label">Total Ammo Mass</span>
+        <span class="ammo-mass-value">${totalAmmoMass.toFixed(1)} kg</span>
+      </div>
+    ` : "";
+
     content.innerHTML = `
-      ${this._renderWeaponSection("TORPEDOES", torpedoes)}
-      ${this._renderWeaponSection("PDC (Point Defense)", pdc)}
+      ${ammoMassHtml}
+      ${truthWeaponHtml}
+      ${torpedoes.max > 0 ? this._renderLegacyWeapon("TORPEDOES", torpedoes) : ""}
       ${this._renderFireControl(fireControl)}
+    `;
+  }
+
+  _renderTruthWeapon(w) {
+    const ammo = w.ammo ?? 0;
+    const capacity = w.ammo_capacity ?? 0;
+    const percent = capacity > 0 ? (ammo / capacity) * 100 : 0;
+    const barClass = percent > 50 ? "nominal" : percent > 20 ? "warning" : "critical";
+    const countClass = percent > 20 ? "" : percent > 0 ? "warning" : "critical";
+
+    let statusClass = "ready";
+    let statusText = "READY";
+    if (ammo === 0) {
+      statusClass = "empty";
+      statusText = "EMPTY";
+    } else if (w.reloading) {
+      statusClass = "reloading";
+      statusText = "RELOADING";
+    } else if (!w.enabled) {
+      statusClass = "offline";
+      statusText = "OFFLINE";
+    } else if (w.solution?.ready_to_fire) {
+      statusClass = "firing";
+      statusText = "SOLUTION";
+    } else if (w.solution?.tracking) {
+      statusClass = "tracking";
+      statusText = "TRACKING";
+    }
+
+    const ammoMass = w.ammo_mass ?? (ammo * (w.mass_per_round || 0));
+    const massPerRound = w.mass_per_round || 0;
+
+    let detailsHtml = `
+      <div class="weapon-details">
+        <div class="detail-row">
+          <span class="detail-label">Ammo Mass</span>
+          <span class="detail-value">${ammoMass.toFixed(1)} kg</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Per Round</span>
+          <span class="detail-value">${massPerRound >= 1 ? massPerRound.toFixed(1) + " kg" : (massPerRound * 1000).toFixed(0) + " g"}</span>
+        </div>
+    `;
+
+    if (w.solution && w.solution.valid) {
+      const range = w.solution.range || 0;
+      const rangeKm = (range / 1000).toFixed(1);
+      detailsHtml += `
+        <div class="detail-row">
+          <span class="detail-label">Range</span>
+          <span class="detail-value">${rangeKm} km</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Hit Prob</span>
+          <span class="detail-value">${(w.solution.hit_probability * 100).toFixed(0)}%</span>
+        </div>
+      `;
+    }
+
+    detailsHtml += "</div>";
+
+    // Reload progress bar
+    let reloadHtml = "";
+    if (w.reloading) {
+      const reloadPct = (w.reload_progress || 0) * 100;
+      reloadHtml = `
+        <div class="reload-bar">
+          <div class="ammo-header">
+            <span class="ammo-label">Reload</span>
+            <span class="ammo-count warning">${reloadPct.toFixed(0)}%</span>
+          </div>
+          <div class="bar">
+            <div class="bar-fill warning" style="width: ${reloadPct}%"></div>
+          </div>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="weapon-section">
+        <div class="weapon-header">
+          <span class="weapon-name">${w.name || w.mountId}</span>
+          <span class="weapon-status ${statusClass}">${statusText}</span>
+        </div>
+        <div class="ammo-bar">
+          <div class="ammo-header">
+            <span class="ammo-label">Ammo</span>
+            <span class="ammo-count ${countClass}">${ammo}/${capacity}</span>
+          </div>
+          <div class="bar">
+            <div class="bar-fill ${barClass}" style="width: ${percent}%"></div>
+          </div>
+        </div>
+        ${reloadHtml}
+        ${detailsHtml}
+      </div>
     `;
   }
 
   _getTorpedoData(weapons, ship) {
     const torpedoData = weapons.torpedoes || weapons.torpedo || ship.torpedoes || {};
+    // Also check legacy weapons list
+    const legacyWeapons = weapons.weapons || [];
+    if (Array.isArray(legacyWeapons)) {
+      const torpedo = legacyWeapons.find(w => (w.name || "").toLowerCase().includes("torpedo"));
+      if (torpedo) {
+        return {
+          loaded: torpedo.ammo ?? 0,
+          max: torpedo.ammo_capacity ?? torpedo.ammo ?? 0,
+          status: torpedo.can_fire ? "ready" : "reloading",
+          inFlight: 0,
+          reloadTime: null,
+        };
+      }
+    }
     return {
-      loaded: torpedoData.loaded ?? torpedoData.count ?? torpedoData.ammo ?? 10,
-      max: torpedoData.max ?? torpedoData.capacity ?? 12,
+      loaded: torpedoData.loaded ?? torpedoData.count ?? torpedoData.ammo ?? 0,
+      max: torpedoData.max ?? torpedoData.capacity ?? 0,
       status: torpedoData.status || "ready",
       inFlight: torpedoData.in_flight ?? torpedoData.active ?? 0,
       reloadTime: torpedoData.reload_time ?? null
-    };
-  }
-
-  _getPDCData(weapons, ship) {
-    const pdcData = weapons.pdc || weapons.point_defense || ship.pdc || {};
-    return {
-      ammo: pdcData.ammo ?? pdcData.rounds ?? 980,
-      max: pdcData.max ?? pdcData.capacity ?? 1000,
-      status: pdcData.status || "ready",
-      targetsEngaged: pdcData.targets_engaged ?? pdcData.tracking ?? 0,
-      tracking: pdcData.tracking_count ?? pdcData.targets ?? 0
     };
   }
 
@@ -285,7 +472,7 @@ class WeaponsStatus extends HTMLElement {
     };
   }
 
-  _renderWeaponSection(name, data) {
+  _renderLegacyWeapon(name, data) {
     const statusClass = this._getStatusClass(data.status, data.loaded, data.ammo);
     const percent = data.max > 0 ?
       ((data.loaded ?? data.ammo ?? 0) / data.max) * 100 : 0;
@@ -293,7 +480,6 @@ class WeaponsStatus extends HTMLElement {
 
     let detailsHtml = "";
 
-    // Torpedoes-specific details
     if (data.inFlight !== undefined) {
       detailsHtml = `
         <div class="weapon-details">
@@ -305,24 +491,6 @@ class WeaponsStatus extends HTMLElement {
             <div class="detail-row">
               <span class="detail-label">Reload</span>
               <span class="detail-value">${data.reloadTime}s</span>
-            </div>
-          ` : ''}
-        </div>
-      `;
-    }
-
-    // PDC-specific details
-    if (data.targetsEngaged !== undefined) {
-      detailsHtml = `
-        <div class="weapon-details">
-          <div class="detail-row">
-            <span class="detail-label">Targets Engaged</span>
-            <span class="detail-value">${data.targetsEngaged}</span>
-          </div>
-          ${data.tracking ? `
-            <div class="detail-row">
-              <span class="detail-label">Tracking</span>
-              <span class="detail-value">${data.tracking}</span>
             </div>
           ` : ''}
         </div>

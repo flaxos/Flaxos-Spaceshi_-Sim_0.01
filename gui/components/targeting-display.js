@@ -1,6 +1,11 @@
 /**
  * Targeting Computer Display
- * Shows target lock status, firing solution, TCA/CPA
+ *
+ * Shows the full targeting pipeline stages:
+ *   contact -> track -> lock -> firing solution -> fire
+ *
+ * Each stage is visible so the player understands WHY solutions are
+ * good or bad (design spec: "player sees each stage").
  */
 
 import { stateManager } from "../js/state-manager.js";
@@ -14,7 +19,7 @@ class TargetingDisplay extends HTMLElement {
     this._contactSelectedHandler = null;
     this._solutionData = null;
     this._solutionInterval = null;
-    this._wasLocked = false;
+    this._hadTarget = false;
   }
 
   connectedCallback() {
@@ -46,7 +51,6 @@ class TargetingDisplay extends HTMLElement {
   }
 
   _onContactSelected(contactId) {
-    // Highlight selected but don't auto-lock
     this._selectedContact = contactId;
     this._updateDisplay();
   }
@@ -70,60 +74,153 @@ class TargetingDisplay extends HTMLElement {
           color: var(--text-dim, #555566);
         }
 
-        .no-lock-icon {
-          font-size: 2rem;
-          margin-bottom: 8px;
-          opacity: 0.5;
+        .no-lock-icon { font-size: 2rem; margin-bottom: 8px; opacity: 0.5; }
+        .no-lock-text { font-size: 0.9rem; margin-bottom: 8px; }
+        .no-lock-hint { font-size: 0.7rem; font-style: italic; }
+
+        /* --- Pipeline stage indicator --- */
+        .pipeline {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          margin-bottom: 16px;
+          padding: 10px 12px;
+          background: rgba(0, 0, 0, 0.25);
+          border-radius: 8px;
         }
 
-        .no-lock-text {
-          font-size: 0.9rem;
-          margin-bottom: 8px;
+        .pipeline-stage {
+          flex: 1;
+          text-align: center;
+          padding: 6px 4px;
+          font-size: 0.6rem;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          color: var(--text-dim, #555566);
+          background: rgba(0, 0, 0, 0.2);
+          border-radius: 4px;
+          border: 1px solid transparent;
+          transition: all 0.3s ease;
         }
 
-        .no-lock-hint {
-          font-size: 0.7rem;
-          font-style: italic;
+        .pipeline-stage.completed {
+          color: var(--status-nominal, #00ff88);
+          border-color: var(--status-nominal, #00ff88);
+          background: rgba(0, 255, 136, 0.08);
         }
 
-        .locked-header {
+        .pipeline-stage.active {
+          color: var(--status-info, #00aaff);
+          border-color: var(--status-info, #00aaff);
+          background: rgba(0, 170, 255, 0.12);
+          animation: stage-pulse 1.5s ease-in-out infinite;
+        }
+
+        .pipeline-stage.lost {
+          color: var(--status-critical, #ff4444);
+          border-color: var(--status-critical, #ff4444);
+          background: rgba(255, 68, 68, 0.1);
+        }
+
+        .pipeline-arrow {
+          color: var(--text-dim, #555566);
+          font-size: 0.6rem;
+          flex-shrink: 0;
+        }
+
+        .pipeline-arrow.completed {
+          color: var(--status-nominal, #00ff88);
+        }
+
+        @keyframes stage-pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.6; }
+        }
+
+        /* --- Target header --- */
+        .target-header {
           display: flex;
           align-items: center;
           gap: 12px;
           padding: 12px;
-          background: rgba(0, 170, 255, 0.1);
-          border: 1px solid var(--status-info, #00aaff);
           border-radius: 8px;
           margin-bottom: 16px;
+        }
+
+        .target-header.tracking {
+          background: rgba(255, 170, 0, 0.08);
+          border: 1px solid var(--status-warning, #ffaa00);
+        }
+
+        .target-header.acquiring {
+          background: rgba(0, 170, 255, 0.08);
+          border: 1px solid var(--status-info, #00aaff);
+        }
+
+        .target-header.locked {
+          background: rgba(0, 255, 136, 0.08);
+          border: 1px solid var(--status-nominal, #00ff88);
+        }
+
+        .target-header.lost {
+          background: rgba(255, 68, 68, 0.08);
+          border: 1px solid var(--status-critical, #ff4444);
         }
 
         .lock-indicator {
           width: 12px;
           height: 12px;
           border-radius: 50%;
+          flex-shrink: 0;
+        }
+
+        .lock-indicator.tracking {
+          background: var(--status-warning, #ffaa00);
+          animation: pulse 1s ease-in-out infinite;
+        }
+
+        .lock-indicator.acquiring {
           background: var(--status-info, #00aaff);
-          box-shadow: 0 0 12px var(--status-info, #00aaff);
-          animation: pulse 1.5s ease-in-out infinite;
+          animation: pulse 0.7s ease-in-out infinite;
+        }
+
+        .lock-indicator.locked {
+          background: var(--status-nominal, #00ff88);
+          box-shadow: 0 0 12px var(--status-nominal, #00ff88);
+          animation: pulse 2s ease-in-out infinite;
+        }
+
+        .lock-indicator.lost {
+          background: var(--status-critical, #ff4444);
+          animation: pulse 0.4s ease-in-out infinite;
         }
 
         @keyframes pulse {
-          0%, 100% { opacity: 1; box-shadow: 0 0 12px var(--status-info, #00aaff); }
-          50% { opacity: 0.7; box-shadow: 0 0 6px var(--status-info, #00aaff); }
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.4; }
         }
 
         .lock-text {
           font-weight: 600;
-          color: var(--status-info, #00aaff);
+          font-size: 0.75rem;
+          text-transform: uppercase;
         }
+
+        .lock-text.tracking { color: var(--status-warning, #ffaa00); }
+        .lock-text.acquiring { color: var(--status-info, #00aaff); }
+        .lock-text.locked { color: var(--status-nominal, #00ff88); }
+        .lock-text.lost { color: var(--status-critical, #ff4444); }
 
         .target-id {
           font-family: var(--font-mono, "JetBrains Mono", monospace);
           color: var(--text-primary, #e0e0e0);
         }
 
+        /* --- Details rows --- */
         .target-details {
           display: grid;
-          gap: 8px;
+          gap: 4px;
           margin-bottom: 16px;
         }
 
@@ -134,9 +231,7 @@ class TargetingDisplay extends HTMLElement {
           border-bottom: 1px solid var(--border-default, #2a2a3a);
         }
 
-        .detail-row:last-child {
-          border-bottom: none;
-        }
+        .detail-row:last-child { border-bottom: none; }
 
         .detail-label {
           color: var(--text-secondary, #888899);
@@ -149,13 +244,8 @@ class TargetingDisplay extends HTMLElement {
           font-size: 0.8rem;
         }
 
-        .closure-value.closing {
-          color: var(--status-critical, #ff4444);
-        }
-
-        .closure-value.opening {
-          color: var(--status-nominal, #00ff88);
-        }
+        .closure-value.closing { color: var(--status-critical, #ff4444); }
+        .closure-value.opening { color: var(--status-nominal, #00ff88); }
 
         .section-title {
           font-size: 0.7rem;
@@ -166,6 +256,52 @@ class TargetingDisplay extends HTMLElement {
           margin-bottom: 8px;
         }
 
+        /* --- Track quality / lock progress bars --- */
+        .bar-section { margin-bottom: 12px; }
+
+        .bar-container {
+          height: 12px;
+          background: var(--bg-input, #1a1a24);
+          border-radius: 6px;
+          overflow: hidden;
+          margin-top: 6px;
+          position: relative;
+        }
+
+        .bar-fill {
+          height: 100%;
+          transition: width 0.3s ease;
+          border-radius: 6px;
+        }
+
+        .bar-fill.nominal { background: var(--status-nominal, #00ff88); }
+        .bar-fill.info { background: var(--status-info, #00aaff); }
+        .bar-fill.warning { background: var(--status-warning, #ffaa00); }
+        .bar-fill.critical { background: var(--status-critical, #ff4444); }
+
+        .bar-label {
+          position: absolute;
+          right: 6px;
+          top: 50%;
+          transform: translateY(-50%);
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+          font-size: 0.6rem;
+          color: var(--text-primary, #e0e0e0);
+          text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
+        }
+
+        .bar-inline-label {
+          display: flex;
+          justify-content: space-between;
+          font-size: 0.7rem;
+          margin-top: 4px;
+        }
+
+        .bar-inline-label .detail-label {
+          font-size: 0.65rem;
+        }
+
+        /* --- Solution grid --- */
         .solution-grid {
           display: grid;
           grid-template-columns: 1fr 1fr;
@@ -193,53 +329,8 @@ class TargetingDisplay extends HTMLElement {
           text-transform: uppercase;
         }
 
-        .lock-quality {
-          margin-bottom: 12px;
-        }
-
-        .lock-bar {
-          height: 12px;
-          background: var(--bg-input, #1a1a24);
-          border-radius: 6px;
-          overflow: hidden;
-          margin-top: 8px;
-        }
-
-        .lock-fill {
-          height: 100%;
-          background: var(--status-info, #00aaff);
-          transition: width 0.3s ease;
-        }
-
-        .lock-fill.strong {
-          background: var(--status-nominal, #00ff88);
-        }
-
-        .lock-fill.weak {
-          background: var(--status-warning, #ffaa00);
-        }
-
-        .warning-box {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 10px 12px;
-          background: rgba(255, 68, 68, 0.1);
-          border: 1px solid var(--status-critical, #ff4444);
-          border-radius: 6px;
-          color: var(--status-critical, #ff4444);
-          font-size: 0.8rem;
-          margin-top: 12px;
-        }
-
-        .warning-icon {
-          font-size: 1rem;
-        }
-
-        /* Firing solution breakdown */
-        .solution-section {
-          margin-top: 16px;
-        }
+        /* --- Solution badges --- */
+        .solution-section { margin-top: 16px; }
 
         .solution-quality-badge {
           display: inline-block;
@@ -279,9 +370,7 @@ class TargetingDisplay extends HTMLElement {
           50% { opacity: 0.8; box-shadow: 0 0 16px rgba(0, 255, 136, 0.5); }
         }
 
-        .confidence-bar-container {
-          margin-bottom: 12px;
-        }
+        .confidence-bar-container { margin-bottom: 12px; }
 
         .confidence-bar {
           height: 16px;
@@ -313,6 +402,7 @@ class TargetingDisplay extends HTMLElement {
           text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
         }
 
+        /* --- Weapon cards --- */
         .weapon-solutions {
           display: flex;
           flex-direction: column;
@@ -368,10 +458,7 @@ class TargetingDisplay extends HTMLElement {
           gap: 6px;
         }
 
-        .weapon-stat {
-          display: flex;
-          flex-direction: column;
-        }
+        .weapon-stat { display: flex; flex-direction: column; }
 
         .weapon-stat-label {
           font-size: 0.6rem;
@@ -389,6 +476,7 @@ class TargetingDisplay extends HTMLElement {
         .weapon-stat-value.mid { color: var(--status-warning, #ffaa00); }
         .weapon-stat-value.low { color: var(--status-critical, #ff4444); }
 
+        /* --- Subsystem targeting --- */
         .subsystem-section {
           margin-top: 16px;
           padding: 10px 12px;
@@ -414,6 +502,40 @@ class TargetingDisplay extends HTMLElement {
           font-size: 0.8rem;
         }
 
+        /* --- Degradation reasons --- */
+        .degradation-info {
+          margin-top: 8px;
+          padding: 8px 10px;
+          background: rgba(255, 170, 0, 0.06);
+          border: 1px solid rgba(255, 170, 0, 0.2);
+          border-radius: 6px;
+          font-size: 0.7rem;
+          color: var(--status-warning, #ffaa00);
+        }
+
+        .degradation-info .info-title {
+          font-weight: 600;
+          text-transform: uppercase;
+          font-size: 0.6rem;
+          letter-spacing: 0.5px;
+          margin-bottom: 4px;
+        }
+
+        .warning-box {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 10px 12px;
+          background: rgba(255, 68, 68, 0.1);
+          border: 1px solid var(--status-critical, #ff4444);
+          border-radius: 6px;
+          color: var(--status-critical, #ff4444);
+          font-size: 0.8rem;
+          margin-top: 12px;
+        }
+
+        .warning-icon { font-size: 1rem; }
+
         .request-solution-btn {
           display: block;
           width: 100%;
@@ -432,18 +554,13 @@ class TargetingDisplay extends HTMLElement {
           transition: background 0.2s ease;
         }
 
-        .request-solution-btn:hover {
-          background: rgba(0, 170, 255, 0.2);
-        }
-
-        .request-solution-btn:active {
-          background: rgba(0, 170, 255, 0.3);
-        }
+        .request-solution-btn:hover { background: rgba(0, 170, 255, 0.2); }
+        .request-solution-btn:active { background: rgba(0, 170, 255, 0.3); }
       </style>
 
       <div id="content">
         <div class="no-lock">
-          <div class="no-lock-icon">○</div>
+          <div class="no-lock-icon">&#9675;</div>
           <div class="no-lock-text">NO TARGET LOCK</div>
           <div class="no-lock-hint">Select a contact from Sensors panel</div>
         </div>
@@ -453,124 +570,262 @@ class TargetingDisplay extends HTMLElement {
 
   _updateDisplay() {
     const targeting = stateManager.getTargeting();
-    const ship = stateManager.getShipState();
     const content = this.shadowRoot.getElementById("content");
+    if (!content) return;
 
-    // Check for target lock
-    const hasLock = targeting && (targeting.locked || targeting.target_locked || targeting.target_id);
+    // Determine pipeline state from the targeting telemetry.
+    // The targeting system exposes: locked_target, lock_state, track_quality,
+    // lock_progress, lock_quality, solutions, target_subsystem.
+    const lockState = targeting?.lock_state || "none";
+    const lockedTarget = targeting?.locked_target || null;
+    const hasTarget = lockedTarget != null && lockState !== "none";
 
-    if (!hasLock) {
-      // Stop polling when lock is lost
-      if (this._wasLocked) {
+    if (!hasTarget) {
+      if (this._hadTarget) {
         this._stopSolutionPolling();
         this._solutionData = null;
-        this._wasLocked = false;
+        this._hadTarget = false;
       }
       content.innerHTML = `
         <div class="no-lock">
-          <div class="no-lock-icon">○</div>
-          <div class="no-lock-text">NO TARGET LOCK</div>
+          <div class="no-lock-icon">&#9675;</div>
+          <div class="no-lock-text">NO TARGET DESIGNATED</div>
           <div class="no-lock-hint">Select a contact from Sensors panel</div>
         </div>
       `;
       return;
     }
 
-    // Start polling for firing solution when lock is first acquired
-    if (!this._wasLocked) {
-      this._wasLocked = true;
+    // Start polling when we first get a target
+    if (!this._hadTarget) {
+      this._hadTarget = true;
       this._startSolutionPolling();
     }
 
-    // Extract targeting data
-    const targetId = targeting.target_id || targeting.id || "???";
-    const targetClass = targeting.target_class || targeting.classification || "UNKNOWN";
-    const bearing = targeting.bearing ?? "---";
-    const range = targeting.range ?? 0;
-    const rangeRate = targeting.range_rate ?? targeting.closure ?? 0;
-    const tca = targeting.tca ?? targeting.time_to_closest ?? null;
-    const cpa = targeting.cpa ?? targeting.closest_approach ?? null;
-    const lockQuality = targeting.lock_quality ?? targeting.lock ?? 85;
-    const collisionWarning = targeting.collision_warning || targeting.collision || false;
+    // Extract pipeline metrics
+    const trackQuality = targeting.track_quality ?? 0;
+    const lockProgress = targeting.lock_progress ?? 0;
+    const lockQuality = targeting.lock_quality ?? 0;
+    const targetSubsystem = targeting.target_subsystem || null;
 
-    const closureClass = rangeRate < 0 ? "closing" : rangeRate > 0 ? "opening" : "";
-    const closureText = rangeRate < 0 ? "CLOSING" : rangeRate > 0 ? "OPENING" : "STABLE";
-    const lockClass = lockQuality > 80 ? "strong" : lockQuality > 50 ? "" : "weak";
+    // Get solution data (merge polled + state)
+    const solutions = this._getMergedSolutions(targeting);
+    const basicSolution = solutions._basic || {};
 
-    content.innerHTML = `
-      <div class="locked-header">
-        <div class="lock-indicator"></div>
-        <span class="lock-text">TARGET LOCKED:</span>
-        <span class="target-id">${targetId}</span>
-      </div>
+    const range = basicSolution.range ?? 0;
+    const rangeRate = basicSolution.range_rate ?? 0;
+    const bearing = basicSolution.bearing;
+    const tca = basicSolution.time_to_cpa ?? null;
+    const cpa = basicSolution.cpa_distance ?? null;
+    const closing = basicSolution.closing ?? false;
 
-      <div class="target-details">
-        <div class="detail-row">
-          <span class="detail-label">CLASS</span>
-          <span class="detail-value">${targetClass}</span>
-        </div>
-        <div class="detail-row">
-          <span class="detail-label">BEARING</span>
-          <span class="detail-value">${this._formatBearing(bearing)}°</span>
-        </div>
-        <div class="detail-row">
-          <span class="detail-label">RANGE</span>
-          <span class="detail-value">${this._formatRange(range)}</span>
-        </div>
-        <div class="detail-row">
-          <span class="detail-label">CLOSURE</span>
-          <span class="detail-value closure-value ${closureClass}">
-            ${Math.abs(rangeRate).toFixed(0)} m/s (${closureText})
-          </span>
-        </div>
-      </div>
+    // Build the display
+    let html = "";
 
-      <div class="section-title">Firing Solution</div>
-      <div class="solution-grid">
-        <div class="solution-item">
-          <div class="solution-value">${tca !== null ? tca.toFixed(0) + 's' : '--'}</div>
-          <div class="solution-label">TCA</div>
-        </div>
-        <div class="solution-item">
-          <div class="solution-value">${cpa !== null ? this._formatRange(cpa) : '--'}</div>
-          <div class="solution-label">CPA</div>
-        </div>
-      </div>
+    // 1. Pipeline stage indicator
+    html += this._renderPipeline(lockState);
 
-      <div class="lock-quality">
-        <div class="section-title">Lock Quality</div>
-        <div class="lock-bar">
-          <div class="lock-fill ${lockClass}" style="width: ${lockQuality}%"></div>
-        </div>
-      </div>
+    // 2. Target header with state-appropriate styling
+    html += this._renderTargetHeader(lockState, lockedTarget);
 
-      ${collisionWarning ? `
+    // 3. Track quality bar (always shown when tracking)
+    if (lockState !== "none") {
+      html += this._renderBarSection(
+        "Track Quality",
+        trackQuality,
+        this._trackQualityExplanation(trackQuality)
+      );
+    }
+
+    // 4. Lock progress (shown during acquiring)
+    if (lockState === "acquiring") {
+      html += this._renderBarSection("Lock Progress", lockProgress, null, "info");
+    }
+
+    // 5. Lock quality (shown when locked)
+    if (lockState === "locked") {
+      const lqColor = lockQuality > 0.8 ? "nominal" : lockQuality > 0.5 ? "warning" : "critical";
+      html += this._renderBarSection("Lock Quality", lockQuality, null, lqColor);
+    }
+
+    // 6. Target details (range, bearing, closure)
+    if (range > 0 || bearing) {
+      const closureClass = closing ? "closing" : "opening";
+      const closureText = closing ? "CLOSING" : "OPENING";
+      html += `
+        <div class="target-details">
+          <div class="detail-row">
+            <span class="detail-label">RANGE</span>
+            <span class="detail-value">${this._formatRange(range)}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">BEARING</span>
+            <span class="detail-value">${this._formatBearing(bearing)}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">CLOSURE</span>
+            <span class="detail-value closure-value ${closureClass}">
+              ${Math.abs(rangeRate).toFixed(0)} m/s (${closureText})
+            </span>
+          </div>
+        </div>
+      `;
+    }
+
+    // 7. TCA/CPA
+    if (lockState === "locked" && (tca != null || cpa != null)) {
+      html += `
+        <div class="solution-grid">
+          <div class="solution-item">
+            <div class="solution-value">${tca != null ? tca.toFixed(0) + 's' : '--'}</div>
+            <div class="solution-label">TCA</div>
+          </div>
+          <div class="solution-item">
+            <div class="solution-value">${cpa != null ? this._formatRange(cpa) : '--'}</div>
+            <div class="solution-label">CPA</div>
+          </div>
+        </div>
+      `;
+    }
+
+    // 8. Firing solutions (only when locked)
+    if (lockState === "locked") {
+      html += this._renderFiringSolutionSection(targeting, solutions);
+    }
+
+    // 9. Targeted subsystem
+    if (targetSubsystem) {
+      html += this._renderSubsystemSection(targeting);
+    }
+
+    // 10. Lock lost warning
+    if (lockState === "lost") {
+      html += `
         <div class="warning-box">
-          <span class="warning-icon">⚠</span>
-          <span>COLLISION COURSE</span>
+          <span class="warning-icon">!</span>
+          <span>LOCK LOST - REACQUIRING</span>
         </div>
-      ` : ''}
+      `;
+    }
 
-      ${this._renderFiringSolutionSection(targeting)}
-      ${this._renderSubsystemSection(targeting)}
-
-      <button class="request-solution-btn" id="request-solution-btn">
+    // 11. Refresh button
+    if (lockState === "locked") {
+      html += `<button class="request-solution-btn" id="request-solution-btn">
         REQUEST SOLUTION UPDATE
-      </button>
-    `;
+      </button>`;
+    }
 
-    // Bind the manual request button
+    content.innerHTML = html;
+
     const reqBtn = this.shadowRoot.getElementById("request-solution-btn");
     if (reqBtn) {
       reqBtn.addEventListener("click", () => this._requestSolution());
     }
   }
 
-  // -- Firing solution polling --
+  // --- Pipeline stage indicator ---
+
+  _renderPipeline(lockState) {
+    const stages = [
+      { id: "contact", label: "Contact" },
+      { id: "tracking", label: "Track" },
+      { id: "acquiring", label: "Lock" },
+      { id: "locked", label: "Solution" },
+    ];
+
+    // Determine the index of the current stage
+    const stageOrder = ["contact", "tracking", "acquiring", "locked"];
+    const currentIdx = stageOrder.indexOf(lockState);
+    const isLost = lockState === "lost";
+
+    let html = `<div class="pipeline" data-testid="pipeline-stages">`;
+    stages.forEach((stage, i) => {
+      let stageClass = "";
+      if (isLost) {
+        stageClass = i <= 1 ? "completed" : "lost";
+      } else if (i < currentIdx) {
+        stageClass = "completed";
+      } else if (i === currentIdx) {
+        stageClass = "active";
+      }
+
+      if (i > 0) {
+        const arrowClass = (i <= currentIdx && !isLost) ? "completed" : "";
+        html += `<span class="pipeline-arrow ${arrowClass}">&rarr;</span>`;
+      }
+      html += `<div class="pipeline-stage ${stageClass}" data-stage="${stage.id}">${stage.label}</div>`;
+    });
+    html += `</div>`;
+    return html;
+  }
+
+  // --- Target header ---
+
+  _renderTargetHeader(lockState, targetId) {
+    const stateLabels = {
+      tracking: "TRACKING:",
+      acquiring: "ACQUIRING LOCK:",
+      locked: "TARGET LOCKED:",
+      lost: "LOCK LOST:",
+    };
+    const label = stateLabels[lockState] || "DESIGNATING:";
+
+    return `
+      <div class="target-header ${lockState}" data-testid="target-header">
+        <div class="lock-indicator ${lockState}"></div>
+        <span class="lock-text ${lockState}">${label}</span>
+        <span class="target-id">${targetId}</span>
+      </div>
+    `;
+  }
+
+  // --- Bar section (track quality, lock progress, lock quality) ---
+
+  _renderBarSection(title, value, explanation, colorOverride) {
+    const pct = Math.round(value * 100);
+    let colorClass;
+    if (colorOverride) {
+      colorClass = colorOverride;
+    } else {
+      colorClass = pct > 80 ? "nominal" : pct > 50 ? "info" : pct > 30 ? "warning" : "critical";
+    }
+
+    let html = `
+      <div class="bar-section">
+        <div class="bar-inline-label">
+          <span class="detail-label">${title}</span>
+          <span class="detail-value" style="font-size: 0.7rem">${pct}%</span>
+        </div>
+        <div class="bar-container">
+          <div class="bar-fill ${colorClass}" style="width: ${pct}%"></div>
+        </div>
+    `;
+
+    if (explanation) {
+      html += `
+        <div class="degradation-info">
+          <div class="info-title">Factors</div>
+          ${explanation}
+        </div>
+      `;
+    }
+
+    html += `</div>`;
+    return html;
+  }
+
+  _trackQualityExplanation(quality) {
+    if (quality >= 0.9) return "Excellent track - clear return";
+    if (quality >= 0.7) return "Good track - minor degradation";
+    if (quality >= 0.5) return "Fair track - range or maneuver effects";
+    if (quality >= 0.3) return "Poor track - high range or target maneuvering";
+    return "Minimal track - extreme range or sensor damage";
+  }
+
+  // --- Firing solution polling ---
 
   _startSolutionPolling() {
     this._stopSolutionPolling();
-    // Request an initial solution immediately, then every 1.5s
     this._requestSolution();
     this._solutionInterval = setInterval(() => this._requestSolution(), 1500);
   }
@@ -590,49 +845,60 @@ class TargetingDisplay extends HTMLElement {
         this._updateDisplay();
       }
     } catch (err) {
-      // Non-fatal: solution unavailable, display will use stateManager data
       console.debug("Firing solution request failed:", err.message);
     }
   }
 
-  // -- Rendering helpers for the firing solution breakdown --
+  // --- Merged solutions ---
 
-  /**
-   * Merge solution data from stateManager targeting state and the
-   * polled get_target_solution response. The polled data takes priority.
-   */
-  _getMergedSolution(targeting) {
-    const sol = this._solutionData || {};
-    const fallback = targeting.solution || targeting.firing_solution || {};
-    return {
-      weapons: sol.weapons || fallback.weapons || {},
-      confidence: sol.lock_quality ?? fallback.confidence ?? targeting.confidence ?? null,
-      target_subsystem: sol.target_subsystem ?? fallback.target_subsystem ?? targeting.target_subsystem ?? null,
+  _getMergedSolutions(targeting) {
+    // Combine state-pushed solutions with polled solution data.
+    // Polled data (from get_target_solution) takes priority.
+    const polled = this._solutionData || {};
+    const stateSolutions = targeting?.solutions || {};
+
+    // Build weapon solutions: prefer polled weapon data, fall back to state
+    const weapons = {};
+    const allIds = new Set([
+      ...Object.keys(polled.weapons || {}),
+      ...Object.keys(stateSolutions),
+    ]);
+
+    for (const wid of allIds) {
+      weapons[wid] = polled.weapons?.[wid] || stateSolutions[wid] || {};
+    }
+
+    // Basic solution data (range, bearing, etc.)
+    const _basic = {
+      range: polled.range ?? 0,
+      bearing: polled.bearing ?? null,
+      range_rate: polled.range_rate ?? 0,
+      closing: polled.closing ?? false,
+      time_to_cpa: polled.time_to_cpa ?? null,
+      cpa_distance: polled.cpa_distance ?? null,
     };
+
+    return { ...weapons, _basic };
   }
 
-  _renderFiringSolutionSection(targeting) {
-    const merged = this._getMergedSolution(targeting);
-    const weapons = merged.weapons;
-    const weaponIds = Object.keys(weapons);
-    const confidence = merged.confidence;
+  // --- Firing solution section ---
 
-    // Determine overall solution quality from best weapon confidence,
-    // falling back to lock_quality-based confidence.
-    let bestConfidence = confidence;
+  _renderFiringSolutionSection(targeting, solutions) {
+    const weaponIds = Object.keys(solutions).filter(k => k !== "_basic");
+
+    let bestConfidence = null;
     for (const wid of weaponIds) {
-      const wc = weapons[wid].confidence;
+      const wc = solutions[wid].confidence;
       if (wc != null && (bestConfidence == null || wc > bestConfidence)) {
         bestConfidence = wc;
       }
     }
 
-    // If no solution data at all, show a minimal placeholder
     if (bestConfidence == null && weaponIds.length === 0) {
       return `
         <div class="solution-section">
-          <div class="section-title">Firing Solution Breakdown</div>
-          <div class="solution-quality-badge none">AWAITING DATA</div>
+          <div class="section-title">Firing Solutions</div>
+          <div class="solution-quality-badge none">COMPUTING</div>
         </div>
       `;
     }
@@ -641,17 +907,16 @@ class TargetingDisplay extends HTMLElement {
     const qualityClass = this._solutionQualityClass(bestConfidence);
     const pulseClass = bestConfidence != null && bestConfidence > 0.8 ? "valid-pulse" : "";
 
-    // Confidence bar
     const confPct = bestConfidence != null ? Math.round(bestConfidence * 100) : 0;
     const confColorClass = confPct > 80 ? "high" : confPct > 40 ? "mid" : "low";
 
     let html = `
       <div class="solution-section">
-        <div class="section-title">Firing Solution Breakdown</div>
+        <div class="section-title">Firing Solutions</div>
         <div class="solution-quality-badge ${qualityClass} ${pulseClass}">${qualityLabel}</div>
 
         <div class="confidence-bar-container">
-          <div class="detail-label">SOLUTION CONFIDENCE</div>
+          <div class="detail-label">BEST SOLUTION CONFIDENCE</div>
           <div class="confidence-bar">
             <div class="confidence-fill ${confColorClass}" style="width: ${confPct}%"></div>
             <span class="confidence-label">${confPct}%</span>
@@ -659,11 +924,10 @@ class TargetingDisplay extends HTMLElement {
         </div>
     `;
 
-    // Render per-weapon cards
     if (weaponIds.length > 0) {
       html += `<div class="weapon-solutions">`;
       for (const wid of weaponIds) {
-        html += this._renderWeaponCard(wid, weapons[wid]);
+        html += this._renderWeaponCard(wid, solutions[wid]);
       }
       html += `</div>`;
     }
@@ -681,14 +945,23 @@ class TargetingDisplay extends HTMLElement {
 
     const confidence = sol.confidence != null ? Math.round(sol.confidence * 100) : null;
     const hitProb = sol.hit_probability != null ? Math.round(sol.hit_probability * 100) : null;
-    const leadAngle = sol.lead_angle != null ? sol.lead_angle.toFixed(2) : null;
+    const leadAngle = sol.lead_angle != null
+      ? (typeof sol.lead_angle === "object"
+        ? Math.sqrt((sol.lead_angle.pitch || 0) ** 2 + (sol.lead_angle.yaw || 0) ** 2).toFixed(2)
+        : sol.lead_angle.toFixed(2))
+      : null;
     const tof = sol.time_of_flight != null ? sol.time_of_flight.toFixed(1) : null;
 
     const confClass = confidence != null ? (confidence > 80 ? "high" : confidence > 40 ? "mid" : "low") : "";
     const hitClass = hitProb != null ? (hitProb > 60 ? "high" : hitProb > 30 ? "mid" : "low") : "";
 
-    // Format the weapon ID for display (e.g. "railgun_1" -> "RAILGUN 1")
     const displayName = weaponId.replace(/_/g, " ");
+
+    // Cone radius for visual feedback
+    const coneRadius = sol.cone_radius_m;
+    const coneStr = coneRadius != null
+      ? (coneRadius >= 1000 ? `${(coneRadius / 1000).toFixed(1)} km` : `${coneRadius.toFixed(0)} m`)
+      : null;
 
     return `
       <div class="weapon-card ${readyClass}">
@@ -710,38 +983,29 @@ class TargetingDisplay extends HTMLElement {
             <span class="weapon-stat-value">${leadAngle != null ? leadAngle + '\u00B0' : '--'}</span>
           </div>
           <div class="weapon-stat">
-            <span class="weapon-stat-label">Time to Impact</span>
+            <span class="weapon-stat-label">Time of Flight</span>
             <span class="weapon-stat-value">${tof != null ? tof + 's' : '--'}</span>
           </div>
+          ${coneStr ? `
+          <div class="weapon-stat">
+            <span class="weapon-stat-label">Cone Radius</span>
+            <span class="weapon-stat-value">${coneStr}</span>
+          </div>
+          ` : ''}
         </div>
       </div>
     `;
   }
 
   _renderSubsystemSection(targeting) {
-    const merged = this._getMergedSolution(targeting);
-    const subsystem = merged.target_subsystem;
-
-    if (!subsystem) {
-      return "";
-    }
-
-    // Try to get target subsystem health from state if available
-    const targetSystems = targeting.target_systems || targeting.target_subsystems || {};
-    const health = targetSystems[subsystem];
-    let healthDisplay = "";
-    if (health != null) {
-      const healthPct = typeof health === "number" ? Math.round(health * 100) : health;
-      const healthClass = healthPct > 50 ? "high" : healthPct > 0 ? "mid" : "low";
-      healthDisplay = `<span class="subsystem-health weapon-stat-value ${healthClass}">${healthPct}%</span>`;
-    }
+    const subsystem = targeting?.target_subsystem;
+    if (!subsystem) return "";
 
     return `
       <div class="subsystem-section">
         <div class="section-title">Targeted Subsystem</div>
         <div class="subsystem-target">
           <span class="subsystem-name">${subsystem}</span>
-          ${healthDisplay}
         </div>
       </div>
     `;
@@ -762,14 +1026,19 @@ class TargetingDisplay extends HTMLElement {
   }
 
   _formatBearing(bearing) {
-    if (typeof bearing !== "number") return "---";
-    return bearing.toFixed(1);
+    if (bearing == null) return "---";
+    if (typeof bearing === "number") return bearing.toFixed(1) + "\u00B0";
+    if (typeof bearing === "object") {
+      const az = bearing.azimuth ?? bearing.yaw ?? bearing.horizontal;
+      if (az != null) return az.toFixed(1) + "\u00B0";
+    }
+    return "---";
   }
 
   _formatRange(meters) {
-    if (meters >= 1000) {
-      return `${(meters / 1000).toFixed(2)} km`;
-    }
+    if (meters == null || meters === 0) return "---";
+    if (meters >= 1000000) return `${(meters / 1000).toFixed(0)} km`;
+    if (meters >= 1000) return `${(meters / 1000).toFixed(2)} km`;
     return `${meters.toFixed(0)} m`;
   }
 }

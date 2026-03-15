@@ -1,0 +1,10 @@
+{
+  "id": "evt-1773479234749-288aec97",
+  "trigger": "feature_success",
+  "timestamp": "2026-03-14T09:07:14.749Z",
+  "projectPath": "/projects/spaceship-sim",
+  "projectName": "spaceship-sim",
+  "featureId": "combat-feedback-log",
+  "featureName": "Causal Combat Event Log",
+  "passes": true
+}

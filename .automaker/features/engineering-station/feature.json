@@ -1,0 +1,22 @@
+{
+  "category": "feature",
+  "description": "Engineering station commands: set-reactor-output (adjust power generation level, higher = more heat), throttle-drive (set drive output percentage), manage-radiators (extend/retract, set heat dissipation priority), monitor-fuel (track reaction mass remaining), emergency-vent (dump heat rapidly by venting coolant, one-time use). Engineering manages the physical plant that keeps everything running. Reactor output determines available power budget; drive output determines available thrust. Both generate heat that engineering must manage.",
+  "id": "engineering-station",
+  "title": "Engineering Station: Reactor & Drive Management",
+  "dependencies": [
+    "station-crew-roles",
+    "heat-management",
+    "newtonian-flight-model"
+  ],
+  "priority": 4,
+  "status": "verified",
+  "descriptionHistory": [
+    {
+      "description": "Engineering station commands: set-reactor-output (adjust power generation level, higher = more heat), throttle-drive (set drive output percentage), manage-radiators (extend/retract, set heat dissipation priority), monitor-fuel (track reaction mass remaining), emergency-vent (dump heat rapidly by venting coolant, one-time use). Engineering manages the physical plant that keeps everything running. Reactor output determines available power budget; drive output determines available thrust. Both generate heat that engineering must manage.",
+      "timestamp": "2026-03-14T04:07:48.935Z",
+      "source": "initial"
+    }
+  ],
+  "updatedAt": "2026-03-14T14:26:24.713Z",
+  "summary": "<feature>engineering-station</feature>\n<status>complete</status>\n\n<files_changed>\n- hybrid/systems/engineering_system.py (NEW — 290 lines) — EngineeringSystem: reactor output, drive limit, radiator management, fuel monitoring, emergency vent\n- hybrid/commands/engineering_commands.py (NEW — 171 lines) — 5 command wrappers + register_commands with CommandSpec/ArgSpec\n- hybrid/command_handler.py (MODIFIED) — Added 5 engineering entries to system_commands dict\n- hybrid/systems/__init__.py (MODIFIED) — Added EngineeringSystem to system registry\n- hybrid/ship.py (MODIFIED) — Added \"engineering\" to essential_systems\n- hybrid/commands/dispatch.py (MODIFIED) — Added engineering_commands import and registration\n- server/stations/station_types.py (MODIFIED) — Added 5 commands + engineering_status display + engineering required_system to ENGINEERING station\n- hybrid/systems/thermal_system.py (MODIFIED) — Reactor heat scales by engineering reactor output; radiator area scales by engineering radiator modifier\n- hybrid/telemetry.py (MODIFIED) — Added _get_engineering_state() and \"engineering\" key to telemetry output\n- gui/components/engineering-control-panel.js (NEW — 873 lines) — Full Web Component: 5 sections with sliders, buttons, status displays\n- gui/js/main.js (MODIFIED) — Added engineering-control-panel.js import\n- gui/index.html (MODIFIED) — Added <engineering-control-panel> in Engineering view\n- gui/components/status-bar.js (MODIFIED) — Added _getEngineeringHtml() for RX/DRV/RAD/VENT status indicators\n</files_changed>\n\n<verification>\nPlaywright: 9/9 tests passed — component mounts, shadow DOM renders, all 5 sections present, reactor slider, drive slider, radiator toggle, emergency vent button, status bar integration, JS file loadable with all command references.\n</verification>\n\n<summary_text>\nImplemented the Engineering station with 5 commands (set_reactor_output, throttle_drive, manage_radiators, monitor_fuel, emergency_vent). The backend EngineeringSystem manages reactor power scaling (affects thermal heat generation), drive throttle limiting (caps helm input), radiator deploy/retract with priority modes (balanced/cooling/stealth), fuel burn rate tracking, and an irreversible emergency coolant vent. Commands registered in all 3 required places (command_handler, dispatch, station_types). Thermal system integration uses attribute injection — engineering sets scaling factors that thermal reads each tick. GUI component provides slider controls for reactor/drive, toggle + mode buttons for radiators, read-only fuel display, and a confirmation-gated emergency vent button. Status bar shows compact engineering indicators (RX, DRV, RAD, VENT).\n</summary_text>"
+}

@@ -1,0 +1,10 @@
+{
+  "id": "evt-1773470200202-e0227b69",
+  "trigger": "feature_success",
+  "timestamp": "2026-03-14T06:36:40.202Z",
+  "projectPath": "/projects/spaceship-sim",
+  "projectName": "spaceship-sim",
+  "featureId": "fuel-delta-v-budget",
+  "featureName": "Fuel & Delta-V Budget System",
+  "passes": true
+}

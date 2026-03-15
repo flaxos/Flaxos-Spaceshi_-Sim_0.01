@@ -1,0 +1,10 @@
+{
+  "id": "evt-1773467908938-59927398",
+  "trigger": "feature_success",
+  "timestamp": "2026-03-14T05:58:28.939Z",
+  "projectPath": "/projects/spaceship-sim",
+  "projectName": "spaceship-sim",
+  "featureId": "newtonian-flight-model",
+  "featureName": "Newtonian Flight Model",
+  "passes": true
+}
