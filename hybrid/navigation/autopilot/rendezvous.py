@@ -30,6 +30,12 @@ Key design decisions (bug fixes from 2026-03-15):
     re-burn, flip, brake, repeat -- each cycle making only 25-80 km of
     progress.  APPROACH's proportional controller handles convergence
     from any range, eliminating the oscillation entirely.
+  - APPROACH only re-enters BURN if closing_speed is significantly
+    negative (opening faster than APPROACH_SPEED_LIMIT), not based on
+    a fixed distance threshold.  The old range-based check
+    (range > approach_range * 3) false-triggered at 302 km when the
+    ship entered APPROACH after braking from long range, immediately
+    re-entering BURN and restarting the oscillation cycle.
 """
 
 import logging
@@ -261,7 +267,20 @@ class RendezvousAutopilot(BaseAutopilot):
                 # velocity vector drifts (lateral motion, target velocity),
                 # and chasing a moving heading caused ~50% of flips to time
                 # out because the RCS could never converge.
-                self._flip_target_heading = self._retrograde_heading(rel)
+                #
+                # Flatten to yaw-only (pitch=0, roll=0) so the flip is a
+                # single-axis rotation.  Sensor noise adds spurious Z
+                # velocity that gives the retrograde heading a pitch
+                # component; a 180-degree rotation with pitch makes the
+                # quaternion error decompose into multi-axis torque
+                # requests that the single-axis RCS thrusters cannot
+                # satisfy, causing total thruster allocation failure.
+                # The braking phase uses the full 3D retrograde heading
+                # for precision alignment.
+                retro = self._retrograde_heading(rel)
+                retro["pitch"] = 0.0
+                retro["roll"] = 0.0
+                self._flip_target_heading = retro
         elif self.phase == "flip":
             # Check alignment against the SNAPSHOT heading, not live
             # retrograde.  This is the key fix for the flip timeout bug.
@@ -305,13 +324,17 @@ class RendezvousAutopilot(BaseAutopilot):
                     rel_speed, current_range)
                 self.phase = "approach"
         elif self.phase == "approach":
-            # Approach can also transition to stationkeep (handled at top)
-            # or back to brake if we somehow built too much speed and
-            # overshot approach_range
-            if current_range > self.approach_range * 3.0:
+            # Approach can also transition to stationkeep (handled at top).
+            # Safety valve: only re-enter BURN if the ship is actively
+            # flying AWAY from the target faster than the approach P
+            # controller can correct.  A range-based check here would
+            # false-trigger when BRAKE exits to APPROACH at long range
+            # (e.g. 302 km >> approach_range), restarting the oscillation.
+            if closing_speed < -self.APPROACH_SPEED_LIMIT:
                 logger.info(
-                    "Rendezvous: APPROACH -> BURN (drifted to %.0f m, "
-                    "outside approach envelope)", current_range)
+                    "Rendezvous: APPROACH -> BURN (opening at %.1f m/s, "
+                    "exceeds approach speed limit %.1f m/s)",
+                    -closing_speed, self.APPROACH_SPEED_LIMIT)
                 self.phase = "burn"
 
         # Execute current phase
