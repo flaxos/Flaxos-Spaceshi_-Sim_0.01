@@ -84,14 +84,25 @@ class NavigationController:
                 f"Failed to engage autopilot: {e}"
             )
 
-    def disengage_autopilot(self) -> Dict:
+    def disengage_autopilot(self, reason: str = "unspecified") -> Dict:
         """Disengage autopilot and return to manual control.
+
+        Every disengage path must supply a reason so silent disengages
+        never reach the log without explanation.
+
+        Args:
+            reason: Human-readable explanation of why autopilot was
+                    disengaged (logged at INFO level).
 
         Returns:
             dict: Success response
         """
         if self.mode != "manual":
-            logger.info(f"Ship {self.ship.id}: Autopilot disengaged")
+            program = self.autopilot_program_name or "unknown"
+            logger.info(
+                "Ship %s: Autopilot disengaged (program=%s, reason=%s)",
+                self.ship.id, program, reason,
+            )
 
         self.mode = "manual"
         self.autopilot = None
@@ -99,7 +110,8 @@ class NavigationController:
 
         return success_dict(
             "Autopilot disengaged",
-            mode=self.mode
+            mode=self.mode,
+            reason=reason,
         )
 
     def update(self, dt: float, sim_time: float) -> Optional[Dict]:
@@ -128,11 +140,27 @@ class NavigationController:
         if self.autopilot:
             try:
                 command = self.autopilot.compute(dt, sim_time)
+                if command is None and hasattr(self.autopilot, "status"):
+                    # Autopilot returned no command -- check if it entered
+                    # an error state (e.g. target lost).  Log once so the
+                    # operator knows the autopilot is producing no output.
+                    ap_status = getattr(self.autopilot, "status", "")
+                    ap_error = getattr(self.autopilot, "error_message", "")
+                    if ap_status == "error":
+                        logger.warning(
+                            "Ship %s: Autopilot compute returned None "
+                            "(status=%s, error=%s)",
+                            self.ship.id, ap_status, ap_error,
+                        )
                 return command
             except Exception as e:
-                logger.error(f"Autopilot error on {self.ship.id}: {e}", exc_info=True)
-                # Disengage on error
-                self.disengage_autopilot()
+                logger.error(
+                    "Ship %s: Autopilot exception in compute(), "
+                    "disengaging: %s", self.ship.id, e, exc_info=True,
+                )
+                self.disengage_autopilot(
+                    reason=f"exception in compute: {e}"
+                )
                 return None
 
         return None

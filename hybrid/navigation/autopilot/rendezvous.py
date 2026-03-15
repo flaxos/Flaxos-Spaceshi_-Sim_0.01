@@ -115,6 +115,8 @@ class RendezvousAutopilot(BaseAutopilot):
 
         self.phase: str = "burn"
         self._match_ap: Optional[MatchVelocityAutopilot] = None
+        self._flip_entered_time: Optional[float] = None
+        self._flip_entered_range: Optional[float] = None
         self.status = "active"
         if not target_id:
             self.status = "error"
@@ -209,10 +211,29 @@ class RendezvousAutopilot(BaseAutopilot):
                     current_range, closing_speed, d_trigger,
                     self._estimate_flip_time())
                 self.phase = "flip"
+                self._flip_entered_time = sim_time
+                self._flip_entered_range = current_range
         elif self.phase == "flip":
             if self._heading_is_retrograde(rel):
                 logger.info("Rendezvous: FLIP -> BRAKE (aligned retrograde)")
                 self.phase = "brake"
+                self._flip_entered_time = None
+            elif self._flip_entered_time is not None:
+                # Safety: if the flip takes much longer than expected the
+                # ship is overshooting while coasting unpowered.  Cap at
+                # 4x estimated flip time to prevent infinite coasting.
+                flip_elapsed = sim_time - self._flip_entered_time
+                flip_limit = self._estimate_flip_time() * 4.0
+                if flip_elapsed > flip_limit:
+                    logger.warning(
+                        "Rendezvous: FLIP timed out after %.1fs "
+                        "(limit %.1fs, range now %.0f m vs %.0f m at "
+                        "entry). Forcing BRAKE to stop overshoot.",
+                        flip_elapsed, flip_limit, current_range,
+                        self._flip_entered_range or 0.0,
+                    )
+                    self.phase = "brake"
+                    self._flip_entered_time = None
         elif self.phase == "brake":
             if closing_speed <= 0 and current_range > self.stationkeep_range:
                 # Only re-burn if we're far away.  If within approach_range

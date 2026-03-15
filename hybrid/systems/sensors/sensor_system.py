@@ -103,9 +103,11 @@ class SensorSystem(BaseSystem):
         for ship_id, contact in self.active.get_contacts().items():
             self.contact_tracker.update_contact(ship_id, contact, self.sim_time)
 
-        # Prune stale contacts periodically
+        # Prune stale contacts periodically, preserving contacts whose
+        # source ships still exist in the simulation
         if self.current_tick % 100 == 0:  # Every 100 ticks
-            self.contact_tracker.prune_stale_contacts(self.sim_time)
+            existing_ids = {s.id for s in self.all_ships if hasattr(s, "id")}
+            self.contact_tracker.prune_stale_contacts(self.sim_time, existing_ids)
 
         # Publish sensor tick event
         event_bus.publish("sensor_tick", {
