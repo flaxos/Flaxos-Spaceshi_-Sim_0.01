@@ -197,17 +197,20 @@ class WSEnvelope:
         return cls(type=MessageType.ERROR, data=data)
 
     @classmethod
-    def status(cls, status: str, tcp_connected: bool, tcp_host: str, tcp_port: int) -> "WSEnvelope":
+    def status(cls, status: str, tcp_connected: bool, tcp_host: str, tcp_port: int,
+               client_id: Optional[str] = None, server_mode: Optional[str] = None) -> "WSEnvelope":
         """Create a connection status envelope."""
-        return cls(
-            type=MessageType.STATUS,
-            data={
-                "status": status,
-                "tcp_host": tcp_host,
-                "tcp_port": tcp_port,
-                "tcp_connected": tcp_connected,
-            }
-        )
+        data = {
+            "status": status,
+            "tcp_host": tcp_host,
+            "tcp_port": tcp_port,
+            "tcp_connected": tcp_connected,
+        }
+        if client_id is not None:
+            data["client_id"] = client_id
+        if server_mode is not None:
+            data["server_mode"] = server_mode
+        return cls(type=MessageType.STATUS, data=data)
 
     @classmethod
     def pong(cls, client_timestamp: Optional[float] = None) -> "WSEnvelope":
