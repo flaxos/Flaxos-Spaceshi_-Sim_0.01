@@ -178,23 +178,40 @@ class ContactTracker:
 
         return result
 
-    def prune_stale_contacts(self, current_time: float):
-        """Remove stale contacts.
+    def prune_stale_contacts(self, current_time: float, existing_ship_ids: set = None):
+        """Remove stale contacts, preserving those whose ships still exist.
+
+        Contacts whose source ship still exists in the simulation are kept
+        at minimum confidence rather than fully pruned. This prevents the
+        autopilot from losing a target that is still physically present
+        but temporarily undetected.
 
         Args:
             current_time: Current simulation time
+            existing_ship_ids: Set of ship IDs still in the simulation.
+                If provided, contacts mapped to these IDs are preserved.
         """
+        if existing_ship_ids is None:
+            existing_ship_ids = set()
+
         stale_ids = [
             cid for cid, contact in self.contacts.items()
-            if contact.is_stale(current_time, self.stale_threshold * 2)  # Keep stale for 2x threshold
+            if contact.is_stale(current_time, self.stale_threshold * 2)
         ]
 
         for cid in stale_ids:
-            # Find and remove from id_mapping
+            # Find the real ship ID mapped to this contact
             real_id = next((rid for rid, sid in self.id_mapping.items() if sid == cid), None)
+
+            # If the ship still exists in the sim, keep the contact at
+            # minimum confidence instead of purging it entirely
+            if real_id and real_id in existing_ship_ids:
+                self.contacts[cid].confidence = max(self.contacts[cid].confidence, 0.05)
+                continue
+
+            # Ship no longer exists — safe to fully remove
             if real_id:
                 del self.id_mapping[real_id]
-
             del self.contacts[cid]
 
 def add_detection_noise(position: Dict[str, float], accuracy: float) -> Dict[str, float]:

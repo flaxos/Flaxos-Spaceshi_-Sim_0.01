@@ -374,7 +374,7 @@ def cmd_emergency_burn(helm, ship, params):
     # Disengage autopilot
     nav = ship.systems.get("navigation")
     if nav and hasattr(nav, "controller") and nav.controller:
-        nav.controller.disengage_autopilot()
+        nav.controller.disengage_autopilot(reason="manual burn command")
 
     # If duration specified, queue a thrust stop
     duration = params.get("duration")

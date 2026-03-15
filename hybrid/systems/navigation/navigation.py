@@ -200,7 +200,9 @@ class NavigationSystem(BaseSystem):
         if action == "set_autopilot":
             return self._cmd_set_autopilot(params)
         elif action == "disengage_autopilot":
-            return self.controller.disengage_autopilot()
+            return self.controller.disengage_autopilot(
+                reason=params.get("reason", "explicit disengage command")
+            )
         elif action == "set_course":
             return self._cmd_set_course(params)
         elif action == "set_plan":
@@ -239,7 +241,9 @@ class NavigationSystem(BaseSystem):
 
         # Handle "off" special case
         if program.lower() == "off":
-            result = self.controller.disengage_autopilot()
+            result = self.controller.disengage_autopilot(
+                reason="set_autopilot program=off"
+            )
             event_bus = params.get("event_bus")
             ship = params.get("ship")
             if event_bus and ship:

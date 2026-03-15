@@ -245,7 +245,7 @@ class HelmSystem(BaseSystem):
         if ship:
             nav = ship.systems.get("navigation")
             if nav and hasattr(nav, "controller") and nav.controller:
-                nav.controller.disengage_autopilot()
+                nav.controller.disengage_autopilot(reason="pilot took manual control")
 
         logger.info(f"Manual control taken on {ship.id if ship else 'unknown'}")
 
