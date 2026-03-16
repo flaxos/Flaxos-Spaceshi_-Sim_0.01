@@ -92,15 +92,16 @@ logger = logging.getLogger(__name__)
 NAV_PROFILES: Dict[str, Dict] = {
     "aggressive": {
         "max_thrust": 0.50,              # ~5G on a 10G corvette — crash couches required
-        "brake_margin": 1.1,
-        "flip_safety_factor": 1.5,       # Tighter than balanced, but enough for high-v coast
-        "approach_range": 10_000.0,      # 10 km — high-G brakes fast, don't waste time crawling
+        "brake_margin": 1.8,             # Post-flip alignment lag means BRAKE delivers
+                                         # ~60% of BURN accel for first 10-15s.
+        "flip_safety_factor": 1.5,
+        "approach_range": 10_000.0,      # 10 km
         "description": "5G combat burn. Crew impaired, crash couches required.",
         "risk_level": "high",
     },
     "balanced": {
         "max_thrust": 0.30,              # ~3G — standard military transit
-        "brake_margin": 1.2,
+        "brake_margin": 1.6,
         "flip_safety_factor": 1.5,
         "approach_range": 15_000.0,      # 15 km
         "description": "3G military transit. Moderate crew fatigue.",
@@ -108,7 +109,7 @@ NAV_PROFILES: Dict[str, Dict] = {
     },
     "conservative": {
         "max_thrust": 0.10,              # ~1G — comfortable, fuel-efficient
-        "brake_margin": 1.3,
+        "brake_margin": 1.5,
         "flip_safety_factor": 1.5,
         "approach_range": 20_000.0,      # 20 km
         "description": "1G cruise. No crew strain, generous margins.",
@@ -207,7 +208,7 @@ class RendezvousAutopilot(BaseAutopilot):
         # we have no measurement yet, so use 50% of theoretical — the same
         # fallback _get_effective_accel() uses before measurements exist.
         # This ensures approach_range is safe even before the first burn.
-        conservative_accel = self._get_max_accel() * self.max_thrust * 0.50
+        conservative_accel = self._get_max_accel() * self.max_thrust * 0.30
         g_ratio = max(1.0, conservative_accel / 10.0)
         self.APPROACH_SPEED_LIMIT: float = min(
             self._BASE_APPROACH_SPEED_LIMIT * math.sqrt(g_ratio),
@@ -306,8 +307,10 @@ class RendezvousAutopilot(BaseAutopilot):
             # (measurement noise could briefly spike above real capability)
             eff = min(self._measured_accel, theoretical)
         else:
-            # No measurement yet — use conservative 50% estimate
-            eff = theoretical * 0.50
+            # No measurement yet (or samples cleared at phase transition).
+            # Use very conservative 30% — the post-flip alignment transient
+            # can reduce delivered thrust to 20-40% of theoretical.
+            eff = theoretical * 0.30
 
         if not hasattr(self, '_logged_accel'):
             propulsion = self.ship.systems.get("propulsion")
@@ -422,6 +425,12 @@ class RendezvousAutopilot(BaseAutopilot):
                 self.phase = "flip"
                 self._flip_entered_time = sim_time
                 self._flip_entered_range = current_range
+                # Clear stale BURN acceleration measurements so BRAKE
+                # uses the conservative 30% fallback until it builds
+                # its own measurement.  BURN delivery != BRAKE delivery
+                # due to post-flip alignment lag.
+                self._accel_samples.clear()
+                self._measured_accel = 0.0
                 # Snapshot the retrograde heading at flip entry so the RCS
                 # has a stable target to rotate toward.  During coast the
                 # velocity vector drifts (lateral motion, target velocity),
