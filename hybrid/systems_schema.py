@@ -28,16 +28,18 @@ SUBSYSTEM_HEALTH_SCHEMA = {
         "failure_threshold": 0.25,
         # v0.6.0: Heat settings (main drive generates significant heat)
         # Formula: heat_amount = heat_generation * thrust_magnitude * dt
-        # At full thrust (50,000 N): generation = 0.00005 * 50,000 = 2.5 °C/s
+        # Calibrated for Epstein-class drives (up to 500 kN):
+        # At full thrust (500,000 N): generation = 0.000005 * 500,000 = 2.5 °C/s
         # Dissipation: 2.5 °C/s — equilibrium at full sustained thrust.
-        # Normal autopilot burns (< 100% throttle) never overheat.
+        # Profile burns (10-50% throttle) generate 0.25-1.25 °C/s — well below
+        # dissipation, so routine autopilot never overheats.
         # Overheat only occurs with damaged radiators, cascade effects,
         # or combat overdrive conditions — not routine flight.
-        "max_heat": 200.0,           # Drives run hot
-        "heat_generation": 0.00005,  # Heat per Newton-second of thrust
-        "heat_dissipation": 2.5,     # Passive cooling rate (°C/s)
-        "overheat_threshold": 0.90,  # Higher tolerance for drives
-        "overheat_penalty": 0.6,     # Thrust reduction when overheated
+        "max_heat": 200.0,            # Drives run hot
+        "heat_generation": 0.000005,  # Heat per Newton-second of thrust (10x smaller for 10x thrust)
+        "heat_dissipation": 2.5,      # Passive cooling rate (°C/s)
+        "overheat_threshold": 0.90,   # Higher tolerance for drives
+        "overheat_penalty": 0.6,      # Thrust reduction when overheated
     },
     "rcs": {
         # Health settings

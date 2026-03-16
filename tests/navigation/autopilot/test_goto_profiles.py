@@ -80,10 +80,10 @@ class TestGotoProfileDefaults:
 # ---------------------------------------------------------------------------
 
 class TestGotoAggressiveProfile:
-    def test_aggressive_max_thrust_is_full(self):
+    def test_aggressive_max_thrust_matches_profile(self):
         ap = _ap_with_destination(profile="aggressive")
         assert ap.profile_name == "aggressive"
-        assert ap.max_thrust == pytest.approx(1.0)
+        assert ap.max_thrust == pytest.approx(GOTO_PROFILES["aggressive"]["max_thrust"])
 
     def test_aggressive_smallest_brake_buffer(self):
         """Aggressive has the smallest brake_buffer_factor among all profiles."""
@@ -94,12 +94,12 @@ class TestGotoAggressiveProfile:
                     f"Aggressive brake_buffer_factor should be < {other_name}'s"
                 )
 
-    def test_aggressive_compute_returns_full_thrust_while_accelerating(self):
-        """Aggressive profile burns at full thrust when far from destination."""
+    def test_aggressive_compute_returns_profile_thrust_while_accelerating(self):
+        """Aggressive profile burns at profile thrust when far from destination."""
         ap = _ap_with_destination(profile="aggressive")
         result = ap.compute(0.1, 0.0)
         assert result is not None
-        assert result["thrust"] == pytest.approx(1.0)
+        assert result["thrust"] == pytest.approx(GOTO_PROFILES["aggressive"]["max_thrust"])
 
     def test_explicit_max_thrust_overrides_aggressive(self):
         """Explicit max_thrust param beats the aggressive profile default."""
@@ -113,10 +113,10 @@ class TestGotoAggressiveProfile:
 # ---------------------------------------------------------------------------
 
 class TestGotoConservativeProfile:
-    def test_conservative_half_thrust(self):
+    def test_conservative_thrust_matches_profile(self):
         ap = _ap_with_destination(profile="conservative")
         assert ap.profile_name == "conservative"
-        assert ap.max_thrust == pytest.approx(0.5)
+        assert ap.max_thrust == pytest.approx(GOTO_PROFILES["conservative"]["max_thrust"])
 
     def test_conservative_largest_brake_buffer(self):
         """Conservative has the largest brake_buffer_factor."""
@@ -133,12 +133,12 @@ class TestGotoConservativeProfile:
         bal = _ap_with_destination(profile="balanced")
         assert cons.brake_buffer > bal.brake_buffer
 
-    def test_conservative_compute_uses_half_thrust(self):
-        """Conservative profile accelerates at half thrust."""
+    def test_conservative_compute_uses_profile_thrust(self):
+        """Conservative profile accelerates at profile thrust level."""
         ap = _ap_with_destination(profile="conservative")
         result = ap.compute(0.1, 0.0)
         assert result is not None
-        assert result["thrust"] == pytest.approx(0.5)
+        assert result["thrust"] == pytest.approx(GOTO_PROFILES["conservative"]["max_thrust"])
 
     def test_explicit_brake_buffer_overrides_profile(self):
         """An explicit brake_buffer param overrides profile-derived value."""
