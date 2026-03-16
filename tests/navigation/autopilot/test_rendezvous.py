@@ -1298,13 +1298,13 @@ class TestAlignmentGuard:
 
         assert ap._heading_error(None) == 0.0
 
-    def test_burn_thrust_zeroed_when_misaligned(self):
-        """In BURN phase, if ship faces away from target (>30 deg error),
-        thrust must be zeroed but heading still commanded (so RCS rotates).
+    def test_burn_thrust_near_zero_when_misaligned(self):
+        """In BURN phase, if ship faces away from target (90 deg error),
+        thrust must be near zero (cosine scaling: cos(90°) ≈ 0).
 
         Ship at origin, target at +X, ship facing +Y (yaw=90).
-        BURN wants to thrust toward +X (yaw~0).  90 deg error > 30 deg
-        threshold, so thrust should be 0.
+        BURN wants to thrust toward +X (yaw~0).  At 90° the cosine
+        alignment guard scales thrust to effectively zero.
         """
         target = _make_target({"x": 100000.0, "y": 0.0, "z": 0.0})
         ship = _make_ship(
@@ -1319,8 +1319,8 @@ class TestAlignmentGuard:
         result = ap.compute(0.1, 0.0)
 
         assert result is not None
-        assert result["thrust"] == 0.0, (
-            f"Thrust should be 0 when 90° misaligned, got {result['thrust']}"
+        assert result["thrust"] < 0.01, (
+            f"Thrust should be near zero when 90° misaligned, got {result['thrust']}"
         )
         # Heading must still be commanded so the RCS rotates the ship
         assert "heading" in result
@@ -1487,8 +1487,8 @@ class TestAlignmentGuard:
             f"not >=30). Got thrust={result['thrust']}"
         )
 
-    def test_guard_at_31_degrees_zeroes_thrust(self):
-        """At 31 degrees (just above threshold), thrust must be zeroed."""
+    def test_guard_at_31_degrees_scales_thrust(self):
+        """At 31 degrees, cosine guard scales thrust to ~86% (cos 31°)."""
         target = _make_target({"x": 100000.0, "y": 0.0, "z": 0.0})
         ship = _make_ship(
             position={"x": 0.0, "y": 0.0, "z": 0.0},
@@ -1502,7 +1502,8 @@ class TestAlignmentGuard:
         result = ap.compute(0.1, 0.0)
 
         assert result is not None
-        assert result["thrust"] == 0.0, (
-            f"At 31° error, thrust should be zeroed by alignment guard. "
+        # cos(31°) ≈ 0.857, so thrust ≈ max_thrust * 0.857
+        assert 0 < result["thrust"] < ap.max_thrust, (
+            f"At 31° error, cosine guard should scale thrust. "
             f"Got thrust={result['thrust']}"
         )
