@@ -65,7 +65,7 @@ class ManualFlightPanel extends HTMLElement {
                      border-radius:4px; color:var(--text-primary,#e0e0e0); font-family:inherit; font-size:.8rem; text-align:right; box-sizing:border-box; }
         .hg input:focus { outline:none; border-color:var(--status-info,#00aaff); }
         .cw { display:flex; justify-content:center; margin-top:4px; }
-        .cc { width:80px; height:80px; border-radius:50%; background:var(--bg-input,#1a1a24); border:2px solid var(--border-default,#2a2a3a); position:relative; }
+        .cc { width:min(80px, 100%); aspect-ratio:1; border-radius:50%; background:var(--bg-input,#1a1a24); border:2px solid var(--border-default,#2a2a3a); position:relative; }
         .cl { position:absolute; font-size:.55rem; color:var(--text-dim,#555566); }
         .cl.n{top:2px;left:50%;transform:translateX(-50%)} .cl.s{bottom:2px;left:50%;transform:translateX(-50%)}
         .cl.e{right:2px;top:50%;transform:translateY(-50%)} .cl.w{left:2px;top:50%;transform:translateY(-50%)}

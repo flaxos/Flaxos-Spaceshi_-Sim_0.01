@@ -472,6 +472,16 @@ button.success,
 }
 
 /* Responsive breakpoints */
+
+/* Intermediate breakpoint: 150% zoom on 1920px lands at ~1280px effective.
+   8-column grid keeps 2-per-row layout instead of collapsing to full-width. */
+@media (max-width: 1400px) {
+  #interface-grid {
+    grid-template-columns: repeat(8, 1fr);
+    gap: 10px;
+  }
+}
+
 @media (max-width: 1200px) {
   #interface-grid {
     grid-template-columns: repeat(6, 1fr);
@@ -528,7 +538,12 @@ button.success,
 .status-chip.info::before { background: var(--status-info, #3399ff); box-shadow: 0 0 4px var(--status-info, #3399ff); }
 .status-chip.info { color: var(--status-info, #3399ff); border-color: rgba(51, 153, 255, 0.2); }
 
-/* Dense data table */
+/* Dense data table -- wrapper enables horizontal scroll on narrow viewports */
+.data-table-dense-wrapper {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
 .data-table-dense {
   width: 100%;
   border-collapse: collapse;
@@ -597,6 +612,26 @@ button.success,
 .big-number.nominal { color: var(--status-nominal, #00e878); }
 .big-number.warning { color: var(--status-warning, #f0a030); }
 .big-number.critical { color: var(--status-critical, #e83838); }
+
+/* Hero readout - enlarged primary data display (velocity, range, etc.) */
+.hero-readout {
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-size: 2.4rem;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-bright, #f0f0f4);
+  letter-spacing: -1px;
+}
+.hero-readout .unit {
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--text-secondary, #8888a0);
+  margin-left: 4px;
+}
+.hero-readout.nominal { color: var(--status-nominal, #00e878); }
+.hero-readout.warning { color: var(--status-warning, #f0a030); }
+.hero-readout.critical { color: var(--status-critical, #e83838); }
 
 /* Panel group header */
 .panel-group {

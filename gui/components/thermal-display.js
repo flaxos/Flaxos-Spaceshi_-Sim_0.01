@@ -38,7 +38,7 @@ class ThermalDisplay extends HTMLElement {
           display: block;
           font-family: var(--font-sans, "Inter", sans-serif);
           font-size: 0.8rem;
-          padding: 16px;
+          padding: 0;
         }
 
         /* --- Temperature headline --- */

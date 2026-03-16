@@ -146,7 +146,7 @@ class SensorContacts extends HTMLElement {
         .contacts-header {
           padding: 8px 16px;
           display: grid;
-          grid-template-columns: 50px 70px 50px 60px 60px;
+          grid-template-columns: minmax(40px, 0.8fr) minmax(55px, 1.2fr) minmax(40px, 0.8fr) minmax(50px, 1fr) minmax(50px, 1fr);
           gap: 6px;
           font-size: 0.65rem;
           color: var(--text-dim, #555566);
@@ -165,7 +165,7 @@ class SensorContacts extends HTMLElement {
 
         .contact-row {
           display: grid;
-          grid-template-columns: 50px 70px 50px 60px 60px;
+          grid-template-columns: minmax(40px, 0.8fr) minmax(55px, 1.2fr) minmax(40px, 0.8fr) minmax(50px, 1fr) minmax(50px, 1fr);
           gap: 6px;
           padding: 8px 16px;
           cursor: pointer;
@@ -684,7 +684,7 @@ class SensorContacts extends HTMLElement {
     return `
       <div class="contact-row ${isSelected ? 'selected' : ''} ${staleClass}" data-contact-id="${id}">
         <span class="contact-id">${isSelected ? '►' : ' '}${id.substring(0, 5)}</span>
-        <span class="contact-class">${isStale ? '<span class="stale-label">LOST</span>' : classification.substring(0, 8)}</span>
+        <span class="contact-class" title="${isStale ? 'Lost contact' : classification}">${isStale ? '<span class="stale-label">LOST</span>' : classification.substring(0, 8)}</span>
         <span class="contact-bearing">${isStale ? '---' : this._formatBearing(bearing) + '°'}</span>
         <span class="contact-range">${isStale ? '---' : this._formatRange(range)}</span>
         <span class="contact-closure ${closureClass}">${isStale ? '---' : closureSign + Math.abs(rangeRate).toFixed(0)}</span>

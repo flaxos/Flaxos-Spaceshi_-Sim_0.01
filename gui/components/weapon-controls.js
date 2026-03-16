@@ -73,14 +73,22 @@ class WeaponControls extends HTMLElement {
           margin-bottom: 8px;
         }
 
+        /* Pulse animation for fire-ready buttons */
+        @keyframes fire-ready-pulse {
+          0%, 100% { box-shadow: 0 4px 12px rgba(255, 68, 68, 0.3); }
+          50% { box-shadow: 0 4px 20px rgba(255, 68, 68, 0.55), 0 0 8px rgba(255, 68, 68, 0.2); }
+        }
+
         .fire-btn {
           width: 100%;
           padding: 14px 16px;
           border-radius: 8px;
-          font-size: 0.9rem;
-          font-weight: 600;
+          font-size: 1.1rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 1px;
           cursor: pointer;
-          min-height: 50px;
+          min-height: 60px;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -89,15 +97,29 @@ class WeaponControls extends HTMLElement {
           font-family: inherit;
         }
 
+        /* Disabled / not-ready state for all fire buttons */
+        .fire-btn:disabled {
+          background: var(--bg-input, #1a1a24);
+          color: var(--text-dim, #555566);
+          border: 2px solid var(--border-default, #2a2a3a);
+          cursor: not-allowed;
+          box-shadow: none;
+          animation: none;
+        }
+
         .railgun-btn {
-          background: linear-gradient(135deg, #00aaff 0%, #0066cc 100%);
-          border: none;
+          background: var(--status-critical, #ff4444);
+          border: 2px solid var(--status-critical, #ff4444);
           color: white;
-          box-shadow: 0 4px 12px rgba(0, 170, 255, 0.3);
+          box-shadow: 0 4px 12px rgba(255, 68, 68, 0.3);
+        }
+
+        .railgun-btn:not(:disabled) {
+          animation: fire-ready-pulse 2s ease-in-out infinite;
         }
 
         .railgun-btn:hover:not(:disabled) {
-          filter: brightness(1.1);
+          filter: brightness(1.15);
           transform: translateY(-1px);
         }
 
@@ -105,32 +127,24 @@ class WeaponControls extends HTMLElement {
           transform: translateY(0);
         }
 
-        .railgun-btn:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-          filter: grayscale(0.5);
-        }
-
         .torpedo-btn {
-          background: linear-gradient(135deg, #ff4444 0%, #cc3333 100%);
-          border: none;
+          background: var(--status-critical, #ff4444);
+          border: 2px solid var(--status-critical, #ff4444);
           color: white;
           box-shadow: 0 4px 12px rgba(255, 68, 68, 0.3);
         }
 
+        .torpedo-btn:not(:disabled) {
+          animation: fire-ready-pulse 2s ease-in-out infinite;
+        }
+
         .torpedo-btn:hover:not(:disabled) {
-          filter: brightness(1.1);
+          filter: brightness(1.15);
           transform: translateY(-1px);
         }
 
         .torpedo-btn:active:not(:disabled) {
           transform: translateY(0);
-        }
-
-        .torpedo-btn:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-          filter: grayscale(0.5);
         }
 
         .torpedo-count {
@@ -351,9 +365,9 @@ class WeaponControls extends HTMLElement {
 
         .railgun-mount-row .fire-btn {
           flex: 1;
-          padding: 10px 8px;
-          font-size: 0.75rem;
-          min-height: 42px;
+          padding: 12px 8px;
+          font-size: 0.85rem;
+          min-height: 52px;
         }
       </style>
 

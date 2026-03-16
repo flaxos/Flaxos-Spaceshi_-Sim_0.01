@@ -112,6 +112,7 @@ class EventLog extends HTMLElement {
           flex: 1;
           overflow-y: auto;
           padding: 8px;
+          min-height: 80px;
         }
 
         .log-entry {
