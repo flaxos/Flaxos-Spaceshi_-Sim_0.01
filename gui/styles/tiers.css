@@ -228,7 +228,125 @@ body.tier-cpu-assist .helm-autopilot-status-panel {
 
 
 /* =========================================================================
-   8. WORKFLOW STRIP
+   8. TACTICAL PANEL VISIBILITY — RAW TIER
+   "Full manual targeting workflow" (all 11 panels)
+
+   Show:     ALL panels. Fire Control hero (span-6).
+   ========================================================================= */
+
+/* RAW: show everything — hero sizing only */
+body.tier-raw .tac-fire-ctrl-panel {
+  grid-column: span 6;
+}
+
+
+/* =========================================================================
+   9. TACTICAL PANEL VISIBILITY — ARCADE TIER
+   "Guided targeting, simplified threat picture" (~8 panels)
+
+   Show:     Sensors, Map, Targeting, Weapons, Firing Solution,
+             Fire Control (HERO), Torpedoes, Combat Log
+   Hidden:   ECM, Threat Board shrinks to span-4
+   ========================================================================= */
+
+/* Hidden panels */
+body.tier-arcade .tac-ecm-panel {
+  display: none;
+}
+
+/* Threat Board shrinks (still visible, less dominant) */
+body.tier-arcade .tac-threat-panel {
+  grid-column: span 4;
+}
+
+/* Hero: Fire Control */
+body.tier-arcade .tac-fire-ctrl-panel {
+  grid-column: span 6;
+}
+
+
+/* =========================================================================
+   10. TACTICAL PANEL VISIBILITY — CPU-ASSIST TIER
+   "Captain's targeting — simplified, 5-6 panels"
+
+   Show:     Sensors, Map, Targeting (simplified), Fire Control (HERO),
+             Weapons (ordnance status), Combat Log
+   Hidden:   ECM, Threat Board, Subsystem Target, Torpedoes, Firing Solution
+   ========================================================================= */
+
+/* Hidden panels */
+body.tier-cpu-assist .tac-ecm-panel,
+body.tier-cpu-assist .tac-threat-panel,
+body.tier-cpu-assist .tac-subsystem-panel,
+body.tier-cpu-assist .tac-torpedo-panel,
+body.tier-cpu-assist .tac-solution-panel {
+  display: none;
+}
+
+/* Hero: Fire Control — dominates the simplified layout */
+body.tier-cpu-assist .tac-fire-ctrl-panel {
+  grid-column: span 8;
+}
+
+
+/* =========================================================================
+   11. OPS PANEL VISIBILITY — RAW TIER
+   "Full damage control and power management" (all 8 panels)
+
+   Show:     ALL panels. Subsystem Status hero (span-8).
+   ========================================================================= */
+
+/* RAW: show everything — hero sizing only */
+body.tier-raw .ops-subsystem-panel {
+  grid-column: span 8;
+}
+
+
+/* =========================================================================
+   12. OPS PANEL VISIBILITY — ARCADE TIER
+   "Balanced ops — no crew micro" (~6 panels)
+
+   Show:     Ship Status, Subsystem Status (HERO), Ops Control,
+             Power Management, Power Profiles, Event Log
+   Hidden:   Crew Fatigue, Power Draw
+   ========================================================================= */
+
+/* Hidden panels */
+body.tier-arcade .ops-crew-panel {
+  display: none;
+}
+
+/* Hero: Subsystem Status */
+body.tier-arcade .ops-subsystem-panel {
+  grid-column: span 8;
+}
+
+
+/* =========================================================================
+   13. OPS PANEL VISIBILITY — CPU-ASSIST TIER
+   "Captain's overview — 4 panels max"
+
+   Show:     Subsystem Status (HERO, summary), Power Profiles, Event Log,
+             Ship Status
+   Hidden:   Crew Fatigue, Power Draw, Ops Control, Power Management
+   ========================================================================= */
+
+/* Hidden panels */
+body.tier-cpu-assist .ops-crew-panel,
+body.tier-cpu-assist .ops-draw-panel,
+body.tier-cpu-assist .ops-systems-panel,
+body.tier-cpu-assist .ops-power-panel {
+  display: none;
+}
+
+/* Hero: Subsystem Status — summary view dominates */
+body.tier-cpu-assist .ops-subsystem-panel {
+  grid-column: span 8;
+}
+
+
+/* =========================================================================
+   14. WORKFLOW STRIP
    Visible in all tiers, accent color matches tier.
    ========================================================================= */
 
@@ -238,7 +356,7 @@ body.tier-cpu-assist helm-workflow-strip { --strip-accent: #c0a0ff; }
 
 
 /* =========================================================================
-   9. ENGINEERING PANEL VISIBILITY (unchanged from pre-refactor)
+   15. ENGINEERING PANEL VISIBILITY (unchanged from pre-refactor)
    Eng view has its own panel set. These rules are preserved as-is
    until engineering gets its own refactor pass.
    ========================================================================= */
@@ -277,7 +395,7 @@ body.tier-cpu-assist .eng-thrust-panel {
 
 
 /* =========================================================================
-   10. TUTORIAL HIGHLIGHT GLOW
+   16. TUTORIAL HIGHLIGHT GLOW
    ========================================================================= */
 
 @keyframes tutorial-pulse {
@@ -299,7 +417,7 @@ body.tutorial-active flaxos-panel:not(.tutorial-highlight) {
 
 
 /* =========================================================================
-   11. REDUCED MOTION
+   17. REDUCED MOTION
    ========================================================================= */
 
 @media (prefers-reduced-motion: reduce) {
