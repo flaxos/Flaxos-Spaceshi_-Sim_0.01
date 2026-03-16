@@ -270,8 +270,11 @@ class TestPhaseTransitions:
         Retrograde heading points along +rel_vel i.e. along {-50,0,0}.
         vector_to_heading({-50,0,0}) gives yaw ≈ 180°.
         We set ship orientation to yaw=178° (within 10° tolerance).
+
+        Target at 10 km (> STATIONKEEP_RANGE=5 km) so the early stationkeep
+        shortcut does not fire before we can check the flip->brake transition.
         """
-        target = _make_target({"x": 5000.0, "y": 0.0, "z": 0.0})
+        target = _make_target({"x": 10000.0, "y": 0.0, "z": 0.0})
         ship = _make_ship(
             position={"x": 0.0, "y": 0.0, "z": 0.0},
             velocity={"x": 50.0, "y": 0.0, "z": 0.0},
@@ -561,13 +564,17 @@ class TestApproachPhaseTransitions:
     def test_approach_does_not_jump_to_stationkeep_when_too_fast(self):
         """APPROACH phase does NOT transition to stationkeep if rel_speed >= stationkeep_speed.
 
-        Ship is inside stationkeep_range distance but still moving at 2 m/s
-        toward the target — should stay in approach until speed bleeds off.
+        Ship is inside stationkeep_range (5000 m) but still moving at 60 m/s
+        toward the target — above the 50 m/s STATIONKEEP_SPEED threshold.
+        Should stay in approach until speed bleeds off.
         """
-        target = _make_target({"x": 60.0, "y": 0.0, "z": 0.0})   # 60 m away
+        stationkeep_range = RendezvousAutopilot.STATIONKEEP_RANGE   # 5000 m
+        stationkeep_speed = RendezvousAutopilot.STATIONKEEP_SPEED   # 50 m/s
+        # Place ship inside stationkeep_range but closing faster than the speed limit
+        target = _make_target({"x": 2000.0, "y": 0.0, "z": 0.0})   # 2000 m — inside 5 km range
         ship = _make_ship(
             position={"x": 0.0, "y": 0.0, "z": 0.0},
-            velocity={"x": 2.0, "y": 0.0, "z": 0.0},   # 2 m/s closing — too fast
+            velocity={"x": 60.0, "y": 0.0, "z": 0.0},   # 60 m/s — above 50 m/s speed limit
             target=target,
         )
         ap = RendezvousAutopilot(ship, target_id="T001")
@@ -575,16 +582,23 @@ class TestApproachPhaseTransitions:
 
         ap.compute(0.1, 0.0)
 
-        # Must NOT be stationkeep yet
+        # Must NOT be stationkeep yet — speed is above STATIONKEEP_SPEED
         assert ap.phase != "stationkeep", (
-            "Should not enter stationkeep when still closing at 2 m/s"
+            f"Should not enter stationkeep when closing at 60 m/s "
+            f"(STATIONKEEP_SPEED={stationkeep_speed} m/s)"
         )
 
     def test_approach_does_not_transition_to_stationkeep_when_too_far(self):
-        """APPROACH phase stays in approach when range > stationkeep_range, even at low speed."""
-        approach_range = NAV_PROFILES["balanced"].get("approach_range", 5000)
+        """APPROACH phase stays in approach when range > stationkeep_range, even at low speed.
 
-        target = _make_target({"x": 500.0, "y": 0.0, "z": 0.0})   # 500 m, > 100 m
+        STATIONKEEP_RANGE is 5000 m.  A ship at 8000 m is outside that threshold
+        so stationkeep must not be entered even with near-zero relative speed.
+        """
+        stationkeep_range = RendezvousAutopilot.STATIONKEEP_RANGE   # 5000 m
+
+        # Use a range clearly outside STATIONKEEP_RANGE
+        test_range = stationkeep_range * 1.6   # 8000 m — outside the 5 km handoff range
+        target = _make_target({"x": test_range, "y": 0.0, "z": 0.0})
         ship = _make_ship(
             position={"x": 0.0, "y": 0.0, "z": 0.0},
             velocity={"x": 0.0, "y": 0.0, "z": 0.0},
@@ -596,7 +610,8 @@ class TestApproachPhaseTransitions:
         ap.compute(0.1, 0.0)
 
         assert ap.phase != "stationkeep", (
-            "Should not stationkeep at 500 m — still need to close distance"
+            f"Should not stationkeep at {test_range:.0f} m — "
+            f"still outside STATIONKEEP_RANGE ({stationkeep_range:.0f} m)"
         )
 
 
@@ -622,8 +637,12 @@ class TestApproachThrustBehaviour:
         return ap
 
     def test_approach_produces_nonzero_thrust_toward_target(self):
-        """Approach phase commands positive thrust (ship needs to close distance)."""
-        ap = self._ap_in_approach(range_m=3000.0)
+        """Approach phase commands positive thrust (ship needs to close distance).
+
+        Use a range well outside STATIONKEEP_RANGE (5000 m) so the approach
+        P-controller is active and not immediately handed off to MatchVelocity.
+        """
+        ap = self._ap_in_approach(range_m=10000.0)
 
         result = ap.compute(0.1, 0.0)
 
@@ -633,13 +652,34 @@ class TestApproachThrustBehaviour:
         )
 
     def test_approach_thrust_proportional_closer_range_gives_less_thrust(self):
-        """Proportional thrust: a ship at 1000 m should use less thrust than at 4000 m.
+        """Proportional thrust: a ship at 10 km should use less thrust than at 40 km.
 
         This is the core property that prevents oscillation — thrust tapers
         as the ship converges so it does not overshoot into another burn cycle.
+
+        Both ranges are outside STATIONKEEP_RANGE (5000 m).  We use a very
+        large approach_range override (5000 km) to keep both ranges well below
+        the P-controller saturation point, so the proportional relationship
+        is visible in the thrust values rather than being masked by the cap.
         """
-        ap_far = self._ap_in_approach(range_m=4000.0)
-        ap_near = self._ap_in_approach(range_m=1000.0)
+        def _ap_with_large_approach_range(range_m):
+            target = _make_target({"x": range_m, "y": 0.0, "z": 0.0})
+            ship = _make_ship(
+                position={"x": 0.0, "y": 0.0, "z": 0.0},
+                velocity={"x": 0.0, "y": 0.0, "z": 0.0},
+                target=target,
+            )
+            # Large approach_range keeps desired_closing below the saturation
+            # threshold so the proportional control law is directly observable.
+            ap = RendezvousAutopilot(
+                ship, target_id="T001",
+                params={"profile": "balanced", "approach_range": 5_000_000.0},
+            )
+            ap.phase = "approach"
+            return ap
+
+        ap_far = _ap_with_large_approach_range(range_m=40000.0)
+        ap_near = _ap_with_large_approach_range(range_m=10000.0)
 
         result_far = ap_far.compute(0.1, 0.0)
         result_near = ap_near.compute(0.1, 0.0)
@@ -937,8 +977,12 @@ class TestAggressiveConvergence:
         )
 
     def test_balanced_enters_approach_phase(self):
-        """Balanced profile enters the approach phase from 10 km, confirming
+        """Balanced profile enters the approach phase from 100 km, confirming
         it doesn't get stuck in a burn/brake oscillation.
+
+        STATIONKEEP_RANGE is 5000 m.  Starting at 100 km ensures the ship
+        has braked to < 150 m/s while still well outside the 5 km stationkeep
+        handoff, so BRAKE exits to APPROACH rather than directly to stationkeep.
 
         The 1D convergence sim can't fully simulate balanced convergence
         (RCS rotation + low proportional thrust = slow settling), but we
@@ -946,7 +990,7 @@ class TestAggressiveConvergence:
         """
         result = self._run_sim(
             profile="balanced",
-            start_range_m=10000.0,
+            start_range_m=100_000.0,
             max_ticks=5000,
             dt=1.0,
         )
@@ -956,24 +1000,26 @@ class TestAggressiveConvergence:
             f"Phases seen: {sorted(set(result['phase_history']))}"
         )
 
-        # Ship should make progress — final range should be well under start
-        assert result["final_range_m"] < 5000.0, (
+        # Ship should make significant progress — well under the start range
+        assert result["final_range_m"] < 50_000.0, (
             f"Balanced profile made no progress: final range {result['final_range_m']:.0f} m "
-            f"from start of 10 km"
+            f"from start of 100 km"
         )
 
     def test_approach_phase_appears_in_phase_history(self):
         """The 'approach' phase string must appear in phase history during convergence
-        from a range large enough to trigger overshoot and approach recovery.
+        from a range large enough that BRAKE exits to APPROACH rather than stationkeep.
 
-        At 50km with aggressive profile, the ship builds enough speed that
-        the brake phase overshoots, triggering the approach phase.
+        STATIONKEEP_RANGE is 5000 m.  At 400 km with aggressive profile, the ship
+        builds substantial speed, brakes hard, but still has > 5 km range when
+        rel_speed drops below the brake_done_speed threshold — so BRAKE correctly
+        exits to APPROACH.  Using 0.5 s ticks for better RCS rotation resolution.
         """
         result = self._run_sim(
             profile="aggressive",
-            start_range_m=50000.0,
-            max_ticks=5000,
-            dt=1.0,
+            start_range_m=400_000.0,
+            max_ticks=10000,
+            dt=0.5,
         )
 
         assert "approach" in result["phase_history"], (
@@ -1074,7 +1120,7 @@ class TestFlipSnapshotHeading:
     def test_flip_heading_does_not_change_during_coast(self):
         """Once in FLIP, the snapshot heading must not change even if the
         ship's velocity vector shifts (simulating lateral drift during coast)."""
-        target = _make_target({"x": 5000.0, "y": 0.0, "z": 0.0})
+        target = _make_target({"x": 10000.0, "y": 0.0, "z": 0.0})
         ship = _make_ship(
             position={"x": 0.0, "y": 0.0, "z": 0.0},
             velocity={"x": 50.0, "y": 5.0, "z": 0.0},
@@ -1102,8 +1148,12 @@ class TestFlipSnapshotHeading:
         )
 
     def test_flip_snapshot_cleared_on_brake_entry(self):
-        """The snapshot heading should be cleared when transitioning to BRAKE."""
-        target = _make_target({"x": 5000.0, "y": 0.0, "z": 0.0})
+        """The snapshot heading should be cleared when transitioning to BRAKE.
+
+        Target at 10 km (> STATIONKEEP_RANGE=5 km) to prevent the early
+        stationkeep shortcut from firing before the flip->brake transition.
+        """
+        target = _make_target({"x": 10000.0, "y": 0.0, "z": 0.0})
         ship = _make_ship(
             position={"x": 0.0, "y": 0.0, "z": 0.0},
             velocity={"x": 50.0, "y": 0.0, "z": 0.0},
@@ -1336,8 +1386,16 @@ class TestAlignmentGuard:
         This is the exact bug from the logs:
           BRAKE -> APPROACH (decelerated to 167.4 m/s)
           APPROACH -> BURN (opening at 594.7 m/s)
+
+        Target at 60 km — beyond the balanced profile approach_range (50 km)
+        so the close-range alignment guard exemption does NOT apply.  At close
+        range (< approach_range) the guard is intentionally exempt because the
+        velocity-matching controller makes frequent small heading corrections and
+        the guard would block thrust for ~10 s per correction.  Beyond
+        approach_range the guard is still needed to prevent the retrograde-thrust
+        bug on BRAKE->APPROACH transition at long range.
         """
-        target = _make_target({"x": 50000.0, "y": 0.0, "z": 0.0})
+        target = _make_target({"x": 60000.0, "y": 0.0, "z": 0.0})
         ship = _make_ship(
             position={"x": 0.0, "y": 0.0, "z": 0.0},
             # Low closing speed (just exited BRAKE)
@@ -1382,8 +1440,13 @@ class TestAlignmentGuard:
 
     def test_flip_phase_not_affected_by_guard(self):
         """FLIP phase already sets thrust=0; the guard must not interfere
-        with it or add unexpected side effects."""
-        target = _make_target({"x": 5000.0, "y": 0.0, "z": 0.0})
+        with it or add unexpected side effects.
+
+        Target at 10 km (> STATIONKEEP_RANGE=5 km) to prevent the early
+        stationkeep shortcut from intercepting compute() before the flip
+        phase handler runs.
+        """
+        target = _make_target({"x": 10000.0, "y": 0.0, "z": 0.0})
         ship = _make_ship(
             position={"x": 0.0, "y": 0.0, "z": 0.0},
             velocity={"x": 50.0, "y": 0.0, "z": 0.0},
