@@ -202,17 +202,32 @@ class RendezvousAutopilot(BaseAutopilot):
         self.approach_range: float = float(self.params.get(
             "approach_range", profile.get("approach_range", 5_000.0)))
 
-        # Dynamic APPROACH_SPEED_LIMIT: scale with the derated effective
-        # acceleration (including alignment guard losses) so the approach
-        # P-controller never targets a speed the ship can't brake from.
-        # At 1G (10 m/s²) → 500 m/s.  At real ~17.5 m/s² → ~662 m/s.
-        # Capped at 3,000 m/s to keep the approach phase controllable.
+        # Dynamic APPROACH_SPEED_LIMIT and approach_range: both must be
+        # consistent with the derated effective acceleration.  The ship
+        # must be able to stop from APPROACH_SPEED_LIMIT within
+        # approach_range, or it overshoots during the approach phase.
+        #
+        # Formula: approach_range >= v_limit² / (2 * a_eff) * safety
+        # We compute the speed limit first, then ensure approach_range
+        # is large enough to stop from it (with 2x safety margin).
         effective_accel = self._get_effective_accel()
         g_ratio = max(1.0, effective_accel / 10.0)
         self.APPROACH_SPEED_LIMIT: float = min(
             self._BASE_APPROACH_SPEED_LIMIT * math.sqrt(g_ratio),
             3000.0,
         )
+        # Ensure approach_range is large enough to brake from the speed limit.
+        # Without this, at eff=17.5 m/s² the ship builds to 661 m/s but
+        # needs 12.5km to stop — more than the 10km approach_range.
+        # Only apply for high-thrust ships (eff > 15 m/s²) where the
+        # dynamic speed limit is significantly above the 500 m/s base.
+        if "approach_range" not in self.params and effective_accel > 15.0:
+            min_approach_range = (self.APPROACH_SPEED_LIMIT ** 2
+                                  / (2.0 * effective_accel) * 2.0)
+            self.approach_range = min(
+                max(self.approach_range, min_approach_range),
+                100_000.0,
+            )
 
         self.phase: str = "burn"
         self._match_ap: Optional[MatchVelocityAutopilot] = None
