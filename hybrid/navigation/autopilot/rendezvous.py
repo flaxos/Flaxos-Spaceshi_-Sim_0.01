@@ -203,15 +203,12 @@ class RendezvousAutopilot(BaseAutopilot):
             "approach_range", profile.get("approach_range", 5_000.0)))
 
         # Dynamic APPROACH_SPEED_LIMIT and approach_range: both must be
-        # consistent with the derated effective acceleration.  The ship
-        # must be able to stop from APPROACH_SPEED_LIMIT within
-        # approach_range, or it overshoots during the approach phase.
-        #
-        # Formula: approach_range >= v_limit² / (2 * a_eff) * safety
-        # We compute the speed limit first, then ensure approach_range
-        # is large enough to stop from it (with 2x safety margin).
-        effective_accel = self._get_effective_accel()
-        g_ratio = max(1.0, effective_accel / 10.0)
+        # consistent with the CONSERVATIVE acceleration estimate.  At init
+        # we have no measurement yet, so use 50% of theoretical — the same
+        # fallback _get_effective_accel() uses before measurements exist.
+        # This ensures approach_range is safe even before the first burn.
+        conservative_accel = self._get_max_accel() * self.max_thrust * 0.50
+        g_ratio = max(1.0, conservative_accel / 10.0)
         self.APPROACH_SPEED_LIMIT: float = min(
             self._BASE_APPROACH_SPEED_LIMIT * math.sqrt(g_ratio),
             3000.0,
@@ -221,9 +218,9 @@ class RendezvousAutopilot(BaseAutopilot):
         # needs 12.5km to stop — more than the 10km approach_range.
         # Only apply for high-thrust ships (eff > 15 m/s²) where the
         # dynamic speed limit is significantly above the 500 m/s base.
-        if "approach_range" not in self.params and effective_accel > 15.0:
+        if "approach_range" not in self.params and conservative_accel > 15.0:
             min_approach_range = (self.APPROACH_SPEED_LIMIT ** 2
-                                  / (2.0 * effective_accel) * 2.0)
+                                  / (2.0 * conservative_accel) * 2.0)
             self.approach_range = min(
                 max(self.approach_range, min_approach_range),
                 100_000.0,
@@ -233,6 +230,16 @@ class RendezvousAutopilot(BaseAutopilot):
         self._match_ap: Optional[MatchVelocityAutopilot] = None
         self._flip_entered_time: Optional[float] = None
         self._flip_entered_range: Optional[float] = None
+
+        # --- Measured acceleration tracking ---
+        # Instead of guessing a static guard_eff factor, we measure the
+        # actual delivered acceleration over a rolling window and use
+        # that for all braking/safety calculations.  This adapts to
+        # whatever thrust the ship actually delivers — no more guessing.
+        self._prev_speed: Optional[float] = None
+        self._accel_samples: list = []  # (dt, delta_speed) pairs
+        self._measured_accel: float = 0.0  # rolling average
+        self._ACCEL_WINDOW: float = 10.0  # seconds of history to average
         # Snapshot of the retrograde heading at flip entry.  Using a fixed
         # heading prevents the RCS from chasing a moving target as the
         # velocity vector drifts during unpowered coast.
@@ -256,38 +263,63 @@ class RendezvousAutopilot(BaseAutopilot):
             return max(propulsion.max_thrust / self.ship.mass, 0.01)
         return 0.01
 
-    # The alignment guard now uses proportional cosine scaling instead
-    # of a binary 30° cutoff.  At 20° error, cos(20°) = 0.94 — nearly
-    # full thrust.  Only at 90°+ does thrust go to zero.  This
-    # eliminates the old 35% delivery problem where the binary guard
-    # flickered on/off around the threshold.
-    #
-    # With proportional scaling, delivery should be ~85-90% during
-    # steady-state BURN/BRAKE (heading error stays under 20°).
-    # Using 0.80 conservatively to account for the initial rotation
-    # transient at BURN start and FLIP→BRAKE transition.
-    _ALIGNMENT_GUARD_EFFICIENCY = 0.80
+    def _update_measured_accel(self, dt: float) -> None:
+        """Update rolling measurement of actual delivered acceleration.
+
+        Tracks speed changes over a window and computes the average
+        acceleration the ship is actually achieving — including all
+        alignment guard losses, RCS lag, power throttling, etc.
+        This replaces the static guard_eff guessing game.
+        """
+        current_speed = magnitude(self.ship.velocity)
+        if self._prev_speed is not None and dt > 0.001:
+            delta_speed = abs(current_speed - self._prev_speed)
+            self._accel_samples.append((dt, delta_speed))
+
+            # Trim samples older than the window
+            total_dt = sum(s[0] for s in self._accel_samples)
+            while total_dt > self._ACCEL_WINDOW and len(self._accel_samples) > 2:
+                removed = self._accel_samples.pop(0)
+                total_dt -= removed[0]
+
+            # Compute rolling average: total delta_speed / total dt
+            if total_dt > 1.0:  # need at least 1s of data
+                total_dv = sum(s[1] for s in self._accel_samples)
+                self._measured_accel = total_dv / total_dt
+
+        self._prev_speed = current_speed
 
     def _get_effective_accel(self) -> float:
-        """Profile-limited acceleration (m/s^2), derated for alignment guard.
+        """Actual delivered acceleration for braking/safety calculations.
 
-        The autopilot never commands more than self.max_thrust (a 0-1
-        throttle fraction), and the alignment guard blocks thrust during
-        heading corrections.  Braking distance, safety caps, and ETA must
-        use this derated value to avoid overshoot.
+        Uses real-time measured acceleration when available (after ~2s of
+        thrust data).  Falls back to a conservative 50% of theoretical
+        when no measurement exists yet (e.g., first seconds of BURN).
+
+        This eliminates the static guard_eff factor that never matched
+        reality across different phases and heading change rates.
         """
-        raw = self._get_max_accel()
-        eff = raw * self.max_thrust * self._ALIGNMENT_GUARD_EFFICIENCY
+        theoretical = self._get_max_accel() * self.max_thrust
+
+        if self._measured_accel > 1.0:
+            # Use measured, but never trust it to be MORE than theoretical
+            # (measurement noise could briefly spike above real capability)
+            eff = min(self._measured_accel, theoretical)
+        else:
+            # No measurement yet — use conservative 50% estimate
+            eff = theoretical * 0.50
+
         if not hasattr(self, '_logged_accel'):
             propulsion = self.ship.systems.get("propulsion")
             prop_thrust = getattr(propulsion, 'max_thrust', 'N/A') if propulsion else 'N/A'
             logger.info(
                 "Rendezvous accel: raw=%.2f (prop_thrust=%s, mass=%.0f), "
-                "profile_throttle=%.2f, guard_eff=%.2f, effective=%.2f m/s^2",
-                raw, prop_thrust, self.ship.mass, self.max_thrust,
-                self._ALIGNMENT_GUARD_EFFICIENCY, eff)
+                "profile_throttle=%.2f, theoretical=%.2f m/s^2 "
+                "(measured accel used when available)",
+                self._get_max_accel(), prop_thrust, self.ship.mass,
+                self.max_thrust, theoretical)
             self._logged_accel = True
-        return eff
+        return max(eff, 0.5)  # floor at 0.5 m/s^2 to avoid division by zero
 
     @staticmethod
     def _braking_distance(speed: float, accel: float) -> float:
@@ -340,6 +372,10 @@ class RendezvousAutopilot(BaseAutopilot):
         Returns:
             ``{thrust, heading}`` or ``None`` on error.
         """
+        # Update measured acceleration from actual velocity changes.
+        # This must happen every tick BEFORE braking distance calculations.
+        self._update_measured_accel(dt)
+
         target = self.get_target()
         if not target:
             self.status = "error"
@@ -379,9 +415,10 @@ class RendezvousAutopilot(BaseAutopilot):
             if closing_speed > 0 and current_range <= d_trigger:
                 logger.info(
                     "Rendezvous: BURN -> FLIP at range %.0f m, "
-                    "closing %.1f m/s, d_trigger %.0f m (flip %.1fs)",
+                    "closing %.1f m/s, d_trigger %.0f m (flip %.1fs, "
+                    "measured_accel=%.1f m/s^2)",
                     current_range, closing_speed, d_trigger,
-                    self._estimate_flip_time())
+                    self._estimate_flip_time(), self._measured_accel)
                 self.phase = "flip"
                 self._flip_entered_time = sim_time
                 self._flip_entered_range = current_range
