@@ -26,6 +26,9 @@ ships:
           scan_range: 500000
       navigation: {}
       targeting: {}
+      docking:
+        docking_range: 50       # metres
+        max_relative_velocity: 1.0  # m/s
 
   - id: "target_station"
     name: "Tycho Station"

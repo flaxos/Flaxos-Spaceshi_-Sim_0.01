@@ -127,6 +127,23 @@ def register_helm_commands(
 
         target_id = args.get("target_id") or args.get("target")
         target_ship = _resolve_ship(target_id) if target_id else None
+
+        # If direct lookup failed, the GUI likely sent a contact ID (e.g. "C001").
+        # Reverse-map through the ship's sensor contact tracker.
+        if not target_ship and target_id and ship:
+            sensors = ship.systems.get("sensors")
+            if sensors:
+                tracker = getattr(sensors, "contact_tracker", None)
+                if tracker:
+                    # Reverse lookup: contact_id -> real ship_id
+                    real_id = next(
+                        (rid for rid, cid in tracker.id_mapping.items() if cid == target_id),
+                        None,
+                    )
+                    if real_id:
+                        target_ship = _resolve_ship(real_id)
+                        target_id = real_id
+
         result = _dispatch_to_docking(
             ship,
             "request_docking",

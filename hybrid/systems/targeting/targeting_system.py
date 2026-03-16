@@ -152,9 +152,9 @@ class TargetingSystem(BaseSystem):
         # Update target data from contact
         prev_velocity = self.target_data.get("velocity", {"x": 0, "y": 0, "z": 0})
         self.target_data = {
-            "position": getattr(contact, 'position', contact.get('position', {})),
-            "velocity": getattr(contact, 'velocity', contact.get('velocity', {"x": 0, "y": 0, "z": 0})),
-            "confidence": getattr(contact, 'confidence', contact.get('confidence', 0.5)),
+            "position": getattr(contact, 'position', {}),
+            "velocity": getattr(contact, 'velocity', {"x": 0, "y": 0, "z": 0}),
+            "confidence": getattr(contact, 'confidence', 0.5),
             "last_update": self._sim_time,
         }
 
