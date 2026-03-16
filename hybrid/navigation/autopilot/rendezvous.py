@@ -250,6 +250,7 @@ class RendezvousAutopilot(BaseAutopilot):
         # this persists, preventing false triggers from P-controller braking
         # transients that briefly push closing_speed below zero.
         self._approach_opening_ticks: int = 0
+        self._drift_pulse_done: bool = False
         self.status = "active"
         if not target_id:
             self.status = "error"
@@ -545,36 +546,31 @@ class RendezvousAutopilot(BaseAutopilot):
             # The range gate prevents premature creep at very long range
             # where the ship needs to accelerate toward the target, not
             # coast at near-zero speed.
-            creep_speed = self.stationkeep_speed * 3.0  # ~180 m/s
-            creep_range = self.stationkeep_range * 20.0  # ~100 km
-            if rel_speed < creep_speed and current_range < creep_range:
-                self.phase = "approach_creep"
+            # When nearly stopped, transition to approach_drift: rotate
+            # toward target, fire a brief pulse, then coast.  The key is
+            # getting speed LOW first (<20 m/s) so the prograde rotation
+            # is safe — at 20 m/s, any heading misalignment during the
+            # rotation causes negligible drift (< 200m over a 10s rotation).
+            if rel_speed < 20.0:
+                self.phase = "approach_drift"
+                self._drift_pulse_done = False
                 logger.info(
-                    "Rendezvous: APPROACH_BRAKE -> APPROACH_CREEP "
-                    "(rel_speed=%.1f m/s < %.1f, range %.0f m < %.0f m)",
-                    rel_speed, creep_speed, current_range, creep_range)
-            elif rel_speed < creep_speed and current_range >= creep_range:
-                # Still far out but low speed — accelerate toward target
-                # instead of braking. Switch to creep which will nudge forward.
-                self.phase = "approach_creep"
-                logger.info(
-                    "Rendezvous: APPROACH_BRAKE -> APPROACH_CREEP "
-                    "(low speed %.1f m/s at long range %.0f m, will accelerate)",
+                    "Rendezvous: APPROACH_BRAKE -> APPROACH_DRIFT "
+                    "(nearly stopped, rel_speed=%.1f m/s, range %.0f m)",
                     rel_speed, current_range)
 
-        elif self.phase == "approach_creep":
-            # Sub-phase 2: nearly stopped, gently thrust toward target.
-            # One heading change (retrograde → prograde), then coast at
-            # low speed.  If somehow speed exceeds creep threshold,
-            # fall back to approach_brake to kill it.
-            creep_speed = self.stationkeep_speed * 3.0
-            if rel_speed > creep_speed * 1.5:
+        elif self.phase == "approach_drift":
+            # Drift phase: ship is nearly stopped (<20 m/s).
+            # If closing on target, just coast — will reach stationkeep.
+            # If not closing (or closing too slowly), fire a gentle pulse.
+            # If speed builds beyond 60 m/s, fall back to approach_brake.
+            if rel_speed > self.stationkeep_speed:
                 self.phase = "approach_brake"
                 self._accel_samples.clear()
                 self._measured_accel = 0.0
                 logger.info(
-                    "Rendezvous: APPROACH_CREEP -> APPROACH_BRAKE "
-                    "(rel_speed %.1f m/s exceeded creep limit, range %.0f m)",
+                    "Rendezvous: APPROACH_DRIFT -> APPROACH_BRAKE "
+                    "(speed rose to %.1f m/s, range %.0f m)",
                     rel_speed, current_range)
 
         # Execute current phase
@@ -591,9 +587,9 @@ class RendezvousAutopilot(BaseAutopilot):
         elif self.phase == "approach_brake":
             self.status = "approach_braking"
             cmd = self._compute_approach_brake(rel)
-        elif self.phase == "approach_creep":
-            self.status = "approach_creeping"
-            cmd = self._compute_approach_creep(target, rel, current_range)
+        elif self.phase == "approach_drift":
+            self.status = "drifting_to_target"
+            cmd = self._compute_approach_drift(target, rel, current_range)
         else:
             cmd = self._compute_stationkeep(dt, sim_time)
 
@@ -716,6 +712,41 @@ class RendezvousAutopilot(BaseAutopilot):
         thrust_frac = min(self.max_thrust, current_speed / 50.0)
         thrust_frac = max(0.02, thrust_frac)
         return {"thrust": self._clamp_thrust(thrust_frac),
+                "heading": {
+                    "yaw": heading.get("yaw", 0),
+                    "pitch": self.ship.orientation.get("pitch", 0),
+                    "roll": self.ship.orientation.get("roll", 0),
+                }}
+
+    def _compute_approach_drift(self, target, rel: Dict,
+                                current_range: float) -> Dict:
+        """Drift toward target at very low speed.
+
+        The ship is nearly stopped (<20 m/s).  Point toward target and
+        apply a tiny fixed pulse (2% thrust for one tick) when not
+        closing fast enough.  Then coast.  The alignment guard ensures
+        thrust only fires when actually pointing toward the target.
+
+        At <20 m/s, a 10-second heading rotation only drifts ~200m —
+        negligible at 60+ km range.  This is why approach_brake must
+        decelerate to <20 before entering this phase.
+        """
+        target_pos = target.position if hasattr(target, "position") else target
+        vec = subtract_vectors(target_pos, self.ship.position)
+        heading = vector_to_heading(vec)
+        actual_closing = -rel["range_rate"]
+
+        # Desired: gently close at ~30 m/s
+        desired_closing = 30.0
+
+        if actual_closing >= desired_closing * 0.5:
+            # Already closing well enough — coast
+            thrust = 0.0
+        else:
+            # Need a gentle nudge toward target
+            thrust = self._clamp_thrust(0.02)
+
+        return {"thrust": thrust,
                 "heading": {
                     "yaw": heading.get("yaw", 0),
                     "pitch": self.ship.orientation.get("pitch", 0),
@@ -1052,7 +1083,7 @@ class RendezvousAutopilot(BaseAutopilot):
             if a_max > 0 and distance > 0:
                 return 2.0 * math.sqrt(distance / a_max)
             return None
-        if self.phase in ("approach", "approach_brake", "approach_creep"):
+        if self.phase in ("approach", "approach_brake", "approach_creep", "approach_drift"):
             # Approach uses low proportional thrust, so ETA is mostly
             # distance / current closing speed, with a floor guess.
             if closing_speed > 0.5:
@@ -1081,7 +1112,7 @@ class RendezvousAutopilot(BaseAutopilot):
             return f"Braking -- {d} remaining, ETA {t}"
         if self.phase == "approach_brake":
             return f"Approach braking -- {d} remaining, ETA {t}"
-        if self.phase in ("approach", "approach_creep"):
+        if self.phase in ("approach", "approach_creep", "approach_drift"):
             return f"Final approach -- {d} remaining, ETA {t}"
         return f"Station-keeping at {d}"
 

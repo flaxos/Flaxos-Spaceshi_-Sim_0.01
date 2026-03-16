@@ -307,7 +307,7 @@ class TestPhaseTransitions:
         # range=50 km, closing_speed=0 → approach (never re-enters burn)
         ap.compute(0.1, 0.0)
 
-        assert ap.phase in ("approach", "approach_brake", "approach_creep"), (
+        assert ap.phase in ("approach", "approach_brake", "approach_creep", "approach_drift"), (
             f"Expected approach (BRAKE never re-enters BURN), got {ap.phase!r}"
         )
 
@@ -432,7 +432,7 @@ class TestApproachPhaseStructure:
             target=target,
         )
         ap = RendezvousAutopilot(ship, target_id="T001")
-        ap.phase = "approach_creep"
+        ap.phase = "approach_drift"
 
         # Must not raise; result may be a dict or None — just no exception
         try:
@@ -516,7 +516,7 @@ class TestApproachPhaseTransitions:
 
         ap.compute(0.1, 0.0)
 
-        assert ap.phase in ("approach", "approach_brake", "approach_creep"), (
+        assert ap.phase in ("approach", "approach_brake", "approach_creep", "approach_drift"), (
             f"Expected 'approach' phase at {test_range:.0f} m with closing_speed≈0, "
             f"got {ap.phase!r}"
         )
@@ -535,7 +535,7 @@ class TestApproachPhaseTransitions:
 
         ap.compute(0.1, 0.0)
 
-        assert ap.phase in ("approach", "approach_brake", "approach_creep"), (
+        assert ap.phase in ("approach", "approach_brake", "approach_creep", "approach_drift"), (
             f"Expected 'approach' at {far_range:.0f} m (BRAKE never re-enters BURN), "
             f"got {ap.phase!r}"
         )
@@ -552,7 +552,7 @@ class TestApproachPhaseTransitions:
             target=target,
         )
         ap = RendezvousAutopilot(ship, target_id="T001")
-        ap.phase = "approach_creep"
+        ap.phase = "approach_drift"
 
         ap.compute(0.1, 0.0)
 
@@ -579,7 +579,7 @@ class TestApproachPhaseTransitions:
             target=target,
         )
         ap = RendezvousAutopilot(ship, target_id="T001")
-        ap.phase = "approach_creep"
+        ap.phase = "approach_drift"
 
         ap.compute(0.1, 0.0)
 
@@ -606,7 +606,7 @@ class TestApproachPhaseTransitions:
             target=target,
         )
         ap = RendezvousAutopilot(ship, target_id="T001")
-        ap.phase = "approach_creep"
+        ap.phase = "approach_drift"
 
         ap.compute(0.1, 0.0)
 
@@ -634,7 +634,7 @@ class TestApproachThrustBehaviour:
         )
         ap = RendezvousAutopilot(ship, target_id="T001",
                                  params={"profile": profile})
-        ap.phase = "approach_creep"
+        ap.phase = "approach_drift"
         return ap
 
     def test_approach_produces_nonzero_thrust_toward_target(self):
@@ -652,6 +652,7 @@ class TestApproachThrustBehaviour:
             "Approach phase must command positive thrust to close distance"
         )
 
+    @pytest.mark.skip(reason="approach_drift uses fixed gentle pulses, not proportional P-control")
     def test_approach_thrust_proportional_closer_range_gives_less_thrust(self):
         """Proportional thrust: a ship at 10 km should use less thrust than at 40 km.
 
@@ -676,7 +677,7 @@ class TestApproachThrustBehaviour:
                 ship, target_id="T001",
                 params={"profile": "balanced", "approach_range": 5_000_000.0},
             )
-            ap.phase = "approach_creep"
+            ap.phase = "approach_drift"
             return ap
 
         ap_far = _ap_with_large_approach_range(range_m=40000.0)
@@ -737,7 +738,7 @@ class TestApproachThrustBehaviour:
             target=target,
         )
         ap = RendezvousAutopilot(ship, target_id="T001")
-        ap.phase = "approach_creep"
+        ap.phase = "approach_drift"
 
         result = ap.compute(0.1, 0.0)
 
@@ -768,11 +769,11 @@ class TestApproachTelemetry:
             target=target,
         )
         ap = RendezvousAutopilot(ship, target_id="T001")
-        ap.phase = "approach_creep"
+        ap.phase = "approach_drift"
 
         state = ap.get_state()
 
-        assert state.get("phase") in ("approach", "approach_brake", "approach_creep"), (
+        assert state.get("phase") in ("approach", "approach_brake", "approach_creep", "approach_drift"), (
             f"get_state() returned phase={state.get('phase')!r}, expected 'approach'"
         )
 
@@ -791,7 +792,7 @@ class TestApproachTelemetry:
             target=target,
         )
         ap = RendezvousAutopilot(ship, target_id="T001")
-        ap.phase = "approach_creep"
+        ap.phase = "approach_drift"
 
         state = ap.get_state()
 
@@ -820,7 +821,7 @@ class TestApproachTelemetry:
             target=target,
         )
         ap = RendezvousAutopilot(ship, target_id="T001")
-        ap.phase = "approach_creep"
+        ap.phase = "approach_drift"
         ap.compute(0.1, 0.0)
 
         assert ap.status not in ("braking", "burning", "flipping", "error"), (
@@ -996,7 +997,7 @@ class TestAggressiveConvergence:
             dt=1.0,
         )
 
-        approach_phases = {"approach", "approach_brake", "approach_creep"}
+        approach_phases = {"approach", "approach_brake", "approach_creep", "approach_drift"}
         assert approach_phases & set(result["phase_history"]), (
             "Balanced profile never entered an approach phase. "
             f"Phases seen: {sorted(set(result['phase_history']))}"
@@ -1024,7 +1025,7 @@ class TestAggressiveConvergence:
             dt=0.5,
         )
 
-        approach_phases = {"approach", "approach_brake", "approach_creep"}
+        approach_phases = {"approach", "approach_brake", "approach_creep", "approach_drift"}
         assert approach_phases & set(result["phase_history"]), (
             "Phase history did not contain any approach phase. "
             f"Distinct phases seen: {sorted(set(result['phase_history']))}"
@@ -1238,7 +1239,7 @@ class TestBrakeRelSpeedThreshold:
 
         # rel_speed ~ 0.5 m/s, well below threshold (250 m/s)
         # range 20km -- BRAKE always exits to APPROACH now
-        assert ap.phase in ("approach", "approach_brake", "approach_creep"), (
+        assert ap.phase in ("approach", "approach_brake", "approach_creep", "approach_drift"), (
             f"Expected BRAKE->APPROACH with low rel_speed at long range, "
             f"got {ap.phase!r}"
         )
@@ -1410,7 +1411,7 @@ class TestAlignmentGuard:
             target=target,
         )
         ap = RendezvousAutopilot(ship, target_id="T001")
-        ap.phase = "approach_creep"
+        ap.phase = "approach_drift"
 
         result = ap.compute(0.1, 0.0)
 
@@ -1431,7 +1432,7 @@ class TestAlignmentGuard:
             target=target,
         )
         ap = RendezvousAutopilot(ship, target_id="T001")
-        ap.phase = "approach_creep"
+        ap.phase = "approach_drift"
 
         result = ap.compute(0.1, 0.0)
 
