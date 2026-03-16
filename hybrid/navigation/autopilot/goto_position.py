@@ -124,6 +124,10 @@ class GoToPositionAutopilot(BaseAutopilot):
             return max(propulsion.max_thrust / self.ship.mass, 0.01)
         return 0.01
 
+    def _get_effective_accel(self) -> float:
+        """Profile-limited acceleration for braking calculations."""
+        return self._get_max_accel() * self.max_thrust
+
     def compute(self, dt: float, sim_time: float) -> Optional[Dict]:
         """Compute thrust/heading command for go-to-position."""
         if self.status == "error":
@@ -153,7 +157,7 @@ class GoToPositionAutopilot(BaseAutopilot):
         direction_to_target = normalize_vector(vector_to_target)
         closing_speed = dot_product(self.ship.velocity, direction_to_target)
 
-        max_accel = self._get_max_accel()
+        max_accel = self._get_effective_accel()
         braking_distance = (closing_speed ** 2) / (2 * max_accel) if closing_speed > 0 else 0.0
 
         if self.stop_at_target and closing_speed > 0:
@@ -209,7 +213,7 @@ class GoToPositionAutopilot(BaseAutopilot):
         distance = magnitude(vector_to_target)
         direction_to_target = normalize_vector(vector_to_target)
         closing_speed = dot_product(self.ship.velocity, direction_to_target)
-        max_accel = self._get_max_accel()
+        max_accel = self._get_effective_accel()
         braking_distance = (closing_speed ** 2) / (2 * max_accel) if closing_speed > 0 else 0.0
 
         # ETA estimate
