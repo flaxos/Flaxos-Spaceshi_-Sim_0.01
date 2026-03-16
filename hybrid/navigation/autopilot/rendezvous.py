@@ -241,6 +241,16 @@ class RendezvousAutopilot(BaseAutopilot):
             return max(propulsion.max_thrust / self.ship.mass, 0.01)
         return 0.01
 
+    def _get_effective_accel(self) -> float:
+        """Profile-limited acceleration (m/s^2).
+
+        The autopilot never commands more than self.max_thrust (a 0-1
+        throttle fraction).  Braking distance, safety caps, and ETA must
+        all use this value — not the raw hardware max — or the ship will
+        flip too late and overshoot.
+        """
+        return self._get_max_accel() * self.max_thrust
+
     @staticmethod
     def _braking_distance(speed: float, accel: float) -> float:
         """Kinematic braking distance: d = v^2 / (2a)."""
@@ -314,7 +324,7 @@ class RendezvousAutopilot(BaseAutopilot):
             self._flip_target_heading = None
             return self._compute_stationkeep(dt, sim_time)
 
-        a_max = self._get_max_accel()
+        a_max = self._get_effective_accel()
         # Use max(closing_speed, 0) for braking distance calc -- negative
         # closing speed means we are opening, so braking distance is 0.
         d_trigger = self._corrected_braking_distance(
@@ -596,7 +606,7 @@ class RendezvousAutopilot(BaseAutopilot):
         # Actual closing speed along the line to target (positive = closing)
         actual_closing = -rel["range_rate"]
 
-        a_max = self._get_max_accel()
+        a_max = self._get_effective_accel()
 
         # Moving-target compensation: if the target is receding faster
         # than the stationkeep threshold, the range-proportional
@@ -825,7 +835,7 @@ class RendezvousAutopilot(BaseAutopilot):
         rel = calculate_relative_motion(self.ship, target)
         current_range = rel["range"]
         closing_speed = max(-rel["range_rate"], 0.0)
-        a_max = self._get_max_accel()
+        a_max = self._get_effective_accel()
         d_brake = self._braking_distance(closing_speed, a_max)
         eta = self._estimate_eta(current_range, closing_speed, a_max)
 
