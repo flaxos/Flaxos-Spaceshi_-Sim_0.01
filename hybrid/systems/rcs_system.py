@@ -88,13 +88,30 @@ class RCSSystem(BaseSystem):
         
         # Attitude target (Euler angles in degrees)
         self.attitude_target = None  # None = no target (manual rate control)
-        
+
+        # Smoothed attitude target: rate-limited version of attitude_target.
+        # When the autopilot commands wildly different headings on
+        # consecutive ticks (e.g. alternating prograde/retrograde in the
+        # approach P-controller), the raw target can jump 150+ degrees
+        # between ticks.  The PD controller cannot track this — it
+        # produces maximum torque in alternating directions, exciting a
+        # divergent yaw oscillation that the alignment guard then blocks.
+        #
+        # The smoothed target moves toward attitude_target at max_rate
+        # degrees per second, giving the PD controller a physically
+        # achievable reference trajectory.  For slowly-changing targets
+        # (normal BRAKE retrograde drift) the smooth target equals the
+        # raw target within one tick.  Large jumps (>45 degrees) are
+        # suppressed — the smoothed target rate-limits the slew so the
+        # PD controller always has an achievable reference.
+        self._smoothed_target = None  # set when attitude_target is first set
+
         # Angular velocity target (degrees/second for manual control)
         self.angular_velocity_target = {"pitch": 0.0, "yaw": 0.0, "roll": 0.0}
-        
+
         # Control mode: "rate" (angular velocity) or "attitude" (position hold)
         self.control_mode = "rate"
-        
+
         # Controller gains (PD controller for attitude)
         # At dt=0.1s Euler integration, continuous-time critical damping
         # (kd=2*sqrt(kp)~2.83) still produces ~7° overshoot due to phase lag.
@@ -103,10 +120,10 @@ class RCSSystem(BaseSystem):
         # commits to a turn and locks on heading like a real mass should.
         self.kp = config.get("attitude_kp", 2.0)  # Proportional gain
         self.kd = config.get("attitude_kd", 5.0)  # Derivative gain (overdamped at dt=0.1s)
-        
+
         # Maximum angular rates (degrees/second)
         self.max_rate = config.get("max_angular_rate", 30.0)
-        
+
         # Status tracking
         self.status = "standby"
         self.total_torque = np.zeros(3)
@@ -245,6 +262,54 @@ class RCSSystem(BaseSystem):
         self._last_torque_magnitude = 0.0
         self._last_dt = 0.0
 
+    def _update_smoothed_target(self, dt: float) -> dict:
+        """Rate-limit the attitude target so the PD controller tracks an achievable reference.
+
+        When the commanded target jumps by more than max_rate * dt degrees
+        in a single tick (e.g. the approach controller flipping between
+        prograde and retrograde), the smoothed target moves toward the
+        command at max_rate deg/s instead of teleporting.  For small
+        changes (< max_rate * dt) the smoothed target equals the raw
+        target instantly — normal BRAKE retrograde drift is unaffected.
+
+        The rate limit matches the physical rotation capability of the
+        RCS, so the smoothed target is always achievable.  Without this,
+        150-degree target jumps cause the PD controller to command maximum
+        torque in alternating directions, exciting a divergent yaw
+        oscillation that blocks the alignment guard on >50% of ticks.
+
+        Returns:
+            The smoothed target dict {pitch, yaw, roll}.
+        """
+        raw = self.attitude_target
+        if raw is None:
+            self._smoothed_target = None
+            return raw
+
+        if self._smoothed_target is None:
+            # First time — snap to target (no history to smooth from)
+            self._smoothed_target = dict(raw)
+            return self._smoothed_target
+
+        max_step = self.max_rate * dt  # degrees per tick
+
+        for axis in ("pitch", "yaw", "roll"):
+            raw_val = raw.get(axis, 0.0)
+            smooth_val = self._smoothed_target.get(axis, 0.0)
+            diff = raw_val - smooth_val
+            # Normalize to [-180, 180] for shortest-path tracking
+            while diff > 180:
+                diff -= 360
+            while diff < -180:
+                diff += 360
+            if abs(diff) <= max_step:
+                self._smoothed_target[axis] = raw_val
+            else:
+                # Move toward raw target at max_rate
+                self._smoothed_target[axis] = smooth_val + math.copysign(max_step, diff)
+
+        return self._smoothed_target
+
     def _compute_attitude_control(self, ship, dt) -> np.ndarray:
         """Compute desired torque using quaternion-based PD attitude controller.
 
@@ -264,7 +329,7 @@ class RCSSystem(BaseSystem):
             return np.zeros(3)
 
         current = ship.orientation
-        target = self.attitude_target
+        target = self._update_smoothed_target(dt)
 
         # Build quaternions from Euler angles for gimbal-lock-free error
         q_current = Quaternion.from_euler(
@@ -318,6 +383,25 @@ class RCSSystem(BaseSystem):
         desired_rate_yaw = self.kp * yaw_error - self.kd * omega.get("yaw", 0)
         desired_rate_roll = self.kp * roll_error - self.kd * omega.get("roll", 0)
 
+        # Braking-distance rate limit: cap the desired rate so the ship
+        # can decelerate to zero within the remaining error angle.
+        # Without this, the PD controller builds angular velocity to
+        # max_rate during large rotations, then cannot brake in time
+        # because Kd*omega only exceeds Kp*error when the error is
+        # already small — leading to overshoot and oscillation.
+        #
+        # Uses the kinematic formula: v_max = sqrt(2 * a * d) where
+        # a = effective deceleration (Kd, in deg/s^2) and d = |error|.
+        # For kp=2.0, kd=5.0, this limits rate to ~10 deg/s when 10
+        # degrees from the target, preventing the 3-5 degree overshoot
+        # that the unmodified PD produces on large rotations.
+        desired_rate_pitch = self._brake_limited_rate(
+            desired_rate_pitch, pitch_error)
+        desired_rate_yaw = self._brake_limited_rate(
+            desired_rate_yaw, yaw_error)
+        desired_rate_roll = self._brake_limited_rate(
+            desired_rate_roll, roll_error)
+
         # Clamp to max angular rate using proportional scaling.
         # Independent per-axis clamping distorts the torque direction when
         # multiple axes saturate: a rotation that is mostly yaw with some
@@ -351,9 +435,32 @@ class RCSSystem(BaseSystem):
             math.radians(desired_rate_yaw) * scale,
         ])
 
+    def _brake_limited_rate(self, desired_rate: float, error: float) -> float:
+        """Cap desired angular rate so the ship can stop within the remaining error.
+
+        Uses the kinematic formula: v_max = sqrt(2 * a * d) where
+        a = effective deceleration (Kd, in deg/s^2) and d = |error| (degrees).
+
+        Args:
+            desired_rate: PD-computed desired angular rate (deg/s).
+            error: Heading error on this axis (degrees, signed).
+
+        Returns:
+            Rate-limited desired angular rate (deg/s), preserving sign.
+        """
+        abs_err = abs(error)
+        if abs_err < 0.5:
+            # Very close to target — no additional limiting needed
+            return desired_rate
+        safe_rate = math.sqrt(2.0 * self.kd * abs_err)
+        safe_rate = min(safe_rate, self.max_rate)
+        if abs(desired_rate) > safe_rate:
+            return math.copysign(safe_rate, desired_rate)
+        return desired_rate
+
     def _compute_rate_control(self, ship, dt) -> np.ndarray:
         """Compute torque to achieve desired angular velocity.
-        
+
         Args:
             ship: Ship object
             dt: Time step
@@ -586,7 +693,8 @@ class RCSSystem(BaseSystem):
         }
         self.control_mode = "rate"
         self.attitude_target = None
-        
+        self._smoothed_target = None
+
         return {
             "status": "Angular velocity target set",
             "target": self.angular_velocity_target,
@@ -596,9 +704,10 @@ class RCSSystem(BaseSystem):
     def clear_target(self):
         """Clear all targets and stop rotation."""
         self.attitude_target = None
+        self._smoothed_target = None
         self.angular_velocity_target = {"pitch": 0.0, "yaw": 0.0, "roll": 0.0}
         self.control_mode = "rate"
-        
+
         return {"status": "Targets cleared", "control_mode": self.control_mode}
 
     def get_state(self):
