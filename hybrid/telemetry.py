@@ -182,6 +182,9 @@ def get_ship_telemetry(ship, sim_time: float = None) -> Dict[str, Any]:
     # Get comms system state (transponder, radio, distress)
     comms_state = _get_comms_state(ship)
 
+    # Get docking system state
+    docking_state = _get_docking_state(ship)
+
     # Drift state: moving with no thrust applied
     is_drifting = acceleration_magnitude < 0.001 and velocity_magnitude > 0.01
 
@@ -248,6 +251,7 @@ def get_ship_telemetry(ship, sim_time: float = None) -> Dict[str, Any]:
         "ecm": ecm_state,
         "engineering": engineering_state,
         "comms": comms_state,
+        "docking": docking_state,
         "subsystem_health": ship.damage_model.get_report() if hasattr(ship, "damage_model") else {},
         "cascade_effects": ship.cascade_manager.get_report() if hasattr(ship, "cascade_manager") else {},
         "systems": {
@@ -419,6 +423,27 @@ def _get_comms_state(ship) -> Dict[str, Any]:
     if comms and hasattr(comms, "get_state"):
         try:
             return comms.get_state()
+        except Exception:
+            pass
+    return {
+        "enabled": False,
+        "status": "unavailable",
+    }
+
+
+def _get_docking_state(ship) -> Dict[str, Any]:
+    """Get docking system state for telemetry.
+
+    Args:
+        ship: Ship object
+
+    Returns:
+        dict: Docking state (status, target, range, relative velocity)
+    """
+    docking = ship.systems.get("docking")
+    if docking and hasattr(docking, "get_state"):
+        try:
+            return docking.get_state()
         except Exception:
             pass
     return {

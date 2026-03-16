@@ -57,7 +57,13 @@ class DockingPanel extends HTMLElement {
   _extractDockingState(fullState) {
     const ship = stateManager.getShipState();
     if (!ship) return null;
-    return ship.systems?.docking || ship.docking || null;
+    // Prefer top-level docking object (full state from telemetry)
+    // over systems.docking which is just a status string
+    const docking = ship.docking;
+    if (docking && typeof docking === "object") return docking;
+    const sysDocking = ship.systems?.docking;
+    if (sysDocking && typeof sysDocking === "object") return sysDocking;
+    return null;
   }
 
   render() {
@@ -407,12 +413,12 @@ class DockingPanel extends HTMLElement {
     const ds = this._dockingState;
     if (!ds) return DOCKING_STATES.IDLE;
 
-    const raw = (ds.docking_state || ds.state || "idle").toLowerCase();
+    const raw = (ds.docking_state || ds.status || ds.state || "idle").toLowerCase();
 
     // Normalize server values to known states
-    if (raw === "requesting" || raw === "requested") return DOCKING_STATES.REQUESTING;
+    if (raw === "requesting" || raw === "requested" || raw === "docking_initiated") return DOCKING_STATES.REQUESTING;
     if (raw === "approved" || raw === "cleared") return DOCKING_STATES.APPROVED;
-    if (raw === "docking" || raw === "approach") return DOCKING_STATES.DOCKING;
+    if (raw === "docking" || raw === "approach" || raw === "approaching") return DOCKING_STATES.DOCKING;
     if (raw === "docked") return DOCKING_STATES.DOCKED;
     return DOCKING_STATES.IDLE;
   }
@@ -487,18 +493,24 @@ class DockingPanel extends HTMLElement {
     const speedEl = this.shadowRoot.getElementById("guidance-speed");
     const alignEl = this.shadowRoot.getElementById("guidance-alignment");
 
-    rangeEl.textContent = ds.range !== undefined && ds.range !== null
-      ? this._formatRange(ds.range)
+    // The server sends last_check: {range, relative_velocity}
+    const lc = ds.last_check || {};
+    const range = lc.range ?? ds.range;
+    rangeEl.textContent = range !== undefined && range !== null
+      ? this._formatRange(range)
       : "--";
 
-    speedEl.textContent = ds.approach_speed !== undefined && ds.approach_speed !== null
-      ? `${ds.approach_speed.toFixed(1)} m/s`
+    const speed = lc.relative_velocity ?? ds.approach_speed;
+    speedEl.textContent = speed !== undefined && speed !== null
+      ? `${speed.toFixed(1)} m/s`
       : "--";
 
-    const alignment = ds.alignment_angle ?? ds.alignment;
-    alignEl.textContent = alignment !== undefined && alignment !== null
-      ? `${alignment.toFixed(1)}\u00B0`
-      : "--";
+    // Show docking criteria: range ≤ docking_range and speed ≤ max_relative_velocity
+    const maxRange = ds.docking_range || 50;
+    const maxSpeed = ds.max_relative_velocity || 1.0;
+    const rangeOk = range !== undefined && range <= maxRange;
+    const speedOk = speed !== undefined && speed <= maxSpeed;
+    alignEl.textContent = rangeOk && speedOk ? "GO" : `Need ≤${maxRange}m / ≤${maxSpeed}m/s`;
   }
 
   /**
