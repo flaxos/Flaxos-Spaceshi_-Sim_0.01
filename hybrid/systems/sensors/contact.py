@@ -235,6 +235,34 @@ def add_detection_noise(position: Dict[str, float], accuracy: float) -> Dict[str
 
     return add_vectors(position, noise)
 
+
+def add_velocity_noise(velocity: Dict[str, float], accuracy: float) -> Dict[str, float]:
+    """Add noise to a velocity vector based on detection accuracy.
+
+    Unlike position noise (up to 1km), velocity noise must use a much
+    smaller scale.  At 0% accuracy the error is up to 50 m/s per axis;
+    at 95% accuracy it's ~2.5 m/s — enough to be realistic sensor jitter
+    without overwhelming autopilot control loops that rely on rel_speed
+    thresholds of 20-180 m/s.
+
+    Args:
+        velocity: True velocity vector {x, y, z}
+        accuracy: Accuracy factor (0.0 = max noise, 1.0 = no noise)
+
+    Returns:
+        dict: Noisy velocity
+    """
+    noise_magnitude = 50.0 * (1.0 - accuracy)  # Up to 50 m/s error at 0% accuracy
+
+    noise = {
+        "x": random.gauss(0, noise_magnitude),
+        "y": random.gauss(0, noise_magnitude),
+        "z": random.gauss(0, noise_magnitude)
+    }
+
+    return add_vectors(velocity, noise)
+
+
 def calculate_detection_signature(ship) -> float:
     """Calculate detection signature for a ship.
 

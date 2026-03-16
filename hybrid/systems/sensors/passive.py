@@ -19,8 +19,8 @@ import logging
 import random
 from typing import Dict, List
 from hybrid.systems.sensors.contact import (
-    ContactData, add_detection_noise, calculate_detection_signature,
-    calculate_detection_accuracy
+    ContactData, add_detection_noise, add_velocity_noise,
+    calculate_detection_signature, calculate_detection_accuracy
 )
 from hybrid.systems.sensors.emission_model import (
     calculate_ir_signature, calculate_ir_detection_range,
@@ -155,7 +155,7 @@ class PassiveSensor:
 
             # Create contact with noise proportional to quality
             noisy_position = add_detection_noise(target_ship.position, accuracy)
-            noisy_velocity = add_detection_noise(target_ship.velocity, accuracy * 0.7)
+            noisy_velocity = add_velocity_noise(target_ship.velocity, accuracy * 0.7)
 
             bearing = calculate_bearing(observer_ship.position, target_ship.position)
 

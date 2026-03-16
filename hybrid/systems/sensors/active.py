@@ -15,7 +15,7 @@ announcing your position to anyone listening.
 import logging
 from typing import Dict, List
 from hybrid.systems.sensors.contact import (
-    ContactData, add_detection_noise,
+    ContactData, add_detection_noise, add_velocity_noise,
     calculate_detection_signature
 )
 from hybrid.systems.sensors.emission_model import (
@@ -186,7 +186,7 @@ class ActiveSensor:
 
             # Very minimal noise for active sensor
             noisy_position = add_detection_noise(target_ship.position, accuracy)
-            noisy_velocity = add_detection_noise(target_ship.velocity, accuracy)
+            noisy_velocity = add_velocity_noise(target_ship.velocity, accuracy)
 
             # ECM: Chaff adds additional position noise on top of accuracy noise
             if ecm_chaff_active and ecm_chaff_noise > 0:
