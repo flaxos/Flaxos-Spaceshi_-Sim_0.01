@@ -460,6 +460,11 @@ class ScenarioLoader extends HTMLElement {
           station: response.station
         });
 
+        // Collapse the parent panel now that a scenario is active —
+        // the player's focus should shift to helm/tactical, not the loader.
+        const panel = this.closest('flaxos-panel');
+        if (panel) panel.setAttribute('collapsed', '');
+
         // Dispatch event for other components
         this.dispatchEvent(new CustomEvent("scenario-loaded", {
           detail: {

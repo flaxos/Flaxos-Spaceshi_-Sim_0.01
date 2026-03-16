@@ -374,7 +374,7 @@ body.tier-raw .eng-pos-heading-panel {
 /* ARCADE: hide low-level engineering, show balanced set */
 body.tier-arcade .eng-draw-panel,
 body.tier-arcade .eng-crew-panel,
-body.tier-arcade .eng-micro-rcs-panel,
+body.tier-arcade .helm-micro-rcs-panel,
 body.tier-arcade .eng-thrust-panel,
 body.tier-arcade .eng-pos-heading-panel,
 body.tier-arcade .eng-nav-panel {
@@ -388,7 +388,7 @@ body.tier-cpu-assist .eng-draw-panel,
 body.tier-cpu-assist .eng-crew-panel,
 body.tier-cpu-assist .eng-nav-panel,
 body.tier-cpu-assist .eng-pos-heading-panel,
-body.tier-cpu-assist .eng-micro-rcs-panel,
+body.tier-cpu-assist .helm-micro-rcs-panel,
 body.tier-cpu-assist .eng-thrust-panel {
   display: none;
 }

@@ -152,6 +152,21 @@ class StatusBar extends HTMLElement {
             width: 40px;
           }
         }
+
+        /* Constrain height on small viewports so the bar doesn't eat screen space when it wraps */
+        @media (max-height: 800px) {
+          :host {
+            max-height: 36px;
+            overflow: hidden;
+          }
+        }
+
+        /* Hide entirely on extremely small viewports (landscape phones, small embeds) */
+        @media (max-height: 600px) {
+          :host {
+            display: none;
+          }
+        }
       </style>
 
       <div class="status-bar" id="bar">

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#0a0a0f">
   <meta name="description" content="Flaxos Spaceship Simulation - Command Interface">
   <title>Flaxos Spaceship Sim</title>
@@ -94,9 +94,9 @@
     }
 
     :root {
-      --panel-height-sm: clamp(220px, 26vh, 360px);
-      --panel-height-md: clamp(260px, 32vh, 440px);
-      --panel-height-lg: clamp(320px, 42vh, 560px);
+      --panel-height-sm: clamp(180px, 24vh, 340px);
+      --panel-height-md: clamp(220px, 30vh, 420px);
+      --panel-height-lg: clamp(280px, 38vh, 520px);
     }
 
     /* ===== View System ===== */
@@ -213,12 +213,12 @@
 
     /* DETECT group */
     .tac-sensors-panel {
-      grid-column: span 6;
+      grid-column: span 4;
       min-height: var(--panel-height-md);
     }
 
     .tac-map-panel {
-      grid-column: span 6;
+      grid-column: span 8;
       min-height: var(--panel-height-md);
     }
 
@@ -268,11 +268,10 @@
     /* AFTER-ACTION group */
     .tac-combat-log-panel {
       grid-column: span 12;
-      min-height: var(--panel-height-md);
-      max-height: 400px;
+      min-height: clamp(200px, 28vh, 400px);
     }
 
-    /* --- Engineering view panels (Phase 5: 8 panels + Micro RCS) --- */
+    /* --- Engineering view panels (Phase 5: 8 panels, Micro RCS moved to Helm) --- */
 
     /* THERMAL & DRIVE row — hero panels, span-6 each */
     .eng-thermal-panel {
@@ -310,12 +309,12 @@
     .eng-log-panel {
       grid-column: span 4;
       min-height: var(--panel-height-sm);
-      max-height: 400px;
-      overflow: hidden;
+      max-height: clamp(280px, 40vh, 400px);
+      overflow: auto;
     }
 
-    /* Micro RCS — RAW tier only (hidden by tier CSS for arcade/cpu-assist) */
-    .eng-micro-rcs-panel {
+    /* Micro RCS — moved to Helm, RAW tier only (tier CSS handles visibility) */
+    .helm-micro-rcs-panel {
       grid-column: span 4;
       min-height: var(--panel-height-sm);
     }
@@ -354,8 +353,8 @@
     .ops-log-panel {
       grid-column: span 4;
       min-height: var(--panel-height-sm);
-      max-height: 400px;
-      overflow: hidden;
+      max-height: clamp(280px, 40vh, 400px);
+      overflow: auto;
     }
 
     .ops-crew-panel {
@@ -369,7 +368,7 @@
       min-height: var(--panel-height-md);
     }
 
-    .sci-map-panel {
+    .sci-analysis-panel {
       grid-column: span 6;
       min-height: var(--panel-height-md);
     }
@@ -377,8 +376,8 @@
     .sci-log-panel {
       grid-column: span 6;
       min-height: var(--panel-height-md);
-      max-height: 400px;
-      overflow: hidden;
+      max-height: clamp(280px, 40vh, 400px);
+      overflow: auto;
     }
 
     /* Comms view panels (IFF, radio, hailing, distress) */
@@ -405,8 +404,8 @@
     .comms-log-panel {
       grid-column: span 12;
       min-height: var(--panel-height-sm);
-      max-height: 400px;
-      overflow: hidden;
+      max-height: clamp(280px, 40vh, 400px);
+      overflow: auto;
     }
 
     /* Fleet view panels */
@@ -464,8 +463,99 @@
     .mis-log-panel {
       grid-column: span 12;
       min-height: var(--panel-height-md);
-      max-height: 400px;
-      overflow: hidden;
+      max-height: clamp(280px, 40vh, 400px);
+      overflow: auto;
+    }
+
+    /* ===== Base panel min-width ===== */
+    flaxos-panel {
+      min-width: 280px;
+    }
+
+    /* ===== Intermediate breakpoint (150% zoom on 1920px = ~1280px effective) ===== */
+    /* 8-col grid preserves 2-per-row layout instead of collapsing to full-width */
+    @media (max-width: 1400px) {
+      .view-grid {
+        grid-template-columns: repeat(8, 1fr);
+        gap: 10px;
+      }
+
+      .panel-group[data-label]::before {
+        grid-column: span 8;
+      }
+
+      /* span-12 panels (full-width) become span-8 (still full-width in 8-col) */
+      .sci-sensors-panel,
+      .tac-combat-log-panel,
+      .comms-log-panel,
+      .mis-command-panel,
+      .mis-log-panel {
+        grid-column: span 8 !important;
+      }
+
+      /* span-8 panels stay full-width */
+      .tac-map-panel {
+        grid-column: span 8 !important;
+      }
+
+      /* span-6 panels become span-4 (half-width, 2-per-row) */
+      .helm-fc-panel,
+      .helm-contacts-panel,
+      .helm-flight-data-panel,
+      .helm-nav-display-panel,
+      .helm-maneuver-panel,
+      .tac-targeting-panel,
+      .tac-solution-panel,
+      .tac-fire-ctrl-panel,
+      .tac-weapons-panel,
+      .tac-torpedo-panel,
+      .eng-thermal-panel,
+      .eng-controls-panel,
+      .eng-subsystem-panel,
+      .eng-power-panel,
+      .comms-panel,
+      .comms-contacts-panel,
+      .comms-map-panel,
+      .comms-chat-panel,
+      .fleet-roster-panel,
+      .fleet-tactical-panel,
+      .fleet-contacts-panel,
+      .mis-scenario-panel,
+      .mis-objectives-panel,
+      .mis-chat-panel,
+      .sci-analysis-panel,
+      .sci-log-panel {
+        grid-column: span 4 !important;
+      }
+
+      /* span-4 panels stay span-4 (half-width, 2-per-row in 8-col) */
+      .helm-autopilot-status-panel,
+      .helm-manual-flight-panel,
+      .helm-rcs-panel,
+      .helm-queue-panel,
+      .helm-docking-panel,
+      .helm-nav-panel,
+      .tac-sensors-panel,
+      .tac-subsystem-panel,
+      .tac-threat-panel,
+      .tac-ecm-panel,
+      .helm-micro-rcs-panel,
+      .eng-systems-panel,
+      .eng-crew-panel,
+      .eng-log-panel,
+      .ops-status-panel,
+      .ops-subsystem-panel,
+      .ops-systems-panel,
+      .ops-power-panel,
+      .ops-profiles-panel,
+      .ops-draw-panel,
+      .ops-log-panel,
+      .ops-crew-panel,
+      .fleet-formation-panel,
+      .fleet-orders-panel,
+      .fleet-fire-panel {
+        grid-column: span 4 !important;
+      }
     }
 
     /* ===== Tablet breakpoint ===== */
@@ -474,9 +564,38 @@
         grid-template-columns: repeat(6, 1fr);
       }
 
+      /* Default: large panels fill the row */
       .view-grid > flaxos-panel,
       .view-grid .panel-group > flaxos-panel {
         grid-column: span 6 !important;
+      }
+
+      /* Span-4 panels become span-3 so two fit side-by-side */
+      .helm-autopilot-status-panel,
+      .helm-rcs-panel,
+      .helm-queue-panel,
+      .helm-docking-panel,
+      .helm-nav-panel,
+      .helm-micro-rcs-panel,
+      .tac-subsystem-panel,
+      .tac-threat-panel,
+      .tac-ecm-panel,
+      .tac-sensors-panel,
+      .ops-status-panel,
+      .ops-subsystem-panel,
+      .ops-systems-panel,
+      .ops-power-panel,
+      .ops-profiles-panel,
+      .ops-draw-panel,
+      .ops-crew-panel,
+      .ops-log-panel,
+      .eng-systems-panel,
+      .eng-crew-panel,
+      .eng-log-panel,
+      .fleet-formation-panel,
+      .fleet-orders-panel,
+      .fleet-fire-panel {
+        grid-column: span 3 !important;
       }
 
       .panel-group[data-label]::before {
@@ -494,6 +613,10 @@
       .view-grid .panel-group > flaxos-panel {
         grid-column: span 1 !important;
         grid-row: span 1 !important;
+      }
+
+      flaxos-panel {
+        min-width: 0;
       }
 
       .panel-group[data-label]::before {
@@ -574,7 +697,7 @@
             <autopilot-status></autopilot-status>
           </flaxos-panel>
 
-          <flaxos-panel title="Helm Queue" collapsible priority="tertiary" domain="comms" class="helm-queue-panel">
+          <flaxos-panel title="Helm Queue" collapsible priority="tertiary" domain="helm" class="helm-queue-panel">
             <helm-queue-panel></helm-queue-panel>
           </flaxos-panel>
 
@@ -588,6 +711,10 @@
 
           <flaxos-panel title="Maneuver Planner" collapsible priority="tertiary" domain="helm" class="helm-maneuver-panel">
             <maneuver-planner></maneuver-planner>
+          </flaxos-panel>
+
+          <flaxos-panel title="Micro RCS" collapsible priority="tertiary" domain="helm" class="helm-micro-rcs-panel">
+            <micro-rcs-control></micro-rcs-control>
           </flaxos-panel>
         </div>
       </div>
@@ -660,57 +787,59 @@
     <!-- ===== OPS VIEW (Power Management, Damage Control, System Priorities) ===== -->
     <div class="view-container" id="view-ops">
       <div class="view-grid">
-        <!-- Ship Status Overview -->
-        <flaxos-panel title="Ship Status" collapsible class="ops-status-panel">
-          <ship-status></ship-status>
-        </flaxos-panel>
+        <!-- DAMAGE CONTROL -->
+        <div class="panel-group" data-label="// DAMAGE CONTROL">
+          <flaxos-panel title="Ship Status" collapsible domain="ops" class="ops-status-panel">
+            <ship-status></ship-status>
+          </flaxos-panel>
 
-        <!-- Subsystem Health & Damage Control -->
-        <flaxos-panel title="Subsystem Status" collapsible class="ops-subsystem-panel" domain="power">
-          <subsystem-status-panel></subsystem-status-panel>
-        </flaxos-panel>
+          <flaxos-panel title="Subsystem Status" collapsible domain="ops" class="ops-subsystem-panel">
+            <subsystem-status-panel></subsystem-status-panel>
+          </flaxos-panel>
+        </div>
 
-        <!-- Ops Control (Damage Control, Power Allocation, Shutdowns) -->
-        <flaxos-panel title="Ops Control" collapsible class="ops-systems-panel" domain="power">
-          <ops-control-panel></ops-control-panel>
-        </flaxos-panel>
+        <!-- POWER MANAGEMENT -->
+        <div class="panel-group" data-label="// POWER MANAGEMENT">
+          <flaxos-panel title="Ops Control" collapsible domain="power" class="ops-systems-panel">
+            <ops-control-panel></ops-control-panel>
+          </flaxos-panel>
 
-        <!-- Power Management -->
-        <flaxos-panel title="Power Management" collapsible class="ops-power-panel">
-          <power-management></power-management>
-        </flaxos-panel>
+          <flaxos-panel title="Power Management" collapsible domain="power" class="ops-power-panel">
+            <power-management></power-management>
+          </flaxos-panel>
 
-        <!-- Power Profiles -->
-        <flaxos-panel title="Power Profiles" collapsible class="ops-profiles-panel">
-          <power-profile-selector></power-profile-selector>
-        </flaxos-panel>
+          <flaxos-panel title="Power Profiles" collapsible domain="power" class="ops-profiles-panel">
+            <power-profile-selector></power-profile-selector>
+          </flaxos-panel>
 
-        <!-- Power Draw -->
-        <flaxos-panel title="Power Draw" collapsible class="ops-draw-panel">
-          <power-draw-display></power-draw-display>
-        </flaxos-panel>
+          <flaxos-panel title="Power Draw" collapsible domain="power" class="ops-draw-panel">
+            <power-draw-display></power-draw-display>
+          </flaxos-panel>
+        </div>
 
-        <!-- Crew Fatigue -->
-        <flaxos-panel title="Crew Fatigue" collapsible class="ops-crew-panel">
-          <crew-fatigue-display></crew-fatigue-display>
-        </flaxos-panel>
+        <!-- MONITORING -->
+        <div class="panel-group" data-label="// MONITORING">
+          <flaxos-panel title="Crew Fatigue" collapsible domain="ops" class="ops-crew-panel">
+            <crew-fatigue-display></crew-fatigue-display>
+          </flaxos-panel>
 
-        <!-- Event Log (damage/system events) -->
-        <flaxos-panel title="Event Log" collapsible class="ops-log-panel">
-          <event-log></event-log>
-        </flaxos-panel>
+          <flaxos-panel title="Event Log" collapsible domain="ops" class="ops-log-panel">
+            <event-log></event-log>
+          </flaxos-panel>
+        </div>
       </div>
     </div>
 
     <!-- ===== ENGINEERING VIEW ===== -->
-    <!-- Phase 5 cleanup: reduced from 15 panels to 8+1.
+    <!-- Phase 5 cleanup: reduced from 15 panels to 8.
          Removed: Ship Status (dup of status bar + Ops),
                   Power Profiles (Ops manages profiles),
                   Power Draw (info merged into Power Management),
                   Crew panel (dup — keep crew-fatigue-display, crew-panel lives in Ops),
                   Navigation (belongs in Helm),
                   Position/Heading Calculator (debug tool),
-                  Debug: Vector Thrust (debug tool, not production). -->
+                  Debug: Vector Thrust (debug tool, not production).
+                  Micro RCS (moved to Helm view). -->
     <div class="view-container" id="view-engineering">
       <div class="view-grid">
         <!-- THERMAL & DRIVE — hero row -->
@@ -750,10 +879,6 @@
           </flaxos-panel>
         </div>
 
-        <!-- Micro RCS — RAW tier only (tier CSS handles visibility via body.tier-raw) -->
-        <flaxos-panel title="Micro RCS" collapsible priority="tertiary" domain="helm" class="eng-micro-rcs-panel">
-          <micro-rcs-control></micro-rcs-control>
-        </flaxos-panel>
       </div>
     </div>
 
@@ -761,17 +886,17 @@
     <div class="view-container" id="view-science">
       <div class="view-grid">
         <!-- Full sensor contacts display -->
-        <flaxos-panel title="Sensor Contacts" collapsible class="sci-sensors-panel">
+        <flaxos-panel title="Sensor Contacts" collapsible domain="sensor" class="sci-sensors-panel">
           <sensor-contacts></sensor-contacts>
         </flaxos-panel>
 
         <!-- Science Analysis Panel -->
-        <flaxos-panel title="Analysis" collapsible class="sci-map-panel">
+        <flaxos-panel title="Analysis" collapsible domain="sensor" class="sci-analysis-panel">
           <science-analysis-panel></science-analysis-panel>
         </flaxos-panel>
 
         <!-- Sensor Event Log -->
-        <flaxos-panel title="Sensor Log" collapsible class="sci-log-panel">
+        <flaxos-panel title="Sensor Log" collapsible domain="sensor" class="sci-log-panel">
           <event-log></event-log>
         </flaxos-panel>
       </div>
@@ -781,27 +906,27 @@
     <div class="view-container" id="view-comms">
       <div class="view-grid">
         <!-- Comms Control Panel -->
-        <flaxos-panel title="Communications" collapsible class="comms-panel">
+        <flaxos-panel title="Communications" collapsible domain="comms" class="comms-panel">
           <comms-control-panel></comms-control-panel>
         </flaxos-panel>
 
         <!-- Sensor Contacts (comms officer needs contact list for hailing) -->
-        <flaxos-panel title="Contacts" collapsible class="comms-contacts-panel">
+        <flaxos-panel title="Contacts" collapsible domain="comms" class="comms-contacts-panel">
           <sensor-contacts></sensor-contacts>
         </flaxos-panel>
 
         <!-- Tactical Map (situational awareness) -->
-        <flaxos-panel title="Tactical Map" collapsible class="comms-map-panel">
+        <flaxos-panel title="Tactical Map" collapsible domain="comms" class="comms-map-panel">
           <tactical-map></tactical-map>
         </flaxos-panel>
 
         <!-- Inter-Station Chat -->
-        <flaxos-panel title="Crew Chat" collapsible class="comms-chat-panel">
+        <flaxos-panel title="Crew Chat" collapsible domain="comms" class="comms-chat-panel">
           <station-chat></station-chat>
         </flaxos-panel>
 
         <!-- Event Log (comms events) -->
-        <flaxos-panel title="Comms Log" collapsible class="comms-log-panel">
+        <flaxos-panel title="Comms Log" collapsible domain="comms" class="comms-log-panel">
           <event-log></event-log>
         </flaxos-panel>
       </div>
@@ -811,32 +936,32 @@
     <div class="view-container" id="view-fleet">
       <div class="view-grid">
         <!-- Fleet Tactical Display -->
-        <flaxos-panel title="Fleet Tactical" collapsible class="fleet-tactical-panel">
+        <flaxos-panel title="Fleet Tactical" collapsible domain="fleet" class="fleet-tactical-panel">
           <fleet-tactical-display></fleet-tactical-display>
         </flaxos-panel>
 
         <!-- Squadron Roster -->
-        <flaxos-panel title="Squadron Roster" collapsible class="fleet-roster-panel">
+        <flaxos-panel title="Squadron Roster" collapsible domain="fleet" class="fleet-roster-panel">
           <fleet-roster></fleet-roster>
         </flaxos-panel>
 
         <!-- Formation Control -->
-        <flaxos-panel title="Formation Control" collapsible class="fleet-formation-panel">
+        <flaxos-panel title="Formation Control" collapsible domain="fleet" class="fleet-formation-panel">
           <formation-control></formation-control>
         </flaxos-panel>
 
         <!-- Fleet Orders -->
-        <flaxos-panel title="Fleet Orders" collapsible class="fleet-orders-panel">
+        <flaxos-panel title="Fleet Orders" collapsible domain="fleet" class="fleet-orders-panel">
           <fleet-orders></fleet-orders>
         </flaxos-panel>
 
         <!-- Fleet Fire Control -->
-        <flaxos-panel title="Fire Control" collapsible class="fleet-fire-panel">
+        <flaxos-panel title="Fire Control" collapsible domain="fleet" class="fleet-fire-panel">
           <fleet-fire-control></fleet-fire-control>
         </flaxos-panel>
 
         <!-- Shared Contacts / Data Link -->
-        <flaxos-panel title="Tactical Data Link" collapsible class="fleet-contacts-panel">
+        <flaxos-panel title="Tactical Data Link" collapsible domain="fleet" class="fleet-contacts-panel">
           <shared-contacts></shared-contacts>
         </flaxos-panel>
       </div>
@@ -846,27 +971,27 @@
     <div class="view-container" id="view-mission">
       <div class="view-grid">
         <!-- Scenario Loader -->
-        <flaxos-panel title="Scenarios" collapsible class="mis-scenario-panel">
+        <flaxos-panel title="Scenarios" collapsible domain="ops" class="mis-scenario-panel">
           <scenario-loader></scenario-loader>
         </flaxos-panel>
 
         <!-- Mission Objectives -->
-        <flaxos-panel title="Mission" collapsible class="mis-objectives-panel">
+        <flaxos-panel title="Mission" collapsible domain="ops" class="mis-objectives-panel">
           <mission-objectives></mission-objectives>
         </flaxos-panel>
 
         <!-- Command Prompt -->
-        <flaxos-panel title="Command" class="mis-command-panel">
+        <flaxos-panel title="Command" domain="ops" class="mis-command-panel">
           <command-prompt id="command-prompt"></command-prompt>
         </flaxos-panel>
 
         <!-- Inter-Station Chat (accessible from any station via Mission tab) -->
-        <flaxos-panel title="Crew Chat" collapsible class="mis-chat-panel">
+        <flaxos-panel title="Crew Chat" collapsible domain="ops" class="mis-chat-panel">
           <station-chat></station-chat>
         </flaxos-panel>
 
         <!-- Event Log (mission events) -->
-        <flaxos-panel title="Event Log" collapsible class="mis-log-panel">
+        <flaxos-panel title="Event Log" collapsible domain="ops" class="mis-log-panel">
           <event-log></event-log>
         </flaxos-panel>
       </div>
