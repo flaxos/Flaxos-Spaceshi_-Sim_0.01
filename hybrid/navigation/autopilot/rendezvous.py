@@ -256,16 +256,17 @@ class RendezvousAutopilot(BaseAutopilot):
             return max(propulsion.max_thrust / self.ship.mass, 0.01)
         return 0.01
 
-    # The alignment guard zeros thrust when heading error > 30°.
-    # During heading transitions the guard blocks a fraction of ticks,
-    # reducing delivered acceleration below the theoretical maximum.
-    # Measured across 6 test runs at 500kN/5t aggressive profile:
-    #   BURN delivery:  ~0.34 (initial rotation eats thrust)
-    #   BRAKE delivery: ~0.38 (already aligned, less blocking)
-    #   Combined avg:   ~0.35
-    # Using 0.35 to match observed BRAKE-phase delivery — this is the
-    # value that matters for braking distance accuracy.
-    _ALIGNMENT_GUARD_EFFICIENCY = 0.35
+    # The alignment guard now uses proportional cosine scaling instead
+    # of a binary 30° cutoff.  At 20° error, cos(20°) = 0.94 — nearly
+    # full thrust.  Only at 90°+ does thrust go to zero.  This
+    # eliminates the old 35% delivery problem where the binary guard
+    # flickered on/off around the threshold.
+    #
+    # With proportional scaling, delivery should be ~85-90% during
+    # steady-state BURN/BRAKE (heading error stays under 20°).
+    # Using 0.80 conservatively to account for the initial rotation
+    # transient at BURN start and FLIP→BRAKE transition.
+    _ALIGNMENT_GUARD_EFFICIENCY = 0.80
 
     def _get_effective_accel(self) -> float:
         """Profile-limited acceleration (m/s^2), derated for alignment guard.
@@ -546,12 +547,17 @@ class RendezvousAutopilot(BaseAutopilot):
                 and self.phase not in ("flip", "stationkeep")
                 and not guard_exempt):
             heading_err = self._heading_error(cmd.get("heading"))
-            if heading_err > 30.0:
-                logger.debug(
-                    "Rendezvous alignment guard: zeroing thrust in %s phase "
-                    "(heading error %.1f° > 30°, waiting for RCS rotation)",
-                    self.phase, heading_err)
+            if heading_err > 90.0:
+                # Severely misaligned — would thrust backward. Zero it.
                 cmd["thrust"] = 0.0
+            elif heading_err > 5.0:
+                # Proportional scaling: thrust contributes cos(error) of
+                # useful force along the desired direction.  This replaces
+                # the old binary 30° cutoff that flickered on/off and
+                # averaged only 35% thrust delivery.  The cosine falloff
+                # is physically correct (force projection) and smooth.
+                scale = math.cos(math.radians(heading_err))
+                cmd["thrust"] *= max(0.0, scale)
 
         return cmd
 
