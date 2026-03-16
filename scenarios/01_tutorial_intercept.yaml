@@ -16,7 +16,7 @@ ships:
     mass: 5000
     systems:
       propulsion:
-        max_thrust: 50000
+        max_thrust: 500000   # 500 kN Epstein drive — 10.2G max for a 5t corvette
         fuel_level: 10000
         max_fuel: 10000
       sensors:

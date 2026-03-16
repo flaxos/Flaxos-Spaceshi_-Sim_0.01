@@ -91,27 +91,27 @@ logger = logging.getLogger(__name__)
 
 NAV_PROFILES: Dict[str, Dict] = {
     "aggressive": {
-        "max_thrust": 1.0,
+        "max_thrust": 0.50,              # ~5G on a 10G corvette — crash couches required
         "brake_margin": 1.1,
-        "flip_safety_factor": 1.0,
-        "approach_range": 100_000.0,     # 100 km — proportional controller converges from here
-        "description": "Full burn, minimal safety margin. Fastest but risks overshoot.",
+        "flip_safety_factor": 1.5,       # Tighter than balanced, but enough for high-v coast
+        "approach_range": 10_000.0,      # 10 km — high-G brakes fast, don't waste time crawling
+        "description": "5G combat burn. Crew impaired, crash couches required.",
         "risk_level": "high",
     },
     "balanced": {
-        "max_thrust": 0.8,
-        "brake_margin": 1.3,
+        "max_thrust": 0.30,              # ~3G — standard military transit
+        "brake_margin": 1.2,
         "flip_safety_factor": 1.5,
-        "approach_range": 50_000.0,      # 50 km
-        "description": "Moderate thrust and safety. Good balance of speed and control.",
+        "approach_range": 15_000.0,      # 15 km
+        "description": "3G military transit. Moderate crew fatigue.",
         "risk_level": "medium",
     },
     "conservative": {
-        "max_thrust": 0.5,
-        "brake_margin": 1.6,
-        "flip_safety_factor": 2.0,
+        "max_thrust": 0.10,              # ~1G — comfortable, fuel-efficient
+        "brake_margin": 1.3,
+        "flip_safety_factor": 1.5,
         "approach_range": 20_000.0,      # 20 km
-        "description": "Half thrust, generous margins. Slowest but very precise.",
+        "description": "1G cruise. No crew strain, generous margins.",
         "risk_level": "low",
     },
 }
@@ -165,10 +165,9 @@ class RendezvousAutopilot(BaseAutopilot):
     STATIONKEEP_SPEED = 60.0        # m/s relative — approach should have bled
                                     # most speed by the time range hits 5 km.
     FLIP_TOLERANCE_DEG = 10.0       # degrees
-    APPROACH_SPEED_LIMIT = 500.0    # m/s -- max speed during approach; the P
-                                    # controller tapers speed proportional to
-                                    # range, so this only governs far-approach.
-                                    # Near stationkeep range, speed drops to ~1 m/s.
+    _BASE_APPROACH_SPEED_LIMIT = 500.0  # m/s -- base speed limit at ~1G
+                                        # Scaled up for higher-G ships so
+                                        # approach phase doesn't bottleneck.
 
     def __init__(self, ship, target_id: Optional[str] = None,
                  params: Optional[Dict] = None):
@@ -202,6 +201,18 @@ class RendezvousAutopilot(BaseAutopilot):
             "stationkeep_speed", self.STATIONKEEP_SPEED))
         self.approach_range: float = float(self.params.get(
             "approach_range", profile.get("approach_range", 5_000.0)))
+
+        # Dynamic APPROACH_SPEED_LIMIT: scale with available acceleration so
+        # high-G ships don't crawl the last 10-20 km at 500 m/s.
+        # At 1G (10 m/s²) → 500 m/s base.  At 5G → ~1,100 m/s.
+        # Capped at 3,000 m/s to keep the approach phase controllable.
+        a_max = self._get_max_accel()
+        effective_accel = a_max * self.max_thrust  # actual accel at profile throttle
+        g_ratio = max(1.0, effective_accel / 10.0)  # ratio to 1G
+        self.APPROACH_SPEED_LIMIT: float = min(
+            self._BASE_APPROACH_SPEED_LIMIT * math.sqrt(g_ratio),
+            3000.0,
+        )
 
         self.phase: str = "burn"
         self._match_ap: Optional[MatchVelocityAutopilot] = None

@@ -98,33 +98,33 @@ class TestProfileDefaults:
         ap = RendezvousAutopilot(ship, target_id="T001")
 
         assert ap.profile_name == "balanced"
-        assert ap.max_thrust == pytest.approx(0.8)
-        assert ap.brake_margin == pytest.approx(1.3)
-        assert ap.flip_safety_factor == pytest.approx(1.5)
+        assert ap.max_thrust == pytest.approx(NAV_PROFILES["balanced"]["max_thrust"])
+        assert ap.brake_margin == pytest.approx(NAV_PROFILES["balanced"]["brake_margin"])
+        assert ap.flip_safety_factor == pytest.approx(NAV_PROFILES["balanced"]["flip_safety_factor"])
 
     def test_profile_aggressive(self):
-        """Aggressive profile sets full thrust and minimal margin."""
+        """Aggressive profile sets high thrust and tight margin."""
         target = _make_target({"x": 100000.0, "y": 0.0, "z": 0.0})
         ship = _make_ship(target=target)
         ap = RendezvousAutopilot(ship, target_id="T001",
                                  params={"profile": "aggressive"})
 
         assert ap.profile_name == "aggressive"
-        assert ap.max_thrust == pytest.approx(1.0)
-        assert ap.brake_margin == pytest.approx(1.1)
-        assert ap.flip_safety_factor == pytest.approx(1.0)
+        assert ap.max_thrust == pytest.approx(NAV_PROFILES["aggressive"]["max_thrust"])
+        assert ap.brake_margin == pytest.approx(NAV_PROFILES["aggressive"]["brake_margin"])
+        assert ap.flip_safety_factor == pytest.approx(NAV_PROFILES["aggressive"]["flip_safety_factor"])
 
     def test_profile_conservative(self):
-        """Conservative profile sets half thrust and generous margin."""
+        """Conservative profile sets low thrust and generous margin."""
         target = _make_target({"x": 100000.0, "y": 0.0, "z": 0.0})
         ship = _make_ship(target=target)
         ap = RendezvousAutopilot(ship, target_id="T001",
                                  params={"profile": "conservative"})
 
         assert ap.profile_name == "conservative"
-        assert ap.max_thrust == pytest.approx(0.5)
-        assert ap.brake_margin == pytest.approx(1.6)
-        assert ap.flip_safety_factor == pytest.approx(2.0)
+        assert ap.max_thrust == pytest.approx(NAV_PROFILES["conservative"]["max_thrust"])
+        assert ap.brake_margin == pytest.approx(NAV_PROFILES["conservative"]["brake_margin"])
+        assert ap.flip_safety_factor == pytest.approx(NAV_PROFILES["conservative"]["flip_safety_factor"])
 
     def test_explicit_param_overrides_profile(self):
         """Individual param beats the profile default."""
@@ -463,16 +463,17 @@ class TestApproachPhaseStructure:
                 f"NAV_PROFILES[{profile_name!r}]['approach_range'] must be positive"
             )
 
-    def test_approach_range_ordering_aggressive_gt_conservative(self):
-        """Aggressive profile approach_range must exceed conservative's.
+    def test_approach_range_ordering_conservative_ge_aggressive(self):
+        """Conservative approach_range >= aggressive.
 
-        Aggressive tolerates closing faster for longer, so it needs a wider
-        approach funnel to avoid oscillation at greater distances.
+        High-G aggressive profiles brake so quickly that they need less
+        approach range.  Conservative profiles use gentler thrust and
+        need more distance for the P-controller to converge.
         """
         agg = NAV_PROFILES["aggressive"]["approach_range"]
         con = NAV_PROFILES["conservative"]["approach_range"]
-        assert agg > con, (
-            f"Aggressive approach_range ({agg}) should exceed conservative ({con})"
+        assert con >= agg, (
+            f"Conservative approach_range ({con}) should be >= aggressive ({agg})"
         )
 
 

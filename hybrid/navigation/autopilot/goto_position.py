@@ -26,21 +26,21 @@ logger = logging.getLogger(__name__)
 
 GOTO_PROFILES: Dict[str, Dict] = {
     "aggressive": {
-        "max_thrust": 1.0,
+        "max_thrust": 0.50,            # ~5G on a 10G corvette
         "brake_buffer_factor": 1.1,
-        "description": "Full burn, tight braking margin. Fast but may overshoot.",
+        "description": "5G combat burn. Fast but crew-punishing.",
         "risk_level": "high",
     },
     "balanced": {
-        "max_thrust": 0.8,
-        "brake_buffer_factor": 1.3,
-        "description": "Moderate thrust, reasonable margin. Good general use.",
+        "max_thrust": 0.30,            # ~3G — standard military transit
+        "brake_buffer_factor": 1.2,
+        "description": "3G military transit. Moderate crew fatigue.",
         "risk_level": "medium",
     },
     "conservative": {
-        "max_thrust": 0.5,
-        "brake_buffer_factor": 1.6,
-        "description": "Half thrust, generous margin. Precise stops, uses less fuel.",
+        "max_thrust": 0.10,            # ~1G — comfortable cruise
+        "brake_buffer_factor": 1.3,
+        "description": "1G cruise. No crew strain, fuel-efficient.",
         "risk_level": "low",
     },
 }
