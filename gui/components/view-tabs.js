@@ -119,6 +119,16 @@ class ViewTabs extends HTMLElement {
           color: var(--text-primary, #e0e0e0);
         }
 
+        /* Station accent colors — mirrors #view-{name} --view-accent in main.css */
+        .tab[data-view="helm"]        { --tab-accent: #6699cc; }
+        .tab[data-view="tactical"]    { --tab-accent: #cc4444; }
+        .tab[data-view="ops"]         { --tab-accent: #cc8800; }
+        .tab[data-view="engineering"] { --tab-accent: #cc6600; }
+        .tab[data-view="science"]     { --tab-accent: #00ccaa; }
+        .tab[data-view="comms"]       { --tab-accent: #9977dd; }
+        .tab[data-view="fleet"]       { --tab-accent: #5588cc; }
+        .tab[data-view="mission"]     { --tab-accent: #889900; }
+
         .tab.active {
           background: var(--bg-primary, #0a0a0f);
           border-color: var(--border-default, #2a2a3a);
@@ -133,7 +143,7 @@ class ViewTabs extends HTMLElement {
           left: 0;
           right: 0;
           height: 2px;
-          background: var(--status-info, #00aaff);
+          background: var(--tab-accent, var(--status-info, #00aaff));
         }
 
         .tab-shortcut {
@@ -146,8 +156,8 @@ class ViewTabs extends HTMLElement {
         }
 
         .tab.active .tab-shortcut {
-          background: rgba(0, 170, 255, 0.15);
-          color: var(--status-info, #00aaff);
+          background: color-mix(in srgb, var(--tab-accent, #00aaff) 15%, transparent);
+          color: var(--tab-accent, var(--status-info, #00aaff));
         }
 
         .tab.locked {

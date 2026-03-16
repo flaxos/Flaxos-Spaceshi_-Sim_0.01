@@ -434,6 +434,17 @@ button.success,
   background: var(--text-dim);
 }
 
+/* ===== Station accent colors ===== */
+/* Each view gets a distinct tint for panel-group labels, grid borders, and tab indicators */
+#view-helm        { --view-accent: #6699cc; }
+#view-tactical    { --view-accent: #cc4444; }
+#view-ops         { --view-accent: #cc8800; }
+#view-engineering { --view-accent: #cc6600; }
+#view-science     { --view-accent: #00ccaa; }
+#view-comms       { --view-accent: #9977dd; }
+#view-fleet       { --view-accent: #5588cc; }
+#view-mission     { --view-accent: #889900; }
+
 /* ===== View-based layout ===== */
 
 /* Status bar positioning */
