@@ -631,10 +631,16 @@ class RendezvousAutopilot(BaseAutopilot):
             # gentle proportional thrust (not full braking) and for the
             # alignment guard blocking some ticks.
             elif rel_speed > self.stationkeep_speed:
-                a_coast = self._get_effective_accel()
+                # Use the DECEL-phase accel estimate (30% of theoretical),
+                # NOT the coast-phase measured accel.  During coast the ship
+                # thrusts gently (~2 m/s²), but decel uses full retrograde
+                # (~10-15 m/s²).  Using coast measurements makes d_brake
+                # 4-5x too large, triggering braking at 90km instead of 20km.
+                theoretical = self._get_max_accel() * self.max_thrust
+                a_decel = theoretical * 0.30
                 speed_excess = rel_speed - self.stationkeep_speed * 0.5
                 d_brake_needed = self._braking_distance(
-                    max(speed_excess, 0), a_coast) * 2.5
+                    max(speed_excess, 0), a_decel) * 2.5
                 if current_range < d_brake_needed + self.stationkeep_range:
                     self.phase = "approach_decel"
                     self._approach_rotated = False
