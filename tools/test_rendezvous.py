@@ -180,10 +180,16 @@ def run_sim(sim: Simulator, player_id: str, target_id: str,
 
         # -- Print status every 100 ticks --
         if tick % 100 == 0:
+            eta_str = ""
+            if nav and nav.controller and nav.controller.autopilot:
+                ap_state = nav.controller.autopilot.get_state()
+                eta = ap_state.get("time_to_arrival")
+                if eta is not None:
+                    eta_str = f" ETA={eta:6.0f}s"
             print(f"[tick {tick:5d}] phase={phase:<20s} "
                   f"range={current_range:12.1f}m "
                   f"speed={rel_speed:8.1f}m/s "
-                  f"closing={closing_speed:8.1f}m/s")
+                  f"closing={closing_speed:8.1f}m/s{eta_str}")
 
         # -- Success check --
         if current_range < 50.0 and rel_speed < 1.0:

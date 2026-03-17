@@ -65,9 +65,23 @@ Adding a new server command requires registration in **three** places. Missing a
 
 If step 3 is missed, the command routes correctly through the hybrid layer but the station dispatcher rejects it as "Unknown command" because no station claims ownership. **Always grep `station_types.py` for the new command name before considering registration complete.**
 
+## Autopilot / Physics Rules
+- **Diagnose before fixing.** Trace data flow end-to-end and identify the root cause before writing code. Don't tweak thresholds — find the broken assumption.
+- **Phase-aware acceleration.** Any braking/ETA calculation must specify WHICH phase's accel it needs. Never call `_get_effective_accel()` without considering whether measurements came from the current phase or a stale previous one. BURN accel ≠ BRAKE accel ≠ COAST accel.
+- **Headless gate before autopilot PRs.** Before creating any autopilot PR, run `python3 tools/test_rendezvous.py --max-ticks 15000` and verify convergence to docking range (<50m, <1 m/s).
+- **Sensor noise scales.** Position noise: up to 1km (distance-appropriate). Velocity noise: 2% of speed + 2 m/s floor. Never reuse `add_detection_noise()` for velocity — use `add_velocity_noise()`.
+
+## Git / PR Workflow
+- **One branch = one PR. Period.** Never push commits to a branch after its PR merges.
+- New work after a PR merges: `git fetch origin && git checkout -b new-name origin/main`
+- Before PR: `git log --oneline origin/main..HEAD` — verify exact commits. 0 commits = STOP.
+- Before PR: `gh pr view <N> --json state` — if MERGED, create a new branch.
+- Before PR: `git diff origin/main..HEAD --stat` — verify file changes match intent.
+
 ## When Working on This Project
 1. **Read the codebase first** — run `find . -name "*.py" | head -30` and review structure
 2. **Don't break the server** — always verify `python server/main.py` starts cleanly
-3. **Test after changes** — run existing tests if any, otherwise manually verify
+3. **Test after changes** — run `python3 -m pytest tests/ -x -q` and verify all pass
 4. **Commit small** — one logical change per commit
 5. **Document decisions** — add comments explaining WHY, not just WHAT
+6. **Diagnose first, fix second** — for physics/autopilot bugs, trace the data pipeline before writing code
