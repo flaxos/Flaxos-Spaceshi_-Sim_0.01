@@ -1327,30 +1327,53 @@ class RendezvousAutopilot(BaseAutopilot):
 
     def _estimate_eta(self, distance: float, closing_speed: float,
                       a_max: float) -> Optional[float]:
-        """Rough ETA in seconds, or None if indeterminate."""
+        """Rough ETA in seconds, or None if indeterminate.
+
+        Accounts for all remaining phases, not just the current one.
+        Uses approach_coast_speed as the expected average cruise velocity
+        for the approach leg, which is more accurate than using the
+        instantaneous closing_speed (which might be 0 during decel/rotate).
+        """
         if self.phase == "stationkeep":
+            # Creeping to dock: estimate from sqrt-taper speed
+            if distance > 1.0:
+                avg_creep = max(0.5, math.sqrt(distance) * 0.1)
+                return distance / avg_creep
             return 0.0
+
+        # Estimate time for approach leg (approach_range to stationkeep)
+        # Use profile coast speed as average — more stable than instantaneous
+        approach_dist = max(0.0, distance - self.stationkeep_range)
+        coast_avg = self.approach_coast_speed * 0.6  # ~60% of peak accounts
+                                                      # for accel/decel cycles
+        approach_eta = approach_dist / max(coast_avg, 1.0) if approach_dist > 0 else 0.0
+
+        # Stationkeep creep: ~2 m/s average over stationkeep_range to dock
+        stationkeep_eta = self.stationkeep_range / 2.0
+
         if self.phase in ("burn", "flip"):
-            # Symmetric brachistochrone: t = 2*sqrt(d/a)
+            # Brachistochrone for burn+brake, then add approach + stationkeep
             if a_max > 0 and distance > 0:
-                return 2.0 * math.sqrt(distance / a_max)
+                burn_brake_eta = 2.0 * math.sqrt(distance / a_max)
+                return burn_brake_eta + stationkeep_eta
             return None
-        if self.phase in ("approach", "approach_decel", "approach_rotate",
-                         "approach_coast", "approach_brake", "approach_creep",
-                         "approach_drift"):
-            # Approach uses low proportional thrust, so ETA is mostly
-            # distance / current closing speed, with a floor guess.
-            if closing_speed > 0.5:
+
+        if self.phase == "brake":
+            # Time to stop (v/a), then approach + stationkeep
+            brake_eta = closing_speed / a_max if a_max > 0 else 0.0
+            return brake_eta + approach_eta + stationkeep_eta
+
+        if self.phase in ("approach_decel", "approach_rotate"):
+            # Brief sub-phases (~10-20s each), then coast + stationkeep
+            sub_phase_eta = 15.0  # rough average for decel+rotate
+            return sub_phase_eta + approach_eta + stationkeep_eta
+
+        if self.phase in ("approach_coast", "approach", "approach_creep",
+                         "approach_drift", "approach_brake"):
+            if closing_speed > 5.0:
                 return distance / closing_speed
-            # Creeping -- rough estimate assuming ~5 m/s average approach
-            if distance > 0:
-                return distance / 5.0
-            return 0.0
-        # brake phase: t = v / a
-        if a_max > 0 and closing_speed > 0:
-            return closing_speed / a_max
-        if closing_speed > 0.01:
-            return distance / closing_speed
+            return approach_eta + stationkeep_eta
+
         return None
 
     def _build_status_text(self, distance: float,

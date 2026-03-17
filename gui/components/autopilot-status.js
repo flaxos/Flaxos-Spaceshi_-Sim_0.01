@@ -16,7 +16,7 @@ import { wsClient } from "../js/ws-client.js";
 // GoToPosition uses uppercase, Rendezvous uses lowercase, Intercept has its own set.
 // We normalise to uppercase for display and map them into a common ordered list.
 const GOTO_PHASES = ["ACCELERATE", "COAST", "BRAKE", "HOLD"];
-const RENDEZVOUS_PHASES = ["BURN", "FLIP", "BRAKE", "STATIONKEEP"];
+const RENDEZVOUS_PHASES = ["BURN", "FLIP", "BRAKE", "APPROACH_DECEL", "APPROACH_ROTATE", "APPROACH_COAST", "STATIONKEEP"];
 const INTERCEPT_PHASES = ["INTERCEPT", "APPROACH", "MATCH"];
 
 // Map program names to their phase lists
@@ -177,6 +177,9 @@ class AutopilotStatus extends HTMLElement {
         /* Rendezvous phases */
         .phase-segment.burn.active { background: var(--status-warning, #ffaa00); }
         .phase-segment.flip.active { background: #cc66ff; }
+        .phase-segment.approach_decel.active { background: var(--status-critical, #ff4444); }
+        .phase-segment.approach_rotate.active { background: #cc66ff; }
+        .phase-segment.approach_coast.active { background: var(--status-info, #00aaff); }
         .phase-segment.stationkeep.active { background: var(--status-nominal, #00ff88); }
         /* Intercept phases */
         .phase-segment.intercept.active { background: var(--status-warning, #ffaa00); }
@@ -468,7 +471,10 @@ class AutopilotStatus extends HTMLElement {
       HOLD: "Hold",
       BURN: "Burn",
       FLIP: "Flip",
-      STATIONKEEP: "Stnkeep",
+      APPROACH_DECEL: "Decel",
+      APPROACH_ROTATE: "Rotate",
+      APPROACH_COAST: "Coast",
+      STATIONKEEP: "Dock",
       INTERCEPT: "Intrcpt",
       APPROACH: "Approach",
       MATCH: "Match",
