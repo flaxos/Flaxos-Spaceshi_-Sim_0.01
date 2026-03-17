@@ -441,13 +441,17 @@ class TestRendezvousAutopilotCreation:
         state = ap.get_state()
         assert "phase" in state, f"get_state() missing 'phase' key: {state.keys()}"
 
-    def test_aggressive_braking_margin_less_than_conservative(self):
+    def test_aggressive_braking_margin_greater_than_conservative(self):
+        """Aggressive needs MORE brake_margin than conservative because it
+        arrives at the flip point faster, so the post-flip alignment transient
+        (where delivered thrust is only 20-40% of theoretical) costs more
+        distance at high speed.  See feedback_rendezvous_rca.md rule 5."""
         from hybrid.navigation.autopilot.rendezvous import RendezvousAutopilot
         ship = make_mock_ship()
         agg = RendezvousAutopilot(ship, "C001", {"profile": "aggressive"})
         con = RendezvousAutopilot(ship, "C001", {"profile": "conservative"})
-        assert agg.brake_margin < con.brake_margin, (
-            f"aggressive brake_margin {agg.brake_margin} should be < "
+        assert agg.brake_margin > con.brake_margin, (
+            f"aggressive brake_margin {agg.brake_margin} should be > "
             f"conservative {con.brake_margin}"
         )
 

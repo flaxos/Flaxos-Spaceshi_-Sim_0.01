@@ -271,10 +271,11 @@ class TestPhaseTransitions:
         vector_to_heading({-50,0,0}) gives yaw ≈ 180°.
         We set ship orientation to yaw=178° (within 10° tolerance).
 
-        Target at 10 km (> STATIONKEEP_RANGE=5 km) so the early stationkeep
-        shortcut does not fire before we can check the flip->brake transition.
+        Target at 50 km (> STATIONKEEP_RANGE=15 km for balanced) so the
+        early stationkeep shortcut does not fire before we can check the
+        flip->brake transition.
         """
-        target = _make_target({"x": 10000.0, "y": 0.0, "z": 0.0})
+        target = _make_target({"x": 50000.0, "y": 0.0, "z": 0.0})
         ship = _make_ship(
             position={"x": 0.0, "y": 0.0, "z": 0.0},
             velocity={"x": 50.0, "y": 0.0, "z": 0.0},
@@ -307,7 +308,8 @@ class TestPhaseTransitions:
         # range=50 km, closing_speed=0 → approach (never re-enters burn)
         ap.compute(0.1, 0.0)
 
-        assert ap.phase in ("approach", "approach_brake", "approach_creep", "approach_drift"), (
+        assert ap.phase in ("approach", "approach_brake", "approach_creep", "approach_drift",
+                          "approach_decel", "approach_rotate", "approach_coast"), (
             f"Expected approach (BRAKE never re-enters BURN), got {ap.phase!r}"
         )
 
@@ -432,7 +434,7 @@ class TestApproachPhaseStructure:
             target=target,
         )
         ap = RendezvousAutopilot(ship, target_id="T001")
-        ap.phase = "approach_drift"
+        ap.phase = "approach_coast"
 
         # Must not raise; result may be a dict or None — just no exception
         try:
@@ -516,7 +518,8 @@ class TestApproachPhaseTransitions:
 
         ap.compute(0.1, 0.0)
 
-        assert ap.phase in ("approach", "approach_brake", "approach_creep", "approach_drift"), (
+        assert ap.phase in ("approach", "approach_brake", "approach_creep", "approach_drift",
+                          "approach_decel", "approach_rotate", "approach_coast"), (
             f"Expected 'approach' phase at {test_range:.0f} m with closing_speed≈0, "
             f"got {ap.phase!r}"
         )
@@ -535,7 +538,8 @@ class TestApproachPhaseTransitions:
 
         ap.compute(0.1, 0.0)
 
-        assert ap.phase in ("approach", "approach_brake", "approach_creep", "approach_drift"), (
+        assert ap.phase in ("approach", "approach_brake", "approach_creep", "approach_drift",
+                          "approach_decel", "approach_rotate", "approach_coast"), (
             f"Expected 'approach' at {far_range:.0f} m (BRAKE never re-enters BURN), "
             f"got {ap.phase!r}"
         )
@@ -552,7 +556,7 @@ class TestApproachPhaseTransitions:
             target=target,
         )
         ap = RendezvousAutopilot(ship, target_id="T001")
-        ap.phase = "approach_drift"
+        ap.phase = "approach_coast"
 
         ap.compute(0.1, 0.0)
 
@@ -565,21 +569,21 @@ class TestApproachPhaseTransitions:
     def test_approach_does_not_jump_to_stationkeep_when_too_fast(self):
         """APPROACH phase does NOT transition to stationkeep if rel_speed >= stationkeep_speed.
 
-        Ship is inside stationkeep_range (5000 m) but still moving at 60 m/s
-        toward the target — above the 50 m/s STATIONKEEP_SPEED threshold.
+        Ship is inside stationkeep_range but still moving at 150 m/s
+        toward the target — above the 100 m/s STATIONKEEP_SPEED threshold.
         Should stay in approach until speed bleeds off.
         """
-        stationkeep_range = RendezvousAutopilot.STATIONKEEP_RANGE   # 5000 m
-        stationkeep_speed = RendezvousAutopilot.STATIONKEEP_SPEED   # 50 m/s
+        stationkeep_range = RendezvousAutopilot.STATIONKEEP_RANGE   # 10000 m
+        stationkeep_speed = RendezvousAutopilot.STATIONKEEP_SPEED   # 100 m/s
         # Place ship inside stationkeep_range but closing faster than the speed limit
-        target = _make_target({"x": 2000.0, "y": 0.0, "z": 0.0})   # 2000 m — inside 5 km range
+        target = _make_target({"x": 5000.0, "y": 0.0, "z": 0.0})   # 5 km — inside 10 km range
         ship = _make_ship(
             position={"x": 0.0, "y": 0.0, "z": 0.0},
-            velocity={"x": 60.0, "y": 0.0, "z": 0.0},   # 60 m/s — above 50 m/s speed limit
+            velocity={"x": 150.0, "y": 0.0, "z": 0.0},   # 150 m/s — above 100 m/s speed limit
             target=target,
         )
         ap = RendezvousAutopilot(ship, target_id="T001")
-        ap.phase = "approach_drift"
+        ap.phase = "approach_coast"
 
         ap.compute(0.1, 0.0)
 
@@ -606,7 +610,7 @@ class TestApproachPhaseTransitions:
             target=target,
         )
         ap = RendezvousAutopilot(ship, target_id="T001")
-        ap.phase = "approach_drift"
+        ap.phase = "approach_coast"
 
         ap.compute(0.1, 0.0)
 
@@ -634,16 +638,16 @@ class TestApproachThrustBehaviour:
         )
         ap = RendezvousAutopilot(ship, target_id="T001",
                                  params={"profile": profile})
-        ap.phase = "approach_drift"
+        ap.phase = "approach_coast"
         return ap
 
     def test_approach_produces_nonzero_thrust_toward_target(self):
         """Approach phase commands positive thrust (ship needs to close distance).
 
-        Use a range well outside STATIONKEEP_RANGE (5000 m) so the approach
-        P-controller is active and not immediately handed off to MatchVelocity.
+        Use a range well outside STATIONKEEP_RANGE (15 km for balanced) so
+        the approach coast is active and not immediately handed off.
         """
-        ap = self._ap_in_approach(range_m=10000.0)
+        ap = self._ap_in_approach(range_m=30000.0)
 
         result = ap.compute(0.1, 0.0)
 
@@ -677,7 +681,7 @@ class TestApproachThrustBehaviour:
                 ship, target_id="T001",
                 params={"profile": "balanced", "approach_range": 5_000_000.0},
             )
-            ap.phase = "approach_drift"
+            ap.phase = "approach_coast"
             return ap
 
         ap_far = _ap_with_large_approach_range(range_m=40000.0)
@@ -738,7 +742,7 @@ class TestApproachThrustBehaviour:
             target=target,
         )
         ap = RendezvousAutopilot(ship, target_id="T001")
-        ap.phase = "approach_drift"
+        ap.phase = "approach_coast"
 
         result = ap.compute(0.1, 0.0)
 
@@ -769,11 +773,12 @@ class TestApproachTelemetry:
             target=target,
         )
         ap = RendezvousAutopilot(ship, target_id="T001")
-        ap.phase = "approach_drift"
+        ap.phase = "approach_coast"
 
         state = ap.get_state()
 
-        assert state.get("phase") in ("approach", "approach_brake", "approach_creep", "approach_drift"), (
+        assert state.get("phase") in ("approach", "approach_brake", "approach_creep", "approach_drift",
+                          "approach_decel", "approach_rotate", "approach_coast"), (
             f"get_state() returned phase={state.get('phase')!r}, expected 'approach'"
         )
 
@@ -792,7 +797,7 @@ class TestApproachTelemetry:
             target=target,
         )
         ap = RendezvousAutopilot(ship, target_id="T001")
-        ap.phase = "approach_drift"
+        ap.phase = "approach_coast"
 
         state = ap.get_state()
 
@@ -821,7 +826,7 @@ class TestApproachTelemetry:
             target=target,
         )
         ap = RendezvousAutopilot(ship, target_id="T001")
-        ap.phase = "approach_drift"
+        ap.phase = "approach_coast"
         ap.compute(0.1, 0.0)
 
         assert ap.status not in ("braking", "burning", "flipping", "error"), (
@@ -997,7 +1002,8 @@ class TestAggressiveConvergence:
             dt=1.0,
         )
 
-        approach_phases = {"approach", "approach_brake", "approach_creep", "approach_drift"}
+        approach_phases = {"approach", "approach_brake", "approach_creep", "approach_drift",
+                              "approach_decel", "approach_rotate", "approach_coast"}
         assert approach_phases & set(result["phase_history"]), (
             "Balanced profile never entered an approach phase. "
             f"Phases seen: {sorted(set(result['phase_history']))}"
@@ -1025,7 +1031,8 @@ class TestAggressiveConvergence:
             dt=0.5,
         )
 
-        approach_phases = {"approach", "approach_brake", "approach_creep", "approach_drift"}
+        approach_phases = {"approach", "approach_brake", "approach_creep", "approach_drift",
+                              "approach_decel", "approach_rotate", "approach_coast"}
         assert approach_phases & set(result["phase_history"]), (
             "Phase history did not contain any approach phase. "
             f"Distinct phases seen: {sorted(set(result['phase_history']))}"
@@ -1126,7 +1133,7 @@ class TestFlipSnapshotHeading:
     def test_flip_heading_does_not_change_during_coast(self):
         """Once in FLIP, the snapshot heading must not change even if the
         ship's velocity vector shifts (simulating lateral drift during coast)."""
-        target = _make_target({"x": 10000.0, "y": 0.0, "z": 0.0})
+        target = _make_target({"x": 50000.0, "y": 0.0, "z": 0.0})
         ship = _make_ship(
             position={"x": 0.0, "y": 0.0, "z": 0.0},
             velocity={"x": 50.0, "y": 5.0, "z": 0.0},
@@ -1156,10 +1163,11 @@ class TestFlipSnapshotHeading:
     def test_flip_snapshot_cleared_on_brake_entry(self):
         """The snapshot heading should be cleared when transitioning to BRAKE.
 
-        Target at 10 km (> STATIONKEEP_RANGE=5 km) to prevent the early
-        stationkeep shortcut from firing before the flip->brake transition.
+        Target at 50 km (> STATIONKEEP_RANGE=15 km for balanced) to prevent
+        the early stationkeep shortcut from firing before the flip->brake
+        transition.
         """
-        target = _make_target({"x": 10000.0, "y": 0.0, "z": 0.0})
+        target = _make_target({"x": 50000.0, "y": 0.0, "z": 0.0})
         ship = _make_ship(
             position={"x": 0.0, "y": 0.0, "z": 0.0},
             velocity={"x": 50.0, "y": 0.0, "z": 0.0},
@@ -1239,7 +1247,8 @@ class TestBrakeRelSpeedThreshold:
 
         # rel_speed ~ 0.5 m/s, well below threshold (250 m/s)
         # range 20km -- BRAKE always exits to APPROACH now
-        assert ap.phase in ("approach", "approach_brake", "approach_creep", "approach_drift"), (
+        assert ap.phase in ("approach", "approach_brake", "approach_creep", "approach_drift",
+                          "approach_decel", "approach_rotate", "approach_coast"), (
             f"Expected BRAKE->APPROACH with low rel_speed at long range, "
             f"got {ap.phase!r}"
         )
@@ -1411,7 +1420,7 @@ class TestAlignmentGuard:
             target=target,
         )
         ap = RendezvousAutopilot(ship, target_id="T001")
-        ap.phase = "approach_drift"
+        ap.phase = "approach_coast"
 
         result = ap.compute(0.1, 0.0)
 
@@ -1432,7 +1441,7 @@ class TestAlignmentGuard:
             target=target,
         )
         ap = RendezvousAutopilot(ship, target_id="T001")
-        ap.phase = "approach_drift"
+        ap.phase = "approach_coast"
 
         result = ap.compute(0.1, 0.0)
 
@@ -1446,11 +1455,11 @@ class TestAlignmentGuard:
         """FLIP phase already sets thrust=0; the guard must not interfere
         with it or add unexpected side effects.
 
-        Target at 10 km (> STATIONKEEP_RANGE=5 km) to prevent the early
-        stationkeep shortcut from intercepting compute() before the flip
-        phase handler runs.
+        Target at 50 km (> STATIONKEEP_RANGE=15 km for balanced) to prevent
+        the early stationkeep shortcut from intercepting compute() before the
+        flip phase handler runs.
         """
-        target = _make_target({"x": 10000.0, "y": 0.0, "z": 0.0})
+        target = _make_target({"x": 50000.0, "y": 0.0, "z": 0.0})
         ship = _make_ship(
             position={"x": 0.0, "y": 0.0, "z": 0.0},
             velocity={"x": 50.0, "y": 0.0, "z": 0.0},
