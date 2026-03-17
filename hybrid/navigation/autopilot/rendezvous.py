@@ -95,7 +95,9 @@ NAV_PROFILES: Dict[str, Dict] = {
         "brake_margin": 1.8,             # Post-flip alignment lag means BRAKE delivers
                                          # ~60% of BURN accel for first 10-15s.
         "flip_safety_factor": 1.5,
-        "approach_range": 10_000.0,      # 10 km
+        "approach_range": 50_000.0,      # 50 km — "close" in space
+        "stationkeep_range": 10_000.0,   # 10 km — aggressive handoff
+        "approach_coast_speed": 200.0,   # m/s — fast approach cruise
         "description": "5G combat burn. Crew impaired, crash couches required.",
         "risk_level": "high",
     },
@@ -103,7 +105,9 @@ NAV_PROFILES: Dict[str, Dict] = {
         "max_thrust": 0.30,              # ~3G — standard military transit
         "brake_margin": 1.6,
         "flip_safety_factor": 1.5,
-        "approach_range": 15_000.0,      # 15 km
+        "approach_range": 75_000.0,      # 75 km — between conservative and aggressive
+        "stationkeep_range": 15_000.0,   # 15 km — moderate handoff
+        "approach_coast_speed": 150.0,   # m/s — moderate approach cruise
         "description": "3G military transit. Moderate crew fatigue.",
         "risk_level": "medium",
     },
@@ -111,7 +115,9 @@ NAV_PROFILES: Dict[str, Dict] = {
         "max_thrust": 0.10,              # ~1G — comfortable, fuel-efficient
         "brake_margin": 1.5,
         "flip_safety_factor": 1.5,
-        "approach_range": 20_000.0,      # 20 km
+        "approach_range": 100_000.0,     # 100 km — "close" starts far out
+        "stationkeep_range": 20_000.0,   # 20 km — generous handoff
+        "approach_coast_speed": 100.0,   # m/s — gentle approach cruise
         "description": "1G cruise. No crew strain, generous margins.",
         "risk_level": "low",
     },
@@ -121,20 +127,11 @@ NAV_PROFILES: Dict[str, Dict] = {
 # this fraction of APPROACH_SPEED_LIMIT before BRAKE will exit.
 # This prevents premature BRAKE exit when closing_speed briefly hits
 # zero but the ship still has significant lateral or residual velocity.
-# BRAKE done threshold: rel_speed must drop below this fraction of
-# APPROACH_SPEED_LIMIT before BRAKE will exit.
 #
-# Trade-off:
-#   - Too high (0.5 = 250 m/s): APPROACH P-controller can't converge
-#     because each prograde/retrograde thrust switch requires a 180°
-#     flip costing ~10 seconds of unpowered coasting.
-#   - Too low (0.1 = 50 m/s): the retrograde heading becomes noisy at
-#     low velocity (small perturbations → large heading swings), the
-#     RCS chases a jittering target and overheats.
-#
-# 0.3 (150 m/s) is the sweet spot: low enough that APPROACH converges
-# on the first pass, high enough that retrograde heading is stable.
-_BRAKE_DONE_SPEED_FACTOR = 0.3
+# Lowered from 0.3 to 0.15 so BRAKE does more work (exits at ~75 m/s
+# instead of ~150 m/s).  The new APPROACH architecture handles the rest
+# without oscillation, but starting slower means less work for it.
+_BRAKE_DONE_SPEED_FACTOR = 0.15
 
 # How many consecutive ticks APPROACH must be opening faster than
 # APPROACH_SPEED_LIMIT before re-entering BURN.  At dt=0.1 this is
@@ -157,14 +154,13 @@ class RendezvousAutopilot(BaseAutopilot):
 
     PROFILES = NAV_PROFILES
 
-    STATIONKEEP_RANGE = 5000.0      # metres — handoff to MatchVelocityAutopilot.
-                                    # The approach P-controller only manages
-                                    # radial closure and develops lateral drift
-                                    # that it can't correct.  MatchVelocity
-                                    # handles all 3 axes, so a 5 km handoff
-                                    # lets it finish the convergence.
-    STATIONKEEP_SPEED = 60.0        # m/s relative — approach should have bled
-                                    # most speed by the time range hits 5 km.
+    STATIONKEEP_RANGE = 10_000.0    # metres — default handoff to MatchVelocityAutopilot.
+                                    # Profile overrides this (10-20 km).
+                                    # The old 5 km meant APPROACH had to close
+                                    # 70-130 km at low speed — far too much.
+    STATIONKEEP_SPEED = 100.0       # m/s relative — raised from 60 to allow
+                                    # faster handoff.  MatchVelocity can handle
+                                    # 100 m/s at 10+ km range.
     FLIP_TOLERANCE_DEG = 10.0       # degrees
     _BASE_APPROACH_SPEED_LIMIT = 500.0  # m/s -- base speed limit at ~1G
                                         # Scaled up for higher-G ships so
@@ -197,11 +193,15 @@ class RendezvousAutopilot(BaseAutopilot):
         self.flip_safety_factor: float = float(self.params.get(
             "flip_safety_factor", profile["flip_safety_factor"]))
         self.stationkeep_range: float = float(self.params.get(
-            "stationkeep_range", self.STATIONKEEP_RANGE))
+            "stationkeep_range", profile.get("stationkeep_range", self.STATIONKEEP_RANGE)))
         self.stationkeep_speed: float = float(self.params.get(
             "stationkeep_speed", self.STATIONKEEP_SPEED))
         self.approach_range: float = float(self.params.get(
-            "approach_range", profile.get("approach_range", 5_000.0)))
+            "approach_range", profile.get("approach_range", 50_000.0)))
+        # Target cruise speed during approach coast — profile-dependent.
+        # Aggressive ships close faster, conservative ships are gentler.
+        self.approach_coast_speed: float = float(self.params.get(
+            "approach_coast_speed", profile.get("approach_coast_speed", 150.0)))
 
         # Dynamic APPROACH_SPEED_LIMIT and approach_range: both must be
         # consistent with the CONSERVATIVE acceleration estimate.  At init
@@ -250,7 +250,10 @@ class RendezvousAutopilot(BaseAutopilot):
         # this persists, preventing false triggers from P-controller braking
         # transients that briefly push closing_speed below zero.
         self._approach_opening_ticks: int = 0
-        self._drift_pulse_done: bool = False
+        # Approach sub-phase state: tracks which step of the 3-step
+        # approach architecture (decel -> rotate -> coast) we are in.
+        self._approach_rotated: bool = False  # True once prograde rotation done
+        self._approach_coast_ticks: int = 0   # ticks spent in coast sub-phase
         self.status = "active"
         if not target_id:
             self.status = "error"
@@ -528,50 +531,75 @@ class RendezvousAutopilot(BaseAutopilot):
                 # braking capability.
                 self._accel_samples.clear()
                 self._measured_accel = 0.0
-                self.phase = "approach_brake"
+                self._approach_rotated = False
+                self._approach_coast_ticks = 0
+                self.phase = "approach_decel"
                 logger.info(
-                    "Rendezvous: BRAKE -> APPROACH_BRAKE (continuing "
+                    "Rendezvous: BRAKE -> APPROACH_DECEL (continuing "
                     "retrograde decel, rel_speed=%.1f m/s, range %.0f m)",
                     rel_speed, current_range)
 
-        elif self.phase == "approach_brake":
-            # Sub-phase 1: keep thrusting retrograde until nearly stopped.
+        elif self.phase == "approach_decel":
+            # Step 1: Continue retrograde braking until nearly stopped.
             # NO heading change from BRAKE — same retrograde direction.
-            # This avoids the 9-second flip that caused the old APPROACH
-            # P-controller to oscillate.
-            #
-            # Transition to creep when BOTH conditions met:
-            #   1. Speed is low (< 3x stationkeep_speed ≈ 180 m/s)
-            #   2. Range is within stationkeep_range * 20 (100 km)
-            # The range gate prevents premature creep at very long range
-            # where the ship needs to accelerate toward the target, not
-            # coast at near-zero speed.
-            # When nearly stopped, transition to approach_drift: rotate
-            # toward target, fire a brief pulse, then coast.  The key is
-            # getting speed LOW first (<20 m/s) so the prograde rotation
-            # is safe — at 20 m/s, any heading misalignment during the
-            # rotation causes negligible drift (< 200m over a 10s rotation).
-            if rel_speed < 20.0:
-                self.phase = "approach_drift"
-                self._drift_pulse_done = False
+            # Threshold is 5 m/s: low enough that the single prograde
+            # rotation in step 2 is safe (at 5 m/s, a 10s rotation
+            # drifts only 50m — negligible at 50+ km range).
+            if rel_speed < 5.0:
+                self.phase = "approach_rotate"
+                self._approach_rotated = False
                 logger.info(
-                    "Rendezvous: APPROACH_BRAKE -> APPROACH_DRIFT "
+                    "Rendezvous: APPROACH_DECEL -> APPROACH_ROTATE "
                     "(nearly stopped, rel_speed=%.1f m/s, range %.0f m)",
                     rel_speed, current_range)
 
-        elif self.phase == "approach_drift":
-            # Drift phase: ship is nearly stopped (<20 m/s).
-            # If closing on target, just coast — will reach stationkeep.
-            # If not closing (or closing too slowly), fire a gentle pulse.
-            # If speed builds beyond 60 m/s, fall back to approach_brake.
-            if rel_speed > self.stationkeep_speed:
-                self.phase = "approach_brake"
-                self._accel_samples.clear()
-                self._measured_accel = 0.0
+        elif self.phase == "approach_rotate":
+            # Step 2: Single rotation toward target.  NO thrust during
+            # rotation — just point the nose at the target.  Transition
+            # to coast once aligned (heading error < 10 degrees).
+            target_pos = target.position if hasattr(target, "position") else target
+            vec = subtract_vectors(target_pos, self.ship.position)
+            heading = vector_to_heading(vec)
+            heading_err = self._heading_error({
+                "yaw": heading.get("yaw", 0),
+                "pitch": self.ship.orientation.get("pitch", 0),
+                "roll": self.ship.orientation.get("roll", 0),
+            })
+            if heading_err < 10.0:
+                self._approach_rotated = True
+                self._approach_coast_ticks = 0
+                self.phase = "approach_coast"
                 logger.info(
-                    "Rendezvous: APPROACH_DRIFT -> APPROACH_BRAKE "
-                    "(speed rose to %.1f m/s, range %.0f m)",
-                    rel_speed, current_range)
+                    "Rendezvous: APPROACH_ROTATE -> APPROACH_COAST "
+                    "(aligned to target, heading_err=%.1f deg, "
+                    "range %.0f m)",
+                    heading_err, current_range)
+
+        elif self.phase == "approach_coast":
+            # Step 3: Gentle prograde thrust to maintain closing speed.
+            # Target speed is profile-dependent (100-200 m/s).
+            # If speed exceeds safety limit, rotate retrograde and brake
+            # (with hysteresis to prevent oscillation).
+            #
+            # Safety limit: 1.5x the coast speed — enough headroom for
+            # thrust overshoot and sensor noise, but catches real problems.
+            safety_speed = self.approach_coast_speed * 1.5
+            if rel_speed > safety_speed:
+                self._approach_opening_ticks += 1
+                # Hysteresis: 30 ticks (3s) above safety before braking.
+                # This absorbs sensor noise spikes without oscillating.
+                if self._approach_opening_ticks > 30:
+                    self.phase = "approach_decel"
+                    self._approach_rotated = False
+                    self._accel_samples.clear()
+                    self._measured_accel = 0.0
+                    logger.info(
+                        "Rendezvous: APPROACH_COAST -> APPROACH_DECEL "
+                        "(speed %.1f m/s > safety %.1f m/s for 3s, "
+                        "range %.0f m)",
+                        rel_speed, safety_speed, current_range)
+            else:
+                self._approach_opening_ticks = 0
 
         # Execute current phase
         cmd: Optional[Dict] = None
@@ -584,12 +612,15 @@ class RendezvousAutopilot(BaseAutopilot):
         elif self.phase == "brake":
             self.status = "braking"
             cmd = self._compute_brake(rel)
-        elif self.phase == "approach_brake":
+        elif self.phase == "approach_decel":
             self.status = "approach_braking"
-            cmd = self._compute_approach_brake(rel)
-        elif self.phase == "approach_drift":
-            self.status = "drifting_to_target"
-            cmd = self._compute_approach_drift(target, rel, current_range)
+            cmd = self._compute_approach_decel(rel)
+        elif self.phase == "approach_rotate":
+            self.status = "approach_rotating"
+            cmd = self._compute_approach_rotate(target)
+        elif self.phase == "approach_coast":
+            self.status = "approach_coasting"
+            cmd = self._compute_approach_coast(target, rel, current_range)
         else:
             cmd = self._compute_stationkeep(dt, sim_time)
 
@@ -698,18 +729,19 @@ class RendezvousAutopilot(BaseAutopilot):
                     "roll": self.ship.orientation.get("roll", 0),
                 }}
 
-    def _compute_approach_brake(self, rel: Dict) -> Dict:
-        """Continue retrograde thrust until nearly stopped.
+    def _compute_approach_decel(self, rel: Dict) -> Dict:
+        """Continue retrograde thrust until nearly stopped (<5 m/s).
 
-        Same as BRAKE but runs after BRAKE exits.  No heading change
-        needed — the ship is already pointing retrograde from BRAKE.
-        This eliminates the 9-second flip that killed the old APPROACH
-        P-controller.
+        Same heading as BRAKE — no heading change needed.  The ship is
+        already pointing retrograde.  Uses gentle proportional thrust
+        so we don't overshoot zero and start opening.
+
+        This is step 1 of the 3-step approach: decel -> rotate -> coast.
         """
         heading = self._retrograde_heading(rel)
-        # Gentle proportional thrust — we're already slow, don't overshoot
+        # Proportional thrust: harder when fast, feathering near zero.
         current_speed = magnitude(rel["relative_velocity_vector"])
-        thrust_frac = min(self.max_thrust, current_speed / 50.0)
+        thrust_frac = min(self.max_thrust, current_speed / 30.0)
         thrust_frac = max(0.02, thrust_frac)
         return {"thrust": self._clamp_thrust(thrust_frac),
                 "heading": {
@@ -718,33 +750,69 @@ class RendezvousAutopilot(BaseAutopilot):
                     "roll": self.ship.orientation.get("roll", 0),
                 }}
 
-    def _compute_approach_drift(self, target, rel: Dict,
+    def _compute_approach_rotate(self, target) -> Dict:
+        """Rotate toward target with zero thrust.
+
+        The ship is nearly stopped (<5 m/s).  We command the heading
+        toward the target but fire NO thrust.  At 5 m/s the drift
+        during a 10-second rotation is only 50 metres — negligible
+        at 50+ km range.
+
+        This is step 2 of the 3-step approach: decel -> rotate -> coast.
+        The single rotation avoids the dangerous heading-reversal pattern
+        that caused oscillation in the old approach architecture.
+        """
+        target_pos = target.position if hasattr(target, "position") else target
+        vec = subtract_vectors(target_pos, self.ship.position)
+        heading = vector_to_heading(vec)
+        return {"thrust": 0.0,
+                "heading": {
+                    "yaw": heading.get("yaw", 0),
+                    "pitch": self.ship.orientation.get("pitch", 0),
+                    "roll": self.ship.orientation.get("roll", 0),
+                }}
+
+    def _compute_approach_coast(self, target, rel: Dict,
                                 current_range: float) -> Dict:
-        """Drift toward target at very low speed.
+        """Gentle prograde thrust to maintain profile-dependent closing speed.
 
-        The ship is nearly stopped (<20 m/s).  Point toward target and
-        apply a tiny fixed pulse (2% thrust for one tick) when not
-        closing fast enough.  Then coast.  The alignment guard ensures
-        thrust only fires when actually pointing toward the target.
+        The ship is pointed at the target and nearly stopped.  Apply
+        proportional thrust to reach and maintain approach_coast_speed
+        (100-200 m/s depending on profile).  Coast when at speed.
 
-        At <20 m/s, a 10-second heading rotation only drifts ~200m —
-        negligible at 60+ km range.  This is why approach_brake must
-        decelerate to <20 before entering this phase.
+        Desired closing speed tapers as range decreases:
+          - At approach_range: full coast speed
+          - At stationkeep_range: stationkeep_speed (for smooth handoff)
+          - Linear interpolation between
+
+        This is step 3 of the 3-step approach: decel -> rotate -> coast.
         """
         target_pos = target.position if hasattr(target, "position") else target
         vec = subtract_vectors(target_pos, self.ship.position)
         heading = vector_to_heading(vec)
         actual_closing = -rel["range_rate"]
 
-        # Desired: gently close at ~30 m/s
-        desired_closing = 30.0
+        # Taper desired speed linearly from coast_speed at approach_range
+        # down to stationkeep_speed at stationkeep_range.
+        range_span = max(self.approach_range - self.stationkeep_range, 1.0)
+        range_frac = (current_range - self.stationkeep_range) / range_span
+        range_frac = max(0.0, min(1.0, range_frac))
+        desired_closing = (self.stationkeep_speed
+                           + range_frac * (self.approach_coast_speed
+                                           - self.stationkeep_speed))
 
-        if actual_closing >= desired_closing * 0.5:
-            # Already closing well enough — coast
+        if actual_closing >= desired_closing:
+            # At or above desired speed — coast
             thrust = 0.0
-        else:
-            # Need a gentle nudge toward target
+        elif actual_closing >= desired_closing * 0.8:
+            # Close enough — minimal maintenance thrust
             thrust = self._clamp_thrust(0.02)
+        else:
+            # Need to build speed — proportional thrust based on deficit
+            speed_deficit = desired_closing - actual_closing
+            thrust_frac = min(self.max_thrust * 0.5,
+                              speed_deficit / 200.0 * self.max_thrust)
+            thrust = self._clamp_thrust(max(0.02, thrust_frac))
 
         return {"thrust": thrust,
                 "heading": {
@@ -1083,7 +1151,9 @@ class RendezvousAutopilot(BaseAutopilot):
             if a_max > 0 and distance > 0:
                 return 2.0 * math.sqrt(distance / a_max)
             return None
-        if self.phase in ("approach", "approach_brake", "approach_creep", "approach_drift"):
+        if self.phase in ("approach", "approach_decel", "approach_rotate",
+                         "approach_coast", "approach_brake", "approach_creep",
+                         "approach_drift"):
             # Approach uses low proportional thrust, so ETA is mostly
             # distance / current closing speed, with a floor guess.
             if closing_speed > 0.5:
@@ -1110,9 +1180,12 @@ class RendezvousAutopilot(BaseAutopilot):
             return "Flipping for deceleration burn"
         if self.phase == "brake":
             return f"Braking -- {d} remaining, ETA {t}"
-        if self.phase == "approach_brake":
+        if self.phase in ("approach_brake", "approach_decel"):
             return f"Approach braking -- {d} remaining, ETA {t}"
-        if self.phase in ("approach", "approach_creep", "approach_drift"):
+        if self.phase == "approach_rotate":
+            return f"Rotating for approach -- {d} remaining"
+        if self.phase in ("approach", "approach_creep", "approach_drift",
+                          "approach_coast"):
             return f"Final approach -- {d} remaining, ETA {t}"
         return f"Station-keeping at {d}"
 

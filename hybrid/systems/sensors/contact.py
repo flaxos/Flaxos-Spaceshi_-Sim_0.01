@@ -1,6 +1,7 @@
 # hybrid/systems/sensors/contact.py
 """Contact data structures and management."""
 
+import math
 import time
 from dataclasses import dataclass, field
 from typing import Dict, Optional
@@ -239,11 +240,13 @@ def add_detection_noise(position: Dict[str, float], accuracy: float) -> Dict[str
 def add_velocity_noise(velocity: Dict[str, float], accuracy: float) -> Dict[str, float]:
     """Add noise to a velocity vector based on detection accuracy.
 
-    Unlike position noise (up to 1km), velocity noise must use a much
-    smaller scale.  At 0% accuracy the error is up to 50 m/s per axis;
-    at 95% accuracy it's ~2.5 m/s — enough to be realistic sensor jitter
-    without overwhelming autopilot control loops that rely on rel_speed
-    thresholds of 20-180 m/s.
+    Noise scales with the actual velocity magnitude (percentage error)
+    plus a small fixed floor for thermal/processing jitter.  This way a
+    stationary target has near-zero velocity noise (~1 m/s) while a
+    fast-moving target has proportionally larger error.
+
+    At accuracy 0.95, a stationary target gets ~0.1 m/s noise per axis.
+    At accuracy 0.95, a 2000 m/s target gets ~2 m/s noise per axis.
 
     Args:
         velocity: True velocity vector {x, y, z}
@@ -252,7 +255,9 @@ def add_velocity_noise(velocity: Dict[str, float], accuracy: float) -> Dict[str,
     Returns:
         dict: Noisy velocity
     """
-    noise_magnitude = 50.0 * (1.0 - accuracy)  # Up to 50 m/s error at 0% accuracy
+    speed = math.sqrt(velocity["x"]**2 + velocity["y"]**2 + velocity["z"]**2)
+    # 2% of speed + 2 m/s floor, scaled by inaccuracy
+    noise_magnitude = max(2.0, 0.02 * speed) * (1.0 - accuracy)
 
     noise = {
         "x": random.gauss(0, noise_magnitude),
