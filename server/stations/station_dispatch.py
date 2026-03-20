@@ -117,7 +117,7 @@ class StationAwareDispatcher:
             )
 
             if not can_issue:
-                logger.info(f"Permission denied for {client_id}: {command} on {ship_id} - {reason}")
+                logger.debug(f"Permission denied for {client_id}: {command} on {ship_id} - {reason}")
                 return CommandResult(
                     success=False,
                     message=f"Permission denied: {reason}",

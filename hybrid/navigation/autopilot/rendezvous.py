@@ -1351,91 +1351,90 @@ class RendezvousAutopilot(BaseAutopilot):
 
     def _estimate_eta(self, distance: float, closing_speed: float,
                       a_max: float) -> Optional[float]:
-        """Rough ETA in seconds, or None if indeterminate.
+        """ETA in seconds, or None if indeterminate.
 
-        Accounts for all remaining phases, not just the current one.
-        Uses approach_coast_speed as the expected average cruise velocity
-        for the approach leg, which is more accurate than using the
-        instantaneous closing_speed (which might be 0 during decel/rotate).
+        Models the actual multi-phase trajectory:
+        - BURN/FLIP: brachistochrone for distance ABOVE approach_range only
+        - BRAKE: v/a deceleration time
+        - APPROACH: taper log-integral from current speed to stationkeep speed
+        - STATIONKEEP: sqrt-proportional creep to dock (~100-200s)
+
+        Key fixes:
+        - BURN/FLIP brachistochrone covers only the burn leg, not full distance
+          (approach_eta covers the rest — no double-counting)
+        - Stationkeep uses the delta-v controller's actual sqrt(range)*0.3
+          speed model, not a flat 2 m/s guess
         """
-        if self.phase == "stationkeep":
-            # Creeping to dock: estimate from sqrt-taper speed
-            if distance > 1.0:
-                avg_creep = max(0.5, math.sqrt(distance) * 0.1)
-                return distance / avg_creep
-            return 0.0
-
-        # Estimate time for approach leg (approach_range to stationkeep).
-        # The approach phase uses a linear taper: approach_coast_speed at
-        # approach_range down to stationkeep_speed at stationkeep_range.
-        # For a linear speed taper v(x) = v_low + (v_high-v_low)*(x-x_low)/(x_high-x_low),
-        # the time integral is: span / (v_high - v_low) * ln(v_high / v_low).
-        # This replaces the old 60%-of-peak heuristic which under-estimated by ~40%.
-        approach_dist = max(0.0, distance - self.stationkeep_range)
         v_high = self.approach_coast_speed
         v_low = self.stationkeep_speed
         taper_span = max(self.approach_range - self.stationkeep_range, 1.0)
-        if approach_dist > 0 and v_high > v_low > 0:
-            # Distance above approach_range is at constant coast speed
-            above_approach = max(0.0, distance - self.approach_range)
-            in_taper = min(approach_dist, taper_span)
-            above_eta = above_approach / v_high if above_approach > 0 else 0.0
-            taper_eta = (in_taper / (v_high - v_low)
-                         * math.log(v_high / v_low))
-            approach_eta = above_eta + taper_eta
-        else:
-            approach_eta = approach_dist / max(v_high * 0.6, 1.0) if approach_dist > 0 else 0.0
 
-        # Stationkeep creep: ~2 m/s average over stationkeep_range to dock
-        stationkeep_eta = self.stationkeep_range / 2.0
+        # --- Stationkeep ETA: sqrt-proportional speed model ---
+        # The delta-v controller targets sqrt(range)*0.3, clamped [0.5, 15].
+        # Integrate dr/v(r) from stationkeep_range to 50m (dock).
+        # Numerically: ~100-200s depending on stationkeep_range.
+        sk_dist = max(self.stationkeep_range - 50.0, 0.0)
+        if sk_dist > 1.0:
+            # Approximate: avg speed ~ sqrt(stationkeep_range/2) * 0.3
+            avg_sk_speed = max(1.0, math.sqrt(self.stationkeep_range * 0.5) * 0.3)
+            stationkeep_eta = sk_dist / avg_sk_speed
+        else:
+            stationkeep_eta = 0.0
+
+        if self.phase == "stationkeep":
+            if distance > 1.0:
+                avg_speed = max(0.5, math.sqrt(distance * 0.5) * 0.3)
+                return distance / avg_speed
+            return 0.0
+
+        # --- Approach taper ETA from current position ---
+        def _taper_eta_from(range_m: float) -> float:
+            """Time to coast from range_m to stationkeep_range via taper."""
+            if range_m <= self.stationkeep_range:
+                return 0.0
+            above = max(0.0, range_m - self.approach_range)
+            above_t = above / v_high if above > 0 and v_high > 0 else 0.0
+            in_taper = min(range_m - self.stationkeep_range,
+                           self.approach_range - self.stationkeep_range)
+            if in_taper > 0 and v_high > v_low > 0:
+                frac = in_taper / taper_span
+                v_cur = v_low + frac * (v_high - v_low)
+                if v_cur > v_low * 1.01:
+                    taper_t = (in_taper / (v_cur - v_low)
+                               * math.log(v_cur / v_low))
+                else:
+                    taper_t = in_taper / max(v_low, 1.0)
+            else:
+                taper_t = in_taper / max(v_high * 0.5, 1.0)
+            return above_t + taper_t
 
         if self.phase in ("burn", "flip"):
-            # Brachistochrone for burn+brake, then add approach + stationkeep
             if a_max > 0 and distance > 0:
-                burn_brake_eta = 2.0 * math.sqrt(distance / a_max)
-                return burn_brake_eta + approach_eta + stationkeep_eta
+                # Brachistochrone only for the burn+brake leg
+                # (distance above approach_range)
+                burn_dist = max(0.0, distance - self.approach_range)
+                if burn_dist > 0:
+                    burn_brake_t = 2.0 * math.sqrt(burn_dist / a_max)
+                else:
+                    burn_brake_t = 0.0
+                approach_t = _taper_eta_from(min(distance, self.approach_range))
+                return burn_brake_t + approach_t + stationkeep_eta
             return None
 
         if self.phase == "brake":
-            # Time to stop (v/a), then approach + stationkeep
-            brake_eta = closing_speed / a_max if a_max > 0 else 0.0
-            return brake_eta + approach_eta + stationkeep_eta
+            brake_t = closing_speed / a_max if a_max > 0 else 0.0
+            approach_t = _taper_eta_from(distance)
+            return brake_t + approach_t + stationkeep_eta
 
         if self.phase in ("approach_decel", "approach_rotate"):
-            # Brief sub-phases (~10-20s each), then coast + stationkeep
-            sub_phase_eta = 15.0  # rough average for decel+rotate
-            return sub_phase_eta + approach_eta + stationkeep_eta
+            sub_phase_t = 15.0
+            approach_t = _taper_eta_from(distance)
+            return sub_phase_t + approach_t + stationkeep_eta
 
         if self.phase in ("approach_coast", "approach", "approach_creep",
                          "approach_drift", "approach_brake"):
-            # Use taper-aware ETA: the approach phase linearly tapers speed
-            # from approach_coast_speed at approach_range down to
-            # stationkeep_speed at stationkeep_range.  The naive
-            # distance/closing_speed ignored the deceleration entirely.
-            if v_high > v_low > 0 and distance > self.stationkeep_range:
-                # Distance above approach_range traversed at constant coast speed
-                above_approach = max(0.0, distance - self.approach_range)
-                above_eta = above_approach / v_high if above_approach > 0 else 0.0
-
-                # Current taper speed at our range (clamped to taper zone)
-                range_in_taper = max(0.0,
-                                     min(distance, self.approach_range)
-                                     - self.stationkeep_range)
-                taper_frac = range_in_taper / taper_span
-                v_current = v_low + taper_frac * (v_high - v_low)
-
-                # Log-integral from current taper speed down to stationkeep speed
-                if v_current > v_low:
-                    taper_eta = (range_in_taper / (v_current - v_low)
-                                 * math.log(v_current / v_low))
-                else:
-                    # Already at stationkeep speed — no taper time
-                    taper_eta = 0.0
-
-                return above_eta + taper_eta + stationkeep_eta
-
-            # Fallback for edge cases (very low speed, already inside stationkeep)
-            return distance / max(closing_speed, 1.0) + stationkeep_eta
+            approach_t = _taper_eta_from(distance)
+            return approach_t + stationkeep_eta
 
         return None
 
