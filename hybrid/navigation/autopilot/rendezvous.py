@@ -878,17 +878,17 @@ class RendezvousAutopilot(BaseAutopilot):
         prograde_heading = vector_to_heading(vec)
         actual_closing = -rel["range_rate"]
 
-        # Taper desired speed: maintain full coast_speed until 3x
-        # stationkeep_range, then linear ramp down to stationkeep_speed
-        # at stationkeep_range.  The old taper started at approach_range
-        # (75km for balanced) which meant the ship spent most of the
-        # approach at half speed, taking 700+ seconds to close 100km.
+        # Taper desired speed across the full approach range.  Linear
+        # ramp from coast_speed at approach_range (75km for balanced)
+        # down to stationkeep_speed at stationkeep_range (500m).
         #
-        # The new taper keeps the ship at full coast speed for the
-        # majority of the approach and only decelerates in the last
-        # ~30km (3x stationkeep_range).  The final-braking check
-        # (approach_coast -> approach_decel) handles the rest.
-        taper_start = self.stationkeep_range * 3.0
+        # The old taper started at stationkeep_range * 3 (1500m),
+        # meaning the ship targeted 500 m/s until 1.5km from target.
+        # This caused a sawtooth of coast→emergency-brake→rotate cycles
+        # (3-12 cycles per approach).  Spanning the full approach range
+        # gives smooth proportional deceleration and eliminates the
+        # sawtooth entirely.
+        taper_start = self.approach_range
         if current_range >= taper_start:
             # Far out: full coast speed
             desired_closing = self.approach_coast_speed
@@ -1156,55 +1156,79 @@ class RendezvousAutopilot(BaseAutopilot):
         }}
 
     def _compute_stationkeep(self, dt: float, sim_time: float) -> Optional[Dict]:
-        """Nullify relative velocity at close range for docking.
+        """Close remaining range and dock using a unified delta-v controller.
 
-        Instead of delegating to MatchVelocityAutopilot (which diverges
-        due to heading oscillation at close range), use a simple
-        retrograde-only controller: point opposite to relative velocity
-        and fire proportional thrust.  This guarantees monotonic speed
-        reduction without heading reversals.
+        Instead of alternating between retrograde (kill speed) and prograde
+        (creep toward target) — which required 180° rotations every few
+        seconds — use a single velocity-matching controller:
 
-        Once rel_speed is near zero, gently thrust toward target to
-        close remaining range for docking.
+        1. Compute desired velocity: toward target at a range-proportional speed
+        2. Compute delta-v: desired velocity minus current relative velocity
+        3. Thrust along the delta-v vector with proportional magnitude
+
+        The heading tracks the delta-v direction continuously, so heading
+        changes are small (typically <30°) and the alignment guard rarely
+        blocks thrust.  This eliminates the rotation waste that made the
+        old two-phase controller take 500+ seconds.
         """
         target = self.get_target()
         if not target:
             return None
 
+        target_pos = target.position if hasattr(target, "position") else target
+        target_vel = target.velocity if hasattr(target, "velocity") else {"x": 0, "y": 0, "z": 0}
+
         rel = calculate_relative_motion(self.ship, target)
         rel_speed = magnitude(rel["relative_velocity_vector"])
         current_range = rel["range"]
-        closing_speed = -rel["range_rate"]
 
-        # Phase 1: kill relative velocity if > tolerance
-        if rel_speed > 1.0:
-            # Point retrograde (opposite of relative velocity)
-            retro = self._retrograde_heading(rel)
-            # Proportional thrust: stronger when fast
-            thrust_frac = min(self.max_thrust * 0.3,
-                              rel_speed / 50.0 * self.max_thrust * 0.1)
-            thrust_frac = max(0.01, thrust_frac)
-            heading = retro
-        elif current_range > 50.0:
-            # Phase 2: creep toward target for docking.
-            # Desired speed proportional to sqrt(range) for smooth
-            # tapering: fast enough to close in reasonable time, slow
-            # enough to stop within remaining range.
-            # At 500m: ~4.5 m/s.  At 200m: ~2.8 m/s.  At 100m: ~2 m/s.
-            # At 60m: ~1.5 m/s.
-            target_pos = target.position if hasattr(target, "position") else target
-            vec = subtract_vectors(target_pos, self.ship.position)
-            heading = vector_to_heading(vec)
-            desired_speed = max(1.0, min(10.0, math.sqrt(current_range) * 0.2))
-            if closing_speed >= desired_speed:
-                thrust_frac = 0.0
-            else:
-                speed_deficit = desired_speed - closing_speed
-                thrust_frac = max(0.02, min(0.15, speed_deficit / 10.0))
-        else:
-            # Phase 3: within docking range, just hold
+        # Within docking range and slow enough — done
+        if current_range < 50.0 and rel_speed < 1.0:
             self.status = "docking_ready"
             return {"thrust": 0.0, "heading": self.ship.orientation}
+
+        # Desired closing speed: proportional to sqrt(range) for smooth
+        # tapering.  Faster when far, slow when close.
+        # At 500m: ~6.7 m/s.  At 200m: ~4.2 m/s.  At 100m: ~3.0 m/s.
+        # At 60m: ~2.3 m/s.  At 50m: ~2.1 m/s.
+        desired_speed = max(1.5, min(15.0, math.sqrt(current_range) * 0.3))
+
+        # Desired velocity vector: toward target at desired_speed
+        to_target = subtract_vectors(target_pos, self.ship.position)
+        dist = magnitude(to_target)
+        if dist < 0.01:
+            return {"thrust": 0.0, "heading": self.ship.orientation}
+
+        scale = desired_speed / dist
+        desired_vel = {
+            "x": to_target["x"] * scale + target_vel["x"],
+            "y": to_target["y"] * scale + target_vel["y"],
+            "z": to_target["z"] * scale + target_vel["z"],
+        }
+
+        # Delta-v: what velocity change is needed
+        delta_v = {
+            "x": desired_vel["x"] - self.ship.velocity["x"],
+            "y": desired_vel["y"] - self.ship.velocity["y"],
+            "z": desired_vel["z"] - self.ship.velocity["z"],
+        }
+        dv_mag = magnitude(delta_v)
+
+        if dv_mag < 0.1:
+            # Already at desired velocity — coast
+            return {"thrust": 0.0, "heading": self.ship.orientation}
+
+        # Heading: along delta-v direction
+        heading = vector_to_heading(delta_v)
+
+        # Proportional thrust: scale with delta-v magnitude
+        # Tau = 3s time constant — responsive but not twitchy
+        a_max = self._get_max_accel() * self.max_thrust
+        if a_max > 0:
+            thrust_frac = min(0.30, dv_mag / (a_max * 3.0))
+        else:
+            thrust_frac = 0.05
+        thrust_frac = max(0.02, thrust_frac)
 
         cmd = {
             "thrust": self._clamp_thrust(thrust_frac),
@@ -1215,7 +1239,7 @@ class RendezvousAutopilot(BaseAutopilot):
             },
         }
 
-        # Alignment guard
+        # Alignment guard: cosine scaling for misalignment
         if cmd["thrust"] > 0:
             heading_err = self._heading_error(cmd["heading"])
             if heading_err > 90.0:
