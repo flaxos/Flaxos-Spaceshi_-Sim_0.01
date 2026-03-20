@@ -54,6 +54,7 @@ system_commands = {
     "get_draw_profile": ("power_management", "get_draw_profile"),
     "request_docking": ("docking", "request_docking"),
     "cancel_docking": ("docking", "cancel_docking"),
+    "undock": ("docking", "undock"),
     # Targeting commands (Sprint C)
     "lock_target": ("targeting", "lock"),
     "unlock_target": ("targeting", "unlock"),

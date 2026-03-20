@@ -38,6 +38,13 @@ class DockingSystem(BaseSystem):
 
         if getattr(ship, "docked_to", None):
             self.status = "docked"
+            # Lock position to docking target and suppress all motion
+            if self.target_ship:
+                target_pos = self.target_ship.position if hasattr(self.target_ship, 'position') else None
+                if target_pos:
+                    ship.position = dict(target_pos)
+            ship.velocity = {"x": 0.0, "y": 0.0, "z": 0.0}
+            ship.acceleration = {"x": 0.0, "y": 0.0, "z": 0.0}
             return
 
         if not self.target_ship and not self.target_id:
@@ -61,6 +68,13 @@ class DockingSystem(BaseSystem):
         if range_to_target <= self.docking_range and relative_speed <= self.max_relative_velocity:
             ship.docked_to = target_id or getattr(target_ship, "id", None)
             self.status = "docked"
+            # Zero motion so the ship doesn't drift while docked
+            ship.velocity = {"x": 0.0, "y": 0.0, "z": 0.0}
+            ship.acceleration = {"x": 0.0, "y": 0.0, "z": 0.0}
+            # Disengage any active autopilot — docked ships shouldn't navigate
+            nav = ship.systems.get("navigation")
+            if nav and hasattr(nav, 'controller') and nav.controller:
+                nav.controller.disengage_autopilot()
             if event_bus:
                 event_bus.publish(
                     "docked",
@@ -81,15 +95,32 @@ class DockingSystem(BaseSystem):
         """Handle docking commands."""
         if action == "request_docking":
             return self._cmd_request_docking(params)
-        if action == "cancel_docking":
+        elif action == "cancel_docking":
             return self._cmd_cancel_docking()
-        if action == "status":
+        elif action == "undock":
+            return self._cmd_undock(params)
+        elif action == "status":
             return self.get_state()
-        if action == "power_on":
+        elif action == "power_on":
             return self.power_on()
-        if action == "power_off":
+        elif action == "power_off":
             return self.power_off()
         return super().command(action, params)
+
+    def _cmd_undock(self, params):
+        """Detach from the currently docked target."""
+        if self.status != "docked":
+            return {"ok": False, "error": "Not currently docked"}
+        ship = params.get("_ship") or params.get("ship")
+        event_bus = params.get("event_bus")
+        if ship:
+            ship.docked_to = None
+        self.status = "idle"
+        self.target_id = None
+        self.target_ship = None
+        if event_bus and ship:
+            event_bus.publish("undocked", {"ship_id": ship.id})
+        return {"ok": True, "status": "Undocked"}
 
     def _cmd_request_docking(self, params):
         if not self.enabled:

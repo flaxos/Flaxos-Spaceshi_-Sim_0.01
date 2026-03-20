@@ -1,0 +1,102 @@
+# Docking Test: Short Range Approach
+# Quick 200km approach and dock — useful for testing rendezvous autopilot end-to-end
+
+name: "Docking Test: Short Range Approach"
+description: "Test docking procedures at 200km range"
+
+dt: 0.1
+
+ships:
+  - id: "player"
+    name: "Rocinante"
+    class: "corvette"
+    player_controlled: true
+    position: {x: 0, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+    mass: 5000
+    systems:
+      propulsion:
+        max_thrust: 500000   # 500 kN Epstein drive — 10.2G max for a 5t corvette
+        fuel_level: 10000
+        max_fuel: 10000
+      sensors:
+        passive:
+          range: 500000  # 500km — well beyond the 200km target range
+        active:
+          scan_range: 500000
+      navigation: {}
+      targeting: {}
+      docking:
+        docking_range: 50       # metres
+        max_relative_velocity: 1.0  # m/s
+
+  - id: "target_station"
+    name: "Tycho Station"
+    class: "station"
+    position: {x: 200000, y: 0, z: 0}  # 200km straight along X-axis
+    velocity: {x: 0, y: 0, z: 0}  # Stationary
+    mass: 100000
+    systems:
+      sensors:
+        passive:
+          range: 100000
+
+mission:
+  name: "Docking Test"
+  description: "Short-range approach and dock at 200km"
+
+  briefing: |
+    Short-range approach and docking exercise. Target station is 200km
+    out on a direct bearing. Use rendezvous autopilot to approach,
+    then dock when within range.
+
+    Steps:
+    1. Detect the station with sensors
+    2. Engage rendezvous autopilot
+    3. When within docking range (<50m, <1 m/s), request docking
+    4. Verify docked state
+    5. Undock and maneuver clear
+
+  objectives:
+    - id: "detect_station"
+      type: "scan_target"
+      description: "Detect the station with sensors"
+      required: true
+      params:
+        target: "target_station"
+
+    - id: "close_to_5km"
+      type: "reach_range"
+      description: "Close to within 5km of the station"
+      required: true
+      params:
+        target: "target_station"
+        range: 5000
+        initial_range: 200000
+
+    - id: "dock_with_station"
+      type: "dock_with"
+      description: "Dock with Tycho Station"
+      required: true
+      params:
+        target: "target_station"
+
+  success_message: |
+    Docking test complete. All objectives achieved.
+
+    Verified:
+    - Sensor detection at 200km range
+    - Rendezvous autopilot approach
+    - Final docking maneuver
+
+  failure_message: "Docking test failed. Check autopilot convergence and retry."
+
+  hints:
+    - trigger: "start"
+      message: "Engage the rendezvous autopilot to begin approach."
+    - trigger: "range < 100000"
+      target: "target_station"
+      message: "Halfway there. Autopilot handling deceleration."
+    - trigger: "range < 5000"
+      target: "target_station"
+      message: "Within docking range! Request docking when ready."
