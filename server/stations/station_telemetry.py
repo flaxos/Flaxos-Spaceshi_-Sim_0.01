@@ -58,6 +58,9 @@ class StationTelemetryFilter:
             "subsystem_health": ["damage_model"],
             "thermal_status": ["thermal"],
 
+            # Docking displays
+            "docking_guidance": ["docking"],
+
             # Common displays (available to most stations)
             "basic_status": ["id", "name", "class", "faction", "timestamp"],
         }
@@ -281,7 +284,8 @@ def create_station_specific_telemetry(
                 "program": ship_telemetry.get("autopilot_program"),
                 "autopilot_state": ship_telemetry.get("autopilot_state"),
                 "course": ship_telemetry.get("course"),
-            }
+            },
+            "docking": ship_telemetry.get("docking"),
         }
 
     elif station == StationType.TACTICAL:

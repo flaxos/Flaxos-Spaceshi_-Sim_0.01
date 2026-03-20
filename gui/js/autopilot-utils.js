@@ -13,7 +13,7 @@ import { stateManager } from "./state-manager.js";
 
 // Phase lists for different autopilot programs
 const GOTO_PHASES = ["ACCELERATE", "COAST", "BRAKE", "HOLD"];
-const RENDEZVOUS_PHASES = ["BURN", "FLIP", "BRAKE", "STATIONKEEP"];
+const RENDEZVOUS_PHASES = ["BURN", "FLIP", "BRAKE", "APPROACH_DECEL", "APPROACH_ROTATE", "APPROACH_COAST", "STATIONKEEP"];
 const INTERCEPT_PHASES = ["INTERCEPT", "APPROACH", "MATCH"];
 
 const PROGRAM_PHASES = {
@@ -32,6 +32,9 @@ const SHORT_PHASE_LABELS = {
   HOLD: "Hold",
   BURN: "Burn",
   FLIP: "Flip",
+  APPROACH_DECEL: "Decel",
+  APPROACH_ROTATE: "Rotate",
+  APPROACH_COAST: "Coast",
   STATIONKEEP: "Stnkeep",
   INTERCEPT: "Intrcpt",
   APPROACH: "Approach",
@@ -103,6 +106,9 @@ const PHASE_SEGMENT_CSS = `
   .phase-segment.hold.active { background: var(--status-nominal, #00ff88); }
   .phase-segment.burn.active { background: var(--status-warning, #ffaa00); }
   .phase-segment.flip.active { background: #cc66ff; }
+  .phase-segment.approach_decel.active { background: var(--status-critical, #ff4444); }
+  .phase-segment.approach_rotate.active { background: #cc66ff; }
+  .phase-segment.approach_coast.active { background: var(--status-info, #00aaff); }
   .phase-segment.stationkeep.active { background: var(--status-nominal, #00ff88); }
   .phase-segment.intercept.active { background: var(--status-warning, #ffaa00); }
   .phase-segment.approach.active { background: var(--status-info, #00aaff); }
