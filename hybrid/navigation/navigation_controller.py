@@ -355,14 +355,40 @@ class NavigationController:
             thrust_frac = profile["max_thrust"]
             brake_margin = profile["brake_margin"]
             flip_safety = profile["flip_safety_factor"]
-            a_eff = ship_max_accel * thrust_frac
+            approach_range = profile.get("approach_range", 50_000.0)
+            coast_speed = profile.get("approach_coast_speed", 150.0)
+            sk_range = profile.get("stationkeep_range", 500.0)
+            sk_speed = 20.0  # STATIONKEEP_SPEED constant
 
-            # Brachistochrone estimate: burn half, brake half
-            if a_eff > 0 and distance > 0:
-                t_flight = 2.0 * math.sqrt(distance / a_eff)
+            # Effective accel: profile throttle * alignment guard derating
+            guard_eff = 0.35
+            a_eff = ship_max_accel * thrust_frac * guard_eff
+
+            # --- Multi-phase ETA estimate ---
+            # 1. Burn+brake covers distance above approach_range
+            burn_dist = max(0.0, distance - approach_range)
+            if a_eff > 0 and burn_dist > 0:
+                t_burn_brake = 2.0 * math.sqrt(burn_dist / a_eff)
             else:
-                t_flight = float("inf")
-            t_total = t_flight + flip_time * flip_safety
+                t_burn_brake = 0.0
+
+            # 2. Flip (rotation dead time)
+            t_flip = flip_time * flip_safety
+
+            # 3. Approach coast: taper from coast_speed to sk_speed
+            #    across approach_range to sk_range.
+            #    For linear taper: t = span / (v_hi - v_lo) * ln(v_hi / v_lo)
+            taper_span = max(approach_range - sk_range, 1.0)
+            if coast_speed > sk_speed:
+                t_approach = (taper_span / (coast_speed - sk_speed)
+                              * math.log(coast_speed / max(sk_speed, 0.1)))
+            else:
+                t_approach = taper_span / max(coast_speed, 1.0)
+
+            # 4. Stationkeep: sqrt-proportional speed from sk_range to 50m
+            t_stationkeep = math.sqrt(max(sk_range, 1.0)) * 10.0
+
+            t_total = t_burn_brake + t_flip + t_approach + t_stationkeep
 
             # Delta-v normalised to 0-1 scale relative to max accel
             dv = 2.0 * math.sqrt(max(distance * a_eff, 0))
