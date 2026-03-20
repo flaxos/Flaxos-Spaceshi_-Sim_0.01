@@ -20,6 +20,7 @@ const PROGRAM_PHASES = {
   goto_position: GOTO_PHASES,
   set_course: GOTO_PHASES,
   rendezvous: RENDEZVOUS_PHASES,
+  dock_approach: RENDEZVOUS_PHASES,
   intercept: INTERCEPT_PHASES,
 };
 
