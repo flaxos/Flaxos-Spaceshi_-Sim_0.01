@@ -78,6 +78,7 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             "helm_queue_status",
             "request_docking",
             "cancel_docking",
+            "undock",
             "get_nav_solutions",
             "execute_burn",
             "plot_intercept",

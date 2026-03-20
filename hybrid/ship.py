@@ -317,6 +317,10 @@ class Ship:
                 provided, the existing acceleration is used.
             sim_time (float, optional): Current simulation time for flight path recording
         """
+        # No physics integration while docked — position is locked by docking system
+        if self.docked_to:
+            return
+
         # Guard against invalid dt
         if not is_valid_number(dt) or dt <= 0:
             logger.warning(f"Ship {self.id}: Invalid dt={dt}, skipping physics update")

@@ -163,6 +163,17 @@ def register_helm_commands(
             return CommandResult(success=False, message=result["error"], data=result)
         return CommandResult(success=True, message="Docking request cancelled", data=result)
 
+    def cmd_undock(client_id: str, ship_id: str, args: Dict[str, Any]) -> CommandResult:
+        """Undock from current station/ship."""
+        ship = _resolve_ship(ship_id)
+        if not ship:
+            return CommandResult(success=False, message=f"Ship not found: {ship_id}")
+
+        result = _dispatch_to_docking(ship, "undock", {})
+        if isinstance(result, dict) and "error" in result:
+            return CommandResult(success=False, message=result["error"], data=result)
+        return CommandResult(success=True, message="Undocked", data=result)
+
     dispatcher.register_command(
         "queue_helm_command",
         cmd_queue_helm_command,
@@ -202,6 +213,12 @@ def register_helm_commands(
     dispatcher.register_command(
         "cancel_docking",
         cmd_cancel_docking,
+        station=StationType.HELM
+    )
+
+    dispatcher.register_command(
+        "undock",
+        cmd_undock,
         station=StationType.HELM
     )
 

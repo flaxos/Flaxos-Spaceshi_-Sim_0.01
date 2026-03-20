@@ -283,6 +283,46 @@ class DockingPanel extends HTMLElement {
           border-color: var(--status-critical, #ff4444);
         }
 
+        .ctrl-btn.undock {
+          grid-column: 1 / -1;
+          border-color: var(--status-warning, #ffaa00);
+          color: var(--status-warning, #ffaa00);
+        }
+
+        .ctrl-btn.undock:hover:not(:disabled) {
+          background: rgba(255, 170, 0, 0.12);
+          border-color: var(--status-warning, #ffaa00);
+        }
+
+        /* Docked state prominent display */
+        .docked-info {
+          display: none;
+          margin-bottom: 16px;
+          padding: 14px;
+          background: rgba(0, 255, 136, 0.06);
+          border: 1px solid rgba(0, 255, 136, 0.2);
+          border-radius: 6px;
+          text-align: center;
+        }
+
+        .docked-info.visible {
+          display: block;
+        }
+
+        .docked-target {
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+          font-size: 1rem;
+          font-weight: 700;
+          color: var(--status-nominal, #00ff88);
+          letter-spacing: 0.5px;
+          margin-bottom: 6px;
+        }
+
+        .docked-secured {
+          font-size: 0.75rem;
+          color: var(--text-secondary, #888899);
+        }
+
         .hidden {
           display: none !important;
         }
@@ -311,6 +351,12 @@ class DockingPanel extends HTMLElement {
         </select>
       </div>
 
+      <!-- Docked State Info (visible when docked) -->
+      <div class="docked-info" id="docked-info">
+        <div class="docked-target" id="docked-target">DOCKED</div>
+        <div class="docked-secured">All systems secured. Ship stationary.</div>
+      </div>
+
       <!-- Approach Guidance (visible during docking) -->
       <div class="approach-guidance" id="approach-guidance">
         <div class="section-title">Approach Guidance</div>
@@ -334,6 +380,7 @@ class DockingPanel extends HTMLElement {
       <div class="controls">
         <button class="ctrl-btn request" id="btn-request" title="Request docking clearance (D)">Request Docking</button>
         <button class="ctrl-btn cancel" id="btn-cancel" title="Cancel docking procedure" disabled>Cancel Docking</button>
+        <button class="ctrl-btn undock hidden" id="btn-undock" title="Undock from target (U)">Undock</button>
       </div>
     `;
   }
@@ -349,12 +396,17 @@ class DockingPanel extends HTMLElement {
       this._cancelDocking();
     });
 
+    // Undock
+    this.shadowRoot.getElementById("btn-undock").addEventListener("click", () => {
+      this._undock();
+    });
+
     // Track target selection changes
     this.shadowRoot.getElementById("target-select").addEventListener("change", (e) => {
       this._selectedTargetId = e.target.value || null;
     });
 
-    // Keyboard shortcut: D to request docking
+    // Keyboard shortcuts: D to request docking, U to undock
     this._keyHandler = (e) => {
       const tag = e.target.tagName?.toLowerCase();
       if (tag === "input" || tag === "textarea" || tag === "select") return;
@@ -363,9 +415,16 @@ class DockingPanel extends HTMLElement {
         return t === "input" || t === "textarea" || t === "select";
       })) return;
 
-      if (e.key.toUpperCase() === "D") {
+      const key = e.key.toUpperCase();
+      if (key === "D") {
         e.preventDefault();
         this._requestDocking();
+      } else if (key === "U") {
+        // Only undock when actually docked
+        if (this._getCurrentDockingState() === DOCKING_STATES.DOCKED) {
+          e.preventDefault();
+          this._undock();
+        }
       }
     };
     document.addEventListener("keydown", this._keyHandler);
@@ -426,18 +485,31 @@ class DockingPanel extends HTMLElement {
   _updateDisplay() {
     const state = this._getCurrentDockingState();
     const ds = this._dockingState;
+    const isDocked = state === DOCKING_STATES.DOCKED;
 
     const indicator = this.shadowRoot.getElementById("status-indicator");
     const badge = this.shadowRoot.getElementById("status-badge");
     const statusText = this.shadowRoot.getElementById("status-text");
     const guidance = this.shadowRoot.getElementById("approach-guidance");
+    const dockedInfo = this.shadowRoot.getElementById("docked-info");
+    const dockedTarget = this.shadowRoot.getElementById("docked-target");
+    const targetSection = this.shadowRoot.querySelector(".target-section");
     const btnRequest = this.shadowRoot.getElementById("btn-request");
     const btnCancel = this.shadowRoot.getElementById("btn-cancel");
+    const btnUndock = this.shadowRoot.getElementById("btn-undock");
 
     // Reset classes
     indicator.className = `status-indicator ${state}`;
     badge.className = `status-badge ${state}`;
     badge.textContent = state.toUpperCase();
+
+    // Hide/show docked-only elements
+    dockedInfo.classList.toggle("visible", isDocked);
+    btnUndock.classList.toggle("hidden", !isDocked);
+    // Hide target selector and request/cancel when docked
+    targetSection.classList.toggle("hidden", isDocked);
+    btnRequest.classList.toggle("hidden", isDocked);
+    btnCancel.classList.toggle("hidden", isDocked);
 
     // State-specific text and button states
     switch (state) {
@@ -456,7 +528,7 @@ class DockingPanel extends HTMLElement {
         break;
 
       case DOCKING_STATES.APPROVED: {
-        const targetLabel = ds?.target_id || "target";
+        const targetLabel = ds?.target_id || ds?.target || "target";
         statusText.textContent = `Docking approved \u2014 approach ${targetLabel}`;
         btnRequest.disabled = true;
         btnCancel.disabled = false;
@@ -465,7 +537,7 @@ class DockingPanel extends HTMLElement {
       }
 
       case DOCKING_STATES.DOCKING:
-        statusText.textContent = `Docking approach in progress`;
+        statusText.textContent = "Docking approach in progress";
         btnRequest.disabled = true;
         btnCancel.disabled = false;
         guidance.classList.add("visible");
@@ -473,10 +545,9 @@ class DockingPanel extends HTMLElement {
         break;
 
       case DOCKING_STATES.DOCKED: {
-        const dockedTarget = ds?.target_id || "target";
-        statusText.textContent = `Docked with ${dockedTarget}`;
-        btnRequest.disabled = true;
-        btnCancel.disabled = false;
+        const targetName = ds?.target_id || ds?.target || "target";
+        statusText.textContent = "All systems secured";
+        dockedTarget.textContent = `DOCKED with ${targetName}`;
         guidance.classList.remove("visible");
         break;
       }
@@ -552,6 +623,20 @@ class DockingPanel extends HTMLElement {
       }
     } catch (error) {
       this._showMessage(`Cancel failed: ${error.message}`, "error");
+    }
+  }
+
+  async _undock() {
+    if (this._getCurrentDockingState() !== DOCKING_STATES.DOCKED) return;
+    try {
+      const response = await wsClient.sendShipCommand("undock", {});
+      if (response?.error) {
+        this._showMessage(`Undock error: ${response.error}`, "error");
+      } else {
+        this._showMessage("Undocked successfully", "success");
+      }
+    } catch (error) {
+      this._showMessage(`Undock failed: ${error.message}`, "error");
     }
   }
 
