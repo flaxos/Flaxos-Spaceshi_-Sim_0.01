@@ -323,6 +323,39 @@ class DockingPanel extends HTMLElement {
           color: var(--text-secondary, #888899);
         }
 
+        .service-report {
+          margin-top: 10px;
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 6px 12px;
+          text-align: left;
+          padding: 8px 12px;
+          background: rgba(0, 255, 136, 0.04);
+          border-radius: 4px;
+        }
+
+        .service-item {
+          display: flex;
+          justify-content: space-between;
+          font-size: 0.7rem;
+        }
+
+        .service-label {
+          color: var(--text-dim, #555566);
+          text-transform: uppercase;
+          letter-spacing: 0.3px;
+        }
+
+        .service-value {
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+          color: var(--status-nominal, #00ff88);
+          font-weight: 600;
+        }
+
+        .service-value.none {
+          color: var(--text-dim, #555566);
+        }
+
         .hidden {
           display: none !important;
         }
@@ -355,6 +388,24 @@ class DockingPanel extends HTMLElement {
       <div class="docked-info" id="docked-info">
         <div class="docked-target" id="docked-target">DOCKED</div>
         <div class="docked-secured">All systems secured. Ship stationary.</div>
+        <div class="service-report" id="service-report" style="display:none;">
+          <div class="service-item">
+            <span class="service-label">Hull</span>
+            <span class="service-value" id="svc-hull">--</span>
+          </div>
+          <div class="service-item">
+            <span class="service-label">Subsystems</span>
+            <span class="service-value" id="svc-subsystems">--</span>
+          </div>
+          <div class="service-item">
+            <span class="service-label">Fuel</span>
+            <span class="service-value" id="svc-fuel">--</span>
+          </div>
+          <div class="service-item">
+            <span class="service-label">Weapons</span>
+            <span class="service-value" id="svc-weapons">--</span>
+          </div>
+        </div>
       </div>
 
       <!-- Approach Guidance (visible during docking) -->
@@ -549,6 +600,7 @@ class DockingPanel extends HTMLElement {
         statusText.textContent = "All systems secured";
         dockedTarget.textContent = `DOCKED with ${targetName}`;
         guidance.classList.remove("visible");
+        this._updateServiceReport(ds);
         break;
       }
     }
@@ -582,6 +634,42 @@ class DockingPanel extends HTMLElement {
     const rangeOk = range !== undefined && range <= maxRange;
     const speedOk = speed !== undefined && speed <= maxSpeed;
     alignEl.textContent = rangeOk && speedOk ? "GO" : `Need ≤${maxRange}m / ≤${maxSpeed}m/s`;
+  }
+
+  /**
+   * Update the service report section when docked at a station.
+   * Shows what was repaired, refueled, and resupplied.
+   */
+  _updateServiceReport(ds) {
+    const report = ds?.service_report;
+    const container = this.shadowRoot.getElementById("service-report");
+    if (!container) return;
+
+    if (!report) {
+      container.style.display = "none";
+      return;
+    }
+
+    container.style.display = "";
+
+    const setField = (id, value, zeroLabel) => {
+      const el = this.shadowRoot.getElementById(id);
+      if (!el) return;
+      if (value > 0) {
+        el.textContent = typeof value === "number" && value % 1 !== 0
+          ? `+${value.toFixed(0)}`
+          : `+${value}`;
+        el.classList.remove("none");
+      } else {
+        el.textContent = zeroLabel || "OK";
+        el.classList.add("none");
+      }
+    };
+
+    setField("svc-hull", report.hull_repaired || 0, "OK");
+    setField("svc-subsystems", report.subsystems_repaired || 0, "OK");
+    setField("svc-fuel", report.fuel_added || 0, "FULL");
+    setField("svc-weapons", report.weapons_resupplied || 0, "FULL");
   }
 
   /**

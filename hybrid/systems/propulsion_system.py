@@ -75,6 +75,9 @@ class PropulsionSystem(BaseSystem):
         self._last_thrust_magnitude = 0.0
         self._last_dt = 0.0
 
+        # Bingo fuel warning — fire once when fuel drops below 10%
+        self._bingo_warned = False
+
     def tick(self, dt, ship, event_bus):
         """Update propulsion and apply thrust.
         
@@ -106,6 +109,21 @@ class PropulsionSystem(BaseSystem):
             ship.acceleration = {"x": 0.0, "y": 0.0, "z": 0.0}
             self.thrust_world = {"x": 0.0, "y": 0.0, "z": 0.0}
             self.status = "offline"
+            return
+
+        # Fuel-dry guard: if tanks are empty, ensure throttle stays zeroed
+        # and skip all thrust computation.  Without this, a non-zero throttle
+        # left over from the previous tick would re-enter the consumption
+        # path every tick, wasting cycles and emitting repeated events.
+        if self.fuel_level <= 0:
+            self.throttle = 0.0
+            self._debug_thrust_vector = None
+            self.main_drive["throttle"] = 0.0
+            ship.thrust = {"x": 0.0, "y": 0.0, "z": 0.0}
+            ship.acceleration = {"x": 0.0, "y": 0.0, "z": 0.0}
+            self.thrust_world = {"x": 0.0, "y": 0.0, "z": 0.0}
+            self.current_thrust_g = 0.0
+            self.status = "no_fuel"
             return
 
         # Calculate thrust magnitude
@@ -187,11 +205,21 @@ class PropulsionSystem(BaseSystem):
                     ship.acceleration = {"x": 0.0, "y": 0.0, "z": 0.0}
                     self.status = "error"
             else:
+                # Fuel exhausted mid-tick — zero everything and lock out throttle
                 ship.thrust = {"x": 0.0, "y": 0.0, "z": 0.0}
                 ship.acceleration = {"x": 0.0, "y": 0.0, "z": 0.0}
+                self.thrust_world = {"x": 0.0, "y": 0.0, "z": 0.0}
                 self.fuel_level = 0.0
+                self.throttle = 0.0
+                self._debug_thrust_vector = None
+                self.main_drive["throttle"] = 0.0
+                self.current_thrust_g = 0.0
                 self.status = "no_fuel"
-                event_bus.publish("propulsion_status_change", {"system": "propulsion", "status": "no_fuel"})
+                event_bus.publish("propulsion_status_change", {
+                    "system": "propulsion",
+                    "status": "no_fuel",
+                    "ship_id": getattr(ship, "id", None),
+                })
         else:
             ship.acceleration = {"x": 0.0, "y": 0.0, "z": 0.0}
             self.current_thrust_g = 0.0
@@ -199,7 +227,26 @@ class PropulsionSystem(BaseSystem):
 
         self._last_thrust_magnitude = thrust_magnitude
         self._last_dt = dt
-        
+
+        # Bingo fuel warning: fire once when fuel drops below 10% of capacity.
+        # This gives the player (and autopilot) advance notice to plan a final
+        # deceleration burn before they run dry.
+        if self.max_fuel > 0 and not self._bingo_warned:
+            fuel_pct = self.fuel_level / self.max_fuel
+            if fuel_pct < 0.10:
+                self._bingo_warned = True
+                event_bus.publish("bingo_fuel", {
+                    "ship_id": getattr(ship, "id", None),
+                    "fuel_level": self.fuel_level,
+                    "max_fuel": self.max_fuel,
+                    "fuel_pct": round(fuel_pct * 100, 1),
+                })
+                logger.warning(
+                    f"BINGO FUEL on {getattr(ship, 'id', '?')}: "
+                    f"{self.fuel_level:.1f}/{self.max_fuel:.1f} kg "
+                    f"({fuel_pct * 100:.1f}%)"
+                )
+
         # Update max G-force capability (if we have ship mass)
         if hasattr(ship, 'mass') and ship.mass > 0:
             max_accel = self.max_thrust / ship.mass
@@ -208,8 +255,8 @@ class PropulsionSystem(BaseSystem):
         # Signature spike for sensor detection
         if thrust_magnitude > 10.0:
             event_bus.publish("signature_spike", {
-                "duration": 3.0, 
-                "magnitude": thrust_magnitude, 
+                "duration": 3.0,
+                "magnitude": thrust_magnitude,
                 "source": "propulsion"
             })
 
@@ -284,6 +331,9 @@ class PropulsionSystem(BaseSystem):
         """
         if not self.enabled:
             return {"error": "Propulsion system is disabled"}
+
+        if self.fuel_level <= 0:
+            return {"error": "No fuel remaining"}
 
         try:
             # Check if G-force is specified (takes precedence)
@@ -375,8 +425,12 @@ class PropulsionSystem(BaseSystem):
             return {"error": f"Invalid thrust vector parameters: {e}"}
 
     def refuel(self, params):
+        """Add fuel to tanks. Resets bingo warning if fuel rises above 10%."""
         amount = float(params.get("amount", self.max_fuel - self.fuel_level))
         self.fuel_level = min(self.max_fuel, self.fuel_level + amount)
+        # Reset bingo warning if fuel is back above threshold
+        if self.max_fuel > 0 and self.fuel_level / self.max_fuel >= 0.10:
+            self._bingo_warned = False
         return {
             "status": "Refueled",
             "amount": amount,

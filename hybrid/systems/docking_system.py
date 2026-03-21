@@ -25,6 +25,8 @@ class DockingSystem(BaseSystem):
         self.target_ship = None
         self.status = "idle"
         self.last_check = {}
+        # Populated on station dock with repair/resupply summary
+        self._last_service_report = None
 
     def tick(self, dt, ship=None, event_bus=None):
         """Evaluate docking criteria each tick when a request is active."""
@@ -118,6 +120,7 @@ class DockingSystem(BaseSystem):
         self.status = "idle"
         self.target_id = None
         self.target_ship = None
+        self._last_service_report = None
         if event_bus and ship:
             event_bus.publish("undocked", {"ship_id": ship.id})
         return {"ok": True, "status": "Undocked"}
@@ -183,45 +186,100 @@ class DockingSystem(BaseSystem):
         return {"status": "docking_cancelled"}
 
     def _handle_station_dock(self, ship, event_bus, target_ship):
-        repair_reports = []
+        """Perform full repair, refuel, and resupply when docking at a station.
+
+        Stations provide instant servicing:
+        1. Hull restored to max
+        2. All subsystem health restored and heat cleared
+        3. Fuel topped off
+        4. All weapon ammo replenished (legacy + truth/combat weapons)
+
+        Publishes repair_complete and resupply_complete events so the GUI
+        and combat log can report what changed.
+        """
+        station_id = getattr(target_ship, "id", None)
+
+        # --- 1. Hull repair ---
         hull_before = ship.hull_integrity
         if ship.hull_integrity < ship.max_hull_integrity:
             ship.hull_integrity = ship.max_hull_integrity
 
+        # --- 2. Subsystem repair + heat reset ---
+        repair_reports = []
         if hasattr(ship, "damage_model"):
             for name, data in ship.damage_model.subsystems.items():
                 amount = data.max_health - data.health
                 if amount > 0:
                     repair_reports.append(ship.damage_model.repair_subsystem(name, amount))
+                # Station coolant service: reset accumulated heat
+                if data.heat > 0:
+                    data.heat = 0.0
 
-        weapon_report = None
+        # --- 3. Refuel ---
+        fuel_before = 0.0
+        fuel_after = 0.0
+        propulsion = ship.systems.get("propulsion")
+        if propulsion and hasattr(propulsion, "fuel_level"):
+            fuel_before = propulsion.fuel_level
+            propulsion.fuel_level = propulsion.max_fuel
+            fuel_after = propulsion.fuel_level
+
+        # --- 4. Resupply ammo (legacy weapon system) ---
+        weapon_reports = []
         weapon_system = ship.systems.get("weapons")
         if weapon_system and hasattr(weapon_system, "resupply"):
-            weapon_report = weapon_system.resupply()
+            result = weapon_system.resupply()
+            weapon_reports.extend(result.get("weapons", []))
 
+        # --- 4b. Resupply ammo (truth weapons in combat system) ---
+        combat_system = ship.systems.get("combat")
+        if combat_system and hasattr(combat_system, "resupply"):
+            result = combat_system.resupply()
+            weapon_reports.extend(result.get("weapons", []))
+
+        # --- 5. Store servicing summary for telemetry ---
+        self._last_service_report = {
+            "hull_repaired": ship.hull_integrity - hull_before,
+            "subsystems_repaired": len(repair_reports),
+            "fuel_added": fuel_after - fuel_before,
+            "weapons_resupplied": len(weapon_reports),
+        }
+
+        # --- 6. Publish events ---
         if event_bus:
             event_bus.publish(
                 "repair_complete",
                 {
                     "ship": ship.id,
-                    "target": getattr(target_ship, "id", None),
+                    "target": station_id,
                     "hull_before": hull_before,
                     "hull_after": ship.hull_integrity,
                     "subsystems": repair_reports,
                 },
             )
-            if weapon_report:
-                event_bus.publish(
-                    "weapon_rearmed",
-                    {
-                        "ship": ship.id,
-                        "target": getattr(target_ship, "id", None),
-                        "weapons": weapon_report.get("weapons", []),
-                    },
-                )
+            event_bus.publish(
+                "resupply_complete",
+                {
+                    "ship": ship.id,
+                    "target": station_id,
+                    "fuel_before": fuel_before,
+                    "fuel_after": fuel_after,
+                    "weapons": weapon_reports,
+                },
+            )
+
+        logger.info(
+            "Station dock servicing for %s: hull +%.0f, %d subsystems repaired, "
+            "fuel +%.0f, %d weapons resupplied",
+            ship.id,
+            ship.hull_integrity - hull_before,
+            len(repair_reports),
+            fuel_after - fuel_before,
+            len(weapon_reports),
+        )
 
     def get_state(self):
-        return {
+        state = {
             **super().get_state(),
             "status": self.status,
             "target": self.target_id,
@@ -229,3 +287,8 @@ class DockingSystem(BaseSystem):
             "max_relative_velocity": self.max_relative_velocity,
             "last_check": self.last_check,
         }
+        # Include servicing report when docked at a station so the GUI
+        # can show what was repaired/resupplied
+        if self._last_service_report and self.status == "docked":
+            state["service_report"] = self._last_service_report
+        return state

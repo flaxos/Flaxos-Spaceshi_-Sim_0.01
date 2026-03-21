@@ -117,6 +117,30 @@ class Ship:
         self._systems_config = config.get("systems", {})  # Raw config for hit-location placement data
         self._load_systems(self._systems_config)
 
+        # Infer dynamic mass model when dry_mass wasn't explicitly provided
+        # but propulsion fuel is present.  Without this, ships defined with
+        # just ``mass: 5000`` and ``fuel_level: 10000`` would never update
+        # their mass as fuel burns -- giving them infinite effective range.
+        #
+        # Scenario convention: ``mass`` is the structural hull mass, and fuel
+        # is configured separately under systems.propulsion.fuel_level.
+        # The ship class registry sets ``dry_mass`` explicitly, but raw
+        # scenario definitions do not -- so we treat ``mass`` as the dry mass
+        # and compute total mass = mass + fuel.
+        if not self._dynamic_mass:
+            propulsion = self.systems.get("propulsion")
+            if propulsion and hasattr(propulsion, "fuel_level") and propulsion.fuel_level > 0:
+                fuel = propulsion.fuel_level
+                # Treat the configured ``mass`` as the structural dry mass
+                self.dry_mass = float(config.get("mass", self.mass))
+                self.mass = self.dry_mass + fuel
+                self._dynamic_mass = True
+                logger.info(
+                    f"Ship {self.id}: inferred dry_mass={self.dry_mass:.1f} kg "
+                    f"(from config mass), fuel={fuel:.1f} kg, "
+                    f"total={self.mass:.1f} kg"
+                )
+
         # Fleet and AI control
         self.fleet_id = None  # Fleet this ship belongs to
         self.ai_controller = None  # AI controller (if AI-controlled)
