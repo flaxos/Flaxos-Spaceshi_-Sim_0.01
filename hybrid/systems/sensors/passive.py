@@ -171,6 +171,7 @@ class PassiveSensor:
                 signature=ir_watts,
                 classification=self._classify_contact(target_ship, accuracy),
                 name=getattr(target_ship, "name", None) if accuracy > 0.5 else None,
+                faction=getattr(target_ship, "faction", None),
             )
 
             detected[target_ship.id] = contact

@@ -111,6 +111,11 @@ class AICrewManager:
             if not ship:
                 continue
 
+            # Skip fully AI-controlled ships -- they have their own
+            # AIController and don't need per-station AI crew.
+            if getattr(ship, "ai_enabled", False):
+                continue
+
             for station, ai in crew.items():
                 if not ai.active or ai.competence <= 0.0:
                     continue

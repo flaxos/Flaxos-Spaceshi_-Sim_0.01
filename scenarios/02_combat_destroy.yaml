@@ -41,6 +41,7 @@ ships:
     name: "Black Pearl"
     class: "frigate"
     faction: "pirates"
+    ai_enabled: true
     position: {x: 80000, y: -30000, z: 5000}  # ~86km away
     velocity: {x: -100, y: 50, z: 0}  # Moving
     mass: 8000
@@ -54,6 +55,11 @@ ships:
           range: 150000
         active:
           scan_range: 400000
+      targeting: {}
+      navigation: {}
+      combat:
+        railguns: 1
+        pdcs: 2
       weapons:
         weapons:
           - name: "railgun"

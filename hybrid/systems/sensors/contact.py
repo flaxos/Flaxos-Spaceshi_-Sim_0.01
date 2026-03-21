@@ -22,6 +22,7 @@ class ContactData:
     signature: Optional[float] = None  # Thermal/EM signature strength
     classification: Optional[str] = None  # Ship class if known
     name: Optional[str] = None  # Ship name if identified
+    faction: Optional[str] = None  # Faction affiliation (for AI hostility checks)
 
     def is_stale(self, current_time: float, stale_threshold: float = 60.0) -> bool:
         """Check if contact is stale.
