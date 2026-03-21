@@ -77,7 +77,7 @@ class InterceptAutopilot(BaseAutopilot):
         closing_speed = -rel_motion["range_rate"] if rel_motion["closing"] else 0
 
         # Transition logic
-        if current_range < self.match_range and abs(closing_speed) < 50:
+        if current_range < self.match_range and closing_speed > 0 and closing_speed < 50:
             if self.phase != "match":
                 logger.info(f"Intercept: Switching to MATCH phase at {current_range:.0f}m")
                 self.phase = "match"
@@ -91,6 +91,11 @@ class InterceptAutopilot(BaseAutopilot):
             if self.phase == "intercept":
                 logger.info(f"Intercept: Switching to APPROACH phase at {current_range:.0f}m")
                 self.phase = "approach"
+        elif self.phase == "approach":
+            # Overshoot regression: range exceeded approach threshold, revert to intercept
+            if current_range > self.APPROACH_RANGE * 2.0:
+                logger.info(f"Intercept: Overshoot detected at {current_range:.0f}m, reverting to INTERCEPT phase")
+                self.phase = "intercept"
 
         # Execute phase-specific logic
         if self.phase == "match":
