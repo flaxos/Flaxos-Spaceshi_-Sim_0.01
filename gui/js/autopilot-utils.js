@@ -15,6 +15,7 @@ import { stateManager } from "./state-manager.js";
 const GOTO_PHASES = ["ACCELERATE", "COAST", "BRAKE", "HOLD"];
 const RENDEZVOUS_PHASES = ["BURN", "FLIP", "BRAKE", "APPROACH_DECEL", "APPROACH_ROTATE", "APPROACH_COAST", "STATIONKEEP"];
 const INTERCEPT_PHASES = ["INTERCEPT", "APPROACH", "MATCH"];
+const ALL_STOP_PHASES = ["CUT", "FLIP", "BRAKE", "ZERO", "HOLD"];
 
 const PROGRAM_PHASES = {
   goto_position: GOTO_PHASES,
@@ -22,6 +23,8 @@ const PROGRAM_PHASES = {
   rendezvous: RENDEZVOUS_PHASES,
   dock_approach: RENDEZVOUS_PHASES,
   intercept: INTERCEPT_PHASES,
+  all_stop: ALL_STOP_PHASES,
+  stop: ALL_STOP_PHASES,
 };
 
 const DEFAULT_PHASES = GOTO_PHASES;
@@ -40,6 +43,8 @@ const SHORT_PHASE_LABELS = {
   INTERCEPT: "Intrcpt",
   APPROACH: "Approach",
   MATCH: "Match",
+  CUT: "Cut",
+  ZERO: "Zero",
 };
 
 /**
@@ -114,6 +119,9 @@ const PHASE_SEGMENT_CSS = `
   .phase-segment.intercept.active { background: var(--status-warning, #ffaa00); }
   .phase-segment.approach.active { background: var(--status-info, #00aaff); }
   .phase-segment.match.active { background: var(--status-nominal, #00ff88); }
+  /* All-stop phases */
+  .phase-segment.cut.active { background: var(--status-critical, #ff4444); }
+  .phase-segment.zero.active { background: var(--status-warning, #ffaa00); }
   .phase-labels {
     display: flex;
     justify-content: space-between;
@@ -205,6 +213,7 @@ export {
   GOTO_PHASES,
   RENDEZVOUS_PHASES,
   INTERCEPT_PHASES,
+  ALL_STOP_PHASES,
   SHORT_PHASE_LABELS,
   PHASE_SEGMENT_CSS,
   CPU_ASSIST_HIDDEN_MODES,

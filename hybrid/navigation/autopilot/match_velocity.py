@@ -2,6 +2,7 @@
 """Match velocity autopilot - nulls relative velocity with target."""
 
 import logging
+import math
 from typing import Dict, Optional
 from hybrid.navigation.autopilot.base import BaseAutopilot
 from hybrid.navigation.relative_motion import (
@@ -89,10 +90,40 @@ class MatchVelocityAutopilot(BaseAutopilot):
             f"thrust={thrust_magnitude:.2f}, heading=Y:{desired_heading['yaw']:.1f}°"
         )
 
-        return {
+        cmd = {
             "thrust": thrust_magnitude,
             "heading": desired_heading
         }
+        # Alignment guard: don't fire main drive while pointed wrong.
+        # Thrust acts along the ship's physical nose, so firing while
+        # misaligned pushes the ship off-course.  Cosine scaling matches
+        # the rendezvous autopilot's proven pattern.
+        if cmd["thrust"] > 0:
+            heading_err = self._heading_error(cmd["heading"])
+            if heading_err > 90.0:
+                cmd["thrust"] = 0.0
+            elif heading_err > 5.0:
+                cmd["thrust"] *= max(0.0, math.cos(math.radians(heading_err)))
+        return cmd
+
+    def _heading_error(self, desired_heading: Optional[Dict]) -> float:
+        """Angular error between ship orientation and desired heading.
+
+        Returns max of yaw and pitch error -- thrust acts along the nose,
+        so any axis being misaligned sends force off-course.
+        """
+        if desired_heading is None:
+            return 0.0
+        cur = self.ship.orientation
+        yaw_err = abs(self._normalize_angle(
+            desired_heading.get("yaw", 0) - cur.get("yaw", 0)))
+        if yaw_err > 180:
+            yaw_err = 360 - yaw_err
+        pitch_err = abs(self._normalize_angle(
+            desired_heading.get("pitch", 0) - cur.get("pitch", 0)))
+        if pitch_err > 180:
+            pitch_err = 360 - pitch_err
+        return max(yaw_err, pitch_err)
 
     def _calculate_thrust(self, delta_v_remaining: float, burn_duration: Optional[float]) -> float:
         """Calculate appropriate thrust magnitude.

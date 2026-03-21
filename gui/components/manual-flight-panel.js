@@ -85,6 +85,11 @@ class ManualFlightPanel extends HTMLElement {
         :host(.tier-arcade) .hc { display:none; }
         .hro { display:none; }
         :host(.tier-arcade) .hro { display:block; font-family:var(--font-mono,"JetBrains Mono",monospace); font-size:.8rem; color:var(--text-secondary,#888899); padding:4px 0; }
+        .all-stop { grid-column:1/-1; padding:10px; background:var(--status-critical,#ff4444); border:none; border-radius:4px;
+                    color:#fff; font-family:var(--font-mono,"JetBrains Mono",monospace); font-size:.85rem; font-weight:700;
+                    text-transform:uppercase; letter-spacing:.1em; cursor:pointer; }
+        .all-stop:hover { background:#ff2222; }
+        .all-stop:active { background:#cc0000; }
       </style>
       <div class="p">
         <div class="olbl">Manual Override</div>
@@ -121,6 +126,7 @@ class ManualFlightPanel extends HTMLElement {
           <span>Hdg: <strong id="vh">---</strong></span>
           <span>Accel: <strong id="ag">0.0</strong>g</span>
         </div>
+        <button class="all-stop" id="allstop" title="Kill all velocity (X)">ALL STOP</button>
         <div class="rh">WASD/QE for RCS fine control</div>
       </div>`;
   }
@@ -218,6 +224,9 @@ class ManualFlightPanel extends HTMLElement {
     const addDoc = (ev, fn, opts) => { document.addEventListener(ev, fn, opts); this._docHandlers.push({event:ev,fn,opts}); };
     addDoc("mousemove", move); addDoc("touchmove", move, {passive:false});
     addDoc("mouseup", end); addDoc("touchend", end);
+    // All Stop
+    const allstop = this.shadowRoot.getElementById("allstop");
+    if (allstop) allstop.addEventListener("click", () => this._allStop());
     // Heading apply
     const ab = this.shadowRoot.getElementById("ab");
     if (ab) ab.addEventListener("click", () => this._applyHeading());
@@ -251,6 +260,14 @@ class ManualFlightPanel extends HTMLElement {
         this._showMsg(`Heading error: ${r.error || r.message || "Unknown"}`, "error");
       }
     } catch (err) { this._showMsg(`Heading failed: ${err.message}`, "error"); }
+  }
+
+  async _allStop() {
+    try {
+      const r = await wsClient.sendShipCommand("autopilot", { program: "all_stop", g_level: 1.0 });
+      if (r?.ok) { this._showMsg("All stop engaged", "success"); }
+      else { this._showMsg(r?.error || "All stop failed", "error"); }
+    } catch (err) { this._showMsg(`All stop failed: ${err.message}`, "error"); }
   }
 
   _showMsg(text, type) { const el = document.getElementById("system-messages"); if (el?.show) el.show({type,text}); }

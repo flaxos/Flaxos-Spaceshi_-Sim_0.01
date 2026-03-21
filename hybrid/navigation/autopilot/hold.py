@@ -2,6 +2,7 @@
 """Hold position/velocity autopilot."""
 
 import logging
+import math
 from typing import Dict, Optional
 from hybrid.navigation.autopilot.base import BaseAutopilot
 from hybrid.utils.math_utils import magnitude, subtract_vectors
@@ -14,6 +15,13 @@ logger = logging.getLogger(__name__)
 # Prevents thruster chatter from floating-point drift or sub-meter oscillation.
 _VELOCITY_DEADBAND = 0.5      # m/s — below this, velocity is "zero"
 _POSITION_DEADBAND = 50.0     # m — below this, position is "on station"
+
+# Alignment guard constants — same thresholds used by rendezvous autopilot.
+# Thrust acts along the ship's physical nose, so firing while misaligned
+# pushes the ship off-course.  Cosine scaling is physically correct (force
+# projection onto the desired axis).
+_GUARD_DEADZONE_DEG = 5.0     # Below this, no cosine scaling
+_GUARD_CUTOFF_DEG = 90.0      # Above this, zero thrust
 
 
 class HoldPositionAutopilot(BaseAutopilot):
@@ -101,10 +109,18 @@ class HoldPositionAutopilot(BaseAutopilot):
                 "Hold: Decelerating — speed %.1f m/s, drift %.0f m, thrust %.2f",
                 current_speed, drift_magnitude, thrust,
             )
-            return {
+            cmd = {
                 "thrust": self._clamp_thrust(thrust),
                 "heading": desired_heading,
             }
+            # Alignment guard: don't fire main drive while pointed wrong
+            if cmd["thrust"] > 0:
+                heading_err = self._heading_error(cmd["heading"])
+                if heading_err > _GUARD_CUTOFF_DEG:
+                    cmd["thrust"] = 0.0
+                elif heading_err > _GUARD_DEADZONE_DEG:
+                    cmd["thrust"] *= max(0.0, math.cos(math.radians(heading_err)))
+            return cmd
 
         # ----- Phase 2: Correct positional drift -----
         if drift_magnitude > self.tolerance:
@@ -123,10 +139,18 @@ class HoldPositionAutopilot(BaseAutopilot):
                 "Hold: Correcting drift %.1f m, thrust %.2f",
                 drift_magnitude, thrust,
             )
-            return {
+            cmd = {
                 "thrust": self._clamp_thrust(thrust),
                 "heading": desired_heading,
             }
+            # Alignment guard: don't fire main drive while pointed wrong
+            if cmd["thrust"] > 0:
+                heading_err = self._heading_error(cmd["heading"])
+                if heading_err > _GUARD_CUTOFF_DEG:
+                    cmd["thrust"] = 0.0
+                elif heading_err > _GUARD_DEADZONE_DEG:
+                    cmd["thrust"] *= max(0.0, math.cos(math.radians(heading_err)))
+            return cmd
 
         # ----- Phase 3: On station -----
         self.status = "holding"
@@ -134,6 +158,21 @@ class HoldPositionAutopilot(BaseAutopilot):
             "thrust": 0.0,
             "heading": self.ship.orientation,
         }
+
+    def _heading_error(self, desired_heading: Optional[Dict]) -> float:
+        """Angular error between ship orientation and desired heading.
+
+        Returns max of yaw and pitch error -- thrust acts along the nose,
+        so any axis being misaligned sends force off-course.
+        """
+        if desired_heading is None:
+            return 0.0
+        cur = self.ship.orientation
+        yaw_err = abs(self._normalize_angle(
+            desired_heading.get("yaw", 0) - cur.get("yaw", 0)))
+        pitch_err = abs(self._normalize_angle(
+            desired_heading.get("pitch", 0) - cur.get("pitch", 0)))
+        return max(yaw_err, pitch_err)
 
     def get_state(self) -> Dict:
         """Get hold position state.
@@ -204,10 +243,33 @@ class HoldVelocityAutopilot(BaseAutopilot):
 
         logger.debug(f"Hold velocity: Error {error_magnitude:.2f} m/s")
 
-        return {
+        cmd = {
             "thrust": self._clamp_thrust(thrust),
             "heading": desired_heading
         }
+        # Alignment guard: don't fire main drive while pointed wrong
+        if cmd["thrust"] > 0:
+            heading_err = self._heading_error(cmd["heading"])
+            if heading_err > _GUARD_CUTOFF_DEG:
+                cmd["thrust"] = 0.0
+            elif heading_err > _GUARD_DEADZONE_DEG:
+                cmd["thrust"] *= max(0.0, math.cos(math.radians(heading_err)))
+        return cmd
+
+    def _heading_error(self, desired_heading: Optional[Dict]) -> float:
+        """Angular error between ship orientation and desired heading.
+
+        Returns max of yaw and pitch error -- thrust acts along the nose,
+        so any axis being misaligned sends force off-course.
+        """
+        if desired_heading is None:
+            return 0.0
+        cur = self.ship.orientation
+        yaw_err = abs(self._normalize_angle(
+            desired_heading.get("yaw", 0) - cur.get("yaw", 0)))
+        pitch_err = abs(self._normalize_angle(
+            desired_heading.get("pitch", 0) - cur.get("pitch", 0)))
+        return max(yaw_err, pitch_err)
 
     def get_state(self) -> Dict:
         """Get hold velocity state.

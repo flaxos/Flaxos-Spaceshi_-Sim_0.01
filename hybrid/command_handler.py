@@ -37,6 +37,7 @@ system_commands = {
     "plot_intercept": ("helm", "plot_intercept"),
     "flip_and_burn": ("helm", "flip_and_burn"),
     "emergency_burn": ("helm", "emergency_burn"),
+    "emergency_stop": ("propulsion", "emergency_stop"),
     # Helm control authority
     "helm_override": ("helm", "set_mode"),
     "take_manual_control": ("helm", "take_manual_control"),

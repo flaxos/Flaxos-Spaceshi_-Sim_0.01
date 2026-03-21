@@ -335,6 +335,17 @@ function handleKeyboardShortcut(event) {
       console.warn("Fire command failed:", err.message);
     });
   }
+
+  // X - All Stop (emergency velocity kill)
+  if (event.key === "X" || event.key === "x") {
+    event.preventDefault();
+    wsClient.sendShipCommand("autopilot", { program: "all_stop", g_level: 1.0 }).then(r => {
+      if (r?.ok) showSystemMessage("success", "All stop engaged");
+      else showSystemMessage("error", r?.error || "All stop failed");
+    }).catch(err => {
+      console.warn("All stop failed:", err.message);
+    });
+  }
 }
 
 /**
