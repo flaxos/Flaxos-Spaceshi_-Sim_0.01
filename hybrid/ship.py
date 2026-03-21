@@ -145,7 +145,13 @@ class Ship:
         self.fleet_id = None  # Fleet this ship belongs to
         self.ai_controller = None  # AI controller (if AI-controlled)
         self.ai_enabled = config.get("ai_enabled", False)
-        
+
+        # Auto-initialize AI controller if ai_enabled is set in config.
+        # Without this, ai_enabled=True ships would never get an ai_controller
+        # and would sit inert in the simulation.
+        if self.ai_enabled:
+            self.enable_ai()
+
         # Initialize command handler
         self.command_handlers = {
             "get_state": self._cmd_get_state,

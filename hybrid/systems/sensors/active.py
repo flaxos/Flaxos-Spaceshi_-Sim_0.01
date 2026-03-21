@@ -212,6 +212,7 @@ class ActiveSensor:
                 signature=signature,
                 classification=target_ship.class_type if accuracy > 0.8 else "Unknown",
                 name=getattr(target_ship, "name", None) if accuracy > 0.5 else None,
+                faction=getattr(target_ship, "faction", None),
             )
 
             detected[target_ship.id] = contact
