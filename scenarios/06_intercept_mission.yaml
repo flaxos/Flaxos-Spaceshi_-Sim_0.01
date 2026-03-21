@@ -93,6 +93,12 @@ ships:
     max_hull_integrity: 150.0
     hull_integrity: 150.0
     ai_enabled: true
+    ai_behavior:
+      role: "combat"
+      aggression: 0.8
+      engagement_range: 60000
+      flee_threshold: 0.15
+      evade_threshold: 0.3
     position:
       x: 25000.0
       y: 15000.0

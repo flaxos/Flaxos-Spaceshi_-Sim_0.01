@@ -1,11 +1,15 @@
 """AI Controller for autonomous ship behavior.
 
-Provides basic AI decision-making for NPC ships. The AI controller
-runs on a 2-second decision interval and follows a simple priority:
-  1. If no threats: idle or hold position
-  2. If threat detected: intercept to engagement range
-  3. If in range: lock target and fire weapons
-  4. If heavily damaged: evasive maneuvers
+Provides role-aware AI decision-making for NPC ships. The AI controller
+runs on a 2-second decision interval and consults a BehaviorProfile to
+determine how the ship reacts to threats.
+
+Phase 1 (PR #236): all NPC ships fight.
+Phase 2: role differentiation via BehaviorProfile:
+  - combat:    aggressive pursuit and engagement
+  - freighter: flee from threats, never fire, emit distress
+  - escort:    interpose between threat and protected ship
+  - patrol:    hold position, engage within range, return after
 
 All system interactions use the real ship system APIs (targeting,
 combat, navigation) rather than abstract command routing.
@@ -15,6 +19,9 @@ import logging
 from typing import Dict, Optional, List, Tuple
 from enum import Enum
 import numpy as np
+
+from hybrid.fleet.npc_behavior import BehaviorProfile, get_profile, infer_role
+from hybrid.fleet.threat_assessment import AIThreatAssessment
 
 logger = logging.getLogger(__name__)
 
@@ -27,99 +34,10 @@ class AIBehavior(Enum):
     INTERCEPT = "intercept"       # Pursue and close with target
     ATTACK = "attack"             # Engage hostile target
     EVADE = "evade"               # Evasive maneuvers
+    FLEE = "flee"                 # Max thrust away from threats
     HOLD_POSITION = "hold"        # Station-keeping at position
     DEFEND_AREA = "defend"        # Defend a specific area
     FORMATION = "formation"       # Maintain fleet formation
-
-
-class AIThreatAssessment:
-    """Assess threats and prioritize targets.
-
-    Works with (contact_id, ContactData) tuples from the sensor
-    contact tracker, not raw dicts.
-    """
-
-    @staticmethod
-    def assess_threat(contact_id: str, contact, own_ship) -> float:
-        """Assess threat level of a contact.
-
-        Args:
-            contact_id: Stable contact ID (e.g. "C001").
-            contact: ContactData dataclass instance.
-            own_ship: The ship being threatened.
-
-        Returns:
-            Threat score (0-10, higher is more threatening).
-        """
-        threat = 0.0
-
-        # Distance factor (closer = more threatening)
-        pos = getattr(contact, "position", {})
-        contact_pos = np.array([pos.get("x", 0), pos.get("y", 0), pos.get("z", 0)])
-        own_pos_dict = own_ship.position if hasattr(own_ship, "position") else {}
-        own_pos = np.array([
-            own_pos_dict.get("x", 0),
-            own_pos_dict.get("y", 0),
-            own_pos_dict.get("z", 0),
-        ])
-        distance = float(np.linalg.norm(contact_pos - own_pos))
-
-        if distance < 10_000:       # Within 10km -- critical
-            threat += 5.0
-        elif distance < 50_000:     # Within 50km -- high
-            threat += 3.0
-        elif distance < 100_000:    # Within 100km -- moderate
-            threat += 1.0
-
-        # Closing velocity (approaching = more threatening)
-        vel = getattr(contact, "velocity", {})
-        contact_vel = np.array([vel.get("x", 0), vel.get("y", 0), vel.get("z", 0)])
-        own_vel_dict = own_ship.velocity if hasattr(own_ship, "velocity") else {}
-        own_vel = np.array([
-            own_vel_dict.get("x", 0),
-            own_vel_dict.get("y", 0),
-            own_vel_dict.get("z", 0),
-        ])
-        relative_vel = contact_vel - own_vel
-
-        if distance > 0:
-            closing_velocity = -np.dot(relative_vel, (contact_pos - own_pos)) / distance
-            if closing_velocity > 0:
-                threat += min(closing_velocity / 100.0, 3.0)
-
-        # Classification factor
-        classification = (getattr(contact, "classification", None) or "unknown").lower()
-        if "fighter" in classification:
-            threat += 1.0
-        elif "frigate" in classification or "destroyer" in classification:
-            threat += 2.0
-        elif "cruiser" in classification:
-            threat += 3.0
-        elif "battleship" in classification or "carrier" in classification:
-            threat += 4.0
-
-        return min(threat, 10.0)
-
-    @staticmethod
-    def prioritize_targets(
-        contacts: List[Tuple[str, object]],
-        own_ship,
-    ) -> List[Tuple[str, object]]:
-        """Sort contacts by threat level (highest first).
-
-        Args:
-            contacts: List of (contact_id, ContactData) tuples.
-            own_ship: The ship assessing threats.
-
-        Returns:
-            Sorted list of (contact_id, ContactData) tuples.
-        """
-        scored = [
-            (cid, contact, AIThreatAssessment.assess_threat(cid, contact, own_ship))
-            for cid, contact in contacts
-        ]
-        scored.sort(key=lambda x: x[2], reverse=True)
-        return [(cid, contact) for cid, contact, _score in scored]
 
 
 class AIController:
@@ -127,10 +45,15 @@ class AIController:
 
     Makes tactical decisions and issues commands through the real
     ship system APIs (NavigationSystem, TargetingSystem, CombatSystem).
+    Uses a BehaviorProfile to differentiate between ship roles.
     """
 
     def __init__(self, ship):
         """Initialize AI controller.
+
+        Automatically infers a role-based BehaviorProfile from the
+        ship's class_type and faction.  The profile can be overridden
+        later via scenario YAML or direct assignment.
 
         Args:
             ship: Ship to control.
@@ -138,6 +61,13 @@ class AIController:
         self.ship = ship
         self.behavior = AIBehavior.IDLE
         self.behavior_params: Dict = {}
+
+        # Role-based behavior profile -- drives thresholds and reactions
+        role = infer_role(
+            getattr(ship, "class_type", ""),
+            getattr(ship, "faction", ""),
+        )
+        self.profile: BehaviorProfile = get_profile(role)
 
         # State tracking
         # current_target is a (contact_id, ContactData) tuple or None.
@@ -148,16 +78,27 @@ class AIController:
         self.decision_interval = 2.0  # seconds between AI decisions
         self._last_sim_time = 0.0
 
-        # Combat parameters -- distances in metres
-        self.engagement_range = 50_000.0   # 50km -- start closing
+        # Combat parameters -- distances in metres.
+        # engagement_range now comes from profile; weapon_range and
+        # min_engagement_distance are combat-universal constants.
+        self.engagement_range = self.profile.engagement_range
         self.weapon_range = 20_000.0       # 20km -- open fire
-        self.min_engagement_distance = 2_000.0  # 2km -- too close, match velocity
+        self.min_engagement_distance = 2_000.0  # 2km -- too close
 
         # Track whether we already set autopilot this decision cycle
         # to avoid re-engaging every 2 seconds.
         self._autopilot_set_for_target: Optional[str] = None
 
-        logger.info("AI Controller initialized for %s", ship.id)
+        # Distress signal tracking -- don't spam every tick
+        self._distress_emitted = False
+
+        # Patrol home position -- captured when patrol behavior starts
+        self._patrol_home: Optional[np.ndarray] = None
+
+        logger.info(
+            "AI Controller initialized for %s (role=%s)",
+            ship.id, self.profile.role,
+        )
 
     def set_behavior(self, behavior: AIBehavior, params: Optional[Dict] = None):
         """Set AI behavior.
@@ -192,6 +133,11 @@ class AIController:
 
         self.last_decision_time = sim_time
 
+        # Check hull damage before normal behavior -- profile thresholds
+        # can override the current behavior (flee/evade).
+        if self._check_damage_reaction():
+            return  # Damage reaction took priority
+
         # Execute current behavior
         if self.behavior == AIBehavior.IDLE:
             self._behavior_idle()
@@ -207,18 +153,107 @@ class AIController:
             self._behavior_intercept()
         elif self.behavior == AIBehavior.EVADE:
             self._behavior_evade()
+        elif self.behavior == AIBehavior.FLEE:
+            self._behavior_flee()
         elif self.behavior == AIBehavior.DEFEND_AREA:
             self._behavior_defend_area()
+
+    # ── Damage reaction ────────────────────────────────────────────
+
+    def _get_hull_fraction(self) -> float:
+        """Current hull integrity as a 0-1 fraction."""
+        max_hull = getattr(self.ship, "max_hull_integrity", 0)
+        if max_hull <= 0:
+            return 1.0
+        return getattr(self.ship, "hull_integrity", max_hull) / max_hull
+
+    def _check_damage_reaction(self) -> bool:
+        """Check hull damage against profile thresholds.
+
+        If hull falls below flee_threshold, switch to FLEE.
+        If hull falls below evade_threshold, switch to EVADE.
+        Does not interrupt if already in the correct damage-reaction
+        behavior.
+
+        Returns:
+            True if a damage reaction overrode normal behavior.
+        """
+        hull = self._get_hull_fraction()
+
+        if hull < self.profile.flee_threshold:
+            if self.behavior != AIBehavior.FLEE:
+                logger.info(
+                    "AI %s: Hull at %.0f%%, fleeing (threshold %.0f%%)",
+                    self.ship.id, hull * 100, self.profile.flee_threshold * 100,
+                )
+                self.set_behavior(AIBehavior.FLEE)
+                self._emit_distress()
+            # Still execute flee behavior this tick
+            self._behavior_flee()
+            return True
+
+        if hull < self.profile.evade_threshold:
+            if self.behavior != AIBehavior.EVADE:
+                logger.info(
+                    "AI %s: Hull at %.0f%%, evading (threshold %.0f%%)",
+                    self.ship.id, hull * 100, self.profile.evade_threshold * 100,
+                )
+                self.set_behavior(AIBehavior.EVADE)
+            self._behavior_evade()
+            return True
+
+        return False
 
     # ── Behavior implementations ──────────────────────────────────
 
     def _behavior_idle(self):
-        """Idle behavior -- check for threats and react."""
+        """Idle behavior -- check for threats and react based on role.
+
+        Combat/escort ships switch to ATTACK.  Freighters switch to
+        FLEE.  Patrol ships switch to ATTACK only within engagement
+        range.
+        """
         threats = self._get_hostile_contacts()
-        if threats:
-            logger.info("AI %s: Threats detected, switching to attack", self.ship.id)
+        if not threats:
+            return
+
+        role = self.profile.role
+
+        if role == "freighter":
+            # Freighters never fight -- flee immediately
+            logger.info("AI %s: Threat detected, fleeing (freighter)", self.ship.id)
+            self.set_behavior(AIBehavior.FLEE)
+            self._emit_distress()
+            return
+
+        if role == "patrol":
+            # Patrol only engages threats within engagement_range
+            contact_id, contact = threats[0]
+            distance = self._distance_to(contact)
+            if distance <= self.engagement_range:
+                logger.info("AI %s: Threat in range, attacking (patrol)", self.ship.id)
+                self.current_target = threats[0]
+                self.set_behavior(AIBehavior.ATTACK)
+            return
+
+        if role == "escort":
+            # Escort checks if threat is near the protected ship first
+            protect_id = self.profile.protect_target
+            if protect_id and self._is_threat_near_ward(threats[0], protect_id):
+                logger.info(
+                    "AI %s: Threat near ward %s, intercepting (escort)",
+                    self.ship.id, protect_id,
+                )
+            else:
+                logger.info("AI %s: Threat detected, attacking (escort)", self.ship.id)
             self.current_target = threats[0]
             self.set_behavior(AIBehavior.ATTACK)
+            return
+
+        # Default (combat): engage immediately
+        logger.info("AI %s: Threats detected, switching to attack", self.ship.id)
+        self.current_target = threats[0]
+        self.set_behavior(AIBehavior.ATTACK)
 
     def _behavior_hold_position(self):
         """Hold current position, engage threats if detected."""
@@ -229,40 +264,95 @@ class AIController:
             self._engage_target(threats[0][0], threats[0][1])
 
     def _behavior_patrol(self):
-        """Patrol between waypoints."""
-        waypoints = self.behavior_params.get("waypoints", [])
-        if not waypoints:
-            self.set_behavior(AIBehavior.IDLE)
-            return
+        """Patrol: hold position, engage threats within range, return after.
 
-        if self.current_waypoint_index >= len(waypoints):
-            self.current_waypoint_index = 0
+        Uses profile.patrol_position as the home anchor point.
+        If no patrol_position is set, captures current position as home
+        on first entry.
+        """
+        # Establish home position
+        if self._patrol_home is None:
+            if self.profile.patrol_position:
+                pp = self.profile.patrol_position
+                self._patrol_home = np.array([
+                    pp.get("x", 0), pp.get("y", 0), pp.get("z", 0),
+                ])
+            else:
+                self._patrol_home = self._get_position(self.ship)
 
-        waypoint = waypoints[self.current_waypoint_index]
-        wp_pos = np.array(waypoint)
-        own_pos = self._get_position(self.ship)
-        distance = float(np.linalg.norm(wp_pos - own_pos))
-
-        if distance < 1000:
-            self.current_waypoint_index = (self.current_waypoint_index + 1) % len(waypoints)
-
-        # Check for threats while patrolling
+        # Check for threats within engagement range
         threats = self._get_hostile_contacts()
         if threats:
-            logger.info("AI %s: Threats detected during patrol", self.ship.id)
-            self.current_target = threats[0]
-            self.set_behavior(AIBehavior.ATTACK)
+            contact_id, contact = threats[0]
+            distance = self._distance_to(contact)
+            if distance <= self.engagement_range:
+                logger.info("AI %s: Threat in patrol range, attacking", self.ship.id)
+                self.current_target = threats[0]
+                self.set_behavior(AIBehavior.ATTACK)
+                return
+
+        # Check waypoints from behavior_params (legacy support)
+        waypoints = self.behavior_params.get("waypoints", [])
+        if waypoints:
+            if self.current_waypoint_index >= len(waypoints):
+                self.current_waypoint_index = 0
+            waypoint = waypoints[self.current_waypoint_index]
+            wp_pos = np.array(waypoint)
+            own_pos = self._get_position(self.ship)
+            distance = float(np.linalg.norm(wp_pos - own_pos))
+            if distance < 1000:
+                self.current_waypoint_index = (
+                    (self.current_waypoint_index + 1) % len(waypoints)
+                )
+            return
+
+        # No threats, no waypoints -- hold at patrol home
+        own_pos = self._get_position(self.ship)
+        dist_from_home = float(np.linalg.norm(own_pos - self._patrol_home))
+        if dist_from_home > 5_000:
+            # Drifted too far from home -- navigate back
+            self._ensure_autopilot("hold")
+        else:
+            self._ensure_autopilot("hold")
 
     def _behavior_escort(self):
-        """Escort and protect target ship."""
-        escort_target = self.behavior_params.get("escort_target")
-        if not escort_target:
+        """Escort: protect a target ship by interposing against threats.
+
+        Reads protect_target from the profile.  Falls back to
+        behavior_params["escort_target"] for Phase 1 compatibility.
+        When threats are detected, intercepts the highest-priority
+        threat.  When no threats exist, matches velocity with the ward.
+        """
+        protect_id = (
+            self.profile.protect_target
+            or self.behavior_params.get("escort_target")
+        )
+        if not protect_id:
             self.set_behavior(AIBehavior.IDLE)
             return
 
         threats = self._get_hostile_contacts()
         if threats:
-            self._engage_target(threats[0][0], threats[0][1])
+            # Prioritize threats near the protected ship
+            threat_near_ward = None
+            for threat_tuple in threats:
+                if self._is_threat_near_ward(threat_tuple, protect_id):
+                    threat_near_ward = threat_tuple
+                    break
+
+            target = threat_near_ward or threats[0]
+            contact_id, contact = target
+
+            # Intercept the threat
+            distance = self._distance_to(contact)
+            if distance > self.weapon_range:
+                self._ensure_autopilot("intercept", target_id=contact_id)
+            else:
+                self._ensure_autopilot("match", target_id=contact_id)
+            self._engage_target(contact_id, contact)
+        else:
+            # No threats -- stay near the protected ship
+            self._ensure_autopilot("match", target_id=protect_id)
 
     def _behavior_attack(self):
         """Attack hostile targets -- the core combat loop.
@@ -277,7 +367,7 @@ class AIController:
             threats = self._get_hostile_contacts()
             if not threats:
                 logger.info("AI %s: No threats, returning to idle", self.ship.id)
-                self.set_behavior(AIBehavior.IDLE)
+                self._return_to_role_behavior()
                 return
             self.current_target = threats[0]
 
@@ -297,9 +387,7 @@ class AIController:
                 return
 
         # Get distance to target
-        target_pos = self._get_position(contact)
-        own_pos = self._get_position(self.ship)
-        distance = float(np.linalg.norm(target_pos - own_pos))
+        distance = self._distance_to(contact)
 
         # Range-based decision
         if distance > self.engagement_range:
@@ -327,9 +415,7 @@ class AIController:
         # Check if close enough to switch to attack
         target = self._get_ship_or_contact(intercept_target)
         if target:
-            target_pos = self._get_position(target)
-            own_pos = self._get_position(self.ship)
-            distance = float(np.linalg.norm(target_pos - own_pos))
+            distance = self._distance_to(target)
 
             if distance < self.engagement_range:
                 logger.info("AI %s: In range, switching to attack", self.ship.id)
@@ -346,10 +432,31 @@ class AIController:
         threats = self._get_hostile_contacts()
         if not threats:
             logger.info("AI %s: No threats, ending evasion", self.ship.id)
-            self.set_behavior(AIBehavior.IDLE)
+            self._return_to_role_behavior()
             return
 
         # Engage evasive autopilot (random jink pattern)
+        self._ensure_autopilot("evasive")
+
+    def _behavior_flee(self):
+        """Flee: max thrust directly away from the nearest threat.
+
+        Used by freighters and heavily-damaged ships.  Emits a
+        distress signal on the event bus so escort AI can react.
+        """
+        threats = self._get_hostile_contacts()
+        if not threats:
+            logger.info("AI %s: No threats, ending flee", self.ship.id)
+            self._distress_emitted = False
+            self._return_to_role_behavior()
+            return
+
+        # Emit distress if we haven't yet
+        self._emit_distress()
+
+        # Engage evasive autopilot -- the best flee option available.
+        # A dedicated "flee" autopilot would thrust directly away from
+        # the threat vector, but evasive is the closest we have.
         self._ensure_autopilot("evasive")
 
     def _behavior_defend_area(self):
@@ -373,6 +480,26 @@ class AIController:
                 self._engage_target(threats[0][0], threats[0][1])
             else:
                 self._ensure_autopilot("hold")
+
+    # ── Role-aware transitions ─────────────────────────────────────
+
+    def _return_to_role_behavior(self):
+        """Return to the natural resting behavior for this ship's role.
+
+        Called when threats disappear so the AI goes back to its
+        role-appropriate default instead of always reverting to IDLE.
+        """
+        role = self.profile.role
+
+        if role == "patrol":
+            self.set_behavior(AIBehavior.PATROL)
+        elif role == "escort":
+            self.set_behavior(AIBehavior.ESCORT, {
+                "escort_target": self.profile.protect_target,
+            })
+        else:
+            # combat and freighter both rest at IDLE
+            self.set_behavior(AIBehavior.IDLE)
 
     # ── System interaction helpers ────────────────────────────────
 
@@ -422,10 +549,18 @@ class AIController:
     def _engage_target(self, contact_id: str, contact):
         """Lock target and fire weapons when ready.
 
+        Respects profile.weapon_confidence_threshold -- if set to 1.0
+        (freighter), this method effectively never fires because the
+        confidence check can never pass.
+
         Args:
             contact_id: Stable contact ID.
             contact: ContactData instance.
         """
+        # Freighter-class ships never fire (threshold 1.0 is unreachable)
+        if self.profile.weapon_confidence_threshold >= 1.0:
+            return
+
         # Step 1: Lock target
         self._lock_target(contact_id)
 
@@ -456,6 +591,23 @@ class AIController:
                     "AI %s: Fired %d weapons at %s",
                     self.ship.id, result["weapons_fired"], contact_id,
                 )
+
+    def _emit_distress(self):
+        """Publish a distress_signal event so escort AI can react.
+
+        Only emits once per flee episode to avoid spamming the bus.
+        """
+        if self._distress_emitted:
+            return
+        self._distress_emitted = True
+
+        if hasattr(self.ship, "event_bus"):
+            self.ship.event_bus.publish("distress_signal", {
+                "ship_id": self.ship.id,
+                "position": self.ship.position,
+                "faction": getattr(self.ship, "faction", "unknown"),
+            })
+            logger.info("AI %s: Distress signal emitted", self.ship.id)
 
     def _resolve_target_ship(self, contact_id: str):
         """Resolve a contact ID to the actual Ship object.
@@ -535,6 +687,43 @@ class AIController:
 
     # ── Utility helpers ───────────────────────────────────────────
 
+    def _distance_to(self, obj) -> float:
+        """Distance in metres from own ship to another object.
+
+        Args:
+            obj: Object with a position attribute (Ship or ContactData).
+
+        Returns:
+            Distance in metres.
+        """
+        target_pos = self._get_position(obj)
+        own_pos = self._get_position(self.ship)
+        return float(np.linalg.norm(target_pos - own_pos))
+
+    def _is_threat_near_ward(
+        self,
+        threat_tuple: Tuple[str, object],
+        ward_id: str,
+        proximity: float = 50_000.0,
+    ) -> bool:
+        """Check if a threat is within proximity of the protected ship.
+
+        Args:
+            threat_tuple: (contact_id, ContactData) of the threat.
+            ward_id: Ship ID of the protected ship.
+            proximity: Distance threshold in metres (default 50km).
+
+        Returns:
+            True if the threat is within proximity of the ward.
+        """
+        ward = self._get_ship_or_contact(ward_id)
+        if not ward:
+            return False
+        _, contact = threat_tuple
+        threat_pos = self._get_position(contact)
+        ward_pos = self._get_position(ward)
+        return float(np.linalg.norm(threat_pos - ward_pos)) < proximity
+
     def _get_ship_or_contact(self, identifier: str):
         """Get ship object or sensor contact by ID.
 
@@ -591,7 +780,7 @@ class AIController:
         """Get AI controller state for telemetry.
 
         Returns:
-            dict: Current AI state.
+            dict: Current AI state including role and profile info.
         """
         target_id = None
         if self.current_target:
@@ -602,4 +791,6 @@ class AIController:
             "current_target": target_id,
             "waypoint_index": self.current_waypoint_index,
             "total_waypoints": len(self.waypoints),
+            "role": self.profile.role,
+            "hull_fraction": round(self._get_hull_fraction(), 2),
         }

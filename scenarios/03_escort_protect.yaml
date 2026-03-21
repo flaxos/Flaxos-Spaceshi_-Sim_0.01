@@ -41,9 +41,14 @@ ships:
     name: "Canterbury"
     class: "freighter"
     faction: "civilian"
+    ai_enabled: true
     position: {x: 0, y: 0, z: 0}
     velocity: {x: 50, y: 0, z: 0}  # Moving at constant speed
     mass: 50000
+    ai_behavior:
+      role: "freighter"
+      flee_threshold: 0.9
+      max_thrust_profile: 0.3
     systems:
       propulsion:
         max_thrust: 80000
@@ -52,14 +57,20 @@ ships:
       sensors:
         passive:
           range: 100000
+      navigation: {}
 
   - id: "hostile01"
     name: "Marauder Alpha"
     class: "fighter"
     faction: "pirates"
+    ai_enabled: true
     position: {x: 120000, y: -40000, z: 10000}  # ~127km away
     velocity: {x: -200, y: 100, z: 0}  # Approaching fast
     mass: 2000
+    ai_behavior:
+      role: "combat"
+      aggression: 0.9
+      engagement_range: 80000
     systems:
       propulsion:
         max_thrust: 40000
@@ -74,14 +85,21 @@ ships:
             power_cost: 4
             max_heat: 40
             ammo_count: 500
+      navigation: {}
+      targeting: {}
 
   - id: "hostile02"
     name: "Marauder Beta"
     class: "fighter"
     faction: "pirates"
+    ai_enabled: true
     position: {x: 115000, y: -45000, z: -8000}  # ~125km away
     velocity: {x: -180, y: 90, z: 0}  # Approaching fast
     mass: 2000
+    ai_behavior:
+      role: "combat"
+      aggression: 0.9
+      engagement_range: 80000
     systems:
       propulsion:
         max_thrust: 40000
@@ -96,6 +114,8 @@ ships:
             power_cost: 4
             max_heat: 40
             ammo_count: 500
+      navigation: {}
+      targeting: {}
 
 mission:
   name: "Convoy Protection"

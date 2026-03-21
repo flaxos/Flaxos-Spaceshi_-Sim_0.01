@@ -5,7 +5,9 @@ Provides multi-ship coordination, formations, and fleet-level combat capabilitie
 
 from .formation import FleetFormation, FormationType, FormationPosition, FormationConfig
 from .fleet_manager import FleetManager, FleetGroup, FleetStatus, FleetMessage, SharedContact, ThreatLevel
-from .ai_controller import AIController, AIBehavior, AIThreatAssessment
+from .ai_controller import AIController, AIBehavior
+from .threat_assessment import AIThreatAssessment
+from .npc_behavior import BehaviorProfile, get_profile, infer_role
 
 __all__ = [
     'FleetFormation',
@@ -21,4 +23,7 @@ __all__ = [
     'AIController',
     'AIBehavior',
     'AIThreatAssessment',
+    'BehaviorProfile',
+    'get_profile',
+    'infer_role',
 ]
