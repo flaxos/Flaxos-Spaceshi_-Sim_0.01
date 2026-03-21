@@ -15,7 +15,7 @@ import { wsClient } from "../js/ws-client.js";
 // Phase lists for different autopilot programs.
 // GoToPosition uses uppercase, Rendezvous uses lowercase, Intercept has its own set.
 // We normalise to uppercase for display and map them into a common ordered list.
-const GOTO_PHASES = ["ACCELERATE", "COAST", "BRAKE", "HOLD"];
+const GOTO_PHASES = ["ACCELERATE", "COAST", "FLIP", "BRAKE", "ZERO", "HOLD"];
 const RENDEZVOUS_PHASES = ["BURN", "FLIP", "BRAKE", "APPROACH_DECEL", "APPROACH_ROTATE", "APPROACH_COAST", "STATIONKEEP"];
 const INTERCEPT_PHASES = ["INTERCEPT", "APPROACH", "MATCH"];
 const ALL_STOP_PHASES = ["CUT", "FLIP", "BRAKE", "ZERO", "HOLD"];
