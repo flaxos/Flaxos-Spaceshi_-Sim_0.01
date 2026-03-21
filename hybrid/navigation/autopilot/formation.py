@@ -53,7 +53,7 @@ class FormationAutopilot(BaseAutopilot):
         self.last_error = 0.0
 
         self.status = "seeking"
-        logger.info(f"Formation autopilot engaged: Following {flagship_id}, offset {self.relative_position}")
+        logger.info(f"Formation autopilot engaged: Following {self.flagship_id}, offset {self.relative_position}")
 
     def compute(self, dt: float, sim_time: float) -> Optional[Dict]:
         """Compute thrust to maintain formation position.
@@ -74,20 +74,28 @@ class FormationAutopilot(BaseAutopilot):
             return None
 
         # Calculate target position (flagship position + relative offset)
-        flagship_pos = np.array([flagship.x, flagship.y, flagship.z])
+        flagship_pos = np.array([
+            flagship.position["x"], flagship.position["y"], flagship.position["z"]
+        ])
         self.target_position = flagship_pos + self.relative_position
 
         # Calculate current position error
-        current_pos = np.array([self.ship.x, self.ship.y, self.ship.z])
+        current_pos = np.array([
+            self.ship.position["x"], self.ship.position["y"], self.ship.position["z"]
+        ])
         position_error = self.target_position - current_pos
         error_magnitude = np.linalg.norm(position_error)
 
         # Get flagship velocity for matching
-        flagship_vel = np.array([flagship.vx, flagship.vy, flagship.vz])
+        flagship_vel = np.array([
+            flagship.velocity["x"], flagship.velocity["y"], flagship.velocity["z"]
+        ])
         self.target_velocity = flagship_vel
 
         # Calculate current velocity error (if matching velocity)
-        current_vel = np.array([self.ship.vx, self.ship.vy, self.ship.vz])
+        current_vel = np.array([
+            self.ship.velocity["x"], self.ship.velocity["y"], self.ship.velocity["z"]
+        ])
         velocity_error = flagship_vel - current_vel
         velocity_error_magnitude = np.linalg.norm(velocity_error)
 
@@ -186,17 +194,22 @@ class FormationAutopilot(BaseAutopilot):
         if sensors and hasattr(sensors, "get_contact"):
             contact = sensors.get_contact(self.flagship_id)
             if contact:
-                # Create a mock object with position/velocity
+                # Create a mock object with dict-based position/velocity
+                # matching the real Ship interface (ship.position["x"], etc.)
                 class FlagshipContact:
                     def __init__(self, contact_data):
                         pos = contact_data.get("position", {})
                         vel = contact_data.get("velocity", {})
-                        self.x = pos.get("x", 0)
-                        self.y = pos.get("y", 0)
-                        self.z = pos.get("z", 0)
-                        self.vx = vel.get("x", 0)
-                        self.vy = vel.get("y", 0)
-                        self.vz = vel.get("z", 0)
+                        self.position = {
+                            "x": pos.get("x", 0.0),
+                            "y": pos.get("y", 0.0),
+                            "z": pos.get("z", 0.0),
+                        }
+                        self.velocity = {
+                            "x": vel.get("x", 0.0),
+                            "y": vel.get("y", 0.0),
+                            "z": vel.get("z", 0.0),
+                        }
 
                 return FlagshipContact(contact)
 
@@ -214,14 +227,18 @@ class FormationAutopilot(BaseAutopilot):
         state["tolerance"] = self.tolerance
 
         if self.target_position is not None:
-            current_pos = np.array([self.ship.x, self.ship.y, self.ship.z])
+            current_pos = np.array([
+                self.ship.position["x"], self.ship.position["y"], self.ship.position["z"]
+            ])
             position_error = self.target_position - current_pos
             state["position_error"] = float(np.linalg.norm(position_error))
         else:
             state["position_error"] = None
 
         if self.target_velocity is not None and self.match_velocity:
-            current_vel = np.array([self.ship.vx, self.ship.vy, self.ship.vz])
+            current_vel = np.array([
+                self.ship.velocity["x"], self.ship.velocity["y"], self.ship.velocity["z"]
+            ])
             velocity_error = self.target_velocity - current_vel
             state["velocity_error"] = float(np.linalg.norm(velocity_error))
         else:
@@ -264,23 +281,22 @@ class EchelonFormationAutopilot(FormationAutopilot):
         avoidance_vector = self._compute_collision_avoidance()
 
         if np.linalg.norm(avoidance_vector) > 0.1:
-            # Add avoidance to base command
-            current_heading_dict = base_command["heading"]
-            current_heading = np.array([
-                current_heading_dict["x"],
-                current_heading_dict["y"],
-                current_heading_dict["z"]
-            ])
-
-            # Blend avoidance with desired heading (weighted)
-            blended = current_heading * 0.7 + avoidance_vector * 0.3
-            blended = blended / np.linalg.norm(blended)
-
-            base_command["heading"] = {
-                "x": blended[0],
-                "y": blended[1],
-                "z": blended[2]
-            }
+            # Blend avoidance into heading via yaw adjustment
+            avoidance_heading = vector_to_heading({
+                "x": float(avoidance_vector[0]),
+                "y": float(avoidance_vector[1]),
+                "z": float(avoidance_vector[2]),
+            })
+            # Blend: 70% formation heading, 30% avoidance
+            blend = 0.3
+            base_yaw = base_command["heading"].get("yaw", 0)
+            avoid_yaw = avoidance_heading.get("yaw", 0)
+            # Shortest angular path
+            diff = avoid_yaw - base_yaw
+            if diff > 180: diff -= 360
+            if diff < -180: diff += 360
+            blended_yaw = base_yaw + blend * diff
+            base_command["heading"]["yaw"] = blended_yaw
 
             logger.debug(f"Formation: Collision avoidance active")
 
@@ -290,14 +306,18 @@ class EchelonFormationAutopilot(FormationAutopilot):
         """Compute avoidance vector for nearby ships."""
         avoidance = np.array([0.0, 0.0, 0.0])
 
-        current_pos = np.array([self.ship.x, self.ship.y, self.ship.z])
+        current_pos = np.array([
+            self.ship.position["x"], self.ship.position["y"], self.ship.position["z"]
+        ])
 
         for ship_id in self.adjacent_ships:
             # Get adjacent ship
             if hasattr(self.ship, 'simulator') and self.ship.simulator:
                 adjacent = self.ship.simulator.ships.get(ship_id)
                 if adjacent:
-                    adjacent_pos = np.array([adjacent.x, adjacent.y, adjacent.z])
+                    adjacent_pos = np.array([
+                        adjacent.position["x"], adjacent.position["y"], adjacent.position["z"]
+                    ])
 
                     # Calculate separation
                     separation = current_pos - adjacent_pos

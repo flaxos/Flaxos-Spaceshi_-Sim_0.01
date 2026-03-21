@@ -25,6 +25,7 @@ class MatchVelocityAutopilot(BaseAutopilot):
                 - max_thrust: Maximum thrust to use (0-1), default 1.0
                 - deceleration_factor: Safety factor for deceleration, default 0.8
         """
+        params = params or {}
         super().__init__(ship, target_id, params)
 
         self.tolerance = params.get("tolerance", 1.0)  # m/s
