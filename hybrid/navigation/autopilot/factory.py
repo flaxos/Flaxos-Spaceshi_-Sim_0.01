@@ -12,6 +12,7 @@ from hybrid.navigation.autopilot.goto_position import GoToPositionAutopilot
 from hybrid.navigation.autopilot.orbit import OrbitAutopilot
 from hybrid.navigation.autopilot.evasive import EvasiveAutopilot
 from hybrid.navigation.autopilot.rendezvous import RendezvousAutopilot
+from hybrid.navigation.autopilot.all_stop import AllStopAutopilot
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +41,8 @@ class AutopilotFactory:
         "jink": EvasiveAutopilot,  # Alias
         "rendezvous": RendezvousAutopilot,
         "dock_approach": RendezvousAutopilot,  # Alias
+        "all_stop": AllStopAutopilot,
+        "stop": AllStopAutopilot,  # Alias
         "off": None  # Disengage autopilot
     }
 
@@ -115,6 +118,7 @@ class AutopilotFactory:
             "orbit": "Maintain circular orbit around a point",
             "evasive": "Random jink pattern to avoid incoming fire",
             "rendezvous": "Flip-and-burn to arrive at target with zero velocity",
+            "all_stop": "Decelerate to zero velocity (emergency stop)",
             "off": "Disengage autopilot"
         }
 

@@ -84,6 +84,7 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             "plot_intercept",
             "flip_and_burn",
             "emergency_burn",
+            "emergency_stop",
             # Helm control authority
             "take_manual_control",
             "release_to_autopilot",

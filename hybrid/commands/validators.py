@@ -294,7 +294,7 @@ def validate_autopilot_program(program):
     Returns:
         Tuple[bool, str, Optional[str]]: (is_valid, program, error_message)
     """
-    valid_programs = ["match", "intercept", "approach", "hold", "hold_velocity", "orbit", "evasive", "jink", "rendezvous", "dock_approach", "cruise", "goto_position", "off"]
+    valid_programs = ["match", "intercept", "approach", "hold", "hold_velocity", "orbit", "evasive", "jink", "rendezvous", "dock_approach", "cruise", "goto_position", "all_stop", "stop", "off"]
 
     program_str = str(program).lower()
 

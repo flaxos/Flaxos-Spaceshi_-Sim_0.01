@@ -18,6 +18,7 @@ import { wsClient } from "../js/ws-client.js";
 const GOTO_PHASES = ["ACCELERATE", "COAST", "BRAKE", "HOLD"];
 const RENDEZVOUS_PHASES = ["BURN", "FLIP", "BRAKE", "APPROACH_DECEL", "APPROACH_ROTATE", "APPROACH_COAST", "STATIONKEEP"];
 const INTERCEPT_PHASES = ["INTERCEPT", "APPROACH", "MATCH"];
+const ALL_STOP_PHASES = ["CUT", "FLIP", "BRAKE", "ZERO", "HOLD"];
 
 // Map program names to their phase lists
 const PROGRAM_PHASES = {
@@ -25,6 +26,8 @@ const PROGRAM_PHASES = {
   set_course: GOTO_PHASES,
   rendezvous: RENDEZVOUS_PHASES,
   intercept: INTERCEPT_PHASES,
+  all_stop: ALL_STOP_PHASES,
+  stop: ALL_STOP_PHASES,
 };
 
 // Default fallback
@@ -278,6 +281,22 @@ class AutopilotStatus extends HTMLElement {
           background: var(--status-critical, #ff4444);
           color: var(--bg-primary, #0a0a0f);
         }
+
+        .quick-btn.all-stop {
+          border-color: var(--status-critical, #ff4444);
+          background: rgba(255, 68, 68, 0.15);
+          color: var(--status-critical, #ff4444);
+          font-weight: 600;
+        }
+
+        .quick-btn.all-stop:hover {
+          background: var(--status-critical, #ff4444);
+          color: var(--bg-primary, #0a0a0f);
+        }
+
+        /* All-stop phase segment colors */
+        .phase-segment.cut.active { background: var(--status-critical, #ff4444); }
+        .phase-segment.zero.active { background: var(--status-warning, #ffaa00); }
       </style>
 
       <div class="autopilot-panel">
@@ -326,6 +345,7 @@ class AutopilotStatus extends HTMLElement {
 
             <div class="quick-controls">
               <button class="quick-btn" id="hold-btn">HOLD POSITION</button>
+              <button class="quick-btn all-stop" id="all-stop-btn" title="Kill all velocity (X)">ALL STOP</button>
               <button class="quick-btn disengage" id="disengage-btn">DISENGAGE</button>
             </div>
           </div>
@@ -338,9 +358,11 @@ class AutopilotStatus extends HTMLElement {
 
   _setupControls() {
     const holdBtn = this.shadowRoot.getElementById("hold-btn");
+    const allStopBtn = this.shadowRoot.getElementById("all-stop-btn");
     const disengageBtn = this.shadowRoot.getElementById("disengage-btn");
 
     holdBtn?.addEventListener("click", () => this._engageHold());
+    allStopBtn?.addEventListener("click", () => this._allStop());
     disengageBtn?.addEventListener("click", () => this._disengage());
   }
 
@@ -478,6 +500,8 @@ class AutopilotStatus extends HTMLElement {
       INTERCEPT: "Intrcpt",
       APPROACH: "Approach",
       MATCH: "Match",
+      CUT: "Cut",
+      ZERO: "Zero",
     };
     return labels[phase] || phase;
   }
@@ -551,6 +575,22 @@ class AutopilotStatus extends HTMLElement {
       }
     } catch (error) {
       this._showMessage(`Hold failed: ${error.message}`, "error");
+    }
+  }
+
+  async _allStop() {
+    try {
+      const response = await wsClient.sendShipCommand("autopilot", {
+        program: "all_stop",
+        g_level: 1.0
+      });
+      if (response?.ok) {
+        this._showMessage("All stop engaged", "success");
+      } else {
+        this._showMessage(response?.error || "Failed to engage all stop", "error");
+      }
+    } catch (error) {
+      this._showMessage(`All stop failed: ${error.message}`, "error");
     }
   }
 
