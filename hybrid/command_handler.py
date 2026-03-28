@@ -87,6 +87,22 @@ system_commands = {
     "launch_torpedo": ("combat", "launch_torpedo"),
     "torpedo_status": ("combat", "torpedo_status"),
     "assess_damage": ("targeting", "assess_damage"),
+    # ECCM commands (routed through sensors — ECCM is a sensor capability)
+    "eccm_frequency_hop": ("sensors", "eccm_frequency_hop"),
+    "eccm_burn_through": ("sensors", "eccm_burn_through"),
+    "eccm_off": ("sensors", "eccm_off"),
+    "eccm_multispectral": ("sensors", "eccm_multispectral"),
+    "eccm_home_on_jam": ("sensors", "eccm_home_on_jam"),
+    "analyze_jamming": ("sensors", "analyze_jamming"),
+    "eccm_status": ("sensors", "eccm_status"),
+    # Multi-target tracking commands
+    "cycle_target": ("targeting", "cycle_target"),
+    "add_track": ("targeting", "add_track"),
+    "remove_track": ("targeting", "remove_track"),
+    "assign_pdc_target": ("targeting", "assign_pdc_target"),
+    "split_fire": ("targeting", "split_fire"),
+    "clear_assignments": ("targeting", "clear_assignments"),
+    "track_list": ("targeting", "track_list"),
     # ECM commands
     "activate_jammer": ("ecm", "activate_jammer"),
     "deactivate_jammer": ("ecm", "deactivate_jammer"),
@@ -97,6 +113,9 @@ system_commands = {
     # Ops station commands
     "allocate_power": ("ops", "allocate_power"),
     "dispatch_repair": ("ops", "dispatch_repair"),
+    "cancel_repair": ("ops", "cancel_repair"),
+    "repair_status": ("ops", "repair_status"),
+    "set_repair_priority": ("ops", "set_repair_priority"),
     "set_system_priority": ("ops", "set_system_priority"),
     "report_status": ("ops", "report_status"),
     "emergency_shutdown": ("ops", "emergency_shutdown"),
@@ -121,6 +140,11 @@ system_commands = {
     "crew_rest": ("crew_fatigue", "crew_rest"),
     "cancel_rest": ("crew_fatigue", "cancel_rest"),
     "crew_fatigue_status": ("crew_fatigue", "crew_status"),
+    # Crew-station binding commands
+    "assign_crew": ("crew_binding", "assign_crew"),
+    "transfer_crew": ("crew_binding", "transfer_crew"),
+    "unassign_crew": ("crew_binding", "unassign_crew"),
+    "crew_station_status": ("crew_binding", "crew_station_status"),
     # Science station commands
     "analyze_contact": ("science", "analyze_contact"),
     "spectral_analysis": ("science", "spectral_analysis"),

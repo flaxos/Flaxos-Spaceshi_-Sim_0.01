@@ -108,6 +108,12 @@ class Ship:
             systems_config=config.get("systems", {}),
         )
 
+        # Initialize armor model — tracks per-section armor thickness and ablation.
+        # Uses the same armor config that hit_location.py reads for static thickness,
+        # but now the thickness is mutable state that degrades under fire.
+        from hybrid.combat.armor import ArmorModel
+        self.armor_model = ArmorModel(self.armor)
+
         # Initialize cascade manager for damage propagation effects
         from hybrid.systems.cascade_manager import CascadeManager
         self.cascade_manager = CascadeManager()
@@ -255,6 +261,7 @@ class Ship:
             "engineering": {},  # Engineering for reactor, drive, radiators, fuel
             "crew_fatigue": {},  # Crew fatigue and g-load performance model
             "science": {},   # Science for sensor analysis and contact classification
+            "crew_binding": {},  # Crew-station assignment and performance multipliers
         }
 
         # Merge config with defaults (config takes precedence)

@@ -262,6 +262,12 @@ def get_ship_telemetry(ship, sim_time: float = None) -> Dict[str, Any]:
         # Ship class metadata (from modular ship definitions)
         "dimensions": getattr(ship, "dimensions", None),
         "armor": getattr(ship, "armor", None),
+        # Live armor state with ablation tracking (None if no armor model)
+        "armor_status": (
+            ship.armor_model.get_status()
+            if hasattr(ship, "armor_model") and ship.armor_model is not None
+            else None
+        ),
         "crew_complement": getattr(ship, "crew_complement", None),
         "weapon_mounts": getattr(ship, "weapon_mounts", None),
         "timestamp": sim_time

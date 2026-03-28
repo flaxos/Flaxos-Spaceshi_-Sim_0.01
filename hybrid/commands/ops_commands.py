@@ -63,6 +63,55 @@ def cmd_dispatch_repair(ops, ship, params):
     return ops._cmd_dispatch_repair(cmd_params)
 
 
+def cmd_cancel_repair(ops, ship, params):
+    """Cancel an active repair job and recall the team.
+
+    Args:
+        ops: OpsSystem instance
+        ship: Ship object
+        params: Validated parameters with subsystem name
+
+    Returns:
+        dict: Cancellation result
+    """
+    return ops._cmd_cancel_repair({
+        "subsystem": params.get("subsystem"),
+        "_ship": ship,
+        "event_bus": getattr(ship, "event_bus", None),
+    })
+
+
+def cmd_repair_status(ops, ship, params):
+    """Get detailed field repair status.
+
+    Args:
+        ops: OpsSystem instance
+        ship: Ship object
+        params: Validated parameters
+
+    Returns:
+        dict: Repair status with spare parts, active jobs, g-load info
+    """
+    return ops._cmd_repair_status({"_ship": ship})
+
+
+def cmd_set_repair_priority(ops, ship, params):
+    """Set repair priority for a subsystem.
+
+    Args:
+        ops: OpsSystem instance
+        ship: Ship object
+        params: Validated parameters with subsystem and priority
+
+    Returns:
+        dict: Updated priority
+    """
+    return ops._cmd_set_repair_priority({
+        "subsystem": params.get("subsystem"),
+        "priority": params.get("priority"),
+    })
+
+
 def cmd_set_system_priority(ops, ship, params):
     """Set priority level for a subsystem.
 
@@ -153,6 +202,36 @@ def register_commands(dispatcher):
                     description="Specific team ID (e.g. DC-1)"),
         ],
         help_text="Send a damage control team to repair a specific subsystem",
+        system="ops",
+    ))
+
+    dispatcher.register("cancel_repair", CommandSpec(
+        handler=cmd_cancel_repair,
+        args=[
+            ArgSpec("subsystem", "str", required=True,
+                    description="Subsystem to cancel repair for"),
+        ],
+        help_text="Cancel an active repair job and recall the team",
+        system="ops",
+    ))
+
+    dispatcher.register("repair_status", CommandSpec(
+        handler=cmd_repair_status,
+        args=[],
+        help_text="Get field repair status: spare parts, active jobs, g-load effects",
+        system="ops",
+    ))
+
+    dispatcher.register("set_repair_priority", CommandSpec(
+        handler=cmd_set_repair_priority,
+        args=[
+            ArgSpec("subsystem", "str", required=True,
+                    description="Subsystem to set repair priority for"),
+            ArgSpec("priority", "str", required=True,
+                    choices=["critical", "high", "normal", "low"],
+                    description="Repair priority: critical, high, normal, low"),
+        ],
+        help_text="Set repair priority for a subsystem in the repair queue",
         system="ops",
     ))
 

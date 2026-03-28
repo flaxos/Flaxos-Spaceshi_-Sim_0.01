@@ -49,6 +49,7 @@ DEFAULT_SUBSYSTEM_ZONES = {
 MATERIAL_RESISTANCE = {
     "composite_cermet": 1.0,   # Standard military armor
     "steel":            0.6,   # Basic steel plating
+    "steel_composite":  0.7,   # Reinforced steel (freighter standard)
     "titanium":         0.8,   # Lighter but weaker
     "depleted_uranium": 1.4,   # Heavy, very resistant
 }
