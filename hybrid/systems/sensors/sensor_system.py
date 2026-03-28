@@ -18,6 +18,7 @@ from hybrid.core.base_system import BaseSystem
 from hybrid.systems.sensors.passive import PassiveSensor
 from hybrid.systems.sensors.active import ActiveSensor
 from hybrid.systems.sensors.contact import ContactTracker
+from hybrid.systems.sensors.eccm import ECCMState
 from hybrid.systems.sensors.emission_model import get_ship_emissions
 from hybrid.utils.errors import success_dict, error_dict
 
@@ -49,6 +50,11 @@ class SensorSystem(BaseSystem):
         stale_threshold = config.get("stale_threshold", 60.0)
         self.contact_tracker = ContactTracker(stale_threshold)
 
+        # ECCM subsystem — provides counter-countermeasures for the
+        # sensor pipeline (frequency hopping, burn-through, etc.)
+        eccm_config = config.get("eccm", {})
+        self.eccm = ECCMState(eccm_config)
+
         # Simulation reference (set during tick)
         self.all_ships = []
         self.current_tick = 0
@@ -75,6 +81,10 @@ class SensorSystem(BaseSystem):
         self.passive.set_range_multiplier(damage_factor)
         self.active.set_range_multiplier(damage_factor)
 
+        # Update ECCM state (heat generation, sensor health tracking)
+        self.eccm.set_sensor_health(damage_factor)
+        self.eccm.tick(dt, ship, event_bus)
+
         if not self.enabled:
             return
 
@@ -86,13 +96,14 @@ class SensorSystem(BaseSystem):
         if hasattr(ship, "_all_ships_ref"):
             self.all_ships = ship._all_ships_ref
 
-        # Update passive sensor
+        # Update passive sensor (pass ECCM for multi-spectral flare filtering)
         self.passive.update(
             self.current_tick,
             dt,
             ship,
             self.all_ships,
-            self.sim_time
+            self.sim_time,
+            eccm=self.eccm,
         )
 
         # Merge passive contacts into contact tracker
@@ -175,7 +186,80 @@ class SensorSystem(BaseSystem):
         elif action == "status":
             return self.get_state()
 
+        # ECCM commands are routed through the sensor system because
+        # ECCM is a sensor capability, not an independent system.
+        # The command dispatcher calls sensors.command(action, params)
+        # for all eccm_* and analyze_jamming commands.
+        eccm_actions = {
+            "eccm_frequency_hop", "eccm_burn_through", "eccm_off",
+            "eccm_multispectral", "eccm_home_on_jam", "analyze_jamming",
+            "eccm_status",
+        }
+        if action in eccm_actions:
+            # Delegate to dispatch layer (handler functions in eccm_commands.py
+            # call back into self.eccm). Since the dispatch layer already
+            # extracted and validated params, we just forward.
+            return self._handle_eccm_command(action, params)
+
         return super().command(action, params)
+
+    def _handle_eccm_command(self, action: str, params: dict) -> dict:
+        """Route ECCM commands to the ECCMState.
+
+        Args:
+            action: ECCM command action.
+            params: Command parameters.
+
+        Returns:
+            dict: Command result.
+        """
+        # Simple dispatch for stateless commands
+        simple = {
+            "eccm_frequency_hop": self.eccm.activate_frequency_hop,
+            "eccm_burn_through": self.eccm.activate_burn_through,
+            "eccm_off": self.eccm.deactivate_eccm_mode,
+        }
+        if action in simple:
+            return simple[action]()
+
+        if action == "eccm_multispectral":
+            return self.eccm.set_multispectral(
+                params.get("enabled", not self.eccm.multispectral_active))
+        if action == "eccm_home_on_jam":
+            return self.eccm.set_home_on_jam(
+                params.get("enabled", not self.eccm.hoj_active))
+        if action == "eccm_status":
+            state = self.eccm.get_state()
+            state["ok"] = True
+            return state
+        if action == "analyze_jamming":
+            return self._analyze_jamming(params)
+
+        return error_dict("UNKNOWN_ECCM_CMD", f"Unknown ECCM command: {action}")
+
+    def _analyze_jamming(self, params: dict) -> dict:
+        """Analyze target ECM emissions. Requires ship and contact_id in params."""
+        ship = params.get("ship") or params.get("_ship")
+        contact_id = params.get("contact_id")
+        if not ship or not contact_id:
+            return error_dict("MISSING_PARAMS", "Need ship and contact_id")
+
+        contact = self.contact_tracker.get_contact(contact_id)
+        original_id = contact.id if contact else contact_id
+        target_ship = next(
+            (s for s in (self.all_ships or [])
+             if hasattr(s, "id") and s.id in (contact_id, original_id)),
+            None,
+        )
+        if not target_ship:
+            return error_dict("TARGET_NOT_FOUND", f"Cannot resolve contact '{contact_id}'")
+
+        from hybrid.utils.math_utils import calculate_distance
+        distance = calculate_distance(ship.position, target_ship.position)
+        result = self.eccm.analyze_jamming(target_ship, distance)
+        result["contact_id"] = contact_id
+        result["distance"] = round(distance, 1)
+        return result
 
     def ping(self, params: dict = None):
         """Execute active sensor ping.
@@ -205,7 +289,8 @@ class SensorSystem(BaseSystem):
         # Need event bus
         event_bus = params.get("event_bus") or EventBus.get_instance()
 
-        return self.active.ping(ship, all_ships, self.sim_time, event_bus)
+        return self.active.ping(ship, all_ships, self.sim_time, event_bus,
+                                eccm=self.eccm)
 
     def get_contacts(self) -> dict:
         """Get all current contacts.
@@ -313,6 +398,7 @@ class SensorSystem(BaseSystem):
                 "active": "radar",
             },
             "own_emissions": own_emissions,
+            "eccm": self.eccm.get_state(),
         })
 
         return state

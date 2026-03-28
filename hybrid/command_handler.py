@@ -87,6 +87,14 @@ system_commands = {
     "launch_torpedo": ("combat", "launch_torpedo"),
     "torpedo_status": ("combat", "torpedo_status"),
     "assess_damage": ("targeting", "assess_damage"),
+    # ECCM commands (routed through sensors — ECCM is a sensor capability)
+    "eccm_frequency_hop": ("sensors", "eccm_frequency_hop"),
+    "eccm_burn_through": ("sensors", "eccm_burn_through"),
+    "eccm_off": ("sensors", "eccm_off"),
+    "eccm_multispectral": ("sensors", "eccm_multispectral"),
+    "eccm_home_on_jam": ("sensors", "eccm_home_on_jam"),
+    "analyze_jamming": ("sensors", "analyze_jamming"),
+    "eccm_status": ("sensors", "eccm_status"),
     # ECM commands
     "activate_jammer": ("ecm", "activate_jammer"),
     "deactivate_jammer": ("ecm", "deactivate_jammer"),

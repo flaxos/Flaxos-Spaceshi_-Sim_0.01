@@ -144,6 +144,14 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             "deploy_flare",
             "set_emcon",
             "ecm_status",
+            # ECCM commands (counter-countermeasures)
+            "eccm_frequency_hop",
+            "eccm_burn_through",
+            "eccm_off",
+            "eccm_multispectral",
+            "eccm_home_on_jam",
+            "analyze_jamming",
+            "eccm_status",
             # Inter-station comms
             "station_message",
         },
@@ -152,7 +160,7 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             "target_info", "firing_solution", "threat_board",
             "pdc_status", "weapon_arcs", "targeting_status",
             "damage_assessment", "engagement_envelope",
-            "ecm_status",
+            "ecm_status", "eccm_status",
         },
         required_systems={"weapons", "targeting"},
     ),
@@ -273,6 +281,9 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             "estimate_mass",
             "assess_threat",
             "science_status",
+            # ECCM analysis (science officer can analyze jamming)
+            "analyze_jamming",
+            "eccm_status",
             # Inter-station comms
             "station_message",
         },

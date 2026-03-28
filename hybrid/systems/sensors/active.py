@@ -86,7 +86,8 @@ class ActiveSensor:
 
         return self.cooldown - (current_time - self.last_ping_time)
 
-    def ping(self, observer_ship, all_ships: List, sim_time: float, event_bus) -> Dict[str, str]:
+    def ping(self, observer_ship, all_ships: List, sim_time: float,
+             event_bus, eccm=None) -> Dict[str, str]:
         """Execute an active sensor ping (radar).
 
         Radar ping: emits EM pulse, detects returns from targets based
@@ -98,6 +99,7 @@ class ActiveSensor:
             all_ships: List of all ships in simulation
             sim_time: Current simulation time
             event_bus: Event bus for publishing ping event
+            eccm: Optional ECCMState for counter-countermeasures
 
         Returns:
             dict: Result with ok/error and contacts detected
@@ -134,6 +136,11 @@ class ActiveSensor:
 
         # Scale radar power by damage multiplier
         effective_radar_power = self.radar_power * (self.resolution_boost / self.base_resolution_boost)
+
+        # ECCM: Burn-through mode increases radar output power to
+        # overcome jamming at the cost of heat and emission signature
+        if eccm is not None:
+            effective_radar_power *= eccm.get_burn_through_radar_multiplier()
 
         for target_ship in all_ships:
             # Don't detect self
@@ -178,6 +185,9 @@ class ActiveSensor:
             quality = calculate_detection_quality(distance, effective_range)
 
             # ECM: Apply jamming degradation to quality
+            # ECCM: Frequency hopping / burn-through reduce the jam penalty
+            if eccm is not None:
+                ecm_jam_factor = eccm.get_jam_factor_modifier(ecm_jam_factor)
             quality *= ecm_jam_factor
 
             # Active radar gets a resolution boost over passive detection
@@ -189,7 +199,15 @@ class ActiveSensor:
             noisy_velocity = add_velocity_noise(target_ship.velocity, accuracy)
 
             # ECM: Chaff adds additional position noise on top of accuracy noise
+            # ECCM: Multi-spectral correlation reduces chaff noise by
+            # cross-referencing IR and lidar (chaff has no IR signature
+            # and minimal lidar return from thin foil)
             if ecm_chaff_active and ecm_chaff_noise > 0:
+                if eccm is not None:
+                    chaff_reduction = eccm.get_chaff_reduction(
+                        has_ir=True, has_radar=True, has_lidar=True
+                    )
+                    ecm_chaff_noise *= (1.0 - chaff_reduction)
                 import random
                 noisy_position = {
                     "x": noisy_position["x"] + random.gauss(0, ecm_chaff_noise),
