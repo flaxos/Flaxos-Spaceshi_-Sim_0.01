@@ -113,6 +113,9 @@ system_commands = {
     # Ops station commands
     "allocate_power": ("ops", "allocate_power"),
     "dispatch_repair": ("ops", "dispatch_repair"),
+    "cancel_repair": ("ops", "cancel_repair"),
+    "repair_status": ("ops", "repair_status"),
+    "set_repair_priority": ("ops", "set_repair_priority"),
     "set_system_priority": ("ops", "set_system_priority"),
     "report_status": ("ops", "report_status"),
     "emergency_shutdown": ("ops", "emergency_shutdown"),
