@@ -19,6 +19,7 @@ EXPECTED_MISSION_SCENARIOS = {
     "03_escort_protect.yaml",
     "04_stealth_recon.yaml",
     "05_race_checkpoint.yaml",
+    "10_convoy_defense.yaml",
 }
 
 

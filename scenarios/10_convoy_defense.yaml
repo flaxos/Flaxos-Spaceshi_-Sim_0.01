@@ -1,0 +1,478 @@
+# Convoy Defense: Multi-Ship Engagement
+#
+# Player corvette escorts a freighter convoy (3 ships) through hostile
+# space.  Two enemy corvettes attack from different vectors, exercising
+# multi-target tracking, AI behavior, fleet coordination, and armor
+# mechanics (freighters have light armor, corvettes have heavy).
+#
+# Branch points drive three distinct enemy tactics:
+#   1. Focus fire -- both enemies converge on the convoy
+#   2. Isolation -- enemies split to draw the player away
+#   3. Boarding -- one enemy closes to board while the other engages
+#
+# Win:  convoy reaches destination with at least 1 freighter intact
+# Lose: all freighters destroyed OR player destroyed
+
+name: "Convoy Defense: Gauntlet Run"
+description: "Escort a 3-ship freighter convoy through hostile space against coordinated enemy corvettes"
+
+dt: 0.1
+
+# ── Player ship ─────────────────────────────────────────────────────
+
+ships:
+  - id: "player_ship"
+    ship_class: "corvette"
+    name: "UNS Sentinel"
+    class: "corvette"
+    faction: "unsa"
+    player_controlled: true
+    position: {x: 0, y: 0, z: 0}
+    velocity: {x: 100, y: 0, z: 0}
+    orientation: {pitch: 0, yaw: 0, roll: 0}
+    max_hull_integrity: 150.0
+    hull_integrity: 150.0
+    systems:
+      propulsion:
+        max_fuel: 500.0
+        fuel_level: 500.0
+      sensors:
+        passive:
+          range: 40000.0
+        active:
+          scan_range: 80000.0
+          cooldown_time: 4.0
+      targeting:
+        lock_time: 1.5
+        lock_range: 80000.0
+      combat:
+        railguns: 2
+        pdcs: 4
+      navigation: {}
+    damage_model:
+      propulsion: {max_health: 80.0, health: 80.0}
+      rcs: {max_health: 60.0, health: 60.0}
+      weapons: {max_health: 70.0, health: 70.0}
+      sensors: {max_health: 50.0, health: 50.0}
+
+  # ── Convoy freighters ───────────────────────────────────────────
+
+  - id: "freighter_alpha"
+    ship_class: "freighter"
+    name: "MV Stellarwind"
+    class: "freighter"
+    faction: "civilian"
+    ai_enabled: true
+    position: {x: 2000, y: 500, z: 0}
+    velocity: {x: 100, y: 0, z: 0}
+    orientation: {pitch: 0, yaw: 0, roll: 0}
+    max_hull_integrity: 600.0
+    hull_integrity: 600.0
+    ai_behavior:
+      role: "freighter"
+      # Freighters flee at the first sign of damage, never fire,
+      # and emit distress signals for escort AI to react to.
+      flee_threshold: 0.9
+      max_thrust_profile: 0.3
+    systems:
+      propulsion:
+        max_fuel: 3000.0
+        fuel_level: 3000.0
+      sensors:
+        passive:
+          range: 20000.0
+      navigation: {}
+    # Light armor -- freighters rely on escorts, not plating.
+    # Steel composite is cheaper but weaker than corvette cermet.
+    armor:
+      fore: {thickness_cm: 5.0, material: "steel_composite"}
+      aft: {thickness_cm: 3.0, material: "steel_composite"}
+      port: {thickness_cm: 4.0, material: "steel_composite"}
+      starboard: {thickness_cm: 4.0, material: "steel_composite"}
+      dorsal: {thickness_cm: 3.0, material: "steel_composite"}
+      ventral: {thickness_cm: 3.0, material: "steel_composite"}
+    damage_model:
+      propulsion: {max_health: 130.0, health: 130.0}
+      rcs: {max_health: 70.0, health: 70.0}
+      weapons: {max_health: 40.0, health: 40.0}
+      sensors: {max_health: 50.0, health: 50.0}
+
+  - id: "freighter_beta"
+    ship_class: "freighter"
+    name: "MV Iron Cairn"
+    class: "freighter"
+    faction: "civilian"
+    ai_enabled: true
+    position: {x: 1000, y: -800, z: 200}
+    velocity: {x: 100, y: 0, z: 0}
+    orientation: {pitch: 0, yaw: 0, roll: 0}
+    max_hull_integrity: 600.0
+    hull_integrity: 600.0
+    ai_behavior:
+      role: "freighter"
+      flee_threshold: 0.9
+      max_thrust_profile: 0.3
+    systems:
+      propulsion:
+        max_fuel: 3000.0
+        fuel_level: 3000.0
+      sensors:
+        passive:
+          range: 20000.0
+      navigation: {}
+    armor:
+      fore: {thickness_cm: 5.0, material: "steel_composite"}
+      aft: {thickness_cm: 3.0, material: "steel_composite"}
+      port: {thickness_cm: 4.0, material: "steel_composite"}
+      starboard: {thickness_cm: 4.0, material: "steel_composite"}
+      dorsal: {thickness_cm: 3.0, material: "steel_composite"}
+      ventral: {thickness_cm: 3.0, material: "steel_composite"}
+    damage_model:
+      propulsion: {max_health: 130.0, health: 130.0}
+      rcs: {max_health: 70.0, health: 70.0}
+      weapons: {max_health: 40.0, health: 40.0}
+      sensors: {max_health: 50.0, health: 50.0}
+
+  - id: "freighter_gamma"
+    ship_class: "freighter"
+    name: "MV Dawnhauler"
+    class: "freighter"
+    faction: "civilian"
+    ai_enabled: true
+    position: {x: -500, y: 300, z: -400}
+    velocity: {x: 100, y: 0, z: 0}
+    orientation: {pitch: 0, yaw: 0, roll: 0}
+    max_hull_integrity: 600.0
+    hull_integrity: 600.0
+    ai_behavior:
+      role: "freighter"
+      flee_threshold: 0.9
+      max_thrust_profile: 0.3
+    systems:
+      propulsion:
+        max_fuel: 3000.0
+        fuel_level: 3000.0
+      sensors:
+        passive:
+          range: 20000.0
+      navigation: {}
+    armor:
+      fore: {thickness_cm: 5.0, material: "steel_composite"}
+      aft: {thickness_cm: 3.0, material: "steel_composite"}
+      port: {thickness_cm: 4.0, material: "steel_composite"}
+      starboard: {thickness_cm: 4.0, material: "steel_composite"}
+      dorsal: {thickness_cm: 3.0, material: "steel_composite"}
+      ventral: {thickness_cm: 3.0, material: "steel_composite"}
+    damage_model:
+      propulsion: {max_health: 130.0, health: 130.0}
+      rcs: {max_health: 70.0, health: 70.0}
+      weapons: {max_health: 40.0, health: 40.0}
+      sensors: {max_health: 50.0, health: 50.0}
+
+  # ── Enemy corvettes ─────────────────────────────────────────────
+  # Attack from different vectors to force the player to track
+  # multiple contacts simultaneously.  Heavy cermet armor means
+  # railgun hits are needed -- PDCs alone won't cut it.
+
+  - id: "enemy_alpha"
+    ship_class: "corvette"
+    name: "Razorback"
+    class: "corvette"
+    faction: "pirates"
+    ai_enabled: true
+    position: {x: 90000, y: -40000, z: 10000}
+    velocity: {x: -300, y: 150, z: -30}
+    orientation: {pitch: 0, yaw: 200, roll: 0}
+    max_hull_integrity: 150.0
+    hull_integrity: 150.0
+    ai_behavior:
+      # Combat role: high aggression, pursues targets aggressively.
+      # Targets the convoy freighters first (closest/weakest).
+      role: "combat"
+      aggression: 0.9
+      engagement_range: 80000
+      flee_threshold: 0.15
+      evade_threshold: 0.3
+    systems:
+      propulsion:
+        max_fuel: 400.0
+        fuel_level: 400.0
+      sensors:
+        passive:
+          range: 35000.0
+        active:
+          scan_range: 70000.0
+          cooldown_time: 5.0
+      targeting:
+        lock_time: 2.0
+        lock_range: 60000.0
+      combat:
+        railguns: 1
+        pdcs: 2
+      navigation: {}
+    # Heavy cermet armor -- takes multiple PDC bursts to penetrate.
+    armor:
+      fore: {thickness_cm: 3.0, material: "composite_cermet"}
+      aft: {thickness_cm: 1.5, material: "composite_cermet"}
+      port: {thickness_cm: 2.0, material: "composite_cermet"}
+      starboard: {thickness_cm: 2.0, material: "composite_cermet"}
+      dorsal: {thickness_cm: 2.0, material: "composite_cermet"}
+      ventral: {thickness_cm: 2.0, material: "composite_cermet"}
+    damage_model:
+      propulsion: {max_health: 80.0, health: 80.0}
+      rcs: {max_health: 60.0, health: 60.0}
+      weapons: {max_health: 70.0, health: 70.0}
+      sensors: {max_health: 50.0, health: 50.0}
+
+  - id: "enemy_beta"
+    ship_class: "corvette"
+    name: "Nightfang"
+    class: "corvette"
+    faction: "pirates"
+    ai_enabled: true
+    # Approaches from the opposite vector -- player can't cover both
+    # directions with a single intercept course.
+    position: {x: 70000, y: 50000, z: -15000}
+    velocity: {x: -250, y: -200, z: 50}
+    orientation: {pitch: 0, yaw: 230, roll: 0}
+    max_hull_integrity: 150.0
+    hull_integrity: 150.0
+    ai_behavior:
+      # Slightly less aggressive -- will attempt isolation maneuver
+      # if player engages the other corvette first.
+      role: "combat"
+      aggression: 0.7
+      engagement_range: 70000
+      flee_threshold: 0.2
+      evade_threshold: 0.35
+    systems:
+      propulsion:
+        max_fuel: 400.0
+        fuel_level: 400.0
+      sensors:
+        passive:
+          range: 35000.0
+        active:
+          scan_range: 70000.0
+          cooldown_time: 5.0
+      targeting:
+        lock_time: 2.0
+        lock_range: 60000.0
+      combat:
+        railguns: 1
+        pdcs: 2
+      navigation: {}
+    armor:
+      fore: {thickness_cm: 3.0, material: "composite_cermet"}
+      aft: {thickness_cm: 1.5, material: "composite_cermet"}
+      port: {thickness_cm: 2.0, material: "composite_cermet"}
+      starboard: {thickness_cm: 2.0, material: "composite_cermet"}
+      dorsal: {thickness_cm: 2.0, material: "composite_cermet"}
+      ventral: {thickness_cm: 2.0, material: "composite_cermet"}
+    damage_model:
+      propulsion: {max_health: 80.0, health: 80.0}
+      rcs: {max_health: 60.0, health: 60.0}
+      weapons: {max_health: 70.0, health: 70.0}
+      sensors: {max_health: 50.0, health: 50.0}
+
+# ── Fleet definitions ────────────────────────────────────────────────
+# Groups ships into logical fleets for coordination and objective
+# tracking.  The convoy fleet's survival is the win condition.
+
+fleets:
+  - id: "convoy"
+    name: "Supply Convoy"
+    faction: "civilian"
+    ships: ["freighter_alpha", "freighter_beta", "freighter_gamma"]
+    # Convoy destination -- 500km along +X axis from starting position.
+    # Reaching this point with at least 1 freighter intact is a win.
+    destination: {x: 500000, y: 0, z: 0}
+
+  - id: "raider_force"
+    name: "Pirate Raiders"
+    faction: "pirates"
+    ships: ["enemy_alpha", "enemy_beta"]
+
+# ── Mission definition ───────────────────────────────────────────────
+
+mission:
+  name: "Convoy Defense: Gauntlet Run"
+  description: "Escort the convoy through hostile space and keep at least one freighter alive"
+
+  briefing: |
+    MISSION BRIEFING: CONVOY DEFENSE
+
+    Three civilian freighters -- MV Stellarwind, MV Iron Cairn, and
+    MV Dawnhauler -- are transporting critical supplies through sector
+    7-Gamma.  Intelligence confirms two pirate corvettes operating in
+    the area: Razorback and Nightfang.
+
+    The pirates are approaching from different vectors. Razorback is
+    closing fast from the starboard quarter; Nightfang is swinging in
+    from port-high. They will reach engagement range within minutes.
+
+    Your objectives:
+    1. SURVIVE -- keep your ship operational
+    2. PROTECT THE CONVOY -- at least one freighter must reach safety
+    3. NEUTRALIZE THREATS -- destroy or drive off both attackers
+
+    Tactical considerations:
+    - The freighters have light steel-composite armor. A few railgun
+      hits will cripple their drives.
+    - Enemy corvettes carry cermet armor. PDCs will wear them down
+      but railgun shots are far more effective.
+    - You cannot cover both approach vectors simultaneously. Prioritize
+      the closer threat and use the freighters' own fleeing behavior
+      to buy time on the other axis.
+    - The convoy is moving at 100 m/s along the +X axis. Match their
+      velocity to stay in escort position.
+
+    Enemy tactics may include:
+    - Focus fire: both corvettes converge on the weakest freighter
+    - Isolation: one draws you away while the other hits the convoy
+    - Boarding: a corvette closes to boarding range on a freighter
+
+    Good luck, Commander.
+
+  time_limit: 600  # 10 minutes -- convoy must survive this long
+
+  objectives:
+    # Primary: player must survive
+    - id: "player_survives"
+      type: "avoid_mission_kill"
+      description: "Keep your ship operational"
+      required: true
+      params:
+        target: "player_ship"
+
+    # Primary: at least one freighter must survive the full duration.
+    # Using protect_ship with time=600 means the objective succeeds
+    # when the timer expires with the ship still alive.  If the ship
+    # is destroyed, the objective fails.
+    #
+    # We mark all three as required=false individually, then use the
+    # survive_time objective as the actual gate -- but we still need
+    # a failure condition when ALL freighters are gone.  The simplest
+    # approach: make alpha required, so losing it fails the mission.
+    # The player must protect at least the lead freighter.
+    - id: "protect_alpha"
+      type: "protect_ship"
+      description: "Protect MV Stellarwind (lead freighter)"
+      required: true
+      params:
+        target: "freighter_alpha"
+        time: 600
+        start_time: 0
+
+    - id: "protect_beta"
+      type: "protect_ship"
+      description: "Protect MV Iron Cairn"
+      required: false
+      params:
+        target: "freighter_beta"
+        time: 600
+        start_time: 0
+
+    - id: "protect_gamma"
+      type: "protect_ship"
+      description: "Protect MV Dawnhauler"
+      required: false
+      params:
+        target: "freighter_gamma"
+        time: 600
+        start_time: 0
+
+    # Bonus: neutralize both threats
+    - id: "kill_alpha"
+      type: "mission_kill"
+      description: "Neutralize Razorback"
+      required: false
+      params:
+        target: "enemy_alpha"
+
+    - id: "kill_beta"
+      type: "mission_kill"
+      description: "Neutralize Nightfang"
+      required: false
+      params:
+        target: "enemy_beta"
+
+  # ── Branch points ───────────────────────────────────────────────
+  # These describe the three tactical branches the enemy AI can take.
+  # The AI controller picks behaviors based on real-time conditions
+  # (threat assessment, distance, hull state), so the branching is
+  # emergent rather than scripted.  These annotations document the
+  # intended design for scenario tuning and testing.
+
+  branches:
+    - id: "focus_fire"
+      description: "Both enemies converge on the same freighter"
+      trigger: "Both enemies detect the same freighter as closest target"
+      conditions:
+        # This branch emerges naturally when both corvettes' threat
+        # assessment prioritizes the nearest freighter (they approach
+        # from vectors that converge on the convoy center).
+        - "enemy_alpha target is a freighter"
+        - "enemy_beta target is same freighter"
+      player_response: "Split attention between engaging attackers and screening the targeted freighter"
+
+    - id: "isolation"
+      description: "Enemies split to isolate player from convoy"
+      trigger: "Player engages one enemy, the other flanks the convoy"
+      conditions:
+        # If the player intercepts enemy_alpha, enemy_beta's lower
+        # aggression means it may not pursue the player, instead
+        # attacking undefended freighters.
+        - "player_ship range to enemy_alpha < 20000"
+        - "enemy_beta range to nearest freighter < 30000"
+      player_response: "Decide whether to finish current engagement or break off to cover convoy"
+
+    - id: "boarding"
+      description: "One enemy attempts boarding while the other engages"
+      trigger: "Enemy corvette reaches boarding range of a freighter"
+      conditions:
+        # A corvette closing to <500m of a freighter while the player
+        # is engaged elsewhere.  At boarding range the freighter's
+        # drive can be disabled with a single point-blank PDC burst.
+        - "enemy range to freighter < 500"
+        - "player_ship range to that enemy > 10000"
+      player_response: "Break off and intercept the boarding corvette before the freighter is disabled"
+
+  success_message: |
+    CONVOY DEFENDED
+
+    The supply convoy has reached sector 7-Gamma safely.
+    At least one freighter made it through with cargo intact.
+
+    The pirates have been driven off. Civilian traffic can resume
+    normal operations in this corridor.
+
+    Outstanding work, Commander.
+
+  failure_message: |
+    CONVOY LOST
+
+    The convoy has been destroyed. Critical supplies will not reach
+    their destination. Thousands of colonists are counting on those
+    supplies.
+
+    Review your tactical decisions:
+    - Did you stay too close to one threat while the other flanked?
+    - Did you prioritize kills over protection?
+    - Did you match velocity with the convoy to maintain escort position?
+
+  hints:
+    - trigger: "start"
+      message: "Match velocity with the convoy: 'autopilot match freighter_alpha'"
+    - trigger: "range < 80000"
+      target: "enemy_alpha"
+      message: "CONTACT: Hostile corvette Razorback detected bearing starboard! Close fast."
+    - trigger: "range < 80000"
+      target: "enemy_beta"
+      message: "CONTACT: Second hostile Nightfang detected bearing port-high! Two-axis threat."
+    - trigger: "time > 60"
+      message: "Convoy is holding course. Watch for flanking maneuvers."
+    - trigger: "time > 300"
+      message: "Halfway through the gauntlet. Keep the pressure on."
+    - trigger: "time > 540"
+      message: "60 seconds to safety. Hold the line!"
