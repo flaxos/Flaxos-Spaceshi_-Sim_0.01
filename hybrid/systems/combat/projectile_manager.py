@@ -337,6 +337,7 @@ class ProjectileManager:
         subsystem_hit = None
         hit_location = None
 
+        armor_result = None
         if actual_hit and hasattr(target_ship, "take_damage"):
             # Compute hit location from intercept geometry
             hit_location = self._compute_hit_location(proj, target_ship, closest_point)
@@ -344,11 +345,28 @@ class ProjectileManager:
             # The hit location determines the subsystem, not random selection
             subsystem_hit = hit_location.nearest_subsystem
 
-            # Penetration factor from hit-location physics replaces old armor calc
-            pen_factor = hit_location.penetration_factor
+            # Resolve penetration through the mutable armor model when available.
+            # The armor model tracks ablation so repeated PDC hits on the same
+            # section eventually strip the armor and allow full penetration.
+            # Falls back to static hit_location penetration for ships without
+            # an armor model (backward compatibility).
+            armor_model = getattr(target_ship, "armor_model", None)
+            if armor_model is not None:
+                armor_result = armor_model.resolve_hit(
+                    section=hit_location.armor_section,
+                    projectile_velocity=proj.velocity,
+                    projectile_mass=proj.mass,
+                    armor_penetration_rating=proj.armor_penetration,
+                    angle_of_incidence=hit_location.angle_of_incidence,
+                )
+                pen_factor = armor_result.penetration_factor
+                is_ricochet = armor_result.is_ricochet
+            else:
+                pen_factor = hit_location.penetration_factor
+                is_ricochet = hit_location.is_ricochet
 
             # Ricochet: minimal damage, no subsystem damage
-            if hit_location.is_ricochet:
+            if is_ricochet:
                 hull_damage = proj.damage * 0.1  # Glancing blow
                 sub_damage = 0.0
             else:
@@ -411,6 +429,12 @@ class ProjectileManager:
                 "nearest_subsystem": hit_location.nearest_subsystem,
                 "impact_point": hit_location.impact_point_local,
             } if hit_location else None,
+            # Armor ablation data (from mutable armor model)
+            "armor_ablation": {
+                "ablation_cm": armor_result.ablation_cm,
+                "remaining_thickness_cm": armor_result.remaining_thickness_cm,
+                "description": armor_result.description,
+            } if armor_result else None,
         }
 
         self._event_bus.publish("projectile_impact", event)
