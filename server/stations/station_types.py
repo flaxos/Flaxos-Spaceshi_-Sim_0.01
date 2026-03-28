@@ -184,6 +184,11 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             "crew_rest",
             "cancel_rest",
             "crew_fatigue_status",
+            # Crew-station assignment
+            "assign_crew",
+            "transfer_crew",
+            "unassign_crew",
+            "crew_station_status",
             # Inter-station comms
             "station_message",
         },
@@ -192,7 +197,7 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             "damage_report", "repair_queue", "hull_integrity",
             "compartment_status", "heat_status", "thermal_status",
             "power_management_status", "ops_status", "ecm_status",
-            "crew_fatigue_status",
+            "crew_fatigue_status", "crew_station_status",
         },
         required_systems={"power", "power_management"},
     ),

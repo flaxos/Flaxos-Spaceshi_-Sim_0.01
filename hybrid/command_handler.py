@@ -117,6 +117,11 @@ system_commands = {
     "crew_rest": ("crew_fatigue", "crew_rest"),
     "cancel_rest": ("crew_fatigue", "cancel_rest"),
     "crew_fatigue_status": ("crew_fatigue", "crew_status"),
+    # Crew-station binding commands
+    "assign_crew": ("crew_binding", "assign_crew"),
+    "transfer_crew": ("crew_binding", "transfer_crew"),
+    "unassign_crew": ("crew_binding", "unassign_crew"),
+    "crew_station_status": ("crew_binding", "crew_station_status"),
     # Science station commands
     "analyze_contact": ("science", "analyze_contact"),
     "spectral_analysis": ("science", "spectral_analysis"),
