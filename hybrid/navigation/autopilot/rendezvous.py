@@ -624,34 +624,50 @@ class RendezvousAutopilot(BaseAutopilot):
                     rel_speed, self.stationkeep_speed)
 
             # --- Check 2: Final braking before stationkeep ---
-            # When the ship needs to decelerate before reaching
-            # stationkeep range, trigger approach_decel.  Uses braking
-            # distance to determine when to start: d_brake = v^2/(2a).
-            # The 2.5x safety margin accounts for approach_decel using
-            # gentle proportional thrust (not full braking) and for the
-            # alignment guard blocking some ticks.
+            # Only trigger when the ship is significantly overspeeding
+            # relative to what the taper wants at this range.  The old
+            # check fired whenever rel_speed > stationkeep_speed, but
+            # for profiles with high coast_speed and small approach_range
+            # (aggressive: 800 m/s, 50km), the braking distance exceeded
+            # the entire taper zone, causing Check 2 to pre-empt the
+            # taper and restart the sawtooth cycle.
+            #
+            # New logic: compute the taper's desired_closing at this
+            # range.  Only trigger if rel_speed > desired * 1.5 (the
+            # inline braking threshold is 1.3x, so 1.5x means inline
+            # braking has failed).  This lets the taper and inline
+            # braking do their job without phase-breaking interruption.
             elif rel_speed > self.stationkeep_speed:
-                # Use the DECEL-phase accel estimate (30% of theoretical),
-                # NOT the coast-phase measured accel.  During coast the ship
-                # thrusts gently (~2 m/s²), but decel uses full retrograde
-                # (~10-15 m/s²).  Using coast measurements makes d_brake
-                # 4-5x too large, triggering braking at 90km instead of 20km.
-                theoretical = self._get_max_accel() * self.max_thrust
-                a_decel = theoretical * 0.30
-                speed_excess = rel_speed - self.stationkeep_speed * 0.5
-                d_brake_needed = self._braking_distance(
-                    max(speed_excess, 0), a_decel) * 2.5
-                if current_range < d_brake_needed + self.stationkeep_range:
-                    self.phase = "approach_decel"
-                    self._approach_rotated = False
-                    self._accel_samples.clear()
-                    self._measured_accel = 0.0
-                    logger.info(
-                        "Rendezvous: APPROACH_COAST -> APPROACH_DECEL "
-                        "(final braking: range %.0f m, rel_speed %.1f m/s "
-                        "> stationkeep_speed %.1f m/s, d_brake %.0f m)",
-                        current_range, rel_speed, self.stationkeep_speed,
-                        d_brake_needed)
+                # Compute what the taper wants at this range
+                taper_start = self.approach_range
+                if current_range >= taper_start:
+                    taper_desired = self.approach_coast_speed
+                else:
+                    taper_span = max(taper_start - self.stationkeep_range, 1.0)
+                    taper_frac = (current_range - self.stationkeep_range) / taper_span
+                    taper_frac = max(0.0, min(1.0, taper_frac))
+                    taper_desired = (self.stationkeep_speed
+                                     + taper_frac * (self.approach_coast_speed
+                                                     - self.stationkeep_speed))
+
+                # Only trigger if significantly overspeeding the taper
+                if rel_speed > taper_desired * 1.5:
+                    theoretical = self._get_max_accel() * self.max_thrust
+                    a_decel = theoretical * 0.30
+                    speed_excess = rel_speed - self.stationkeep_speed * 0.5
+                    d_brake_needed = self._braking_distance(
+                        max(speed_excess, 0), a_decel) * 2.5
+                    if current_range < d_brake_needed + self.stationkeep_range:
+                        self.phase = "approach_decel"
+                        self._approach_rotated = False
+                        self._accel_samples.clear()
+                        self._measured_accel = 0.0
+                        logger.info(
+                            "Rendezvous: APPROACH_COAST -> APPROACH_DECEL "
+                            "(final braking: range %.0f m, rel_speed %.1f m/s "
+                            "> taper %.1f m/s * 1.5, d_brake %.0f m)",
+                            current_range, rel_speed, taper_desired,
+                            d_brake_needed)
 
             # --- Check 3: Overspeed emergency ---
             # If speed exceeds safety limit for sustained period, fall
@@ -1184,9 +1200,17 @@ class RendezvousAutopilot(BaseAutopilot):
         target_pos = target.position if hasattr(target, "position") else target
         target_vel = target.velocity if hasattr(target, "velocity") else {"x": 0, "y": 0, "z": 0}
 
-        rel = calculate_relative_motion(self.ship, target)
-        rel_speed = magnitude(rel["relative_velocity_vector"])
-        current_range = rel["range"]
+        # Use direct ship-to-ship truth data for range and relative
+        # velocity.  At stationkeep range (<1km), sensor noise (50m/axis
+        # position, 2 m/s velocity) dominates the signal — the noisy
+        # range jitters between 0 and 80m when true range is 30m, making
+        # the delta-v direction noise-dominated and trapping the ship in
+        # a limit cycle.  At docking range, the ship uses optical/lidar
+        # docking sensors, not long-range passive sensors.
+        to_tgt = subtract_vectors(target_pos, self.ship.position)
+        current_range = magnitude(to_tgt)
+        rel_vel = subtract_vectors(self.ship.velocity, target_vel)
+        rel_speed = magnitude(rel_vel)
 
         # Within docking range and slow enough — done
         if current_range < 50.0 and rel_speed < 1.0:
@@ -1197,7 +1221,7 @@ class RendezvousAutopilot(BaseAutopilot):
         # tapering.  Faster when far, slow when close.
         # At 500m: ~6.7 m/s.  At 200m: ~4.2 m/s.  At 100m: ~3.0 m/s.
         # At 60m: ~2.3 m/s.  At 50m: ~2.1 m/s.
-        desired_speed = max(1.5, min(15.0, math.sqrt(current_range) * 0.3))
+        desired_speed = max(0.5, min(15.0, math.sqrt(current_range) * 0.3))
 
         # Desired velocity vector: toward target at desired_speed
         to_target = subtract_vectors(target_pos, self.ship.position)
@@ -1212,7 +1236,9 @@ class RendezvousAutopilot(BaseAutopilot):
             "z": to_target["z"] * scale + target_vel["z"],
         }
 
-        # Delta-v: what velocity change is needed
+        # Delta-v: desired velocity minus current relative velocity.
+        # rel_vel is ship_vel - target_vel (what the ship needs to zero),
+        # so delta_v = desired_vel - ship_vel = desired_vel - (rel_vel + target_vel).
         delta_v = {
             "x": desired_vel["x"] - self.ship.velocity["x"],
             "y": desired_vel["y"] - self.ship.velocity["y"],
@@ -1227,14 +1253,17 @@ class RendezvousAutopilot(BaseAutopilot):
         # Heading: along delta-v direction
         heading = vector_to_heading(delta_v)
 
-        # Proportional thrust: scale with delta-v magnitude
-        # Tau = 3s time constant — responsive but not twitchy
-        a_max = self._get_max_accel() * self.max_thrust
-        if a_max > 0:
-            thrust_frac = min(0.30, dv_mag / (a_max * 3.0))
+        # Proportional thrust: scale with delta-v magnitude.
+        # Use the raw max accel (full engine, not profile-limited) for
+        # the time constant so thrust_frac maps correctly to throttle.
+        # Tau = 5s — more damped than the approach controller to prevent
+        # overshoot oscillation at close range.
+        a_raw = self._get_max_accel()  # full engine accel, not * max_thrust
+        if a_raw > 0:
+            thrust_frac = min(self.max_thrust, dv_mag / (a_raw * 5.0))
         else:
             thrust_frac = 0.05
-        thrust_frac = max(0.02, thrust_frac)
+        thrust_frac = max(0.01, thrust_frac)
 
         cmd = {
             "thrust": self._clamp_thrust(thrust_frac),
