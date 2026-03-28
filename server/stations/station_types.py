@@ -173,6 +173,9 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             # Ops station commands
             "allocate_power",
             "dispatch_repair",
+            "cancel_repair",
+            "repair_status",
+            "set_repair_priority",
             "set_system_priority",
             "report_status",
             "emergency_shutdown",
@@ -209,6 +212,9 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             "deactivate_heat_sink",
             # Shared ops commands (engineering can also dispatch repairs)
             "dispatch_repair",
+            "cancel_repair",
+            "repair_status",
+            "set_repair_priority",
             "report_status",
             # Thermal stealth
             "cold_drift",

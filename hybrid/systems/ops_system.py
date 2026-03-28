@@ -25,6 +25,9 @@ from typing import Dict, List, Optional, Any
 from enum import Enum
 
 from hybrid.core.base_system import BaseSystem
+from hybrid.systems.field_repair import (
+    FieldRepairManager, RepairPriority, FIELD_REPAIR_HEALTH_CAP,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -142,6 +145,10 @@ class OpsSystem(BaseSystem):
         # Track total repairs applied
         self._total_repairs = 0.0
 
+        # Field repair manager: spare parts, g-load constraints, health cap
+        field_repair_config = config.get("field_repair", {})
+        self.field_repair = FieldRepairManager(field_repair_config)
+
     def _normalize_allocation(self):
         """Ensure power allocation percentages sum to 1.0."""
         total = sum(self.power_allocation.values())
@@ -229,8 +236,27 @@ class OpsSystem(BaseSystem):
                         subsystem_name, heat_needed, event_bus, ship.id
                     )
 
+    def _get_current_g(self, ship) -> float:
+        """Get current g-load from ship acceleration.
+
+        Args:
+            ship: Ship object
+
+        Returns:
+            float: Current g-load (multiples of Earth gravity)
+        """
+        import math
+        a = getattr(ship, "acceleration", {"x": 0, "y": 0, "z": 0})
+        accel_mag = math.sqrt(a["x"]**2 + a["y"]**2 + a["z"]**2)
+        return accel_mag / 9.81
+
     def _tick_repair_teams(self, dt: float, ship, event_bus=None):
-        """Update repair team positions and apply repairs.
+        """Update repair team positions and apply field repairs.
+
+        Field repairs are constrained by:
+        - Spare parts (finite consumable)
+        - G-load (high acceleration slows/halts repairs)
+        - Health cap (field repair maxes out at 50% — dock for full restore)
 
         Args:
             dt: Time step in seconds
@@ -240,16 +266,22 @@ class OpsSystem(BaseSystem):
         if not hasattr(ship, "damage_model"):
             return
 
+        current_g = self._get_current_g(ship)
+
         for team in self.repair_teams:
             if team.status == RepairTeamStatus.IDLE:
                 continue
 
             if team.status == RepairTeamStatus.EN_ROUTE:
-                # Move toward target subsystem
-                team.transit_remaining -= dt
+                # G-load also slows transit (crew moving through corridors)
+                g_factor = self.field_repair.get_g_load_factor(current_g)
+                transit_dt = dt * max(0.1, g_factor)  # Minimum 10% transit speed
+                team.transit_remaining -= transit_dt
                 if team.transit_remaining <= 0:
                     team.transit_remaining = 0.0
                     team.status = RepairTeamStatus.REPAIRING
+                    # Register repair job with field repair manager
+                    self.field_repair.start_repair(team.assigned_subsystem)
                     if event_bus:
                         event_bus.publish("repair_team_arrived", {
                             "ship_id": ship.id,
@@ -266,25 +298,9 @@ class OpsSystem(BaseSystem):
                 sub = ship.damage_model.subsystems.get(subsystem)
 
                 if not sub:
-                    # Subsystem doesn't exist, go idle
                     team.status = RepairTeamStatus.IDLE
                     team.assigned_subsystem = None
-                    continue
-
-                # Check if repair is complete
-                if sub.health >= sub.max_health:
-                    team.status = RepairTeamStatus.IDLE
-                    team.assigned_subsystem = None
-                    if event_bus:
-                        event_bus.publish("repair_complete", {
-                            "ship_id": ship.id,
-                            "team_id": team.team_id,
-                            "subsystem": subsystem,
-                        })
-                    logger.info(
-                        f"Repair team {team.team_id} completed repairs on "
-                        f"{subsystem}"
-                    )
+                    self.field_repair.cancel_repair(subsystem)
                     continue
 
                 # Cannot repair destroyed subsystems
@@ -292,6 +308,7 @@ class OpsSystem(BaseSystem):
                 if sub.get_status() == SubsystemStatus.DESTROYED:
                     team.status = RepairTeamStatus.IDLE
                     team.assigned_subsystem = None
+                    self.field_repair.cancel_repair(subsystem)
                     if event_bus:
                         event_bus.publish("repair_failed", {
                             "ship_id": ship.id,
@@ -301,10 +318,49 @@ class OpsSystem(BaseSystem):
                         })
                     continue
 
-                # Apply repair
-                repair_amount = team.repair_rate * dt
-                ship.damage_model.repair_subsystem(subsystem, repair_amount)
-                self._total_repairs += repair_amount
+                # Check if at field repair cap or full health
+                cap = self.field_repair.get_field_repair_cap(sub.max_health)
+                if sub.health >= cap:
+                    team.status = RepairTeamStatus.IDLE
+                    team.assigned_subsystem = None
+                    self.field_repair.complete_repair(subsystem)
+                    if event_bus:
+                        event_bus.publish("repair_complete", {
+                            "ship_id": ship.id,
+                            "team_id": team.team_id,
+                            "subsystem": subsystem,
+                            "capped": sub.health < sub.max_health,
+                            "field_repair_limit": True,
+                        })
+                    logger.info(
+                        f"Repair team {team.team_id} completed field repairs on "
+                        f"{subsystem} (capped at {FIELD_REPAIR_HEALTH_CAP*100:.0f}%)"
+                    )
+                    continue
+
+                # Apply constrained repair through field repair manager
+                raw_repair = team.repair_rate * dt
+                actual_repair, pause_reason = (
+                    self.field_repair.apply_repair_constraints(
+                        subsystem=subsystem,
+                        raw_repair_amount=raw_repair,
+                        current_health=sub.health,
+                        max_health=sub.max_health,
+                        current_g=current_g,
+                    )
+                )
+
+                if actual_repair > 0:
+                    ship.damage_model.repair_subsystem(subsystem, actual_repair)
+                    self._total_repairs += actual_repair
+                elif pause_reason and event_bus:
+                    # Publish pause event (throttled to avoid spam)
+                    event_bus.publish("repair_paused", {
+                        "ship_id": ship.id,
+                        "team_id": team.team_id,
+                        "subsystem": subsystem,
+                        "reason": pause_reason,
+                    })
 
     # ------------------------------------------------------------------
     # Commands
@@ -318,6 +374,12 @@ class OpsSystem(BaseSystem):
             return self._cmd_allocate_power(params)
         elif action == "dispatch_repair":
             return self._cmd_dispatch_repair(params)
+        elif action == "cancel_repair":
+            return self._cmd_cancel_repair(params)
+        elif action == "repair_status":
+            return self._cmd_repair_status(params)
+        elif action == "set_repair_priority":
+            return self._cmd_set_repair_priority(params)
         elif action == "set_system_priority":
             return self._cmd_set_system_priority(params)
         elif action == "report_status":
@@ -474,6 +536,113 @@ class OpsSystem(BaseSystem):
             "status": f"Team {team.team_id} dispatched to {subsystem}",
             "team": team.to_dict(),
             "eta": round(team.transit_remaining, 1),
+        }
+
+    def _cmd_cancel_repair(self, params: dict) -> dict:
+        """Cancel an active repair job and recall the team.
+
+        Params:
+            subsystem (str): Subsystem to cancel repair for
+        """
+        subsystem = params.get("subsystem")
+        if not subsystem:
+            return {"ok": False, "error": "Missing 'subsystem' parameter"}
+
+        # Find and recall the team working on this subsystem
+        team_found = None
+        for team in self.repair_teams:
+            if team.assigned_subsystem == subsystem:
+                team_found = team
+                break
+
+        if not team_found:
+            return {
+                "ok": False,
+                "error": f"No repair team assigned to '{subsystem}'",
+            }
+
+        old_status = team_found.status.value
+        team_found.status = RepairTeamStatus.IDLE
+        team_found.assigned_subsystem = None
+        team_found.transit_remaining = 0.0
+        self.field_repair.cancel_repair(subsystem)
+
+        event_bus = params.get("event_bus")
+        ship = params.get("_ship") or params.get("ship")
+        if event_bus and ship:
+            event_bus.publish("repair_cancelled", {
+                "ship_id": ship.id,
+                "team_id": team_found.team_id,
+                "subsystem": subsystem,
+            })
+
+        return {
+            "ok": True,
+            "status": f"Repair cancelled: team {team_found.team_id} "
+                       f"recalled from {subsystem}",
+            "team": team_found.to_dict(),
+        }
+
+    def _cmd_repair_status(self, params: dict) -> dict:
+        """Get detailed field repair status including spare parts and active jobs.
+
+        Returns spare parts level, active repairs, g-load factor, and queue.
+        """
+        ship = params.get("_ship") or params.get("ship")
+
+        result: Dict[str, Any] = {
+            "ok": True,
+            "repair_teams": [t.to_dict() for t in self.repair_teams],
+            "field_repair": self.field_repair.get_state(),
+        }
+
+        if ship:
+            current_g = self._get_current_g(ship)
+            g_factor = self.field_repair.get_g_load_factor(current_g)
+            result["current_g"] = round(current_g, 2)
+            result["g_load_repair_factor"] = round(g_factor, 2)
+            result["g_load_status"] = (
+                "nominal" if g_factor >= 0.9
+                else "degraded" if g_factor > 0
+                else "halted"
+            )
+
+        return result
+
+    def _cmd_set_repair_priority(self, params: dict) -> dict:
+        """Set repair priority for a subsystem.
+
+        Params:
+            subsystem (str): Subsystem name
+            priority (str): Priority level: critical, high, normal, low
+        """
+        subsystem = params.get("subsystem")
+        priority_str = params.get("priority", "normal")
+
+        if not subsystem:
+            return {"ok": False, "error": "Missing 'subsystem' parameter"}
+
+        priority_map = {
+            "critical": RepairPriority.CRITICAL,
+            "high": RepairPriority.HIGH,
+            "normal": RepairPriority.NORMAL,
+            "low": RepairPriority.LOW,
+        }
+        priority = priority_map.get(priority_str.lower() if isinstance(priority_str, str) else "")
+        if priority is None:
+            return {
+                "ok": False,
+                "error": f"Invalid priority '{priority_str}'. "
+                         f"Valid: {', '.join(priority_map.keys())}",
+            }
+
+        self.field_repair.set_priority(subsystem, priority)
+
+        return {
+            "ok": True,
+            "status": f"Repair priority for {subsystem} set to {priority.name}",
+            "subsystem": subsystem,
+            "priority": priority.name.lower(),
         }
 
     def _cmd_set_system_priority(self, params: dict) -> dict:
@@ -679,4 +848,5 @@ class OpsSystem(BaseSystem):
             "repair_teams": [t.to_dict() for t in self.repair_teams],
             "shutdown_systems": sorted(self.shutdown_systems),
             "total_repairs_applied": round(self._total_repairs, 1),
+            "field_repair": self.field_repair.get_state(),
         }
