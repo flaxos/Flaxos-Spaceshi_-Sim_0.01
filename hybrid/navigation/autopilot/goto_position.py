@@ -284,9 +284,28 @@ class GoToPositionAutopilot(BaseAutopilot):
     # ----- main compute -------------------------------------------------------
 
     def compute(self, dt: float, sim_time: float) -> Optional[Dict]:
-        """Compute thrust/heading command for go-to-position."""
+        """Compute thrust/heading command for go-to-position.
+
+        Fuel-aware: refuses acceleration burns when the fuel budget
+        would leave insufficient delta-v for braking. If fuel is
+        completely depleted, the ship drifts (RCS only).
+        """
         if self.status == "error":
             return None
+
+        # Fuel depletion guard: if tanks are dry the main drive is
+        # locked out.  Enter FLIP/BRAKE if still moving, or HOLD if
+        # nearly stopped.  The ship drifts on RCS alone.
+        if self._is_fuel_depleted():
+            speed = magnitude(self.ship.velocity)
+            if speed > _BRAKE_SPEED_THRESH:
+                self.status = "no_fuel_drifting"
+                self.error_message = "Fuel depleted -- drifting"
+                return {"thrust": 0.0, "heading": self.ship.orientation}
+            self.phase = self.PHASE_HOLD
+            self.status = "no_fuel_holding"
+            self.error_message = "Fuel depleted"
+            return {"thrust": 0.0, "heading": self.ship.orientation}
 
         vector_to_target = subtract_vectors(self.target_position, self.ship.position)
         distance = magnitude(vector_to_target)
@@ -331,6 +350,24 @@ class GoToPositionAutopilot(BaseAutopilot):
                     distance, d_trigger, speed,
                 )
                 return self._enter_flip(speed)
+
+        # ----- Fuel budget gate for ACCELERATE -----
+        # Before committing to more acceleration, verify the ship can
+        # still brake to a stop with the remaining fuel.  If not,
+        # immediately begin braking while there is still enough delta-v.
+        if self.stop_at_target and not self._check_fuel_budget():
+            if speed > _BRAKE_SPEED_THRESH:
+                logger.warning(
+                    "GoTo: fuel budget exhausted at speed=%.1f m/s, "
+                    "entering emergency braking",
+                    speed,
+                )
+                return self._enter_flip(speed)
+            # Already slow enough -- hold position
+            self.phase = self.PHASE_HOLD
+            self.status = "fuel_insufficient"
+            self.error_message = "Insufficient fuel for planned burn"
+            return {"thrust": 0.0, "heading": self.ship.orientation}
 
         # ----- Coast check (reached cruise speed, not yet braking) -----
         if self.stop_at_target:

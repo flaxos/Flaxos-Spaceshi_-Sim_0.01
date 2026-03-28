@@ -78,6 +78,10 @@ class PropulsionSystem(BaseSystem):
         # Bingo fuel warning — fire once when fuel drops below 10%
         self._bingo_warned = False
 
+        # Real-time fuel burn rate (kg/s) — updated each tick for
+        # GUI display and delta-v time-remaining calculations
+        self.fuel_burn_rate: float = 0.0
+
     def tick(self, dt, ship, event_bus):
         """Update propulsion and apply thrust.
         
@@ -179,10 +183,14 @@ class PropulsionSystem(BaseSystem):
             # Fuel consumption: mass flow rate = F / Ve (Tsiolkovsky-consistent)
             # If legacy fuel_consumption is set and no ISP override, use legacy rate
             if self._legacy_fuel_consumption > 0 and self.isp == 3000.0:
-                consumption = (thrust_magnitude / max(self.max_thrust, 1e-10)) * self._legacy_fuel_consumption * dt
+                mass_flow_rate = (thrust_magnitude / max(self.max_thrust, 1e-10)) * self._legacy_fuel_consumption
+                consumption = mass_flow_rate * dt
             else:
                 mass_flow_rate = thrust_magnitude / max(self.exhaust_velocity, 1.0)
                 consumption = mass_flow_rate * dt
+
+            # Track burn rate for telemetry (kg/s)
+            self.fuel_burn_rate = mass_flow_rate
 
             if self.fuel_level >= consumption:
                 self.fuel_level -= consumption
@@ -214,6 +222,7 @@ class PropulsionSystem(BaseSystem):
                 self._debug_thrust_vector = None
                 self.main_drive["throttle"] = 0.0
                 self.current_thrust_g = 0.0
+                self.fuel_burn_rate = 0.0
                 self.status = "no_fuel"
                 event_bus.publish("propulsion_status_change", {
                     "system": "propulsion",
@@ -223,6 +232,7 @@ class PropulsionSystem(BaseSystem):
         else:
             ship.acceleration = {"x": 0.0, "y": 0.0, "z": 0.0}
             self.current_thrust_g = 0.0
+            self.fuel_burn_rate = 0.0
             self.status = "idle"
 
         self._last_thrust_magnitude = thrust_magnitude
@@ -475,6 +485,11 @@ class PropulsionSystem(BaseSystem):
             "fuel_percent": (self.fuel_level / self.max_fuel * 100) if self.max_fuel > 0 else 0,
             "max_fuel": self.max_fuel,
             "fuel_capacity": self.max_fuel,
+            "fuel_burn_rate": self.fuel_burn_rate,  # kg/s — current consumption
+            "fuel_time_remaining": (
+                self.fuel_level / self.fuel_burn_rate
+                if self.fuel_burn_rate > 0 else None
+            ),  # seconds until tanks are dry at current burn rate
             "power_status": self.power_status,
             # Engine performance
             "isp": self.isp,

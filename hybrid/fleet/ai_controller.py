@@ -138,6 +138,12 @@ class AIController:
         if self._check_damage_reaction():
             return  # Damage reaction took priority
 
+        # Check fuel state -- low fuel overrides aggressive behaviors.
+        # Fuel check runs after damage check because damage is more
+        # immediately life-threatening.
+        if self._check_fuel_reaction():
+            return  # Fuel conservation took priority
+
         # Execute current behavior
         if self.behavior == AIBehavior.IDLE:
             self._behavior_idle()
@@ -158,7 +164,7 @@ class AIController:
         elif self.behavior == AIBehavior.DEFEND_AREA:
             self._behavior_defend_area()
 
-    # ── Damage reaction ────────────────────────────────────────────
+    # ── Damage & fuel reactions ──────────────────────────────────────
 
     def _get_hull_fraction(self) -> float:
         """Current hull integrity as a 0-1 fraction."""
@@ -166,6 +172,97 @@ class AIController:
         if max_hull <= 0:
             return 1.0
         return getattr(self.ship, "hull_integrity", max_hull) / max_hull
+
+    def _get_fuel_fraction(self) -> float:
+        """Current fuel level as a 0-1 fraction.
+
+        Returns:
+            Fuel fraction (0.0 = empty, 1.0 = full). Returns 1.0 if
+            no propulsion system exists (assume unlimited fuel).
+        """
+        propulsion = self.ship.systems.get("propulsion")
+        if not propulsion:
+            return 1.0
+        max_fuel = getattr(propulsion, "max_fuel", 0.0)
+        if max_fuel <= 0:
+            return 1.0
+        return getattr(propulsion, "fuel_level", 0.0) / max_fuel
+
+    def _get_delta_v_margin(self) -> float:
+        """Ratio of remaining delta-v to delta-v needed to stop.
+
+        A margin > 1.0 means the ship can still brake to zero.
+        A margin < 1.0 means the ship is past the point of no return.
+        Returns float('inf') when stationary (no braking needed).
+
+        Returns:
+            Delta-v margin ratio, or inf if speed is negligible.
+        """
+        from hybrid.utils.units import calculate_delta_v
+        from hybrid.utils.math_utils import magnitude
+
+        propulsion = self.ship.systems.get("propulsion")
+        if not propulsion:
+            return float("inf")
+
+        fuel = getattr(propulsion, "fuel_level", 0.0)
+        isp = getattr(propulsion, "isp", 3000.0)
+        dry_mass = getattr(self.ship, "dry_mass", self.ship.mass)
+        remaining_dv = calculate_delta_v(dry_mass, fuel, isp)
+
+        speed = magnitude(self.ship.velocity)
+        if speed < 1.0:
+            return float("inf") if remaining_dv > 0 else 0.0
+        return remaining_dv / speed
+
+    def _check_fuel_reaction(self) -> bool:
+        """Check fuel state and switch to conservative behavior if low.
+
+        Thresholds:
+          - fuel_fraction < 10%: switch to FLEE (disengage from combat)
+          - fuel_fraction < 25%: switch to EVADE (stop aggressive burns)
+          - delta-v margin < 1.2: emergency brake -- switch to HOLD
+
+        Does not interrupt if already in a fuel-conservation behavior.
+
+        Returns:
+            True if a fuel reaction overrode normal behavior.
+        """
+        fuel_frac = self._get_fuel_fraction()
+        dv_margin = self._get_delta_v_margin()
+
+        # Emergency: delta-v margin is too thin to stop safely
+        if dv_margin < 1.2 and dv_margin != float("inf"):
+            if self.behavior not in (AIBehavior.HOLD_POSITION, AIBehavior.FLEE):
+                logger.warning(
+                    "AI %s: EMERGENCY -- delta-v margin %.2f, "
+                    "switching to HOLD to conserve fuel",
+                    self.ship.id, dv_margin,
+                )
+                self.set_behavior(AIBehavior.HOLD_POSITION)
+            return True
+
+        # Low fuel: disengage from combat
+        if fuel_frac < 0.10:
+            if self.behavior not in (AIBehavior.FLEE, AIBehavior.HOLD_POSITION):
+                logger.info(
+                    "AI %s: Fuel at %.0f%%, fleeing to conserve",
+                    self.ship.id, fuel_frac * 100,
+                )
+                self.set_behavior(AIBehavior.FLEE)
+            return True
+
+        # Moderate fuel: stop aggressive pursuit
+        if fuel_frac < 0.25:
+            if self.behavior in (AIBehavior.ATTACK, AIBehavior.INTERCEPT):
+                logger.info(
+                    "AI %s: Fuel at %.0f%%, switching to evasive",
+                    self.ship.id, fuel_frac * 100,
+                )
+                self.set_behavior(AIBehavior.EVADE)
+                return True
+
+        return False
 
     def _check_damage_reaction(self) -> bool:
         """Check hull damage against profile thresholds.
@@ -793,4 +890,8 @@ class AIController:
             "total_waypoints": len(self.waypoints),
             "role": self.profile.role,
             "hull_fraction": round(self._get_hull_fraction(), 2),
+            "fuel_fraction": round(self._get_fuel_fraction(), 2),
+            "dv_margin": round(self._get_delta_v_margin(), 2)
+                         if self._get_delta_v_margin() != float("inf")
+                         else None,
         }
