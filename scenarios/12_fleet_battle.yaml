@@ -1,0 +1,322 @@
+# Fleet Engagement: Combined Arms
+# Capstone scenario exercising all combat subsystems: fleet coordination,
+# NPC AI, multi-target tracking, armor penetration, and tiered victory.
+#
+# Tactical situation:
+#   Player commands Task Force Hammer (1 destroyer + 2 corvettes) against
+#   an MCRN defensive fleet (2 frigates + 1 corvette) guarding Deimos
+#   Relay Station.  The station itself is stationary and lightly defended.
+#
+# Design rationale:
+#   - 3v3+station gives enough complexity for fleet coordination without
+#     overwhelming the player.  Each friendly ship has a clear role.
+#   - Enemy fleet uses defensive AI: mutual PDC coverage, focus-fire on
+#     isolated attackers, and tighter formation around the station.
+#   - Engagement starts at ~200km -- long enough for sensor acquisition
+#     and fleet formation, short enough to reach weapons range in minutes.
+#   - Tiered victory rewards creative play: destroy the station (total),
+#     destroy escort screen and force surrender (tactical), or destroy
+#     2+ enemy combatants (partial).
+
+name: "Fleet Engagement: Combined Arms"
+description: "Command a task force to assault an enemy station defended by a coordinated fleet"
+
+dt: 0.1
+
+# ── Fleet definitions ─────────────────────────────────────────────
+# The loader passes these to FleetManager for group/formation setup.
+fleets:
+  - fleet_id: "task_force_hammer"
+    name: "Task Force Hammer"
+    faction: "unsa"
+    flagship: "player"
+    formation: "wedge"
+    ships: ["player", "escort_wolf", "escort_dagger"]
+
+  - fleet_id: "deimos_defense"
+    name: "Deimos Defense Group"
+    faction: "mcrn"
+    flagship: "mcrn_frigate_1"
+    formation: "screen"
+    ships: ["mcrn_frigate_1", "mcrn_frigate_2", "mcrn_corvette_1"]
+
+# ── Ships ─────────────────────────────────────────────────────────
+
+ships:
+  # ── PLAYER TASK FORCE (UNSA) ──────────────────────────────────
+
+  - id: "player"
+    name: "UNS Hammerstrike"
+    ship_class: "destroyer"
+    player_controlled: true
+    faction: "unsa"
+    position: {x: -200000, y: 0, z: 0}        # 200km from station
+    velocity: {x: 100, y: 0, z: 0}             # Inbound at 100 m/s
+    orientation: {pitch: 0, yaw: 0, roll: 0}
+    # Override fuel to full combat load
+    systems:
+      propulsion:
+        fuel_level: 1200.0
+
+  - id: "escort_wolf"
+    name: "UNS Wolf"
+    ship_class: "corvette"
+    faction: "unsa"
+    ai_enabled: true
+    position: {x: -203000, y: 2000, z: 1000}   # Offset port-high
+    velocity: {x: 100, y: 0, z: 0}
+    orientation: {pitch: 0, yaw: 0, roll: 0}
+    ai_behavior:
+      role: "escort"
+      aggression: 0.7
+      engagement_range: 60000
+      protect_target: "player"
+      flee_threshold: 0.15
+      evade_threshold: 0.35
+      max_thrust_profile: 0.6
+      weapon_confidence_threshold: 0.25
+
+  - id: "escort_dagger"
+    name: "UNS Dagger"
+    ship_class: "corvette"
+    faction: "unsa"
+    ai_enabled: true
+    position: {x: -203000, y: -2000, z: -1000} # Offset starboard-low
+    velocity: {x: 100, y: 0, z: 0}
+    orientation: {pitch: 0, yaw: 0, roll: 0}
+    ai_behavior:
+      role: "escort"
+      aggression: 0.7
+      engagement_range: 60000
+      protect_target: "player"
+      flee_threshold: 0.15
+      evade_threshold: 0.35
+      max_thrust_profile: 0.6
+      weapon_confidence_threshold: 0.25
+
+  # ── ENEMY DEFENSE FLEET (MCRN) ────────────────────────────────
+
+  - id: "mcrn_frigate_1"
+    name: "MCRN Scirocco"
+    ship_class: "frigate"
+    faction: "mcrn"
+    ai_enabled: true
+    position: {x: -15000, y: 5000, z: 0}       # Screen ahead of station
+    velocity: {x: 0, y: 0, z: 0}
+    orientation: {pitch: 0, yaw: 180, roll: 0}  # Facing the attackers
+    ai_behavior:
+      role: "combat"
+      aggression: 0.7
+      engagement_range: 80000
+      flee_threshold: 0.15
+      evade_threshold: 0.35
+      max_thrust_profile: 0.5
+      weapon_confidence_threshold: 0.2
+
+  - id: "mcrn_frigate_2"
+    name: "MCRN Haboob"
+    ship_class: "frigate"
+    faction: "mcrn"
+    ai_enabled: true
+    position: {x: -15000, y: -5000, z: 0}      # Screen, other flank
+    velocity: {x: 0, y: 0, z: 0}
+    orientation: {pitch: 0, yaw: 180, roll: 0}
+    ai_behavior:
+      role: "combat"
+      aggression: 0.7
+      engagement_range: 80000
+      flee_threshold: 0.15
+      evade_threshold: 0.35
+      max_thrust_profile: 0.5
+      weapon_confidence_threshold: 0.2
+
+  - id: "mcrn_corvette_1"
+    name: "MCRN Khamsin"
+    ship_class: "corvette"
+    faction: "mcrn"
+    ai_enabled: true
+    position: {x: -8000, y: 0, z: 3000}        # Close-in defense
+    velocity: {x: 0, y: 0, z: 0}
+    orientation: {pitch: 0, yaw: 180, roll: 0}
+    ai_behavior:
+      role: "escort"
+      aggression: 0.6
+      engagement_range: 40000
+      protect_target: "deimos_station"
+      flee_threshold: 0.2
+      evade_threshold: 0.4
+      max_thrust_profile: 0.6
+      weapon_confidence_threshold: 0.3
+
+  # ── STATION ───────────────────────────────────────────────────
+
+  - id: "deimos_station"
+    name: "Deimos Relay Station"
+    class: "station"
+    faction: "mcrn"
+    position: {x: 0, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+    mass: 200000
+    systems:
+      sensors:
+        passive:
+          range: 300000     # Stations have powerful passive arrays
+        active:
+          scan_range: 500000
+      # Station has its own PDC defense grid but no propulsion
+      weapons:
+        weapons:
+          - name: "pdc"
+            power_cost: 5
+            max_heat: 50
+            ammo_count: 5000
+          - name: "pdc"
+            power_cost: 5
+            max_heat: 50
+            ammo_count: 5000
+
+# ── Mission ───────────────────────────────────────────────────────
+
+mission:
+  name: "Operation Sledgehammer"
+  description: "Assault Deimos Relay Station and neutralize its defense fleet"
+
+  briefing: |
+    Commander, this is it -- the combined arms engagement you've trained for.
+
+    SITUATION:
+    Deimos Relay Station is a critical MCRN communications node defended by
+    a coordinated fleet group: 2 frigates and a corvette in a defensive
+    screen formation.  The station itself has a PDC defense grid.
+
+    FORCES:
+    Your task force consists of:
+      - UNS Hammerstrike (destroyer, your flagship) -- 3 railguns, 6 PDCs,
+        torpedoes.  You command this ship directly.
+      - UNS Wolf (corvette, escort) -- 1 railgun, 2 PDCs.  AI-controlled,
+        will protect you and engage threats.
+      - UNS Dagger (corvette, escort) -- 1 railgun, 2 PDCs.  AI-controlled,
+        will protect you and engage threats.
+
+    ENEMY:
+      - MCRN Scirocco (frigate) -- 2 railguns, 4 PDCs, torpedoes
+      - MCRN Haboob (frigate) -- 2 railguns, 4 PDCs, torpedoes
+      - MCRN Khamsin (corvette) -- 1 railgun, 2 PDCs
+      - Deimos Relay Station -- 2 PDC batteries, no propulsion
+
+    OBJECTIVES (tiered):
+      TOTAL VICTORY: Destroy the relay station.
+      TACTICAL VICTORY: Destroy or mission-kill all 3 MCRN warships.
+      PARTIAL VICTORY: Destroy or mission-kill at least 2 MCRN warships.
+
+    DEFEAT: Your flagship is destroyed, or all escorts are lost while
+    no enemy ships have been neutralized.
+
+    TACTICAL NOTES:
+    - The MCRN fleet is in a defensive screen.  They will coordinate PDC
+      fire against isolated attackers.  Do NOT send ships in piecemeal.
+    - Use your corvettes to screen against torpedoes while your destroyer
+      closes for railgun range.
+    - The station is stationary -- focus on clearing the escorts first,
+      then the station is helpless.
+    - Coordinate torpedo salvos with your escorts for saturation attacks.
+    - Watch your ammo -- you cannot resupply.
+
+    Good hunting, Commander.
+
+  time_limit: 600  # 10 minutes
+
+  objectives:
+    # ── Victory objectives (any one = some level of success) ──
+
+    - id: "destroy_station"
+      type: "destroy_target"
+      description: "Destroy Deimos Relay Station (TOTAL VICTORY)"
+      required: false
+      params:
+        target: "deimos_station"
+
+    - id: "kill_frigate_1"
+      type: "mission_kill"
+      description: "Neutralize MCRN Scirocco"
+      required: false
+      params:
+        target: "mcrn_frigate_1"
+
+    - id: "kill_frigate_2"
+      type: "mission_kill"
+      description: "Neutralize MCRN Haboob"
+      required: false
+      params:
+        target: "mcrn_frigate_2"
+
+    - id: "kill_corvette"
+      type: "mission_kill"
+      description: "Neutralize MCRN Khamsin"
+      required: false
+      params:
+        target: "mcrn_corvette_1"
+
+    # ── Survival constraint (failure if flagship dies) ──
+
+    - id: "flagship_survives"
+      type: "avoid_mission_kill"
+      description: "Keep the Hammerstrike operational"
+      required: true
+      params:
+        target: "player"
+
+  # Victory evaluation note:
+  # The mission framework evaluates required objectives only.
+  # "flagship_survives" is the only required objective -- if the player
+  # ship dies, the mission fails.  Victory tier is determined externally
+  # by checking which optional objectives completed:
+  #   - destroy_station completed           -> TOTAL VICTORY
+  #   - kill_frigate_1 + kill_frigate_2
+  #     + kill_corvette completed           -> TACTICAL VICTORY
+  #   - any 2 of kill_* completed           -> PARTIAL VICTORY
+  #   - none of the above + time runs out   -> DRAW (survived but failed)
+
+  success_message: |
+    The battle is over, Commander.
+
+    Check your tactical display for the final assessment:
+    - Station destroyed?  TOTAL VICTORY -- the relay is silenced.
+    - All escorts neutralized?  TACTICAL VICTORY -- the station is defenseless.
+    - 2+ enemies neutralized?  PARTIAL VICTORY -- significant damage dealt.
+
+    Your task force has proven the combined arms doctrine works.
+    Well fought.
+
+  failure_message: |
+    The Hammerstrike has been neutralized.  Task Force Hammer is combat
+    ineffective.  Remaining ships are breaking off.
+
+    The MCRN defense grid held.  Deimos Relay Station remains operational.
+
+    Review your tactical approach:
+    - Did you coordinate your fleet or send ships in piecemeal?
+    - Did you use torpedo salvos to saturate PDC coverage?
+    - Did you prioritize the right targets?
+
+  hints:
+    - trigger: "start"
+      message: "TF HAMMER: All ships, form up on the flagship.  Begin approach."
+
+    - trigger: "range < 150000"
+      target: "deimos_station"
+      message: "SENSORS: Enemy fleet detected on defensive screen around the station.  Recommend weapons free."
+
+    - trigger: "range < 80000"
+      target: "deimos_station"
+      message: "TACTICAL: Entering enemy engagement range.  Expect railgun fire.  All ships, evasive maneuvers authorized."
+
+    - trigger: "range < 20000"
+      target: "deimos_station"
+      message: "TACTICAL: Close quarters.  PDC engagement zone.  Watch for torpedo launches."
+
+    - trigger: "time > 300"
+      message: "OPS: Five minutes elapsed.  Half our time window remains.  Press the attack or disengage."
+
+    - trigger: "time > 480"
+      message: "OPS: Two minutes remaining.  If you haven't achieved objectives, consider withdrawing."
