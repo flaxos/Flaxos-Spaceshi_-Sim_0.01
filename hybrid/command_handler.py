@@ -113,6 +113,10 @@ system_commands = {
     "broadcast_message": ("comms", "broadcast_message"),
     "set_distress": ("comms", "set_distress"),
     "comms_status": ("comms", "comms_status"),
+    # Mission branching comms commands
+    "comms_respond": ("comms", "comms_respond"),
+    "get_comms_choices": ("comms", "get_comms_choices"),
+    "get_branch_status": ("comms", "get_branch_status"),
     # Crew fatigue commands
     "crew_rest": ("crew_fatigue", "crew_rest"),
     "cancel_rest": ("crew_fatigue", "cancel_rest"),

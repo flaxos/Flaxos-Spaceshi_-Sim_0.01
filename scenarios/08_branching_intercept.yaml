@@ -1,0 +1,309 @@
+# Branching Mission: Intercept with Consequences
+#
+# Demonstrates the mission branching system. A corvette intercepts a
+# fleeing freighter. Depending on how quickly the player disables
+# the target's drive and what comms choices they make, the mission
+# branches into different objective chains:
+#
+# Branch A: Drive destroyed within 5 minutes -> board and capture
+#   Sub-branch A1: Accept surrender via comms -> escort objective
+#   Sub-branch A2: Refuse surrender -> destroy target
+#
+# Branch B: Target escapes sensor range -> pursuit phase
+#
+# Branch C: Player runs low on fuel -> abort mission
+
+name: "Intercept: Hard Choices"
+description: "Intercept a fleeing freighter. Your choices have consequences."
+
+dt: 0.1
+
+ships:
+  - id: "player_ship"
+    name: "UNS Enforcer"
+    class: "corvette"
+    faction: "unsa"
+    player_controlled: true
+    mass: 5000
+    position: {x: 0, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+    orientation: {pitch: 0, yaw: 0, roll: 0}
+    systems:
+      propulsion:
+        max_thrust: 500000
+        fuel_level: 10000
+        max_fuel: 10000
+      sensors:
+        passive:
+          range: 500000
+        active:
+          scan_range: 500000
+      navigation: {}
+      targeting:
+        lock_time: 1.5
+        lock_range: 80000
+      combat:
+        enabled: true
+        railguns: 2
+        pdcs: 4
+      comms:
+        transponder_enabled: true
+        transponder_code: "UNSA-ENFORCER"
+    damage_model:
+      propulsion: {max_health: 100, health: 100}
+      rcs: {max_health: 80, health: 80}
+      weapons: {max_health: 90, health: 90}
+      sensors: {max_health: 70, health: 70}
+
+  - id: "enemy_freighter"
+    name: "Cant Compliant"
+    class: "freighter"
+    faction: "independent"
+    mass: 50000
+    position: {x: 200000, y: 50000, z: 0}
+    velocity: {x: 100, y: 20, z: 0}
+    orientation: {pitch: 0, yaw: 180, roll: 0}
+    systems:
+      propulsion:
+        max_thrust: 200000
+        fuel_level: 5000
+        max_fuel: 5000
+      sensors:
+        passive:
+          range: 100000
+      navigation: {}
+      comms:
+        transponder_enabled: true
+        transponder_code: "CIVILIAN"
+    damage_model:
+      propulsion: {max_health: 60, health: 60}
+      rcs: {max_health: 40, health: 40}
+      sensors: {max_health: 30, health: 30}
+
+mission:
+  name: "Hard Choices"
+  description: "Intercept the freighter. What happens next depends on you."
+
+  briefing: |
+    MISSION BRIEFING: Intercept hostile freighter "Cant Compliant".
+
+    Intelligence suggests this freighter is carrying contraband.
+    Your orders: disable and board for inspection.
+
+    Rules of engagement:
+    - Disable the target's drive to prevent escape
+    - The captain may attempt to negotiate -- your choice matters
+    - If the target escapes sensor range, pursuit phase begins
+    - Watch your fuel -- abort if reserves drop below 25%
+
+    This is not a simple intercept. Be ready for anything.
+
+  time_limit: 1800  # 30 minutes
+
+  objectives:
+    - id: "detect_freighter"
+      type: "scan_target"
+      description: "Detect the freighter on sensors"
+      required: true
+      params:
+        target: "enemy_freighter"
+
+    - id: "close_range"
+      type: "reach_range"
+      description: "Close to weapons range (50km)"
+      required: true
+      params:
+        target: "enemy_freighter"
+        range: 50000
+        initial_range: 250000
+
+    - id: "disable_drive"
+      type: "mission_kill"
+      description: "Disable the freighter's drive"
+      required: true
+      params:
+        target: "enemy_freighter"
+
+    - id: "prevent_escape"
+      type: "escape_range"
+      description: "Don't let the target escape"
+      required: true
+      params:
+        target: "enemy_freighter"
+        escape_range: 500000
+
+  success_message: |
+    Target disabled. Return to base with your report.
+
+  failure_message: |
+    Mission failed. The freighter escaped or you were forced to abort.
+
+  hints:
+    - trigger: "start"
+      message: "The freighter is fleeing. Use autopilot intercept to close the distance."
+    - trigger: "range < 100000"
+      target: "enemy_freighter"
+      message: "Getting within engagement range. Prepare weapons."
+    - trigger: "time > 300"
+      message: "Five minutes elapsed. Time is a factor in this mission."
+
+  # --- Comms choices (defined here, activated by branch points) ---
+  comms_choices:
+    - choice_id: "surrender_response"
+      contact_id: "enemy_freighter"
+      prompt: |
+        This is Captain Torres of the Cant Compliant. Our drive is gone.
+        We surrender. What are your orders, Enforcer?
+      timeout: 120
+      default_option: "escort"
+      options:
+        - option_id: "accept_board"
+          label: "Prepare for boarding"
+          description: "Stand down all systems. We are coming aboard for inspection."
+        - option_id: "escort"
+          label: "Escort to station"
+          description: "You will follow our heading to Tycho Station for inspection."
+        - option_id: "refuse"
+          label: "No quarter"
+          description: "Silence. Target remains hostile."
+
+  # --- Branch points ---
+  branch_points:
+    # Branch A: Quick disable (under 5 minutes) -> boarding opportunity
+    - id: "quick_disable"
+      priority: 10
+      logic: "and"
+      conditions:
+        - type: "subsystem_state"
+          params:
+            target: "enemy_freighter"
+            subsystem: "propulsion"
+            state: "destroyed"
+        - type: "time_elapsed"
+          params:
+            threshold: 300
+            comparison: "lt"
+      branch:
+        id: "bonus_capture"
+        description: "Target disabled quickly. Boarding opportunity available."
+        add_objectives:
+          - id: "board_freighter"
+            type: "reach_range"
+            description: "Close to boarding range (100m)"
+            required: false
+            params:
+              target: "enemy_freighter"
+              range: 100
+        comms_choice_id: "surrender_response"
+        success_message: |
+          Target captured intact. Outstanding work, Enforcer.
+          Intelligence will be very interested in the cargo manifest.
+
+    # Branch A1: Player accepts surrender -> escort objective
+    - id: "surrender_escort"
+      priority: 5
+      logic: "and"
+      conditions:
+        - type: "comms_choice"
+          params:
+            choice_id: "surrender_response"
+            expected_option: "escort"
+      branch:
+        id: "escort_phase"
+        description: "Escorting surrendered freighter to station."
+        remove_objectives:
+          - "board_freighter"
+        add_objectives:
+          - id: "escort_to_waypoint"
+            type: "reach_position"
+            description: "Escort freighter to patrol waypoint"
+            required: true
+            params:
+              position: {x: -100000, y: 0, z: 0}
+              tolerance: 5000
+        success_message: |
+          Freighter escorted to waypoint. Patrol ships will take over.
+          Well handled, Enforcer.
+
+    # Branch A2: Player refuses surrender -> destroy
+    - id: "no_quarter"
+      priority: 5
+      logic: "and"
+      conditions:
+        - type: "comms_choice"
+          params:
+            choice_id: "surrender_response"
+            expected_option: "refuse"
+      branch:
+        id: "destroy_phase"
+        description: "No quarter given. Target must be destroyed."
+        remove_objectives:
+          - "board_freighter"
+        add_objectives:
+          - id: "destroy_freighter"
+            type: "destroy_target"
+            description: "Destroy the freighter"
+            required: true
+            params:
+              target: "enemy_freighter"
+        failure_message: |
+          Command will want a full report on why lethal force was used.
+
+    # Branch B: Target escapes -> pursuit
+    - id: "target_far"
+      priority: 8
+      logic: "and"
+      conditions:
+        - type: "contact_range"
+          params:
+            target: "enemy_freighter"
+            comparison: "gt"
+            range: 400000
+        - type: "time_elapsed"
+          params:
+            threshold: 600
+            comparison: "gt"
+      branch:
+        id: "pursuit_phase"
+        description: "Target pulling away. Extended pursuit required."
+        add_objectives:
+          - id: "reclose_range"
+            type: "reach_range"
+            description: "Re-close to engagement range"
+            required: true
+            params:
+              target: "enemy_freighter"
+              range: 50000
+              initial_range: 400000
+
+    # Branch C: Low fuel -> abort
+    - id: "low_fuel"
+      priority: 20
+      logic: "and"
+      conditions:
+        - type: "fuel_level"
+          params:
+            target: "player"
+            comparison: "lt"
+            threshold: 0.15
+      branch:
+        id: "abort_phase"
+        description: "Fuel critical. Mission abort."
+        remove_objectives:
+          - "disable_drive"
+          - "close_range"
+          - "board_freighter"
+          - "escort_to_waypoint"
+          - "destroy_freighter"
+          - "reclose_range"
+        add_objectives:
+          - id: "return_to_base"
+            type: "reach_position"
+            description: "Return to starting position (fuel emergency)"
+            required: true
+            params:
+              position: {x: 0, y: 0, z: 0}
+              tolerance: 10000
+        failure_message: |
+          Fuel reserves critical. Mission aborted.
+          The freighter escaped while you limped home.

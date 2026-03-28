@@ -184,10 +184,12 @@ class HybridRunner:
                 ship_count += 1
 
             # Initialize all_ships reference on each ship immediately after adding
-            # This ensures sensors can detect contacts even before the first tick
+            # This ensures sensors can detect contacts even before the first tick.
+            # Also set _runner_ref so mission commands can find the active mission.
             all_ships = list(self.simulator.ships.values())
             for ship in all_ships:
                 ship._all_ships_ref = all_ships
+                ship._runner_ref = self
 
             fleets = scenario_data.get("config", {}).get("fleets") if isinstance(scenario_data.get("config"), dict) else scenario_data.get("fleets")
             if fleets:

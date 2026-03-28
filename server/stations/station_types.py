@@ -250,6 +250,10 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             # EMCON control (comms officer can also manage emissions)
             "set_emcon",
             "ecm_status",
+            # Mission branching comms choices
+            "comms_respond",
+            "get_comms_choices",
+            "get_branch_status",
             # Inter-station comms
             "station_message",
         },
