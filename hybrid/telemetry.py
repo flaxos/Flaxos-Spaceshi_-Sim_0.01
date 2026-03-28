@@ -114,11 +114,16 @@ def get_ship_telemetry(ship, sim_time: float = None) -> Dict[str, Any]:
     isp = 3000.0
     max_thrust = 0.0
 
+    fuel_burn_rate = 0.0
+    fuel_time_remaining = None
+
     if propulsion and hasattr(propulsion, "get_state"):
         prop_state = propulsion.get_state()
         fuel_level = prop_state.get("fuel_level", 0.0)
         max_fuel = prop_state.get("max_fuel", 1.0)
         fuel_percent = prop_state.get("fuel_percent", 0.0)
+        fuel_burn_rate = prop_state.get("fuel_burn_rate", 0.0)
+        fuel_time_remaining = prop_state.get("fuel_time_remaining")
         isp = getattr(propulsion, "isp", 3000.0)
         max_thrust = getattr(propulsion, "max_thrust", 0.0)
 
@@ -228,7 +233,9 @@ def get_ship_telemetry(ship, sim_time: float = None) -> Dict[str, Any]:
         "fuel": {
             "level": fuel_level,
             "max": max_fuel,
-            "percent": fuel_percent
+            "percent": fuel_percent,
+            "burn_rate": fuel_burn_rate,
+            "time_remaining": fuel_time_remaining,
         },
         "delta_v_remaining": delta_v_remaining,
         "ponr": ponr,
