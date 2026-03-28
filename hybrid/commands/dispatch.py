@@ -194,6 +194,7 @@ def create_default_dispatcher() -> CommandDispatcher:
     from hybrid.commands import crew_commands
     from hybrid.commands import science_commands
     from hybrid.commands import fleet_commands
+    from hybrid.commands import mission_commands
     from hybrid.commands import crew_binding_commands
 
     # Register all commands from modules
@@ -213,6 +214,7 @@ def create_default_dispatcher() -> CommandDispatcher:
     crew_commands.register_commands(dispatcher)
     science_commands.register_commands(dispatcher)
     fleet_commands.register_commands(dispatcher)
+    mission_commands.register_commands(dispatcher)
     crew_binding_commands.register_commands(dispatcher)
 
     return dispatcher

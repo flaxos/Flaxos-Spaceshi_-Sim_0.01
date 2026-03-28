@@ -135,7 +135,16 @@ class ScenarioLoader:
 
             objectives.append(objective)
 
-        # Create mission
+        # Check for branching data -- if present, create a BranchingMission
+        # instead of a plain Mission.  The branching loader handles the
+        # extended YAML schema (branch_points, comms_choices).
+        if mission_data.get("branch_points") or mission_data.get("comms_choices"):
+            from hybrid.missions.loader_ext import parse_branching_mission
+            branching = parse_branching_mission(mission_data, objectives)
+            if branching:
+                return branching
+
+        # Create standard mission (no branching data)
         mission = Mission(
             name=mission_data.get("name", "Mission"),
             description=mission_data.get("description", ""),

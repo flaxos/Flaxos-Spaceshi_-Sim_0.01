@@ -174,6 +174,10 @@ class CommsSystem(BaseSystem):
             return self._cmd_set_distress(params)
         elif action == "comms_status":
             return self._cmd_comms_status(params)
+        elif action in ("comms_respond", "get_comms_choices", "get_branch_status"):
+            # Mission branching commands -- delegated to mission_commands module
+            # which accesses the BranchingMission via the ship's runner reference.
+            return self._delegate_mission_command(action, params)
         return error_dict("UNKNOWN_COMMAND", f"Unknown comms command: {action}")
 
     # ------------------------------------------------------------------
@@ -421,6 +425,31 @@ class CommsSystem(BaseSystem):
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
+
+    def _delegate_mission_command(self, action: str, params: dict) -> dict:
+        """Delegate mission branching commands to the mission_commands module.
+
+        These commands need access to the BranchingMission via the ship's
+        runner reference.  The comms system itself is stateless with respect
+        to mission branching -- it just provides the routing.
+        """
+        from hybrid.commands import mission_commands
+
+        ship = params.get("ship") or params.get("_ship")
+        if not ship:
+            return error_dict("NO_SHIP", "Ship reference required for mission commands")
+
+        handler_map = {
+            "comms_respond": mission_commands.cmd_comms_respond,
+            "get_comms_choices": mission_commands.cmd_get_comms_choices,
+            "get_branch_status": mission_commands.cmd_get_branch_status,
+        }
+
+        handler = handler_map.get(action)
+        if not handler:
+            return error_dict("UNKNOWN_COMMAND", f"Unknown mission command: {action}")
+
+        return handler(self, ship, params)
 
     def _add_to_log(self, entry: dict):
         """Add a message to the comms log, trimming old entries."""
