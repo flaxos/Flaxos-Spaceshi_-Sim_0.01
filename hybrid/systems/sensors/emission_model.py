@@ -175,6 +175,13 @@ def calculate_radar_cross_section(ship) -> float:
     if ecm and hasattr(ecm, "get_emcon_rcs_modifier"):
         base_rcs *= ecm.get_emcon_rcs_modifier()
 
+    # ECCM: Burn-through mode massively increases own radar emissions,
+    # making the ship much easier to detect on enemy passive sensors.
+    # This is the trade-off for the increased detection capability.
+    sensors = ship.systems.get("sensors")
+    if sensors and hasattr(sensors, "eccm"):
+        base_rcs *= sensors.eccm.get_burn_through_emission_multiplier()
+
     return base_rcs
 
 

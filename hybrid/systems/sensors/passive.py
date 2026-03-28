@@ -65,7 +65,8 @@ class PassiveSensor:
     def set_range_multiplier(self, multiplier: float):
         self.range = max(0.0, self.base_range * max(0.0, multiplier))
 
-    def update(self, current_tick: int, dt: float, observer_ship, all_ships: List, sim_time: float):
+    def update(self, current_tick: int, dt: float, observer_ship,
+               all_ships: List, sim_time: float, eccm=None):
         """Update passive sensor contacts.
 
         Detection is emission-based: for each potential target, calculate
@@ -79,6 +80,7 @@ class PassiveSensor:
             observer_ship: Ship with this sensor
             all_ships: List of all ships in simulation
             sim_time: Current simulation time
+            eccm: Optional ECCMState for multi-spectral flare filtering
         """
         # Only update at specified interval
         if current_tick - self.last_update_tick < self.update_interval:
@@ -135,8 +137,18 @@ class PassiveSensor:
             # bearing/range resolution. More effective when flare IR is
             # comparable to target's real signature.
             if ecm_flare_active and ecm_flare_ir > 0:
+                # ECCM: Multi-spectral correlation reduces flare effect by
+                # cross-referencing radar (flare has tiny RCS) and lidar
+                # (small physical size) to distinguish decoy from real ship
+                effective_flare_ir = ecm_flare_ir
+                if eccm is not None:
+                    flare_reduction = eccm.get_flare_reduction(
+                        has_ir=True, has_radar=True, has_lidar=True
+                    )
+                    effective_flare_ir *= (1.0 - flare_reduction)
+
                 # Ratio of flare IR to target IR — higher = more confusion
-                flare_ratio = min(1.0, ecm_flare_ir / max(ir_watts, 1.0))
+                flare_ratio = min(1.0, effective_flare_ir / max(ir_watts, 1.0))
                 # At flare_ratio=1 (flare matches target), quality halved
                 quality *= max(0.2, 1.0 - flare_ratio * 0.5)
 
