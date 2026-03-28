@@ -87,6 +87,14 @@ system_commands = {
     "launch_torpedo": ("combat", "launch_torpedo"),
     "torpedo_status": ("combat", "torpedo_status"),
     "assess_damage": ("targeting", "assess_damage"),
+    # Multi-target tracking commands
+    "cycle_target": ("targeting", "cycle_target"),
+    "add_track": ("targeting", "add_track"),
+    "remove_track": ("targeting", "remove_track"),
+    "assign_pdc_target": ("targeting", "assign_pdc_target"),
+    "split_fire": ("targeting", "split_fire"),
+    "clear_assignments": ("targeting", "clear_assignments"),
+    "track_list": ("targeting", "track_list"),
     # ECM commands
     "activate_jammer": ("ecm", "activate_jammer"),
     "deactivate_jammer": ("ecm", "deactivate_jammer"),

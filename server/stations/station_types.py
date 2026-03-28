@@ -122,6 +122,14 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             "launch_torpedo",
             "torpedo_status",
             "assess_damage",
+            # Multi-target tracking commands
+            "cycle_target",
+            "add_track",
+            "remove_track",
+            "assign_pdc_target",
+            "split_fire",
+            "clear_assignments",
+            "track_list",
             # Resupply
             "resupply",
             # Weapon fire commands

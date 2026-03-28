@@ -11,6 +11,7 @@ from typing import Dict, Optional, List
 from hybrid.core.base_system import BaseSystem
 from hybrid.utils.errors import success_dict, error_dict
 from hybrid.navigation.relative_motion import calculate_relative_motion
+from hybrid.systems.targeting.multi_track import MultiTrackManager
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +84,10 @@ class TargetingSystem(BaseSystem):
         self._sensor_factor = 1.0
         self._target_is_drifting = False
 
+        # Multi-target tracking: maintains secondary locks and weapon assignments
+        max_tracks = config.get("max_tracks", 4)
+        self.multi_track = MultiTrackManager(base_max_tracks=max_tracks)
+
         # Ship reference for tick
         self._ship_ref = None
         self._sim_time = 0.0
@@ -120,6 +125,12 @@ class TargetingSystem(BaseSystem):
             if self.lock_state not in (LockState.NONE, LockState.LOST):
                 self._degrade_lock(dt, "cascade_denial")
             return
+
+        # Prune multi-track list: remove contacts that sensors no longer see
+        sensors = ship.systems.get("sensors")
+        if sensors:
+            valid_ids = set(sensors.get_contacts().keys())
+            self.multi_track.prune_lost_contacts(valid_ids)
 
         # Update lock based on current state
         if self.locked_target:
@@ -204,6 +215,12 @@ class TargetingSystem(BaseSystem):
         # Sensor damage penalty
         ideal_track_quality = range_factor * accel_factor * self._sensor_factor * ecm_factor
         ideal_track_quality *= self.target_data["confidence"]
+
+        # Multi-track bandwidth penalty: splitting attention across multiple
+        # targets degrades quality on all tracks. Primary target gets
+        # preferential bandwidth; secondaries are degraded further.
+        mt_modifier = self._get_multitrack_quality_modifier()
+        ideal_track_quality *= mt_modifier
 
         # Smooth track quality toward ideal (builds up over time)
         self.track_quality = self.track_quality * 0.85 + ideal_track_quality * 0.15
@@ -458,6 +475,12 @@ class TargetingSystem(BaseSystem):
         elif previous_target != contact_id:
             self.target_subsystem = None
 
+        # Auto-add to multi-track list if not already present.
+        # The primary lock target should always be in the track list.
+        tracked_ids = {t.contact_id for t in self.multi_track.tracks}
+        if contact_id not in tracked_ids:
+            self.multi_track.add_track(contact_id, self._sensor_factor)
+
         logger.info(f"Tracking target: {contact_id}")
 
         return success_dict(
@@ -490,6 +513,10 @@ class TargetingSystem(BaseSystem):
         self.target_data = {}
         self.firing_solutions = {}
         self.target_subsystem = None
+
+        # Remove from multi-track list as well
+        if prev_target:
+            self.multi_track.remove_track(prev_target)
 
         logger.info(f"Target unlocked: {prev_target}")
 
@@ -651,10 +678,175 @@ class TargetingSystem(BaseSystem):
         elif action == "assess_damage":
             return self.assess_target_damage(params)
 
+        elif action == "cycle_target":
+            return self.cycle_target()
+
+        elif action == "add_track":
+            contact_id = params.get("contact_id") or params.get("target")
+            if not contact_id:
+                return error_dict("MISSING_PARAMETER", "contact_id required")
+            return self.add_track(contact_id)
+
+        elif action == "remove_track":
+            contact_id = params.get("contact_id") or params.get("target")
+            if not contact_id:
+                return error_dict("MISSING_PARAMETER", "contact_id required")
+            return self.remove_track(contact_id)
+
+        elif action == "assign_pdc_target":
+            mount_id = params.get("mount_id")
+            contact_id = params.get("contact_id") or params.get("target")
+            if not mount_id:
+                return error_dict("MISSING_PARAMETER", "mount_id required")
+            if not contact_id:
+                return error_dict("MISSING_PARAMETER", "contact_id required")
+            return self.assign_pdc_target(mount_id, contact_id)
+
+        elif action == "split_fire":
+            mount_id = params.get("mount_id") or params.get("weapon_id")
+            contact_id = params.get("contact_id") or params.get("target")
+            if not mount_id:
+                return error_dict("MISSING_PARAMETER", "mount_id required")
+            if not contact_id:
+                return error_dict("MISSING_PARAMETER", "contact_id required")
+            return self.split_fire(mount_id, contact_id)
+
+        elif action == "clear_assignments":
+            return self.multi_track.clear_assignments()
+
+        elif action == "track_list":
+            return success_dict(
+                f"{self.multi_track.track_count} tracks",
+                **self.multi_track.get_state(),
+            )
+
         elif action == "status":
             return self.get_state()
 
         return super().command(action, params)
+
+    def _get_multitrack_quality_modifier(self) -> float:
+        """Get quality modifier from multi-target tracking bandwidth sharing.
+
+        If the primary target is in the multi-track list, returns its
+        quality modifier. Otherwise returns 1.0 (no penalty).
+
+        Returns:
+            Quality modifier (0-1).
+        """
+        if self.multi_track.track_count <= 1:
+            return 1.0
+
+        # Find this target in the track list
+        for i, track in enumerate(self.multi_track.tracks):
+            if track.contact_id == self.locked_target:
+                return self.multi_track.get_quality_modifier(i)
+
+        return 1.0
+
+    def cycle_target(self) -> dict:
+        """Cycle the primary target to the next in the track list.
+
+        Switches the targeting system's primary lock to the next
+        tracked contact in rotation order.
+
+        Returns:
+            Result dict with new primary target info.
+        """
+        result = self.multi_track.cycle_primary()
+        if not result.get("ok"):
+            return result
+
+        # Switch the primary lock to the new primary contact
+        new_primary = result["new_primary"]
+        self.lock_target(new_primary, self._sim_time)
+
+        result["lock_state"] = self.lock_state.value
+        return result
+
+    def assign_pdc_target(self, mount_id: str, contact_id: str) -> dict:
+        """Assign a PDC turret to engage a specific tracked contact.
+
+        Args:
+            mount_id: PDC mount identifier (e.g. "pdc_1").
+            contact_id: Contact ID from the track list.
+
+        Returns:
+            Result dict.
+        """
+        if not self._ship_ref:
+            return error_dict("NO_SHIP", "Ship reference not available")
+
+        combat = self._ship_ref.systems.get("combat")
+        if not combat:
+            return error_dict("NO_COMBAT", "Combat system not available")
+
+        available_pdcs = [
+            wid for wid in combat.truth_weapons
+            if wid.startswith("pdc")
+        ]
+
+        return self.multi_track.assign_pdc_target(
+            mount_id, contact_id, available_pdcs
+        )
+
+    def split_fire(self, mount_id: str, contact_id: str) -> dict:
+        """Assign a weapon to engage a specific tracked contact.
+
+        Allows engaging multiple targets with different weapon systems.
+
+        Args:
+            mount_id: Weapon mount identifier.
+            contact_id: Contact ID from the track list.
+
+        Returns:
+            Result dict.
+        """
+        if not self._ship_ref:
+            return error_dict("NO_SHIP", "Ship reference not available")
+
+        combat = self._ship_ref.systems.get("combat")
+        if not combat:
+            return error_dict("NO_COMBAT", "Combat system not available")
+
+        available_weapons = list(combat.truth_weapons.keys())
+
+        return self.multi_track.assign_split_fire(
+            mount_id, contact_id, available_weapons
+        )
+
+    def add_track(self, contact_id: str) -> dict:
+        """Add a contact to the multi-track list.
+
+        Args:
+            contact_id: Sensor contact ID to track.
+
+        Returns:
+            Result dict.
+        """
+        # Verify contact exists in sensors
+        if self._ship_ref:
+            sensors = self._ship_ref.systems.get("sensors")
+            if sensors:
+                contact = sensors.get_contact(contact_id)
+                if not contact:
+                    return error_dict(
+                        "INVALID_CONTACT",
+                        f"Contact '{contact_id}' not found in sensors"
+                    )
+
+        return self.multi_track.add_track(contact_id, self._sensor_factor)
+
+    def remove_track(self, contact_id: str) -> dict:
+        """Remove a contact from the multi-track list.
+
+        Args:
+            contact_id: Contact ID to stop tracking.
+
+        Returns:
+            Result dict.
+        """
+        return self.multi_track.remove_track(contact_id)
 
     def assess_target_damage(self, params: dict) -> dict:
         """Assess damage state of the locked target's subsystems.
@@ -743,6 +935,7 @@ class TargetingSystem(BaseSystem):
             "target_subsystem": self.target_subsystem,
             "target_is_drifting": self._target_is_drifting if self.locked_target else None,
             "target_data": self.target_data if self.locked_target else None,
+            "multi_track": self.multi_track.get_state(),
             "solutions": {
                 k: {
                     "valid": v.get("valid"),

@@ -207,6 +207,111 @@ def cmd_launch_torpedo(combat, ship, params):
     return error_dict("NO_TORPEDO", "No torpedo system available")
 
 
+def cmd_cycle_target(targeting, ship, params):
+    """Cycle the primary target to the next contact in the track list.
+
+    Rotates the track list so the next tracked contact becomes the
+    primary target. The targeting system will begin lock acquisition
+    on the new primary.
+
+    Args:
+        targeting: TargetingSystem instance
+        ship: Ship object
+        params: Validated parameters (none required)
+
+    Returns:
+        dict: Cycle result with new and previous primary target
+    """
+    return targeting.cycle_target()
+
+
+def cmd_add_track(targeting, ship, params):
+    """Add a sensor contact to the multi-target track list.
+
+    Each tracked contact consumes sensor processing bandwidth.
+    Maximum simultaneous tracks depends on sensor health.
+
+    Args:
+        targeting: TargetingSystem instance
+        ship: Ship object
+        params: Validated parameters with contact_id
+
+    Returns:
+        dict: Result with track count and quality modifier
+    """
+    contact_id = params.get("contact_id")
+    if not contact_id:
+        return error_dict("MISSING_CONTACT", "Provide 'contact_id' to track")
+    return targeting.add_track(contact_id)
+
+
+def cmd_remove_track(targeting, ship, params):
+    """Remove a contact from the multi-target track list.
+
+    Frees up sensor bandwidth for remaining tracks.
+
+    Args:
+        targeting: TargetingSystem instance
+        ship: Ship object
+        params: Validated parameters with contact_id
+
+    Returns:
+        dict: Result with updated track count
+    """
+    contact_id = params.get("contact_id")
+    if not contact_id:
+        return error_dict("MISSING_CONTACT", "Provide 'contact_id' to remove")
+    return targeting.remove_track(contact_id)
+
+
+def cmd_assign_pdc_target(targeting, ship, params):
+    """Assign a specific PDC turret to engage a tracked contact.
+
+    Allows spreading point defense across multiple threats (e.g.
+    incoming torpedoes from different vectors). The PDC will compute
+    its own firing solution against the assigned target.
+
+    Args:
+        targeting: TargetingSystem instance
+        ship: Ship object
+        params: Validated parameters with mount_id and contact_id
+
+    Returns:
+        dict: Assignment result with all PDC assignments
+    """
+    mount_id = params.get("mount_id")
+    contact_id = params.get("contact_id")
+    if not mount_id:
+        return error_dict("MISSING_MOUNT", "Provide 'mount_id' (e.g. pdc_1)")
+    if not contact_id:
+        return error_dict("MISSING_CONTACT", "Provide 'contact_id' to assign PDC to")
+    return targeting.assign_pdc_target(mount_id, contact_id)
+
+
+def cmd_split_fire(targeting, ship, params):
+    """Assign a weapon to engage a specific tracked contact.
+
+    Enables simultaneous engagement of multiple targets with different
+    weapon systems. For example, railgun on primary while PDCs suppress
+    a flanking threat.
+
+    Args:
+        targeting: TargetingSystem instance
+        ship: Ship object
+        params: Validated parameters with mount_id and contact_id
+
+    Returns:
+        dict: Assignment result with all split-fire assignments
+    """
+    mount_id = params.get("mount_id")
+    contact_id = params.get("contact_id")
+    if not mount_id:
+        return error_dict("MISSING_MOUNT", "Provide 'mount_id' (e.g. railgun_1)")
+    if not contact_id:
+        return error_dict("MISSING_CONTACT", "Provide 'contact_id' to engage")
+    return targeting.split_fire(mount_id, contact_id)
+
+
 def cmd_assess_damage(targeting, ship, params):
     """Request sensor analysis of target subsystem state.
 
@@ -365,5 +470,57 @@ def register_commands(dispatcher):
         handler=cmd_assess_damage,
         args=[],
         help_text="Request sensor analysis of target subsystem state",
+        system="targeting",
+    ))
+
+    # Multi-target tracking commands
+    dispatcher.register("cycle_target", CommandSpec(
+        handler=cmd_cycle_target,
+        args=[],
+        help_text="Cycle primary target to next contact in track list",
+        system="targeting",
+    ))
+
+    dispatcher.register("add_track", CommandSpec(
+        handler=cmd_add_track,
+        args=[
+            ArgSpec("contact_id", "str", required=True,
+                    description="Sensor contact ID to add to track list"),
+        ],
+        help_text="Add a sensor contact to the multi-target track list",
+        system="targeting",
+    ))
+
+    dispatcher.register("remove_track", CommandSpec(
+        handler=cmd_remove_track,
+        args=[
+            ArgSpec("contact_id", "str", required=True,
+                    description="Contact ID to remove from track list"),
+        ],
+        help_text="Remove a contact from the multi-target track list",
+        system="targeting",
+    ))
+
+    dispatcher.register("assign_pdc_target", CommandSpec(
+        handler=cmd_assign_pdc_target,
+        args=[
+            ArgSpec("mount_id", "str", required=True,
+                    description="PDC mount ID (e.g. pdc_1)"),
+            ArgSpec("contact_id", "str", required=True,
+                    description="Tracked contact to assign PDC to"),
+        ],
+        help_text="Assign a PDC turret to engage a specific tracked contact",
+        system="targeting",
+    ))
+
+    dispatcher.register("split_fire", CommandSpec(
+        handler=cmd_split_fire,
+        args=[
+            ArgSpec("mount_id", "str", required=True,
+                    description="Weapon mount ID (e.g. railgun_1, pdc_2)"),
+            ArgSpec("contact_id", "str", required=True,
+                    description="Tracked contact to assign weapon to"),
+        ],
+        help_text="Assign a weapon to engage a specific tracked contact (split-fire)",
         system="targeting",
     ))
