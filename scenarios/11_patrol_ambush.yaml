@@ -1,0 +1,415 @@
+# Scenario 11: Patrol & Ambush Encounter
+#
+# Player corvette on routine patrol receives an unknown sensor contact
+# running dark (no transponder).  Player must close to ID range, assess
+# the threat, and respond.
+#
+# Three branch paths based on contact_type config:
+#   1. "smuggler"  -- Freighter with contraband, flees on hail.
+#      Player must intercept and disable its drive (mission kill).
+#   2. "pirate"    -- Pirate corvette springs ambush with torpedo salvo.
+#      Player starts with damaged sensors (simulating surprise hit).
+#      Must survive and achieve mission kill on attacker.
+#   3. "friendly"  -- Friendly ship with busted transponder.
+#      Player must scan and identify (NOT fire on friendlies).
+#
+# Exercises: NPC AI, field repair, fuel management (patrol consumes fuel
+# before the encounter even starts), sensor/IFF gameplay.
+#
+# Design notes:
+#   - Player starts mid-patrol with only 60% fuel remaining.  This
+#     forces careful thrust management during the intercept/fight.
+#   - Unknown contact spawns 120km away, drifting.  At passive sensor
+#     range limit, confidence is low -- the player needs to close to
+#     get a solid track before committing.
+#   - Pirate branch pre-damages player sensors to "impaired" level,
+#     simulating the surprise torpedo salvo that triggered the encounter.
+#     This degrades track quality and forces the player to manage with
+#     reduced situational awareness or attempt field repair.
+
+name: "Patrol: Ambush Encounter"
+description: "Routine patrol interrupted by an unknown contact running dark"
+
+dt: 0.1
+
+# ─── Config: select branch path ────────────────────────────────
+# Override contact_type in scenario config to pick the branch.
+# Default is "smuggler" if unset.
+config:
+  contact_type: "smuggler"
+
+# ─── Ships ─────────────────────────────────────────────────────
+
+ships:
+  # ── Player corvette ──────────────────────────────────────────
+  # Mid-patrol: fuel already partially spent, moving at cruise velocity
+  # along the patrol route.  Heading roughly +X.
+  - id: "player"
+    name: "UNS Sentinel"
+    class: "corvette"
+    faction: "unsa"
+    player_controlled: true
+    position: {x: 0, y: 0, z: 0}
+    velocity: {x: 200, y: 0, z: 0}   # cruising at 200 m/s
+    orientation: {pitch: 0, yaw: 0, roll: 0}
+    mass: 5000
+    max_hull_integrity: 200.0
+    hull_integrity: 200.0
+    systems:
+      propulsion:
+        enabled: true
+        power_draw: 80
+        mass: 350
+        max_thrust: 400000          # 400 kN Epstein -- 8.2G for 5t corvette
+        fuel_level: 6000            # 60% of max -- patrol burned the rest
+        max_fuel: 10000
+      rcs:
+        enabled: true
+        max_torque: 50.0
+        attitude_rate: 15.0
+      sensors:
+        enabled: true
+        power_draw: 25
+        passive:
+          range: 200000             # 200km passive envelope
+        active:
+          scan_range: 400000
+          cooldown_time: 4.0
+        signature_base: 1.3
+      navigation:
+        enabled: true
+        power_draw: 10
+      targeting:
+        enabled: true
+        lock_time: 1.5
+        lock_range: 80000
+      combat:
+        enabled: true
+        railguns: 2                 # UNE-440 Mass Drivers
+        pdcs: 4                     # Narwhal-III PDCs
+      weapons:
+        enabled: true
+        power_draw: 40
+        weapons:
+          - name: "torpedo"
+            power_cost: 30
+            max_heat: 80
+            ammo: 6                 # only 6 torpedoes -- make them count
+            damage: 50.0
+      power_management:
+        primary: {output: 150.0}
+        secondary: {output: 80.0}
+        tertiary: {output: 40.0}
+        system_map:
+          propulsion: "primary"
+          weapons: "primary"
+          combat: "primary"
+          sensors: "secondary"
+          targeting: "secondary"
+          rcs: "secondary"
+          navigation: "tertiary"
+    damage_model:
+      propulsion: {max_health: 100.0, health: 100.0}
+      rcs:        {max_health: 80.0,  health: 80.0}
+      weapons:    {max_health: 90.0,  health: 90.0}
+      sensors:    {max_health: 70.0,  health: 70.0}
+
+  # ── Unknown contact ──────────────────────────────────────────
+  # Spawns 120km ahead and slightly off-axis.  Running dark (no
+  # transponder), drifting at low velocity.  AI role and behavior
+  # depend on the branch path -- the scenario loader should pick
+  # one of the three variants below based on config.contact_type.
+  #
+  # BRANCH 1: Smuggler freighter
+  # Large, slow, tries to flee when hailed.  Low aggression, high
+  # flee threshold.  Player must intercept and mission-kill the drive.
+  - id: "unknown_contact"
+    name: "Unknown Vessel"
+    class: "freighter"
+    faction: "neutral"              # appears neutral until scanned
+    ai_enabled: true
+    position: {x: 110000, y: 25000, z: -5000}   # ~113km from player
+    velocity: {x: -30, y: 10, z: 0}              # drifting slowly
+    orientation: {pitch: 0, yaw: 180, roll: 0}
+    mass: 40000
+    max_hull_integrity: 300.0
+    hull_integrity: 300.0
+    ai_behavior:
+      role: "freighter"
+      flee_threshold: 0.95          # runs at the slightest provocation
+      max_thrust_profile: 0.4       # cargo limits acceleration
+    systems:
+      propulsion:
+        enabled: true
+        power_draw: 60
+        mass: 500
+        max_thrust: 120000          # big but slow -- 0.3G for 40t freighter
+        fuel_level: 15000
+        max_fuel: 20000
+      rcs:
+        enabled: true
+        max_torque: 20.0
+        attitude_rate: 5.0          # freighters turn slowly
+      sensors:
+        enabled: true
+        power_draw: 15
+        passive:
+          range: 80000              # short-range civilian sensors
+        active:
+          scan_range: 150000
+          cooldown_time: 8.0
+        signature_base: 2.5         # big thermal signature from cargo hold
+      navigation:
+        enabled: true
+        power_draw: 8
+      targeting: {}                 # no weapons targeting
+    damage_model:
+      propulsion: {max_health: 120.0, health: 120.0}
+      rcs:        {max_health: 60.0,  health: 60.0}
+      sensors:    {max_health: 40.0,  health: 40.0}
+
+  # ── Pirate ambush ship (spawns in pirate branch only) ────────
+  # In the pirate branch, this ship replaces the freighter.
+  # It is a combat corvette running dark, waiting for the player
+  # to close range before springing the trap.
+  #
+  # For now, both ships are defined in the YAML.  The scenario
+  # config.contact_type field tells the mission framework which
+  # branch path to evaluate.  The non-active ship still exists
+  # in the simulation but the mission objectives only reference
+  # the relevant one.
+  - id: "pirate_ambusher"
+    name: "Ghost Fang"
+    class: "corvette"
+    faction: "pirates"
+    ai_enabled: true
+    position: {x: 108000, y: 28000, z: -3000}   # near the unknown_contact position
+    velocity: {x: -20, y: 5, z: 0}               # drifting, engines cold
+    orientation: {pitch: 0, yaw: 200, roll: 0}
+    mass: 4500
+    max_hull_integrity: 180.0
+    hull_integrity: 180.0
+    ai_behavior:
+      role: "combat"
+      aggression: 0.9               # very aggressive -- ambush predator
+      engagement_range: 60000       # springs trap at 60km
+      flee_threshold: 0.15          # fights to near-death
+      evade_threshold: 0.3
+      max_thrust_profile: 0.6
+      weapon_confidence_threshold: 0.15  # fires even with poor solutions
+    systems:
+      propulsion:
+        enabled: true
+        power_draw: 70
+        mass: 300
+        max_thrust: 350000          # slightly less than player -- 7.9G
+        fuel_level: 7000
+        max_fuel: 8000
+      rcs:
+        enabled: true
+        max_torque: 40.0
+        attitude_rate: 18.0
+      sensors:
+        enabled: true
+        power_draw: 20
+        passive:
+          range: 180000
+        active:
+          scan_range: 350000
+          cooldown_time: 5.0
+        signature_base: 0.7         # running cold -- hard to detect
+      navigation:
+        enabled: true
+        power_draw: 8
+      targeting:
+        enabled: true
+        lock_time: 2.0
+        lock_range: 60000
+      combat:
+        enabled: true
+        railguns: 1
+        pdcs: 3
+      weapons:
+        enabled: true
+        power_draw: 30
+        weapons:
+          - name: "torpedo"
+            power_cost: 25
+            max_heat: 70
+            ammo: 4
+            damage: 45.0
+      power_management:
+        primary: {output: 120.0}
+        secondary: {output: 60.0}
+        tertiary: {output: 30.0}
+        system_map:
+          propulsion: "primary"
+          weapons: "primary"
+          combat: "primary"
+          sensors: "secondary"
+          targeting: "secondary"
+          rcs: "secondary"
+          navigation: "tertiary"
+    damage_model:
+      propulsion: {max_health: 90.0, health: 90.0}
+      rcs:        {max_health: 65.0, health: 65.0}
+      weapons:    {max_health: 80.0, health: 80.0}
+      sensors:    {max_health: 55.0, health: 55.0}
+
+  # ── Friendly ship (active in friendly branch) ────────────────
+  # A UNE supply ship with a malfunctioning transponder.  Shows
+  # up as "unknown" on sensors.  Player must scan to ID before
+  # engaging -- firing on a friendly is mission failure.
+  - id: "friendly_vessel"
+    name: "UNS Providence"
+    class: "transport"
+    faction: "unsa"
+    ai_enabled: true
+    position: {x: 115000, y: 20000, z: 2000}    # ~117km away
+    velocity: {x: -50, y: 15, z: 0}
+    orientation: {pitch: 0, yaw: 190, roll: 0}
+    mass: 35000
+    max_hull_integrity: 250.0
+    hull_integrity: 250.0
+    ai_behavior:
+      role: "freighter"
+      flee_threshold: 0.8
+      max_thrust_profile: 0.3
+    systems:
+      propulsion:
+        enabled: true
+        power_draw: 50
+        mass: 400
+        max_thrust: 100000
+        fuel_level: 18000
+        max_fuel: 25000
+      rcs:
+        enabled: true
+        max_torque: 15.0
+        attitude_rate: 4.0
+      sensors:
+        enabled: true
+        power_draw: 12
+        passive:
+          range: 100000
+        active:
+          scan_range: 200000
+          cooldown_time: 6.0
+        signature_base: 2.0
+      navigation:
+        enabled: true
+        power_draw: 8
+    damage_model:
+      propulsion: {max_health: 100.0, health: 100.0}
+      rcs:        {max_health: 50.0,  health: 50.0}
+      sensors:    {max_health: 45.0,  health: 45.0}
+
+
+# ─── Mission ───────────────────────────────────────────────────
+# The mission objectives are written for the default "smuggler"
+# branch.  The pirate and friendly branches would swap in
+# different objectives via the branching system.
+#
+# All three branches share the first objective: detect the contact.
+
+mission:
+  name: "Patrol Sector 7-G"
+  description: "Investigate unknown contact detected during routine patrol"
+
+  briefing: |
+    PATROL REPORT -- UNS Sentinel
+
+    You are mid-patrol in Sector 7-G when passive sensors flag an
+    anomalous contact at approximately 113km, bearing 012 relative.
+
+    The contact is running dark -- no transponder, no IFF beacon.
+    Could be a smuggler trying to slip through, could be pirates
+    laying an ambush, or could be a friendly with a busted comm array.
+
+    STANDING ORDERS:
+    1. Close to identification range (<50km) using passive sensors
+    2. Attempt to hail the contact and demand identification
+    3. If hostile: engage and neutralize
+    4. If friendly: verify identity and escort to safety
+
+    FUEL WARNING: You are at 60% fuel after patrol operations.
+    Plan your approach carefully -- you may not have fuel for a
+    prolonged chase.
+
+    WEAPONS STATUS: 6x torpedoes, railguns nominal, PDCs nominal.
+
+    Be careful out there. This sector has seen pirate activity.
+
+  objectives:
+    # Shared: detect the unknown contact
+    - id: "detect_contact"
+      type: "scan_target"
+      description: "Detect the unknown contact on passive sensors"
+      required: true
+      params:
+        target: "unknown_contact"
+
+    # Close to ID range (50km)
+    - id: "close_to_id_range"
+      type: "reach_range"
+      description: "Close to within 50km for positive identification"
+      required: true
+      params:
+        target: "unknown_contact"
+        range: 50000
+        initial_range: 113000
+
+    # Smuggler branch: disable the freighter's drive
+    - id: "mission_kill_smuggler"
+      type: "mission_kill"
+      description: "Disable the smuggler's propulsion (mission kill)"
+      required: true
+      params:
+        target: "unknown_contact"
+
+    # Survive the encounter
+    - id: "player_survives"
+      type: "avoid_mission_kill"
+      description: "Keep your ship combat-effective"
+      required: true
+      params:
+        target: "player"
+
+  time_limit: 600   # 10 minutes -- fuel pressure makes this tight
+
+  success_message: |
+    Contact neutralized. Good work, Sentinel.
+
+    The unknown vessel has been disabled and is drifting. A boarding
+    team from UNS Patrol Command is en route to inspect the cargo.
+
+    Your fuel management and approach tactics were sound.
+    Debrief at Sector Command on return.
+
+  failure_message: |
+    Mission failed.
+
+    Either the contact escaped, your ship was disabled, or you ran
+    out of time. Sector 7-G remains unsecured.
+
+    Review your approach tactics and fuel management for next patrol.
+
+  hints:
+    - trigger: "start"
+      message: "SENSOR ALERT: Anomalous contact bearing 012 relative, range ~113km. No transponder."
+    - trigger: "range < 100000"
+      target: "unknown_contact"
+      message: "Closing on contact. Track quality improving. Confidence still low -- keep closing."
+    - trigger: "range < 70000"
+      target: "unknown_contact"
+      message: "Contact at 70km. Getting a better thermal read. Prepare to hail."
+    - trigger: "range < 50000"
+      target: "unknown_contact"
+      message: "IDENTIFICATION RANGE. Contact profile consistent with a freighter. No transponder response."
+    - trigger: "range < 30000"
+      target: "unknown_contact"
+      message: "Contact is altering course -- possible evasive action. Intercept if fleeing."
+    - trigger: "time > 300"
+      message: "FUEL WARNING: 5 minutes elapsed. Monitor fuel reserves carefully."
+    - trigger: "time > 480"
+      message: "CRITICAL: 2 minutes remaining. Disengage if objective cannot be completed."
