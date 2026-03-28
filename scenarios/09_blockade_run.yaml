@@ -1,0 +1,439 @@
+# Scenario 09: Blockade Runner
+# Stealth-focused: navigate a freighter through an enemy blockade.
+#
+# The player controls a smuggler's freighter trying to slip past 4 patrol
+# corvettes that cover a 200km-wide transit corridor.  The patrols rely on
+# passive IR detection -- a cold-drifting ship with EMCON engaged is nearly
+# invisible.  The player must time burns between patrol sweeps, manage
+# EMCON/cold-drift, and use ECM (chaff/flares) if detected.
+#
+# Win:  reach the destination waypoint (jump point beyond blockade)
+# Lose: freighter drive destroyed, or captured (mission-killed)
+#
+# Design notes:
+#   - Patrol ships use real sensor detection.  If the player stays below
+#     their passive IR threshold they genuinely cannot see the player.
+#   - Player tools: EMCON (go dark), cold-drift (shut reactor to battery),
+#     timed burns between sweeps, ECM chaff/flares if detected.
+#   - If detected the player can: fight through (unlikely vs 4 corvettes),
+#     flee on an alternate vector (costs fuel), or get mission-killed.
+#   - Patrol AI uses the "patrol" behavior profile -- they hold position
+#     and only engage targets within engagement_range.
+
+name: "Blockade Runner"
+description: "Slip a freighter through an enemy blockade using stealth and timing"
+
+dt: 0.1
+
+ships:
+  # ── Player ship: blockade runner freighter ──────────────────────
+  - id: "player"
+    name: "Sparrow"
+    class: "freighter"
+    faction: "smuggler"
+    player_controlled: true
+    mass: 25000
+    max_hull_integrity: 200.0
+    hull_integrity: 200.0
+    # Start 150km behind the blockade line, offset to approach from the
+    # gap between Patrol-1 and Patrol-2.
+    position: {x: -150000, y: 20000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+    orientation: {pitch: 0, yaw: 0, roll: 0}
+    systems:
+      propulsion:
+        enabled: true
+        max_thrust: 120000   # 120 kN -- modest for a 25t freighter (~4.8 m/s^2)
+        fuel_level: 6000     # Tight fuel budget forces efficient burns
+        max_fuel: 6000
+      rcs:
+        enabled: true
+        max_torque: 30.0
+        attitude_rate: 8.0   # Freighters turn slowly
+      sensors:
+        enabled: true
+        passive:
+          range: 250000      # 250km -- good passive array for a smuggler
+        active:
+          scan_range: 400000 # Active ping reveals position -- use sparingly
+        signature_base: 0.8  # Low-observable hull coating
+      navigation:
+        enabled: true
+      targeting:
+        enabled: true
+      ecm:
+        enabled: true
+        emcon_active: false
+        # Smuggler kit: extra chaff and flares, decent jammer
+        jammer_power: 40000.0
+        chaff_count: 8
+        flare_count: 8
+        emcon_ir_reduction: 0.2     # 80% IR reduction when dark -- good stealth hull
+        emcon_rcs_reduction: 0.5    # 50% RCS reduction -- radar-absorbing coating
+    damage_model:
+      propulsion: {max_health: 80.0, health: 80.0}
+      rcs: {max_health: 60.0, health: 60.0}
+      sensors: {max_health: 50.0, health: 50.0}
+
+  # ── Patrol ships: 4 corvettes covering the transit corridor ────
+  #
+  # The blockade line is at x=0, spread across y=-80km to y=+80km.
+  # Gaps between patrols are ~40km wide -- tight but passable if the
+  # player times burns between sensor sweeps.
+  #
+  # Patrol engagement_range is 60km.  Their passive sensor range is
+  # 100km, but a cold-drifting EMCON freighter with signature_base 0.8
+  # and 80% IR reduction will only be detectable at ~20-30km.
+
+  - id: "patrol_01"
+    name: "BNS Warden"
+    class: "corvette"
+    faction: "hostile"
+    ai_enabled: true
+    mass: 5000
+    max_hull_integrity: 180.0
+    hull_integrity: 180.0
+    # Northernmost patrol, covering y=+40km to y=+80km
+    position: {x: 0, y: 60000, z: 0}
+    velocity: {x: 0, y: 20, z: 0}   # Slow patrol drift northward
+    orientation: {pitch: 0, yaw: 180, roll: 0}
+    ai_behavior:
+      role: "patrol"
+      aggression: 0.5
+      engagement_range: 60000
+      flee_threshold: 0.2
+      evade_threshold: 0.4
+      patrol_position: {x: 0, y: 60000, z: 0}
+    systems:
+      propulsion:
+        enabled: true
+        max_thrust: 200000   # 200 kN -- corvette is much faster than freighter
+        fuel_level: 8000
+        max_fuel: 8000
+      rcs:
+        enabled: true
+        max_torque: 50.0
+        attitude_rate: 15.0
+      sensors:
+        enabled: true
+        passive:
+          range: 100000      # 100km passive -- the threat envelope
+        active:
+          scan_range: 300000
+        signature_base: 1.5  # Military ship, higher emissions
+      navigation:
+        enabled: true
+      targeting:
+        enabled: true
+        lock_time: 2.0
+        lock_range: 60000.0
+      combat:
+        enabled: true
+        railguns: 1
+        pdcs: 3
+      weapons:
+        enabled: true
+        weapons:
+          - name: "railgun"
+            power_cost: 15
+            max_heat: 80
+            ammo_count: 30
+          - name: "pdc"
+            power_cost: 5
+            max_heat: 50
+            ammo_count: 800
+    damage_model:
+      propulsion: {max_health: 100.0, health: 100.0}
+      rcs: {max_health: 80.0, health: 80.0}
+      weapons: {max_health: 90.0, health: 90.0}
+      sensors: {max_health: 70.0, health: 70.0}
+
+  - id: "patrol_02"
+    name: "BNS Sentinel"
+    class: "corvette"
+    faction: "hostile"
+    ai_enabled: true
+    mass: 5000
+    max_hull_integrity: 180.0
+    hull_integrity: 180.0
+    # North-center patrol, covering y=0 to y=+40km
+    position: {x: 5000, y: 20000, z: 0}
+    velocity: {x: 0, y: -15, z: 0}  # Drifting south on patrol
+    orientation: {pitch: 0, yaw: 180, roll: 0}
+    ai_behavior:
+      role: "patrol"
+      aggression: 0.5
+      engagement_range: 60000
+      flee_threshold: 0.2
+      evade_threshold: 0.4
+      patrol_position: {x: 5000, y: 20000, z: 0}
+    systems:
+      propulsion:
+        enabled: true
+        max_thrust: 200000
+        fuel_level: 8000
+        max_fuel: 8000
+      rcs:
+        enabled: true
+        max_torque: 50.0
+        attitude_rate: 15.0
+      sensors:
+        enabled: true
+        passive:
+          range: 100000
+        active:
+          scan_range: 300000
+        signature_base: 1.5
+      navigation:
+        enabled: true
+      targeting:
+        enabled: true
+        lock_time: 2.0
+        lock_range: 60000.0
+      combat:
+        enabled: true
+        railguns: 1
+        pdcs: 3
+      weapons:
+        enabled: true
+        weapons:
+          - name: "railgun"
+            power_cost: 15
+            max_heat: 80
+            ammo_count: 30
+          - name: "pdc"
+            power_cost: 5
+            max_heat: 50
+            ammo_count: 800
+    damage_model:
+      propulsion: {max_health: 100.0, health: 100.0}
+      rcs: {max_health: 80.0, health: 80.0}
+      weapons: {max_health: 90.0, health: 90.0}
+      sensors: {max_health: 70.0, health: 70.0}
+
+  - id: "patrol_03"
+    name: "BNS Watchdog"
+    class: "corvette"
+    faction: "hostile"
+    ai_enabled: true
+    mass: 5000
+    max_hull_integrity: 180.0
+    hull_integrity: 180.0
+    # South-center patrol, covering y=-40km to y=0
+    position: {x: -3000, y: -20000, z: 0}
+    velocity: {x: 0, y: 15, z: 0}   # Drifting north
+    orientation: {pitch: 0, yaw: 180, roll: 0}
+    ai_behavior:
+      role: "patrol"
+      aggression: 0.5
+      engagement_range: 60000
+      flee_threshold: 0.2
+      evade_threshold: 0.4
+      patrol_position: {x: -3000, y: -20000, z: 0}
+    systems:
+      propulsion:
+        enabled: true
+        max_thrust: 200000
+        fuel_level: 8000
+        max_fuel: 8000
+      rcs:
+        enabled: true
+        max_torque: 50.0
+        attitude_rate: 15.0
+      sensors:
+        enabled: true
+        passive:
+          range: 100000
+        active:
+          scan_range: 300000
+        signature_base: 1.5
+      navigation:
+        enabled: true
+      targeting:
+        enabled: true
+        lock_time: 2.0
+        lock_range: 60000.0
+      combat:
+        enabled: true
+        railguns: 1
+        pdcs: 3
+      weapons:
+        enabled: true
+        weapons:
+          - name: "railgun"
+            power_cost: 15
+            max_heat: 80
+            ammo_count: 30
+          - name: "pdc"
+            power_cost: 5
+            max_heat: 50
+            ammo_count: 800
+    damage_model:
+      propulsion: {max_health: 100.0, health: 100.0}
+      rcs: {max_health: 80.0, health: 80.0}
+      weapons: {max_health: 90.0, health: 90.0}
+      sensors: {max_health: 70.0, health: 70.0}
+
+  - id: "patrol_04"
+    name: "BNS Cerberus"
+    class: "corvette"
+    faction: "hostile"
+    ai_enabled: true
+    mass: 5000
+    max_hull_integrity: 180.0
+    hull_integrity: 180.0
+    # Southernmost patrol, covering y=-80km to y=-40km
+    position: {x: 2000, y: -60000, z: 0}
+    velocity: {x: 0, y: -20, z: 0}  # Drifting south
+    orientation: {pitch: 0, yaw: 180, roll: 0}
+    ai_behavior:
+      role: "patrol"
+      aggression: 0.5
+      engagement_range: 60000
+      flee_threshold: 0.2
+      evade_threshold: 0.4
+      patrol_position: {x: 2000, y: -60000, z: 0}
+    systems:
+      propulsion:
+        enabled: true
+        max_thrust: 200000
+        fuel_level: 8000
+        max_fuel: 8000
+      rcs:
+        enabled: true
+        max_torque: 50.0
+        attitude_rate: 15.0
+      sensors:
+        enabled: true
+        passive:
+          range: 100000
+        active:
+          scan_range: 300000
+        signature_base: 1.5
+      navigation:
+        enabled: true
+      targeting:
+        enabled: true
+        lock_time: 2.0
+        lock_range: 60000.0
+      combat:
+        enabled: true
+        railguns: 1
+        pdcs: 3
+      weapons:
+        enabled: true
+        weapons:
+          - name: "railgun"
+            power_cost: 15
+            max_heat: 80
+            ammo_count: 30
+          - name: "pdc"
+            power_cost: 5
+            max_heat: 50
+            ammo_count: 800
+    damage_model:
+      propulsion: {max_health: 100.0, health: 100.0}
+      rcs: {max_health: 80.0, health: 80.0}
+      weapons: {max_health: 90.0, health: 90.0}
+      sensors: {max_health: 70.0, health: 70.0}
+
+mission:
+  name: "Operation: Ghost Freight"
+  description: "Navigate through a hostile blockade without being detected"
+
+  briefing: |
+    MISSION: Blockade Runner
+
+    Your ship, the Sparrow, carries critical cargo that must reach the
+    jump point beyond the enemy blockade.  Four corvettes patrol a
+    200km-wide corridor at x=0.  Your destination is the jump point
+    at x=+200km.
+
+    The enemy relies on passive IR sensors with 100km range.  A ship
+    burning its drive is visible across that entire envelope.  But a
+    cold-drifting ship with EMCON engaged is nearly invisible --
+    your stealth hull reduces IR signature by 80%.
+
+    TACTICS:
+    - Engage EMCON immediately to minimize your signature.
+    - Build velocity with short burns BEFORE entering detection range.
+      Coast through the blockade on momentum alone.
+    - Time your approach to slip through the gap between Patrol-2
+      (BNS Sentinel, y=+20km) and Patrol-3 (BNS Watchdog, y=-20km).
+      The gap is ~40km wide -- stay centered and cold.
+    - If detected: deploy chaff to break radar lock, deploy flares to
+      confuse IR tracking, and burn hard for the jump point.
+    - Fighting is a last resort -- you're a freighter against 4 corvettes.
+
+    TOOLS:
+    - EMCON mode: set_emcon (reduces IR by 80%, RCS by 50%)
+    - Chaff: deploy_chaff (8 bundles -- radar clutter)
+    - Flares: deploy_flare (8 flares -- IR decoys)
+    - Jammer: activate_jammer (degrades enemy radar -- but emits!)
+
+    FUEL WARNING: You have 6000 units.  There is no resupply.
+    Every burn must count.
+
+    Reach the jump point at x=200km.  Good luck, runner.
+
+  objectives:
+    # Primary: reach the jump point beyond the blockade
+    - id: "reach_jump_point"
+      type: "reach_position"
+      description: "Reach the jump point beyond the blockade"
+      required: true
+      params:
+        position: {x: 200000, y: 0, z: 0}
+        tolerance: 5000        # Within 5km of the jump point
+        initial_distance: 350000
+
+    # Fail condition: player drive destroyed (mission killed)
+    - id: "survive"
+      type: "avoid_mission_kill"
+      description: "Keep your drive intact"
+      required: true
+      params:
+        target: "player"
+
+    # Bonus: avoid detection entirely (stealth mastery)
+    - id: "ghost_run"
+      type: "avoid_detection"
+      description: "Traverse the blockade without being detected"
+      required: false
+      params:
+        time: 600             # 10 minutes -- enough for a full transit
+        start_time: 0
+        detection_range: 100000
+
+  time_limit: 900  # 15 minutes -- generous but not infinite
+
+  success_message: |
+    Jump point reached!  The Sparrow slips through the blockade and
+    engages its Epstein drive at full burn.  The patrol ships never
+    knew you were there.
+
+    By the time their sensors register the drive plume, you're
+    already accelerating at 5g toward open space.  The cargo is safe.
+
+    Outstanding work, runner.
+
+  failure_message: |
+    Mission failed.
+
+    The blockade corvettes detected and intercepted the Sparrow.
+    Your drive is destroyed and the cargo is seized.
+
+    The blockade holds.
+
+  hints:
+    - trigger: "start"
+      message: "Engage EMCON immediately with 'set_emcon' to reduce your IR signature by 80%."
+    - trigger: "range < 120000"
+      target: "patrol_02"
+      message: "Approaching detection envelope! If you're not in EMCON and coasting, you WILL be detected."
+    - trigger: "range < 60000"
+      target: "patrol_02"
+      message: "Inside engagement range. Stay cold. Any thrust now will light you up on IR."
+    - trigger: "range < 30000"
+      target: "patrol_02"
+      message: "Dangerously close to a patrol. If detected, deploy chaff and flares, then burn for the jump point."
