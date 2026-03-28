@@ -43,6 +43,7 @@ def get_system_class(system_type):
         "crew_fatigue": CrewFatigueSystem,
         "science": ScienceSystem,
         "fleet_coord": FleetCoordSystem,
+        "crew_binding": CrewBindingSystem,
     }
 
     return system_map.get(system_type)
@@ -71,6 +72,7 @@ from hybrid.systems.comms_system import CommsSystem
 from hybrid.systems.crew_fatigue_system import CrewFatigueSystem
 from hybrid.systems.science_system import ScienceSystem
 from hybrid.systems.fleet_coord_system import FleetCoordSystem
+from hybrid.systems.crew_binding_system import CrewBindingSystem
 
 __all__ = [
     'PowerSystem',
@@ -94,4 +96,5 @@ __all__ = [
     'CrewFatigueSystem',
     'ScienceSystem',
     'FleetCoordSystem',
+    'CrewBindingSystem',
 ]
