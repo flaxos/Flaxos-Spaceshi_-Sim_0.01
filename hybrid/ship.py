@@ -152,6 +152,19 @@ class Ship:
         if self.ai_enabled:
             self.enable_ai()
 
+            # Apply role-based behavior profile from scenario YAML.
+            # The ai_behavior block lets scenarios override the auto-
+            # inferred role (e.g. force a corvette to escort a freighter).
+            ai_config = config.get("ai_behavior", {})
+            if ai_config and self.ai_controller:
+                from hybrid.fleet.npc_behavior import get_profile
+                role = ai_config.get("role", self.ai_controller.profile.role)
+                self.ai_controller.profile = get_profile(role, ai_config)
+                # Sync engagement_range from the new profile
+                self.ai_controller.engagement_range = (
+                    self.ai_controller.profile.engagement_range
+                )
+
         # Initialize command handler
         self.command_handlers = {
             "get_state": self._cmd_get_state,
