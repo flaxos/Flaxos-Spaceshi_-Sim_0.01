@@ -133,13 +133,30 @@ class FlaxosPanel extends HTMLElement {
           opacity: 0.4;
         }
 
+        .header::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 2px;
+          background: var(--panel-domain-color, transparent);
+          opacity: 0.6;
+        }
+
         .header {
+          position: relative;
           display: flex;
           align-items: center;
           justify-content: space-between;
           padding: 8px 16px;
-          background: rgba(255, 255, 255, 0.02);
+          background: linear-gradient(
+            135deg,
+            rgba(255, 255, 255, 0.035) 0%,
+            rgba(255, 255, 255, 0.01) 100%
+          );
           border-bottom: 1px solid var(--border-default, #2a2a3a);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
           min-height: 36px;
           user-select: none;
         }
@@ -150,6 +167,10 @@ class FlaxosPanel extends HTMLElement {
           text-transform: uppercase;
           letter-spacing: 0.5px;
           color: var(--text-secondary, #888899);
+        }
+
+        :host([domain]) .title {
+          color: color-mix(in srgb, var(--panel-domain-color) 40%, var(--text-secondary, #888899));
         }
 
         .actions {
@@ -189,6 +210,20 @@ class FlaxosPanel extends HTMLElement {
           pointer-events: none;
         }
 
+        /* Damaged panel states */
+        :host([data-health="impaired"]) .content {
+          animation: damage-flicker 4s ease-in-out infinite;
+        }
+        :host([data-health="critical"]) .content {
+          animation: damage-flicker 1.5s ease-in-out infinite;
+          filter: contrast(0.85) brightness(0.9);
+        }
+
+        @keyframes damage-flicker {
+          0%, 94%, 96%, 98%, 100% { opacity: 1; }
+          95%, 97%                 { opacity: 0.65; }
+        }
+
         .collapse-icon {
           display: inline-block;
           transition: transform 0.2s ease;
@@ -210,7 +245,15 @@ class FlaxosPanel extends HTMLElement {
           align-items: center;
           justify-content: center;
           padding: 16px;
-          background: rgba(6, 6, 9, 0.6);
+          background:
+            repeating-linear-gradient(
+              -45deg,
+              transparent,
+              transparent 3px,
+              rgba(0, 0, 0, 0.08) 3px,
+              rgba(0, 0, 0, 0.08) 4px
+            ),
+            rgba(6, 6, 9, 0.65);
           z-index: 5;
           pointer-events: none;
         }

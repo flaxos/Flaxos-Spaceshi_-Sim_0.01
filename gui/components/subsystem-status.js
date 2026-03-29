@@ -229,6 +229,17 @@ class SubsystemStatusPanel extends HTMLElement {
         .bar-fill.warning { background: var(--status-warning, #ffaa00); }
         .bar-fill.critical { background: var(--status-critical, #ff4444); }
         .bar-fill.heat { background: linear-gradient(90deg, var(--status-warning, #ffaa00), var(--status-critical, #ff4444)); }
+        
+        .bar-fill.destroyed {
+          background: repeating-linear-gradient(
+            -45deg,
+            var(--status-critical, #ff4444),
+            var(--status-critical, #ff4444) 4px,
+            rgba(255, 68, 68, 0.3) 4px,
+            rgba(255, 68, 68, 0.3) 8px
+          );
+          animation: pulse 1.5s ease-in-out infinite;
+        }
 
         .bar-fill.overheated {
           animation: pulse 0.8s ease-in-out infinite;
@@ -246,6 +257,18 @@ class SubsystemStatusPanel extends HTMLElement {
         .bar-value.nominal { color: var(--status-nominal, #00ff88); }
         .bar-value.warning { color: var(--status-warning, #ffaa00); }
         .bar-value.critical { color: var(--status-critical, #ff4444); }
+
+        .cascade-badge {
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+          font-size: 0.55rem;
+          color: var(--status-critical, #ff4444);
+          border: 1px solid var(--status-critical, #ff4444);
+          background: rgba(255, 68, 68, 0.15);
+          padding: 1px 4px;
+          border-radius: 3px;
+          margin-left: 6px;
+          vertical-align: middle;
+        }
 
         /* Subsystem details row */
         .subsystem-details {
@@ -434,8 +457,18 @@ class SubsystemStatusPanel extends HTMLElement {
     const overheated = report.overheated || false;
     const isCritical = report.is_critical || false;
 
-    // Health bar color
-    const healthBarClass = healthPct > 75 ? "nominal" : healthPct > 25 ? "warning" : "critical";
+    // Health bar gradient color
+    let healthColorObj = "";
+    if (healthPct > 50) {
+      healthColorObj = `color-mix(in srgb, var(--status-nominal, #00ff88) ${(healthPct - 50) * 2}%, var(--status-warning, #ffaa00))`;
+    } else {
+      healthColorObj = `color-mix(in srgb, var(--status-warning, #ffaa00) ${(healthPct) * 2}%, var(--status-critical, #ff4444))`;
+    }
+    
+    // Health bar class / inline style
+    const isDestroyed = status === "destroyed";
+    const healthBarClassStr = isDestroyed ? "destroyed" : "";
+    const healthBarStyleStr = isDestroyed ? `width: 100%` : `width: ${healthPct}%; background: ${healthColorObj}`;
     const healthValueClass = healthPct > 75 ? "nominal" : healthPct > 25 ? "warning" : "critical";
 
     // Heat bar
@@ -445,6 +478,7 @@ class SubsystemStatusPanel extends HTMLElement {
     // Cascade-specific overlays (e.g., targeting affected by sensors)
     const cascadesAffecting = activeCascades.filter(c => c.dependent === name);
     const hasCascade = cascadeFactor !== undefined && cascadeFactor < 1.0;
+    const cascadeBadgeHTML = hasCascade ? `<span class="cascade-badge">[CASCADE]</span>` : "";
 
     // Repair time estimate
     const repairTime = estimateRepairTime(healthPct, status);
@@ -504,13 +538,13 @@ class SubsystemStatusPanel extends HTMLElement {
     return `
       <div class="subsystem-row status-${status}">
         <div class="subsystem-header">
-          <span class="subsystem-name">${label}</span>
+          <span class="subsystem-name">${label}${cascadeBadgeHTML}</span>
           <span class="subsystem-badge ${status}">${status}</span>
         </div>
         <div class="bar-row">
           <span class="bar-label">HP</span>
           <div class="bar">
-            <div class="bar-fill ${healthBarClass}" style="width: ${healthPct}%"></div>
+            <div class="bar-fill ${healthBarClassStr}" style="${healthBarStyleStr}"></div>
           </div>
           <span class="bar-value ${healthValueClass}">${healthPct.toFixed(0)}%</span>
         </div>

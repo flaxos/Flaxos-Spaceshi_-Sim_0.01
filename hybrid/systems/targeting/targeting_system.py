@@ -60,7 +60,7 @@ class TargetingSystem(BaseSystem):
 
         # Lock parameters
         self.lock_acquisition_time = config.get("lock_time", 1.0)
-        self.max_lock_range = config.get("lock_range", 100000.0)
+        self.max_lock_range = config.get("lock_range", 500000.0)
 
         # Current target state
         self.locked_target: Optional[str] = None  # Contact ID of locked target
@@ -187,8 +187,11 @@ class TargetingSystem(BaseSystem):
         accel_z = (target_vel.get("z", 0) - prev_velocity.get("z", 0)) / max(dt, 0.001)
         target_accel_magnitude = (accel_x**2 + accel_y**2 + accel_z**2) ** 0.5
 
-        # Range penalty: quality drops linearly from 1.0 at 0m to 0.2 at max_lock_range
-        range_factor = max(0.2, 1.0 - 0.8 * (range_to_target / self.max_lock_range))
+        # Range penalty: gentle power-law falloff so railgun combat works at
+        # design range (500km).  At half-range (~250km) quality is ~0.88,
+        # at 80% range (~400km) quality is ~0.50, floors at 0.3 at max range.
+        # Old linear formula gave 0.6 at half-range — too aggressive.
+        range_factor = max(0.3, 1.0 - 0.7 * (range_to_target / self.max_lock_range) ** 1.5)
 
         # Store target acceleration for firing solution confidence
         self._last_target_accel = {"x": accel_x, "y": accel_y, "z": accel_z}
