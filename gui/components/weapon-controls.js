@@ -479,11 +479,11 @@ class WeaponControls extends HTMLElement {
     const noLockWarning = this.shadowRoot.getElementById("no-lock-warning");
     noLockWarning.classList.toggle("hidden", hasLock);
 
-    // Railgun mounts
-    this._updateRailgunMounts(combat, targeting, hasLock);
+    // Railgun mounts — truth_weapons lives in weapons telemetry, not combat
+    this._updateRailgunMounts(weapons, targeting, hasLock);
 
-    // PDC mode from combat state
-    const currentPdcMode = combat?.pdc_mode || "auto";
+    // PDC mode from weapons telemetry (combat state is merged into weapons by server)
+    const currentPdcMode = weapons?.pdc_mode || combat?.pdc_mode || "auto";
     this._pdcMode = currentPdcMode;
     this.shadowRoot.querySelectorAll(".pdc-mode-btn").forEach((btn) => {
       const isActive = btn.dataset.mode === currentPdcMode;
@@ -509,10 +509,10 @@ class WeaponControls extends HTMLElement {
     this._renderAssessment();
   }
 
-  _updateRailgunMounts(combat, targeting, hasLock) {
+  _updateRailgunMounts(weapons, targeting, hasLock) {
     const mountsContainer = this.shadowRoot.getElementById("railgun-mounts");
     const hintEl = this.shadowRoot.getElementById("railgun-hint");
-    const truthWeapons = combat?.truth_weapons || {};
+    const truthWeapons = weapons?.truth_weapons || {};
 
     const railguns = Object.entries(truthWeapons).filter(([id]) => id.startsWith("railgun"));
 
