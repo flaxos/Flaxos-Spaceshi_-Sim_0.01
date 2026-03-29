@@ -65,6 +65,7 @@ ships:
     position: {x: 80000, y: -30000, z: 5000}  # ~86km away
     velocity: {x: -100, y: 50, z: 0}  # Moving
     mass: 8000
+    max_hull_integrity: 600  # Winnable with 12 torpedoes (60 dmg each = 720 max)
     systems:
       propulsion:
         max_thrust: 40000
@@ -127,7 +128,7 @@ mission:
       params:
         target: "pirate01"
 
-  time_limit: 300  # 5 minutes
+  time_limit: 600  # 10 minutes — need time to close 86km + 12 torpedo reloads
 
   success_message: |
     Target destroyed! Well done.
