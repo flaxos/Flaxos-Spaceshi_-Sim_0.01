@@ -204,6 +204,15 @@ class RCSSystem(BaseSystem):
         # Scale torque output by damage factor (damaged RCS = reduced torque)
         self.total_torque *= damage_factor
 
+        # Crew skill: HELM station crew affects RCS responsiveness.
+        # A skilled pilot coordinates thruster firing for tighter attitude
+        # control; unmanned helm runs at AI-backup efficiency.
+        from hybrid.systems.crew_binding_system import CrewBindingSystem
+        from server.stations.station_types import StationType
+        self.total_torque *= CrewBindingSystem.get_multiplier(
+            ship.id, StationType.HELM
+        )
+
         # Apply torque to ship angular velocity
         # τ = I * α  =>  α = τ / I
         moment_of_inertia = getattr(ship, 'moment_of_inertia', ship.mass * 10.0)
