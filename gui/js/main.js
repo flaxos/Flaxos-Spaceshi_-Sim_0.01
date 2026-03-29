@@ -91,6 +91,8 @@ import "../components/helm-nav-display.js";
 import "../components/ops-control-panel.js";
 // ECM Electronic Warfare
 import "../components/ecm-control-panel.js";
+// ECCM Counter-Jamming
+import "../components/eccm-control-panel.js";
 // Torpedo System
 import "../components/torpedo-status.js";
 // Engineering Station Controls
@@ -107,6 +109,8 @@ import "../components/tutorial-overlay.js";
 import "../components/station-chat.js";
 // Mission comms choices (branching dialogue)
 import "../components/comms-choice-panel.js";
+// Multi-target tracking
+import "../components/multi-track-panel.js";
 
 // App state
 const app = {

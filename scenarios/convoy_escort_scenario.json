@@ -93,32 +93,45 @@
       "ships": ["raider_destroyer", "raider_corvette_1", "raider_corvette_2"]
     }
   ],
-  "objectives": [
-    {
-      "id": "protect_freighter",
-      "type": "survive",
-      "description": "Keep the freighter MV Prosperity intact",
-      "target": "convoy_freighter",
-      "required": true,
-      "fail_condition": true
-    },
-    {
-      "id": "neutralize_raiders",
-      "type": "mission_kill",
-      "description": "Neutralize or destroy all raider ships",
-      "targets": ["raider_destroyer", "raider_corvette_1", "raider_corvette_2"],
-      "required": true,
-      "win_condition": true
-    },
-    {
-      "id": "player_survival",
-      "type": "survive",
-      "description": "Survive the engagement",
-      "target": "player_ship",
-      "required": true,
-      "fail_condition": true
-    }
-  ],
+  "mission": {
+    "name": "Convoy Escort",
+    "description": "Escort a freighter convoy through hostile space and neutralize all raiders.",
+    "briefing": "MISSION: Escort freighter MV Prosperity through hostile space. Three raider contacts detected -- one destroyer and two corvettes. Protect the freighter at all costs.",
+    "success_message": "All raiders neutralized. Convoy is safe. Outstanding work, Commander.",
+    "failure_message": "Mission failed. The convoy has been compromised.",
+    "time_limit": 900,
+    "objectives": [
+      {
+        "id": "protect_freighter",
+        "type": "protect_ship",
+        "description": "Keep the freighter MV Prosperity intact",
+        "required": true,
+        "params": {
+          "target": "convoy_freighter",
+          "time": 900,
+          "start_time": 0
+        }
+      },
+      {
+        "id": "neutralize_raiders",
+        "type": "mission_kill",
+        "description": "Neutralize the raider destroyer",
+        "required": true,
+        "params": {
+          "target": "raider_destroyer"
+        }
+      },
+      {
+        "id": "player_survival",
+        "type": "avoid_mission_kill",
+        "description": "Survive the engagement",
+        "required": true,
+        "params": {
+          "target": "player_ship"
+        }
+      }
+    ]
+  },
   "events": [
     {
       "time": 0.0,

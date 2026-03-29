@@ -743,6 +743,10 @@
           <flaxos-panel title="Firing Solution" collapsible priority="primary" domain="weapons" class="tac-solution-panel">
             <firing-solution-display></firing-solution-display>
           </flaxos-panel>
+
+          <flaxos-panel title="Multi-Target Tracking" collapsible priority="secondary" domain="weapons" class="tac-multi-track-panel">
+            <multi-track-panel></multi-track-panel>
+          </flaxos-panel>
         </div>
 
         <!-- DESTROY: Weapons Employment — "Pull the trigger" -->
@@ -772,6 +776,10 @@
 
           <flaxos-panel title="ECM" collapsible priority="tertiary" domain="sensor" class="tac-ecm-panel">
             <ecm-control-panel></ecm-control-panel>
+          </flaxos-panel>
+
+          <flaxos-panel title="Counter-Jamming (ECCM)" collapsible priority="secondary" domain="sensors" class="tac-eccm-panel">
+            <eccm-control-panel></eccm-control-panel>
           </flaxos-panel>
         </div>
 
@@ -814,6 +822,13 @@
 
           <flaxos-panel title="Power Draw" collapsible domain="power" class="ops-draw-panel">
             <power-draw-display></power-draw-display>
+          </flaxos-panel>
+        </div>
+
+        <!-- CREW -->
+        <div class="panel-group" data-label="// CREW">
+          <flaxos-panel title="Crew Management" priority="secondary" domain="ops" class="ops-crew-binding-panel">
+            <crew-panel></crew-panel>
           </flaxos-panel>
         </div>
 

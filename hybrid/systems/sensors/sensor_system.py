@@ -78,8 +78,16 @@ class SensorSystem(BaseSystem):
         if damage_factor <= 0.0:
             return
 
-        self.passive.set_range_multiplier(damage_factor)
-        self.active.set_range_multiplier(damage_factor)
+        # Crew skill: SCIENCE station crew affects effective sensor range.
+        # A skilled science officer calibrates sensors for better resolution;
+        # unmanned stations run at reduced AI-backup capability.
+        from hybrid.systems.crew_binding_system import CrewBindingSystem
+        from server.stations.station_types import StationType
+        crew_factor = CrewBindingSystem.get_multiplier(ship.id, StationType.SCIENCE)
+        effective_factor = damage_factor * crew_factor
+
+        self.passive.set_range_multiplier(effective_factor)
+        self.active.set_range_multiplier(effective_factor)
 
         # Update ECCM state (heat generation, sensor health tracking)
         self.eccm.set_sensor_health(damage_factor)
