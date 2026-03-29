@@ -361,15 +361,15 @@ class ScenarioLoader extends HTMLElement {
         loadBtn.textContent = this._isCaptain ? "Load New Mission" : "Load Selected";
 
         const scenarioLabel = this._activeScenario || "Unknown Mission";
-        list.innerHTML = \`
+        list.innerHTML = `
           <div class="list-item selected">
-            <div class="item-name">\${scenarioLabel}</div>
+            <div class="item-name">${scenarioLabel}</div>
             <div class="item-desc">
-              \${this._ships.length} ship(s) in simulation.
-              \${this._isCaptain ? "As captain, you may load a new mission." : "Only the captain can change the mission."}
+              ${this._ships.length} ship(s) in simulation.
+              ${this._isCaptain ? "As captain, you may load a new mission." : "Only the captain can change the mission."}
             </div>
           </div>
-        \`;
+        `;
 
         if (!this._isCaptain) {
           loadBtn.disabled = true;
@@ -379,15 +379,15 @@ class ScenarioLoader extends HTMLElement {
 
         // Captain can still pick a new scenario below the active banner
         if (this._scenarios.length > 0) {
-          list.innerHTML += \`<div class="section-title" style="margin-top:12px">Replace With</div>\`;
+          list.innerHTML += `<div class="section-title" style="margin-top:12px">Replace With</div>`;
           list.innerHTML += this._scenarios.map(sc => {
             const isSelected = sc.id === this._selectedScenario;
-            return \`
-              <div class="list-item clickable \${isSelected ? 'selected' : ''}" data-id="\${sc.id}">
-                <div class="item-name">\${sc.name || sc.id}</div>
-                <div class="item-desc">\${sc.description || sc.mission_description || ''}</div>
+            return `
+              <div class="list-item clickable ${isSelected ? 'selected' : ''}" data-id="${sc.id}">
+                <div class="item-name">${sc.name || sc.id}</div>
+                <div class="item-desc">${sc.description || sc.mission_description || ''}</div>
               </div>
-            \`;
+            `;
           }).join("");
         }
 
@@ -414,12 +414,12 @@ class ScenarioLoader extends HTMLElement {
 
       list.innerHTML = this._scenarios.map(sc => {
         const isSelected = sc.id === this._selectedScenario;
-        return \`
-          <div class="list-item clickable \${isSelected ? 'selected' : ''}" data-id="\${sc.id}">
-            <div class="item-name">\${sc.name || sc.id}</div>
-            <div class="item-desc">\${sc.description || sc.mission_description || ''}</div>
+        return `
+          <div class="list-item clickable ${isSelected ? 'selected' : ''}" data-id="${sc.id}">
+            <div class="item-name">${sc.name || sc.id}</div>
+            <div class="item-desc">${sc.description || sc.mission_description || ''}</div>
           </div>
-        \`;
+        `;
       }).join("");
 
       loadBtn.disabled = !this._selectedScenario;
@@ -444,20 +444,20 @@ class ScenarioLoader extends HTMLElement {
           const isVacant = !st.claimed;
           const statusClass = isVacant ? "vacant" : "occupied";
           const display = isVacant ? "JOIN" : (st.player || "TAKEN");
-          return \`<button class="station-btn \${statusClass}" data-ship="\${ship.id}" data-station="\${st.station}" \${!isVacant ? 'disabled' : ''}>
-            \${st.station}<br/><b>\${display}</b>
-          </button>\`;
+          return `<button class="station-btn ${statusClass}" data-ship="${ship.id}" data-station="${st.station}" ${!isVacant ? 'disabled' : ''}>
+            ${st.station}<br/><b>${display}</b>
+          </button>`;
         }).join("");
 
-        return \`
+        return `
           <div class="list-item">
-            <div class="item-name">\${ship.name || ship.id}</div>
-            <div class="item-desc">\${ship.class || 'Unknown Class'}</div>
+            <div class="item-name">${ship.name || ship.id}</div>
+            <div class="item-desc">${ship.class || 'Unknown Class'}</div>
             <div class="station-grid">
-              \${stationsHtml}
+              ${stationsHtml}
             </div>
           </div>
-        \`;
+        `;
       }).join("");
 
       list.querySelectorAll(".station-btn.vacant").forEach(btn => {
@@ -469,7 +469,7 @@ class ScenarioLoader extends HTMLElement {
   }
 
   async _joinStation(shipId, stationName) {
-    this._setStatus(\`Joining \${stationName} on \${shipId}...\`, "info");
+    this._setStatus(`Joining ${stationName} on ${shipId}...`, "info");
     try {
       // 1. Assign to ship
       const assignResp = await wsClient.send("assign_ship", { ship: shipId });
@@ -479,7 +479,7 @@ class ScenarioLoader extends HTMLElement {
       const claimResp = await wsClient.send("claim_station", { station: stationName, ship: shipId });
       if (!claimResp.success) throw new Error(claimResp.message);
 
-      this._setStatus(\`Joined \${stationName}!\`, "success");
+      this._setStatus(`Joined ${stationName}!`, "success");
       
       // Dispatch an event so the rest of the GUI knows
       this.dispatchEvent(new CustomEvent("scenario-loaded", {
@@ -493,7 +493,7 @@ class ScenarioLoader extends HTMLElement {
       
       this._refreshAll();
     } catch (err) {
-      this._setStatus(\`Failed to join: \${err.message}\`, "error");
+      this._setStatus(`Failed to join: ${err.message}`, "error");
     }
   }
 
