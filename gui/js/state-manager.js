@@ -381,14 +381,18 @@ class StateManager extends EventTarget {
   }
 
   /**
-   * Get combat system info including truth weapons (convenience)
+   * Get combat system info including truth weapons (convenience).
+   * Combat data (truth_weapons, pdc_mode, torpedoes) lives inside the
+   * weapons telemetry -- there is no separate ship.combat key.
    */
   getCombat() {
     const ship = this.getShipState();
-    // ship.systems.combat is a status STRING, not the full combat object.
     const sysCombat = ship?.systems?.combat;
-    if (sysCombat && typeof sysCombat === "object") {
-      return sysCombat;
+    if (sysCombat && typeof sysCombat === "object") return sysCombat;
+    // Combat data is merged into weapons telemetry by the server
+    const weapons = this.getWeapons();
+    if (weapons && typeof weapons === "object" && weapons.truth_weapons) {
+      return weapons;
     }
     return ship?.combat || null;
   }
@@ -520,11 +524,15 @@ class StateManager extends EventTarget {
   }
 
   /**
-   * Get power info (convenience)
+   * Get power info (convenience).
+   * Power data is served under ship.ops by the station telemetry --
+   * there is no dedicated ship.power or ship.power_system key.
    */
   getPower() {
     const ship = this.getShipState();
-    return ship?.power || ship?.power_system || {};
+    const sysPower = ship?.systems?.power;
+    if (sysPower && typeof sysPower === "object") return sysPower;
+    return ship?.power || ship?.ops || {};
   }
 
   /**

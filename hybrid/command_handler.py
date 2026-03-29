@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 # This dict maps command names to (system, action) tuples for routing
 system_commands = {
     # Primary gameplay API (scalar throttle)
-    "set_thrust": ("propulsion", "set_throttle"),
+    "set_thrust": ("helm", "set_thrust"),
     # Debug-only API (arbitrary vector thrust in world-frame)
     "set_thrust_vector": ("propulsion", "set_thrust_vector"),
     # Attitude control - sets target orientation (RCS-driven rotation over time)

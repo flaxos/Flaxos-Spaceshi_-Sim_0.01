@@ -198,7 +198,7 @@ class CombatSystem(BaseSystem):
             return error_dict("COLD_DRIFT", "Weapons offline — ship is in cold-drift mode")
 
         # Get power manager
-        power = self._ship_ref.systems.get("power") or self._ship_ref.systems.get("power_management")
+        power = self._ship_ref.systems.get("power_management") or self._ship_ref.systems.get("power")
 
         # Get target from targeting system if not provided
         if target_ship is None:

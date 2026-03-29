@@ -317,7 +317,7 @@ class WeaponSystem:
                 return {"error": "Ship reference required"}
 
             # Get power manager from ship
-            power_manager = ship.systems.get("power") or ship.systems.get("power_management")
+            power_manager = ship.systems.get("power_management") or ship.systems.get("power")
             if not power_manager:
                 return {"error": "Power system not available"}
 
