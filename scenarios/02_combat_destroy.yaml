@@ -24,6 +24,11 @@ ships:
           range: 200000
         active:
           scan_range: 500000
+      combat:
+        railguns: 1
+        pdcs: 2
+        torpedoes: 2
+        torpedo_capacity: 12
       weapons:
         weapons:
           - name: "torpedo"

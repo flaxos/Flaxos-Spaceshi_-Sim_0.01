@@ -423,6 +423,31 @@ class CommsSystem(BaseSystem):
         return "silent"
 
     # ------------------------------------------------------------------
+    # Public helpers
+    # ------------------------------------------------------------------
+
+    def add_system_message(self, message: str, from_source: str = "COMMAND",
+                           time: float = None) -> None:
+        """Add a system-generated message to the comms log.
+
+        Used by the mission system and other server-side subsystems to
+        inject notifications into the player's comms feed without
+        requiring a radio broadcast or hail.
+
+        Args:
+            message: Human-readable notification text.
+            from_source: Sender label shown in the comms log entry.
+            time: Simulation timestamp; defaults to 0 if not provided.
+        """
+        self._add_to_log({
+            "type": "system",
+            "from": from_source,
+            "to": "ALL",
+            "message": message,
+            "time": time or 0,
+        })
+
+    # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
 

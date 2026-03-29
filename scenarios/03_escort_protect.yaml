@@ -24,6 +24,10 @@ ships:
           range: 250000
         active:
           scan_range: 500000
+      combat:
+        pdcs: 2
+        torpedoes: 2
+        torpedo_capacity: 24
       weapons:
         weapons:
           - name: "pdc"

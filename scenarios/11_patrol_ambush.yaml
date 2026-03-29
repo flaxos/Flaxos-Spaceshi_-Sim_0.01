@@ -87,6 +87,8 @@ ships:
         enabled: true
         railguns: 2                 # UNE-440 Mass Drivers
         pdcs: 4                     # Narwhal-III PDCs
+        torpedoes: 1
+        torpedo_capacity: 6         # matches legacy ammo count -- 6 torps, make them count
       weapons:
         enabled: true
         power_draw: 40

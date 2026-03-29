@@ -2,7 +2,10 @@
 """Mission definition and management."""
 
 from typing import Dict, List, Optional
-from hybrid.scenarios.objectives import ObjectiveTracker, Objective
+import logging
+from hybrid.scenarios.objectives import ObjectiveTracker, Objective, ObjectiveType, ObjectiveStatus
+
+logger = logging.getLogger(__name__)
 
 class Mission:
     """Represents a complete mission with objectives and metadata."""
@@ -57,19 +60,54 @@ class Mission:
             sim: Simulator object
             player_ship: Player's ship
         """
-        # Check time limit
         self.last_sim_time = sim.time
-        if self.time_limit and self.start_time:
+
+        # Update objectives first so they reflect latest state
+        self.tracker.update(sim, player_ship)
+
+        # Handle time limit AFTER objective updates.
+        # When time expires and the player is still alive, survival-type
+        # objectives (avoid_mission_kill) should complete -- surviving
+        # until the clock runs out IS the win condition.  If we marked
+        # failure before giving them a chance to complete, missions like
+        # fleet_battle (where avoid_mission_kill is the only required
+        # objective) could never succeed.
+        # Note: use `is not None` instead of truthiness -- start_time=0.0
+        # is a valid value but evaluates as falsy in a bare `if` check.
+        if self.time_limit and self.start_time is not None:
             elapsed = sim.time - self.start_time
             if elapsed > self.time_limit and self.tracker.mission_status == "in_progress":
-                self.tracker.mission_status = "failure"
-                self.tracker.completion_time = sim.time
-
-        # Update objectives
-        self.tracker.update(sim, player_ship)
+                self._complete_survival_objectives(sim)
+                # Re-evaluate now that survival objectives may have completed
+                self.tracker._evaluate_mission_status(sim)
+                # If still in progress after re-evaluation, time ran out
+                # without meeting all required objectives -- that's a failure
+                if self.tracker.mission_status == "in_progress":
+                    self.tracker.mission_status = "failure"
+                    self.tracker.completion_time = sim.time
 
         # Check for triggered hints
         self._check_hints(sim, player_ship)
+
+    def _complete_survival_objectives(self, sim):
+        """Auto-complete survival objectives when the mission timer expires.
+
+        Objectives like avoid_mission_kill mean "don't get killed before
+        the battle ends."  If the timer runs out and the player is still
+        alive (the objective hasn't FAILED), they satisfied the condition.
+        Without this, avoid_mission_kill stays IN_PROGRESS forever when
+        it's the only required objective, because its auto-complete logic
+        waits for other required objectives that don't exist.
+        """
+        for obj in self.tracker.objectives.values():
+            if (obj.type == ObjectiveType.AVOID_MISSION_KILL
+                    and obj.status == ObjectiveStatus.IN_PROGRESS):
+                obj.status = ObjectiveStatus.COMPLETED
+                obj.completion_time = sim.time
+                obj.progress = 1.0
+                logger.info(
+                    f"Objective {obj.id} completed: survived until mission timer expired"
+                )
 
     def _check_hints(self, sim, player_ship):
         """Check if any hints should be shown.
@@ -107,7 +145,7 @@ class Mission:
                 # Time-based trigger
                 try:
                     trigger_time = float(trigger.split(">")[1].strip())
-                    if self.start_time and (sim.time - self.start_time) > trigger_time:
+                    if self.start_time is not None and (sim.time - self.start_time) > trigger_time:
                         triggered = True
                 except (ValueError, IndexError, AttributeError):
                     pass
@@ -134,9 +172,6 @@ class Mission:
                         "trigger": trigger
                     })
 
-                # Also log to console for debugging
-                import logging
-                logger = logging.getLogger(__name__)
                 logger.info(f"Mission hint triggered: {message}")
 
     def get_status(self, sim_time: Optional[float] = None) -> Dict:
@@ -156,7 +191,7 @@ class Mission:
             "time_limit": self.time_limit
         })
 
-        if self.start_time:
+        if self.start_time is not None:
             # Add time remaining if there's a limit
             if self.time_limit:
                 current_time = sim_time if sim_time is not None else self.last_sim_time

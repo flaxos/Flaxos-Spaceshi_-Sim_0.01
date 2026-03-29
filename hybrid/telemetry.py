@@ -552,6 +552,7 @@ def get_weapons_status(ship) -> Dict[str, Any]:
         result["truth_weapons"] = truth_weapons
         result["total_ammo_mass"] = combat_state.get("total_ammo_mass", 0.0)
         result["ready_weapons"] = combat_state.get("ready_weapons", [])
+        result["torpedoes"] = combat_state.get("torpedoes", {})
 
         # Merge status: if combat system has a damage factor
         if combat_state.get("damage_factor", 1.0) <= 0.0:
