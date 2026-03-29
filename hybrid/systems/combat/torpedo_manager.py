@@ -776,29 +776,49 @@ class TorpedoManager:
         """Get state of all active torpedoes for telemetry.
 
         Returns:
-            List of torpedo state dicts
+            List of torpedo state dicts with distance and ETA to target
         """
-        return [
-            {
+        result = []
+        for t in self._torpedoes:
+            if not t.alive:
+                continue
+
+            # Distance to last known target position
+            dist = calculate_distance(t.position, t.last_target_pos)
+
+            # Estimated time to impact: uses closing speed from relative
+            # velocity projected onto the line-of-sight vector.
+            # Negative closing speed means torpedo is diverging.
+            eta = None
+            rel_pos = subtract_vectors(t.last_target_pos, t.position)
+            rel_vel = subtract_vectors(t.velocity, t.last_target_vel)
+            dist_mag = magnitude(rel_pos)
+            if dist_mag > 1.0:
+                los = normalize_vector(rel_pos)
+                closing_speed = dot_product(rel_vel, los)
+                if closing_speed > 1.0:
+                    eta = round(dist_mag / closing_speed, 1)
+
+            result.append({
                 "id": t.id,
                 "shooter": t.shooter_id,
                 "target": t.target_id,
                 "position": t.position,
                 "velocity": t.velocity,
                 "state": t.state.value,
-                "fuel_percent": (t.fuel / TORPEDO_FUEL_MASS * 100) if TORPEDO_FUEL_MASS > 0 else 0,
+                "fuel_percent": round((t.fuel / TORPEDO_FUEL_MASS * 100) if TORPEDO_FUEL_MASS > 0 else 0, 1),
                 "armed": t.armed,
                 "hull_health": t.hull_health,
                 "profile": t.profile,
                 "alive": t.alive,
                 "age": 0.0,  # Filled by caller if needed
+                "distance": round(dist, 1),
+                "eta": eta,
                 "is_thrusting": t.fuel > 0 and t.state in (TorpedoState.BOOST, TorpedoState.TERMINAL),
                 "ir_signature": TORPEDO_THRUST_IR if (t.fuel > 0 and t.state != TorpedoState.MIDCOURSE) else TORPEDO_COAST_IR,
                 "rcs_m2": TORPEDO_RCS_M2,
-            }
-            for t in self._torpedoes
-            if t.alive
-        ]
+            })
+        return result
 
     def get_all_torpedoes(self) -> List[Torpedo]:
         """Get all active torpedo objects (for PDC targeting).

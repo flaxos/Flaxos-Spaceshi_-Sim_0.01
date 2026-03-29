@@ -527,6 +527,10 @@ class TacticalMap extends HTMLElement {
     // Draw projectile tracks
     this._drawProjectiles(ctx, playerPos, centerX, centerY, pixelsPerMeter);
 
+    // Draw torpedo tracks (separate from projectiles — torpedoes are guided,
+    // larger, and need distinct rendering with state/target indicators)
+    this._drawTorpedoes(ctx, playerPos, centerX, centerY, pixelsPerMeter);
+
     // Draw player ship (always at center)
     this._drawPlayerShip(ctx, centerX, centerY, playerHeading, playerVel, pixelsPerMeter);
 
@@ -828,6 +832,95 @@ class TacticalMap extends HTMLElement {
       ctx.beginPath();
       ctx.arc(sx, sy, 2, 0, Math.PI * 2);
       ctx.fill();
+    }
+  }
+
+  /**
+   * Draw active torpedoes on the map.
+   * Torpedoes are rendered larger than projectiles with a diamond shape,
+   * color-coded by state: green (boost), blue (midcourse), red (terminal).
+   * A dashed line connects each torpedo to its target contact.
+   */
+  _drawTorpedoes(ctx, playerPos, centerX, centerY, pixelsPerMeter) {
+    const torpedoes = stateManager.getTorpedoes();
+    if (!torpedoes || torpedoes.length === 0) return;
+
+    const shipId = stateManager.getShipState()?.id || "";
+
+    for (const torp of torpedoes) {
+      const pos = torp.position;
+      if (!pos) continue;
+
+      const relX = (pos.x - playerPos.x) * pixelsPerMeter;
+      const relZ = (pos.z - playerPos.z) * pixelsPerMeter;
+      const sx = centerX + relX;
+      const sy = centerY - relZ;
+
+      // Skip if off-screen
+      if (sx < -20 || sx > this._canvasWidth + 20 ||
+          sy < -20 || sy > this._canvasHeight + 20) {
+        continue;
+      }
+
+      // Color by state: boost=green, midcourse=blue, terminal=pulsing red
+      const state = (torp.state || "boost").toLowerCase();
+      let color;
+      if (state === "terminal") {
+        // Pulse effect for terminal phase — urgency
+        const pulse = 0.5 + 0.5 * Math.sin(Date.now() / 150);
+        color = `rgba(255, 68, 68, ${0.5 + pulse * 0.5})`;
+      } else if (state === "midcourse") {
+        color = "#00aaff";
+      } else {
+        color = "#00ff88";
+      }
+
+      const isIncoming = torp.target === shipId;
+
+      // Velocity trail (longer than projectiles — torpedoes are bigger threats)
+      if (torp.velocity) {
+        const vel = torp.velocity;
+        const velMag = Math.sqrt(vel.x ** 2 + (vel.y || 0) ** 2 + vel.z ** 2);
+        if (velMag > 1) {
+          const velAngle = Math.atan2(vel.x, vel.z);
+          const trailLen = Math.min(velMag * pixelsPerMeter * 0.8, 30);
+          ctx.strokeStyle = color;
+          ctx.globalAlpha = 0.4;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(sx, sy);
+          ctx.lineTo(
+            sx - Math.sin(velAngle) * trailLen,
+            sy + Math.cos(velAngle) * trailLen
+          );
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+        }
+      }
+
+      // Draw torpedo as a diamond (distinct from round projectile dots)
+      const size = isIncoming ? 5 : 4;
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(sx, sy - size);
+      ctx.lineTo(sx + size, sy);
+      ctx.lineTo(sx, sy + size);
+      ctx.lineTo(sx - size, sy);
+      ctx.closePath();
+      ctx.fill();
+
+      // Outline for incoming threats
+      if (isIncoming) {
+        ctx.strokeStyle = "#ff4444";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+
+      // Label: torpedo ID + state
+      ctx.fillStyle = color;
+      ctx.font = "9px monospace";
+      ctx.textAlign = "left";
+      ctx.fillText(`${torp.id} [${state.toUpperCase()}]`, sx + size + 3, sy + 3);
     }
   }
 

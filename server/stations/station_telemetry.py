@@ -163,9 +163,10 @@ class StationTelemetryFilter:
         if self._can_see_events(session.station):
             filtered["events"] = full_telemetry.get("events", [])
 
-        # Add projectiles for tactical station
+        # Add projectiles and torpedoes for tactical station
         if session.station == StationType.TACTICAL or session.station == StationType.CAPTAIN:
             filtered["projectiles"] = full_telemetry.get("projectiles", [])
+            filtered["torpedoes"] = full_telemetry.get("torpedoes", [])
 
         return filtered
 
