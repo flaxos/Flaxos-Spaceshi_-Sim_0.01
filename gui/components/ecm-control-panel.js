@@ -274,9 +274,8 @@ class ECMControlPanel extends HTMLElement {
   }
 
   _updateDisplay() {
-    const state = stateManager.getState();
-    const ship = state?.ship;
-    const ecm = ship?.systems?.ecm;
+    const ship = stateManager.getShipState();
+    const ecm = ship?.ecm;
     const container = this.shadowRoot.getElementById("ecm-content");
 
     if (!ecm || !container) {

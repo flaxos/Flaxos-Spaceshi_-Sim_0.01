@@ -470,16 +470,31 @@ class CombatSystem(BaseSystem):
             dict: Result
         """
         if action == "fire":
-            weapon_id = params.get("weapon_id") or params.get("weapon")
+            # GUI sends mount_id, accept all common param names
+            weapon_id = (params.get("weapon_id")
+                         or params.get("weapon")
+                         or params.get("mount_id"))
             if not weapon_id:
                 return error_dict("MISSING_PARAMETER", "weapon_id required")
 
-            # Get target ship from params
+            # Resolve target — contact IDs (e.g. "C001") must be mapped
+            # back to real ship IDs so we can look up the target in all_ships.
             target_ship = None
             target_id = params.get("target") or params.get("target_id")
             if target_id:
                 all_ships = params.get("all_ships", {})
                 target_ship = all_ships.get(target_id)
+
+                if not target_ship and self._ship_ref:
+                    # target_id may be a stable contact ID from sensors.
+                    # Reverse-lookup the real ship ID via contact tracker.
+                    sensors = self._ship_ref.systems.get("sensors")
+                    if sensors and hasattr(sensors, "contact_tracker"):
+                        tracker = sensors.contact_tracker
+                        for real_id, stable_id in tracker.id_mapping.items():
+                            if stable_id == target_id:
+                                target_ship = all_ships.get(real_id)
+                                break
 
             target_subsystem = params.get("target_subsystem")
             return self.fire_weapon(weapon_id, target_ship, target_subsystem)
@@ -490,6 +505,15 @@ class CombatSystem(BaseSystem):
             if target_id:
                 all_ships = params.get("all_ships", {})
                 target_ship = all_ships.get(target_id)
+
+                if not target_ship and self._ship_ref:
+                    sensors = self._ship_ref.systems.get("sensors")
+                    if sensors and hasattr(sensors, "contact_tracker"):
+                        tracker = sensors.contact_tracker
+                        for real_id, stable_id in tracker.id_mapping.items():
+                            if stable_id == target_id:
+                                target_ship = all_ships.get(real_id)
+                                break
 
             return self.fire_all_ready(target_ship)
 

@@ -181,6 +181,9 @@ def get_ship_telemetry(ship, sim_time: float = None) -> Dict[str, Any]:
     # Get ECM system state (jamming, chaff, flares, EMCON)
     ecm_state = _get_ecm_state(ship)
 
+    # Get ECCM system state (frequency hop, burn-through, multi-spectral, HoJ)
+    eccm_state = _get_eccm_state(ship)
+
     # Get engineering system state (reactor output, drive limit, radiators, fuel, vent)
     engineering_state = _get_engineering_state(ship)
 
@@ -256,9 +259,16 @@ def get_ship_telemetry(ship, sim_time: float = None) -> Dict[str, Any]:
         "thermal": thermal_state,
         "ops": ops_state,
         "ecm": ecm_state,
+        "eccm": eccm_state,
         "engineering": engineering_state,
         "comms": comms_state,
         "docking": docking_state,
+        "hull_integrity": getattr(ship, "hull_integrity", 0.0),
+        "max_hull_integrity": getattr(ship, "max_hull_integrity", 0.0),
+        "hull_percent": (
+            round(ship.hull_integrity / ship.max_hull_integrity * 100.0, 1)
+            if getattr(ship, "max_hull_integrity", 0) > 0 else 0.0
+        ),
         "subsystem_health": ship.damage_model.get_report() if hasattr(ship, "damage_model") else {},
         "cascade_effects": ship.cascade_manager.get_report() if hasattr(ship, "cascade_manager") else {},
         "systems": {
@@ -419,6 +429,35 @@ def _get_ecm_state(ship) -> Dict[str, Any]:
             pass
     return {
         "enabled": False,
+        "status": "unavailable",
+    }
+
+
+def _get_eccm_state(ship) -> Dict[str, Any]:
+    """Get ECCM system state for telemetry.
+
+    ECCM is a capability of the sensor system, not a standalone system.
+    It lives at ship.systems["sensors"].eccm and provides counter-
+    countermeasure state (frequency hop, burn-through, multi-spectral, HoJ).
+
+    Args:
+        ship: Ship object
+
+    Returns:
+        dict: ECCM state (mode, toggles, sensor health, power draw)
+    """
+    sensors = ship.systems.get("sensors")
+    if sensors and hasattr(sensors, "eccm") and hasattr(sensors.eccm, "get_state"):
+        try:
+            return sensors.eccm.get_state()
+        except Exception:
+            pass
+    return {
+        "mode": "off",
+        "multispectral_active": False,
+        "hoj_active": False,
+        "sensor_health": 1.0,
+        "power_multiplier": 1.0,
         "status": "unavailable",
     }
 

@@ -443,16 +443,13 @@ class CommsControlPanel extends HTMLElement {
   }
 
   _updateDisplay() {
-    const state = stateManager.getState();
+    const ship = stateManager.getShipState();
     const container = this.shadowRoot.getElementById("comms-content");
 
     if (!container) return;
 
-    // Resolve comms data from multiple possible locations
-    const comms = state?.comms
-      || state?.ship?.comms
-      || state?.ship?.systems?.comms
-      || stateManager.getShipState()?.comms;
+    // Comms telemetry is a top-level field on the ship state
+    const comms = ship?.comms;
 
     if (!comms) {
       container.innerHTML = '<div class="no-comms">Comms system not available</div>';

@@ -118,6 +118,12 @@ class Ship:
         from hybrid.systems.cascade_manager import CascadeManager
         self.cascade_manager = CascadeManager()
 
+        # Wire cascade manager into damage model so get_combined_factor()
+        # auto-includes cascade penalties.  Without this link, every system
+        # that calls damage_model.get_combined_factor("X") gets cascade_factor=1.0
+        # and cascade damage has zero gameplay effect.
+        self.damage_model.set_cascade_manager(self.cascade_manager)
+
         # Initialize systems
         self.systems = {}
         self._systems_config = config.get("systems", {})  # Raw config for hit-location placement data
