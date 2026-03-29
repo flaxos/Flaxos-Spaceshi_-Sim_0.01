@@ -32,11 +32,11 @@ ships:
           - name: "torpedo"
             power_cost: 10
             max_heat: 100
-            ammo_count: 12
+            ammo: 12
           - name: "pdc"
             power_cost: 5
             max_heat: 50
-            ammo_count: 1000
+            ammo: 1000
         hardpoints:
           - id: "hp_fwd_1"
             weapon: "torpedo"
@@ -51,6 +51,11 @@ ships:
             weapon: "pdc"
             mount_type: "turret"
             position_offset: {x: 5, y: -10, z: 0}
+      combat:
+        railguns: 0
+        pdcs: 2
+        torpedoes: 1
+        torpedo_capacity: 12
 
   - id: "pirate01"
     name: "Black Pearl"
@@ -78,13 +83,17 @@ ships:
           - name: "railgun"
             power_cost: 15
             max_heat: 80
-            ammo_count: 50
+            ammo: 50
         hardpoints:
           - id: "hp_fwd_1"
             weapon: "railgun"
             mount_type: "fixed"
             position_offset: {x: 20, y: 0, z: 0}
             orientation: {azimuth: 0, elevation: 0}
+      combat:
+        railguns: 1
+        pdcs: 0
+        torpedoes: 0
 
 mission:
   name: "Pirate Threat"

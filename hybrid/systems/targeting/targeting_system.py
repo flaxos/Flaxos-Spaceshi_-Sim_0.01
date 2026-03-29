@@ -6,6 +6,7 @@ Implements: contact -> lock -> firing solution workflow.
 """
 
 import logging
+import math
 from enum import Enum
 from typing import Dict, Optional, List
 from hybrid.core.base_system import BaseSystem
@@ -166,6 +167,7 @@ class TargetingSystem(BaseSystem):
             "position": getattr(contact, 'position', {}),
             "velocity": getattr(contact, 'velocity', {"x": 0, "y": 0, "z": 0}),
             "confidence": getattr(contact, 'confidence', 0.5),
+            "signature": getattr(contact, 'signature', 0.0),
             "last_update": self._sim_time,
         }
 
@@ -215,9 +217,29 @@ class TargetingSystem(BaseSystem):
         # ECM penalty: target's ECM degrades our tracking pipeline
         ecm_factor = self._get_target_ecm_factor(ship, range_to_target)
 
+        # Drive plume bonus: a ship with an active drive is radiating
+        # megawatts of IR from superheated exhaust. This is the brightest
+        # thing in space — it makes the target trivially easy to track
+        # regardless of range. The IR signature from the contact data
+        # (in watts) drives a bonus that partially overrides the confidence
+        # penalty from sensor hardware range caps. Without this, a 10 MW
+        # plume at 200km could be "detected" but not locked because the
+        # sensor cap crushed confidence — physically nonsensical.
+        ir_signature = self.target_data.get("signature", 0.0)
+        plume_bonus = 0.0
+        if ir_signature > 1.0e6:
+            # Logarithmic bonus: 1 MW = +0.0, 10 MW = +0.3, 100 MW = +0.6
+            # Capped at +0.6 so it boosts but doesn't guarantee a lock
+            plume_bonus = min(0.6, 0.3 * math.log10(ir_signature / 1.0e6))
+
         # Sensor damage penalty
         ideal_track_quality = range_factor * accel_factor * self._sensor_factor * ecm_factor
         ideal_track_quality *= self.target_data["confidence"]
+
+        # Apply plume bonus additively — it represents raw signal strength
+        # compensating for degraded track resolution. Clamp to [0, 1].
+        if plume_bonus > 0:
+            ideal_track_quality = min(1.0, ideal_track_quality + plume_bonus)
 
         # Multi-track bandwidth penalty: splitting attention across multiple
         # targets degrades quality on all tracks. Primary target gets
