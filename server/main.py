@@ -322,9 +322,11 @@ class UnifiedServer:
                 session
                 and session.station == StationType.CAPTAIN
             )
+            is_only_client = len(self.station_manager.sessions) <= 1
 
-            # Guard: if a mission is already running, only the captain may reload
-            if has_active_ships and not is_captain:
+            # Guard: if a mission is already running, only the captain
+            # (or the sole connected client) may reload
+            if has_active_ships and not is_captain and not is_only_client:
                 return Response.error(
                     "Mission already in progress — only the captain can reload",
                     ErrorCode.PERMISSION_DENIED,
