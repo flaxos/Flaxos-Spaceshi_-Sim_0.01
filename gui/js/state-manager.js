@@ -341,7 +341,12 @@ class StateManager extends EventTarget {
    */
   getSensors() {
     const ship = this.getShipState();
-    return ship?.systems?.sensors || ship?.sensors || {};
+    // ship.systems.sensors is a status STRING, not the full sensor object.
+    const sysSensors = ship?.systems?.sensors;
+    if (sysSensors && typeof sysSensors === "object") {
+      return sysSensors;
+    }
+    return ship?.sensors || {};
   }
 
   /**
@@ -365,7 +370,14 @@ class StateManager extends EventTarget {
    */
   getWeapons() {
     const ship = this.getShipState();
-    return ship?.systems?.weapons || ship?.weapons || {};
+    // ship.systems.weapons is a status STRING ("online"/"offline"), not the
+    // full weapons object.  Always prefer ship.weapons which contains the
+    // complete weapons telemetry (truth_weapons, torpedoes, pdc_mode, etc.).
+    const sysWeapons = ship?.systems?.weapons;
+    if (sysWeapons && typeof sysWeapons === "object") {
+      return sysWeapons;
+    }
+    return ship?.weapons || {};
   }
 
   /**
@@ -373,7 +385,12 @@ class StateManager extends EventTarget {
    */
   getCombat() {
     const ship = this.getShipState();
-    return ship?.systems?.combat || ship?.combat || null;
+    // ship.systems.combat is a status STRING, not the full combat object.
+    const sysCombat = ship?.systems?.combat;
+    if (sysCombat && typeof sysCombat === "object") {
+      return sysCombat;
+    }
+    return ship?.combat || null;
   }
 
   /**
