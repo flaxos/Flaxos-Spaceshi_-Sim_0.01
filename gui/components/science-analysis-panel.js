@@ -243,33 +243,36 @@ class ScienceAnalysisPanel extends HTMLElement {
   }
 
   _updateDisplay() {
-    const state = stateManager.getState();
-    if (!state) return;
+    const ship = stateManager.getShipState();
+    if (!ship) return;
 
-    // Update contact list
-    this._updateContactList(state);
+    // Update contact list from stateManager convenience method
+    this._updateContactList();
 
-    // Update science status
-    const science = state.systems && state.systems.science;
-    if (science) {
-      const healthEl = this.shadowRoot.getElementById("sensor-health");
-      const contactsEl = this.shadowRoot.getElementById("tracked-contacts");
-      if (healthEl && science.sensor_health !== undefined) {
-        healthEl.textContent = `${(science.sensor_health * 100).toFixed(0)}%`;
-      }
-      if (contactsEl && science.tracked_contacts !== undefined) {
-        contactsEl.textContent = science.tracked_contacts;
-      }
+    // Update science status from ship telemetry
+    // Sensor data lives at ship.sensors (from get_sensor_contacts in telemetry.py)
+    const sensors = ship.sensors || {};
+    const healthEl = this.shadowRoot.getElementById("sensor-health");
+    const contactsEl = this.shadowRoot.getElementById("tracked-contacts");
+    if (healthEl) {
+      // sensor_health may be on the sensors object or under subsystem_health
+      const health = sensors.sensor_health ?? ship.subsystem_health?.sensors;
+      healthEl.textContent = health !== undefined
+        ? `${(health * 100).toFixed(0)}%`
+        : "--";
+    }
+    if (contactsEl) {
+      contactsEl.textContent = sensors.count ?? sensors.contacts?.length ?? "--";
     }
   }
 
-  _updateContactList(state) {
+  _updateContactList() {
     const select = this.shadowRoot.getElementById("contact-select");
     if (!select) return;
 
-    const contacts = state.systems && state.systems.sensors &&
-                     state.systems.sensors.contacts;
-    if (!contacts || !Array.isArray(contacts)) return;
+    // Use stateManager.getContacts() which resolves from ship.sensors.contacts
+    const contacts = stateManager.getContacts?.() || [];
+    if (!Array.isArray(contacts) || contacts.length === 0) return;
 
     const currentValue = select.value;
     const options = ['<option value="">-- Select Contact --</option>'];

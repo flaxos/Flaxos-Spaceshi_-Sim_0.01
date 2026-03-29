@@ -180,6 +180,11 @@ class DamageModel:
         subsystem_configs = config.get("subsystems", config)
         self.subsystems: Dict[str, SubsystemHealth] = {}
 
+        # Optional reference to CascadeManager — set via set_cascade_manager()
+        # after both objects are created.  When present, get_combined_factor()
+        # auto-queries cascade penalties so callers don't need to pass them.
+        self._cascade_manager = None
+
         # Damage history for combat analysis
         self.damage_history: List[dict] = []
         self._total_damage_taken = 0.0
@@ -198,6 +203,18 @@ class DamageModel:
         for subsystem_name, overrides in subsystem_configs.items():
             if subsystem_name not in self.subsystems:
                 self._register_subsystem(subsystem_name, {}, overrides)
+
+    def set_cascade_manager(self, cascade_manager) -> None:
+        """Wire the cascade manager so get_combined_factor auto-includes cascade penalties.
+
+        Called from Ship.__init__ after both DamageModel and CascadeManager
+        are created.  Without this, cascade_factor defaults to 1.0 and
+        cascade damage has no gameplay effect.
+
+        Args:
+            cascade_manager: CascadeManager instance (or None to disconnect)
+        """
+        self._cascade_manager = cascade_manager
 
     def _register_subsystem(self, name: str, defaults: dict, overrides: dict):
         """Register a subsystem with health and heat tracking.
@@ -579,15 +596,19 @@ class DamageModel:
                     "heat_percent": data.heat_percent(),
                 })
 
-    def get_combined_factor(self, subsystem: str, cascade_factor: float = 1.0) -> float:
+    def get_combined_factor(self, subsystem: str, cascade_factor: Optional[float] = None) -> float:
         """Get combined performance factor from damage, heat, and cascades.
 
         v0.6.0: Combines degradation_factor and heat_factor.
         v0.7.0: Accepts cascade_factor from CascadeManager.
+        v0.7.1: Auto-queries cascade_manager when no explicit factor given,
+                 so all callers get cascade effects without code changes.
 
         Args:
             subsystem: Subsystem name
-            cascade_factor: External cascade penalty (0.0-1.0) from CascadeManager
+            cascade_factor: External cascade penalty (0.0-1.0). When None
+                (the default), auto-queries the attached CascadeManager.
+                Pass an explicit value to override (e.g. from Ship.get_effective_factor).
 
         Returns:
             float: Combined factor (0.0-1.0)
@@ -595,6 +616,16 @@ class DamageModel:
         data = self.subsystems.get(subsystem)
         if not data:
             return 1.0
+
+        # Auto-query cascade manager when caller doesn't pass an explicit factor.
+        # This is the core fix: previously cascade_factor defaulted to 1.0,
+        # meaning cascade damage had zero gameplay effect even though the
+        # CascadeManager computed correct penalties every tick.
+        if cascade_factor is None:
+            if self._cascade_manager is not None:
+                cascade_factor = self._cascade_manager.get_cascade_factor(subsystem)
+            else:
+                cascade_factor = 1.0
 
         damage_factor = self.get_degradation_factor(subsystem)
         heat_factor = data.get_heat_factor()

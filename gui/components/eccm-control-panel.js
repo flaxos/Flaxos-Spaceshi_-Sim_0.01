@@ -305,10 +305,9 @@ class ECCMControlPanel extends HTMLElement {
   }
 
   _updateDisplay() {
-    const state = stateManager.getState();
-    const ship = state?.ship;
-    // ECCM telemetry lives under sensors, NOT under ship.systems.ecm
-    const eccm = ship?.systems?.sensors?.eccm;
+    const ship = stateManager.getShipState();
+    // ECCM state is a top-level telemetry field (added alongside ecm, comms, etc.)
+    const eccm = ship?.eccm;
     const container = this.shadowRoot.getElementById("eccm-content");
 
     if (!eccm || !container) {

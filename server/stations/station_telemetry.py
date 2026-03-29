@@ -22,17 +22,24 @@ class StationTelemetryFilter:
     def __init__(self, station_manager: StationManager):
         self.station_manager = station_manager
 
-        # Define which telemetry fields belong to which displays
+        # Define which telemetry fields belong to which displays.
+        # Keys = display names from STATION_DEFINITIONS.displays.
+        # Values = telemetry field names from get_ship_telemetry().
         self.display_field_mapping = {
             # Navigation/Helm displays
-            "nav_status": ["position", "velocity", "velocity_magnitude", "orientation", "angular_velocity"],
+            "nav_status": ["position", "velocity", "velocity_magnitude",
+                           "orientation", "angular_velocity", "ponr",
+                           "trajectory", "flight_computer"],
             "position": ["position", "id", "name"],
-            "velocity": ["velocity", "velocity_magnitude", "acceleration", "acceleration_magnitude"],
+            "velocity": ["velocity", "velocity_magnitude", "acceleration",
+                         "acceleration_magnitude"],
             "orientation": ["orientation", "angular_velocity"],
             "relative_motion": ["velocity", "position"],
             "fuel_status": ["fuel", "delta_v_remaining"],
-            "autopilot_status": ["nav_mode", "autopilot_program", "autopilot_state", "course"],
-            "helm_status": ["orientation", "angular_velocity", "velocity", "helm_queue"],
+            "autopilot_status": ["nav_mode", "autopilot_program",
+                                 "autopilot_state", "course"],
+            "helm_status": ["orientation", "angular_velocity", "velocity",
+                            "helm_queue"],
             "propulsion_status": ["fuel", "systems"],
 
             # Tactical displays
@@ -42,21 +49,36 @@ class StationTelemetryFilter:
             "targeting_status": ["target_id", "target_subsystem", "targeting"],
             "firing_solution": ["targeting", "weapons"],
             "threat_board": ["sensors", "targeting"],
+            "ecm_status": ["ecm"],
+            "eccm_status": ["ecm", "eccm"],
+            "damage_assessment": ["sensors", "targeting"],
+            "engagement_envelope": ["weapons", "targeting"],
 
             # Operations displays
             "contacts": ["sensors"],
             "sensor_status": ["sensors", "systems"],
             "contact_details": ["sensors"],
+            "ops_status": ["ops"],
+            "power_management_status": ["ops", "systems"],
 
             # Engineering displays
             "power_grid": ["systems"],
             "reactor_status": ["systems"],
             "system_status": ["systems"],
-            "damage_report": ["systems", "damage_model"],  # v0.6.0: Added damage_model
-            # v0.6.0: New heat and subsystem displays
-            "heat_status": ["damage_model", "thermal"],
-            "subsystem_health": ["damage_model"],
+            "engineering_status": ["engineering"],
+            "damage_report": ["systems", "subsystem_health"],
+            "heat_status": ["subsystem_health", "thermal"],
+            "subsystem_health": ["subsystem_health", "cascade_effects"],
             "thermal_status": ["thermal"],
+            "hull_integrity": ["hull_integrity", "max_hull_integrity",
+                               "hull_percent", "armor_status"],
+
+            # Comms displays
+            "comms_status": ["comms"],
+            "comm_log": ["comms"],
+
+            # Emissions / signature displays
+            "emissions_status": ["emissions"],
 
             # Docking displays
             "docking_guidance": ["docking"],
