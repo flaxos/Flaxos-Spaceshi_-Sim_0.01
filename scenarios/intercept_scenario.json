@@ -247,53 +247,53 @@
       }
     }
   ],
-  "objectives": [
-    {
-      "id": "primary_mission_kill",
-      "type": "mission_kill",
-      "description": "Achieve mission kill on enemy corvette (disable propulsion or weapons)",
-      "target": "enemy_corvette",
-      "required": true,
-      "win_condition": true
-    },
-    {
-      "id": "secondary_destroy",
-      "type": "destroy",
-      "description": "Destroy enemy corvette (optional)",
-      "target": "enemy_corvette",
-      "required": false,
-      "bonus_points": 500
-    },
-    {
-      "id": "survival",
-      "type": "survive",
-      "description": "Survive the engagement",
-      "target": "player_ship",
-      "required": true,
-      "fail_condition": true
-    },
-    {
-      "id": "no_mission_kill",
-      "type": "avoid_mission_kill",
-      "description": "Avoid being mission killed",
-      "target": "player_ship",
-      "required": true,
-      "fail_condition": true
-    }
-  ],
-  "win_conditions": {
-    "any_of": [
-      {"objective": "primary_mission_kill"},
-      {"objective": "secondary_destroy"}
-    ],
-    "description": "Disable or destroy the enemy corvette"
-  },
-  "fail_conditions": {
-    "any_of": [
-      {"ship_destroyed": "player_ship"},
-      {"ship_mission_killed": "player_ship"}
-    ],
-    "description": "Player ship destroyed or mission killed"
+  "mission": {
+    "name": "Intercept",
+    "description": "Intercept and disable an enemy corvette.",
+    "briefing": "MISSION: Intercept hostile corvette 'Pirate Raider'. Disable or destroy target. Use railguns at range for subsystem damage, PDCs for close defense.",
+    "success_message": "Target neutralized. Well done, Commander.",
+    "failure_message": "Mission failed. Your ship has been neutralized.",
+    "time_limit": 600,
+    "objectives": [
+      {
+        "id": "primary_mission_kill",
+        "type": "mission_kill",
+        "description": "Achieve mission kill on enemy corvette (disable propulsion or weapons)",
+        "required": true,
+        "params": {
+          "target": "enemy_corvette"
+        }
+      },
+      {
+        "id": "secondary_destroy",
+        "type": "destroy_target",
+        "description": "Destroy enemy corvette (optional)",
+        "required": false,
+        "params": {
+          "target": "enemy_corvette"
+        }
+      },
+      {
+        "id": "survival",
+        "type": "survive_time",
+        "description": "Survive the engagement",
+        "required": true,
+        "params": {
+          "target": "player_ship",
+          "time": 600,
+          "start_time": 0
+        }
+      },
+      {
+        "id": "no_mission_kill",
+        "type": "avoid_mission_kill",
+        "description": "Avoid being mission killed",
+        "required": true,
+        "params": {
+          "target": "player_ship"
+        }
+      }
+    ]
   },
   "events": [
     {
