@@ -133,8 +133,17 @@ class PassiveSensor:
             if distance > effective_range:
                 continue
 
-            # Calculate detection quality (resolution degrades with distance)
-            quality = calculate_detection_quality(distance, effective_range)
+            # Calculate detection quality (resolution degrades with distance).
+            # Use the emission-based IR range, not the hardware-capped range,
+            # as the quality denominator. The hardware cap gates whether we
+            # detect the target at all (yes/no), but quality should reflect
+            # actual signal-to-noise: a 10 MW drive plume at 200km is an
+            # absurdly bright source even if our sensor electronics max out
+            # at 200km processing range. Capping quality to hardware range
+            # would make a burning ship at 200km look like a barely-visible
+            # contact when it's actually blindingly obvious.
+            quality_range = max(ir_range, effective_range)
+            quality = calculate_detection_quality(distance, quality_range)
 
             # ECM: Flares degrade tracking quality — the decoy confuses
             # bearing/range resolution. More effective when flare IR is
