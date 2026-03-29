@@ -511,6 +511,15 @@ class StateManager extends EventTarget {
   }
 
   /**
+   * Get active torpedoes (convenience).
+   * Torpedo data is available at the top level of the state response
+   * for TACTICAL and CAPTAIN stations.
+   */
+  getTorpedoes() {
+    return this._state?.torpedoes || [];
+  }
+
+  /**
    * Get power info (convenience)
    */
   getPower() {

@@ -536,8 +536,8 @@ class MultiTrackPanel extends HTMLElement {
   }
 
   _renderWeaponAssignments(tracks, pdcAssignments, splitAssignments) {
-    const combat = stateManager.getCombat();
-    const truthWeapons = combat?.truth_weapons || {};
+    const weapons = stateManager.getWeapons();
+    const truthWeapons = weapons?.truth_weapons || {};
     const trackIds = tracks.map((t) => t.contact_id);
 
     // PDC mounts

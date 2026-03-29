@@ -272,14 +272,38 @@ class TorpedoStatus extends HTMLElement {
     const fuelPct = (t.fuel_percent ?? 0).toFixed(0);
     const hull = (t.hull_health ?? 100).toFixed(0);
 
+    // Format distance to target
+    const dist = t.distance;
+    let distStr = "--";
+    if (dist != null) {
+      if (dist >= 1000) {
+        distStr = (dist / 1000).toFixed(1) + "km";
+      } else {
+        distStr = dist.toFixed(0) + "m";
+      }
+    }
+
+    // Format estimated time to impact
+    let etaStr = "--";
+    if (t.eta != null && t.eta > 0) {
+      if (t.eta >= 60) {
+        const m = Math.floor(t.eta / 60);
+        const s = Math.floor(t.eta % 60);
+        etaStr = `${m}m${s.toString().padStart(2, "0")}s`;
+      } else {
+        etaStr = t.eta.toFixed(1) + "s";
+      }
+    }
+
     return `
       <div class="torp-item ${isIncoming ? "incoming" : ""}">
         <span class="torp-id">${t.id}</span>
         <span class="torp-state ${stateClass}">${stateVal}</span>
         <span class="torp-stats">
+          <span title="Distance to target">D:${distStr}</span>
+          <span title="Estimated time to impact">ETA:${etaStr}</span>
           <span title="Fuel">F:${fuelPct}%</span>
           <span title="Hull">H:${hull}</span>
-          <span title="Target">T:${isIncoming ? (t.shooter || "?") : (t.target || "?")}</span>
         </span>
       </div>
     `;
