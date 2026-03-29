@@ -228,19 +228,29 @@ function setupGlobalEvents() {
     }
   });
 
-  // Listen for scenario load to set player ship ID
   document.addEventListener("scenario-loaded", (e) => {
-    const { playerShipId, scenario, shipsLoaded, autoAssigned, station, mission } = e.detail;
-    if (playerShipId) {
-      stateManager.setPlayerShipId(playerShipId);
-      console.log(`Scenario "${scenario}" loaded with ${shipsLoaded} ships, player: ${playerShipId}`);
+    const { playerShipId, scenario, shipsLoaded, autoAssigned, assignedShip, station, mission } = e.detail;
+    const targetShipId = assignedShip || playerShipId;
+    
+    if (targetShipId) {
+      stateManager.setPlayerShipId(targetShipId);
+      if (scenario) {
+        console.log(`Scenario "${scenario}" loaded with ${shipsLoaded} ships, player: ${targetShipId}`);
+      } else {
+        console.log(`Joined active Fleet: Assigned to ship ${targetShipId} as ${station || "crew"}`);
+      }
       if (autoAssigned) {
-        console.log(`Auto-assigned to ship ${playerShipId} as ${station || "captain"}`);
+        console.log(`Auto-assigned to ship ${targetShipId} as ${station || "captain"}`);
       }
     } else {
-      console.warn(`Scenario "${scenario}" loaded but no player ship ID received`);
+      console.warn(`Scenario loaded or joined but no player ship ID received`);
     }
-    showSystemMessage("success", `Scenario "${scenario}" loaded`, "Mission Ready");
+    
+    if (scenario) {
+      showSystemMessage("success", `Scenario "${scenario}" loaded`, "Mission Ready");
+    } else {
+      showSystemMessage("success", `Station ${station} claimed on ${targetShipId}`, "Station Joined");
+    }
   });
 
   // Mission event notifications

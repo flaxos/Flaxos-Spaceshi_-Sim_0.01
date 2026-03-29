@@ -50,8 +50,8 @@
     "sensors": {
       "enabled": true,
       "power_draw": 45,
-      "passive": { "range": 80000.0 },
-      "active": { "scan_range": 150000.0, "cooldown_time": 3.0 },
+      "passive": { "range": 500000.0 },
+      "active": { "scan_range": 1000000.0, "cooldown_time": 3.0 },
       "signature_base": 2.2,
       "ir_modifier": 1.5,
       "rcs_modifier": 2.0,
@@ -64,7 +64,7 @@
     "targeting": {
       "enabled": true,
       "lock_time": 1.0,
-      "lock_range": 120000.0
+      "lock_range": 600000.0
     },
     "combat": {
       "enabled": true,

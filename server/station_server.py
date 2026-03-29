@@ -118,19 +118,38 @@ class StationServer:
             return {"ok": True, "scenarios": self.runner.list_scenarios()}
 
         if cmd == "load_scenario":
-            if not session or session.permission_level.value < PermissionLevel.CAPTAIN.value:
-                return {"ok": False, "error": "Only captain can load scenarios"}
+            is_empty_server = len(self.runner.simulator.ships) == 0
+            is_captain = session and session.permission_level.value >= PermissionLevel.CAPTAIN.value
+
+            if not is_empty_server and not is_captain:
+                return {"ok": False, "error": "Only captain can load scenarios when simulation is active"}
+            
             scenario_name = req.get("scenario") or req.get("name") or req.get("file")
             if not scenario_name:
                 return {"ok": False, "error": "missing scenario"}
+            
             loaded = self.runner.load_scenario(scenario_name)
             if loaded <= 0:
                 return {"ok": False, "error": f"Failed to load scenario {scenario_name}"}
+                
+            # If server was empty and someone just started a mission, make them Captain of the player ship
+            if is_empty_server and getattr(self.runner, "player_ship_id", None):
+                player_ship_id = self.runner.player_ship_id
+                from server.stations.station_types import StationType
+                # Create session if it doesn't exist
+                if not session:
+                    session = self.station_manager.register_client(client_id)
+                self.station_manager.assign_to_ship(client_id, player_ship_id)
+                self.station_manager.claim_station(
+                    client_id, player_ship_id, StationType.CAPTAIN, PermissionLevel.CAPTAIN
+                )
+                logger.info(f"Auto-assigned {client_id} as CAPTAIN to newly loaded ship {player_ship_id}")
+                
             return {
                 "ok": True,
                 "scenario": scenario_name,
                 "ships_loaded": loaded,
-                "player_ship_id": self.runner.player_ship_id,
+                "player_ship_id": getattr(self.runner, "player_ship_id", None),
                 "mission": self.runner.get_mission_status(),
             }
 

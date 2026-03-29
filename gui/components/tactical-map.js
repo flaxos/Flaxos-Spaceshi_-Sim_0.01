@@ -465,7 +465,14 @@ class TacticalMap extends HTMLElement {
     const pixelsPerMeter = Math.min(w, h) / 2 / scale;
 
     // Clear
-    ctx.fillStyle = "#0d0d12";
+    ctx.fillStyle = "#050508"; // deep void
+    ctx.fillRect(0, 0, w, h);
+
+    // Vignette: darker at edges, slightly lighter at center
+    const vignette = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, Math.max(w, h) * 0.7);
+    vignette.addColorStop(0, "rgba(20, 20, 30, 0.15)");
+    vignette.addColorStop(1, "rgba(0, 0, 0, 0.6)");
+    ctx.fillStyle = vignette;
     ctx.fillRect(0, 0, w, h);
 
     // Get player ship state
@@ -528,7 +535,7 @@ class TacticalMap extends HTMLElement {
   }
 
   _drawGrid(ctx, w, h, centerX, centerY, scale, pixelsPerMeter) {
-    ctx.strokeStyle = "rgba(40, 40, 60, 0.5)";
+    ctx.strokeStyle = "rgba(30, 30, 50, 0.4)";
     ctx.lineWidth = 1;
 
     // Calculate grid spacing based on scale
@@ -918,17 +925,57 @@ class TacticalMap extends HTMLElement {
     const color = this._getContactColor(contact);
     const confidence = contact.confidence ?? 1.0;
 
+    const iffType = this._getContactIFF(contact);
+
     // Draw error ellipse for uncertain contacts (confidence < 0.8)
     if (confidence < 0.8) {
       this._drawErrorEllipse(ctx, screenX, screenY, contact, pixelsPerMeter, color);
     }
 
     // Draw contact blip — alpha scaled by confidence
-    ctx.globalAlpha = 0.4 + confidence * 0.6;
+    const baseAlpha = 0.4 + confidence * 0.6;
+    ctx.globalAlpha = baseAlpha;
     ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.arc(screenX, screenY, 5, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.strokeStyle = color;
+
+    if (iffType === "friendly") {
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(screenX, screenY - 8);
+      ctx.lineTo(screenX + 8, screenY);
+      ctx.lineTo(screenX, screenY + 8);
+      ctx.lineTo(screenX - 8, screenY);
+      ctx.closePath();
+      ctx.stroke();
+      ctx.globalAlpha = baseAlpha * 0.3;
+      ctx.fill();
+    } else if (iffType === "hostile") {
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      const s = 10;
+      ctx.rect(screenX - s, screenY - s, s * 2, s * 2);
+      ctx.stroke();
+      ctx.globalAlpha = baseAlpha * 0.2;
+      ctx.fill();
+    } else if (iffType === "unknown") {
+      ctx.lineWidth = 1;
+      ctx.setLineDash([2, 2]);
+      ctx.beginPath();
+      ctx.arc(screenX, screenY, 8, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.font = "8px 'JetBrains Mono', monospace";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("?", screenX, screenY + 1);
+    } else {
+      // Neutral / simple fallback
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(screenX, screenY, 6, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    
     ctx.globalAlpha = 1;
 
     // Contact velocity vector
@@ -1012,17 +1059,25 @@ class TacticalMap extends HTMLElement {
   }
 
   /**
+   * Get contact IFF classification.
+   */
+  _getContactIFF(contact) {
+    const faction = contact.faction?.toLowerCase() || contact.iff?.toLowerCase() || "";
+    if (faction === "player") return "player";
+    if (faction.includes("friend") || faction.includes("ally")) return "friendly";
+    if (faction.includes("host") || faction.includes("enemy")) return "hostile";
+    if (faction.includes("unknown")) return "unknown";
+    return "neutral";
+  }
+
+  /**
    * Get contact color based on faction/IFF.
    */
   _getContactColor(contact) {
-    const faction = contact.faction?.toLowerCase() || contact.iff?.toLowerCase() || "";
-    if (faction.includes("friend") || faction.includes("ally") || faction === "player") {
-      return "#00ff88";
-    } else if (faction.includes("host") || faction.includes("enemy")) {
-      return "#ff4444";
-    } else if (faction.includes("unknown")) {
-      return "#ffaa00";
-    }
+    const iff = this._getContactIFF(contact);
+    if (iff === "friendly" || iff === "player") return "#00ff88";
+    if (iff === "hostile") return "#ff4444";
+    if (iff === "unknown") return "#ffaa00";
     return "#888899";
   }
 
@@ -1084,13 +1139,30 @@ class TacticalMap extends HTMLElement {
       label += ` (${classification})`;
     }
 
-    // Confidence bar under label (if not full)
+    // Determine Bearing if available
+    let bearingText = "";
+    if (contact.bearing != null) {
+      const yawDeg = typeof contact.bearing === "object" ? (contact.bearing.yaw || 0) : contact.bearing;
+      const bstr = ((yawDeg % 360) + 360) % 360;
+      bearingText = `BRG ${bstr.toFixed(0).padStart(3, "0")}°`;
+    }
+
+    // Labels next to contact
     ctx.font = "10px 'JetBrains Mono', monospace";
     ctx.textAlign = "left";
     ctx.textBaseline = "top";
+    
+    // Primary Name / Method Label
     ctx.fillStyle = color;
     ctx.globalAlpha = 0.5 + confidence * 0.5;
-    ctx.fillText(label, screenX + 8, screenY - 4);
+    ctx.fillText(label, screenX + 12, screenY - 6);
+    
+    // Bearing Label directly below
+    if (bearingText) {
+      ctx.font = "9px 'JetBrains Mono', monospace";
+      ctx.globalAlpha = 0.5;
+      ctx.fillText(bearingText, screenX + 12, screenY + 6);
+    }
 
     if (confidence < 0.95) {
       // Tiny confidence indicator

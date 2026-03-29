@@ -37,6 +37,7 @@ class HybridRunner:
         # Scenario loading state - prevents concurrent loads
         self._loading_scenario = False
         self._current_scenario_path = None
+        self._current_scenario_name = None
 
         # Create fleet_state directory if it doesn't exist
         os.makedirs(os.path.join(self.root_dir, "fleet_state"), exist_ok=True)
@@ -138,6 +139,7 @@ class HybridRunner:
         self.last_update_time = 0
         self.last_mission_status = None
         self._current_scenario_path = None
+        self._current_scenario_name = None
         self.simulator.fleet_manager = FleetManager(simulator=self.simulator)
 
     def _select_player_ship(self, ships_data):
@@ -212,8 +214,12 @@ class HybridRunner:
                 self.mission.start(self.simulator.time)
                 self.last_mission_status = self.mission.tracker.mission_status
 
-            # Store current scenario path for deduplication
+            # Store current scenario path/name for deduplication and telemetry
             self._current_scenario_path = scenario_path
+            self._current_scenario_name = (
+                scenario_data.get("name")
+                or os.path.splitext(os.path.basename(scenario_path))[0]
+            )
 
             if was_running:
                 self.start()

@@ -508,6 +508,42 @@ class StationManager:
         )
         return True
 
+    def purge_claims_for_missing_ships(self, active_ship_ids: set) -> List[str]:
+        """
+        Remove station claims that reference ships no longer in the simulation.
+
+        Called after a scenario reload to clean up stale claims from the
+        previous simulation. Also clears ship_id/station on affected sessions.
+
+        Args:
+            active_ship_ids: Set of ship IDs currently in the simulation.
+
+        Returns:
+            List of ship IDs whose claims were purged.
+        """
+        stale_ship_ids = [
+            ship_id for ship_id in self.claims
+            if ship_id not in active_ship_ids
+        ]
+
+        for ship_id in stale_ship_ids:
+            del self.claims[ship_id]
+
+        # Clear session state for clients that were on purged ships
+        for session in self.sessions.values():
+            if session.ship_id and session.ship_id not in active_ship_ids:
+                logger.info(
+                    f"Clearing stale ship assignment for {session.client_id} "
+                    f"(was on {session.ship_id})"
+                )
+                session.ship_id = None
+                session.station = None
+                session.permission_level = PermissionLevel.OBSERVER
+
+        if stale_ship_ids:
+            logger.info(f"Purged claims for {len(stale_ship_ids)} removed ships: {stale_ship_ids}")
+        return stale_ship_ids
+
     def get_all_clients(self) -> List[ClientSession]:
         """
         Get all connected clients.

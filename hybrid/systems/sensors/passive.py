@@ -50,7 +50,10 @@ class PassiveSensor:
                 - min_signature: Minimum IR watts to attempt detection
                 - ir_sensitivity: Sensor noise floor (W/m^2), lower = better
         """
-        self.range = config.get("passive_range", config.get("range", 100000))  # 100km default
+        # Hardware cap: max range sensor electronics can process.
+        # 300km default — a burning ship's IR is detectable at hundreds of km
+        # in vacuum; the limit is sensor processing, not physics.
+        self.range = config.get("passive_range", config.get("range", 300000))
         self.base_range = self.range
         self.update_interval = config.get("sensor_tick_interval", config.get("update_interval", 10))
         # Minimum IR emission (watts) to even attempt detection

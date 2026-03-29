@@ -214,14 +214,16 @@ def register_station_commands(
         Get status of all stations on current ship.
         """
         session = station_manager.get_session(client_id)
+        
+        target_ship = args.get("ship") or ship_id or (session.ship_id if session else None)
 
-        if not session or not session.ship_id:
+        if not target_ship:
             return CommandResult(
                 success=False,
-                message="Not assigned to a ship"
+                message="Not assigned to a ship and no ship selected"
             )
 
-        stations = station_manager.get_ship_stations(session.ship_id)
+        stations = station_manager.get_ship_stations(target_ship)
 
         status_list = []
         for station_type, player_name in stations.items():

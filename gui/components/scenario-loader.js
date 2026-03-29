@@ -1,6 +1,6 @@
 /**
- * Scenario Loader Panel
- * List and load available scenarios
+ * Scenario Loader & Fleet Lobby Panel
+ * List and load available scenarios, or join an active fleet.
  */
 
 import { wsClient } from "../js/ws-client.js";
@@ -10,21 +10,19 @@ class ScenarioLoader extends HTMLElement {
     super();
     this.attachShadow({ mode: "open" });
     this._scenarios = [];
+    this._ships = [];
     this._selectedScenario = null;
-    this._currentScenario = null;
     this._statusHandler = null;
-    // Debounce and loading state
-    this._isLoadingScenarios = false;
-    this._isLoadingScenario = false;
-    this._lastRefreshTime = 0;
-    this._refreshDebounceMs = 500;
+    this._isLoading = false;
+    this._activeScenario = null; // name of currently running scenario
+    this._isCaptain = false;
   }
 
   connectedCallback() {
     this.render();
     this._setupInteraction();
     this._bindConnectionStatus();
-    this._loadScenarios();
+    this._refreshAll();
   }
 
   disconnectedCallback() {
@@ -52,76 +50,87 @@ class ScenarioLoader extends HTMLElement {
           margin-bottom: 8px;
         }
 
-        .scenario-list {
+        .list-container {
           display: flex;
           flex-direction: column;
           gap: 6px;
           margin-bottom: 16px;
-          max-height: 200px;
+          max-height: 250px;
           overflow-y: auto;
         }
 
-        .scenario-item {
+        .list-item {
           padding: 12px;
           background: var(--bg-input, #1a1a24);
           border: 1px solid var(--border-default, #2a2a3a);
           border-radius: 8px;
-          cursor: pointer;
           transition: all 0.1s ease;
         }
 
-        .scenario-item:hover {
+        .list-item.clickable {
+          cursor: pointer;
+        }
+
+        .list-item.clickable:hover {
           background: var(--bg-hover, #22222e);
           border-color: var(--border-active, #3a3a4a);
         }
 
-        .scenario-item.selected {
+        .list-item.selected {
           background: rgba(0, 170, 255, 0.1);
           border-color: var(--status-info, #00aaff);
         }
 
-        .scenario-item.current {
-          border-color: var(--status-nominal, #00ff88);
-        }
-
-        .scenario-item.current::before {
-          content: '▶ ';
-          color: var(--status-nominal, #00ff88);
-        }
-
-        .scenario-name {
+        .item-name {
           font-weight: 600;
           font-size: 0.85rem;
           color: var(--text-primary, #e0e0e0);
           margin-bottom: 4px;
         }
 
-        .scenario-desc {
+        .item-desc {
           font-size: 0.75rem;
           color: var(--text-secondary, #888899);
         }
 
-        .scenario-error {
+        .station-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 4px;
+          margin-top: 8px;
+        }
+
+        .station-btn {
+          padding: 4px;
+          font-size: 0.65rem;
+          text-transform: uppercase;
+          border: 1px solid var(--border-default, #2a2a3a);
+          border-radius: 4px;
+          background: var(--bg-dark, #111118);
+          color: var(--text-secondary, #888899);
+          cursor: pointer;
+          text-align: center;
+        }
+
+        .station-btn:hover {
+          background: var(--bg-hover, #22222e);
+        }
+
+        .station-btn.vacant {
+          color: var(--status-nominal, #00ff88);
+          border-color: rgba(0, 255, 136, 0.3);
+        }
+        
+        .station-btn.vacant:hover {
+          background: rgba(0, 255, 136, 0.1);
+          border-color: var(--status-nominal, #00ff88);
+        }
+
+        .station-btn.occupied {
           color: var(--status-critical, #ff4444);
-          font-style: italic;
-        }
-
-        .connection-hint {
-          margin-bottom: 10px;
-          padding: 8px 10px;
-          border-radius: 6px;
-          font-size: 0.75rem;
-          background: rgba(255, 170, 0, 0.12);
-          color: var(--status-warning, #ffaa00);
-        }
-
-        .connection-hint.connected {
-          display: none;
-        }
-
-        .connection-hint.connecting {
-          background: rgba(0, 170, 255, 0.12);
-          color: var(--status-info, #00aaff);
+          border-color: rgba(255, 68, 68, 0.3);
+          cursor: not-allowed;
+          opacity: 0.7;
         }
 
         .buttons {
@@ -173,332 +182,355 @@ class ScenarioLoader extends HTMLElement {
           color: var(--text-secondary, #888899);
         }
 
-        .status-box.info {
-          color: var(--status-info, #00aaff);
-        }
+        .status-box.info { color: var(--status-info, #00aaff); }
+        .status-box.warning { color: var(--status-warning, #ffaa00); }
+        .status-box.error { color: var(--status-critical, #ff4444); }
+        .status-box.success { color: var(--status-nominal, #00ff88); }
 
-        .status-box.warning {
-          color: var(--status-warning, #ffaa00);
-        }
-
-        .status-box.error {
-          color: var(--status-critical, #ff4444);
-        }
-
-        .status-box.success {
-          color: var(--status-nominal, #00ff88);
-        }
-
-        .loading {
-          text-align: center;
-          padding: 24px;
-          color: var(--text-dim, #555566);
-        }
-
-        .empty-state {
+        .loading, .empty-state {
           text-align: center;
           padding: 24px;
           color: var(--text-dim, #555566);
           font-style: italic;
         }
 
-        .difficulty {
-          display: inline-block;
-          margin-right: 8px;
+        .view-toggle {
+          display: flex;
+          gap: 8px;
+          margin-bottom: 12px;
         }
 
-        .difficulty-star {
-          color: var(--status-warning, #ffaa00);
+        .view-btn {
+          background: transparent;
+          border: none;
+          color: var(--text-secondary);
+          font-size: 0.75rem;
+          font-weight: 600;
+          text-transform: uppercase;
+          cursor: pointer;
+          padding: 4px 8px;
+          border-bottom: 2px solid transparent;
+        }
+
+        .view-btn.active {
+          color: var(--status-info);
+          border-bottom-color: var(--status-info);
         }
       </style>
 
-      <div class="section-title">Available Missions</div>
-      <div class="connection-hint connected" id="connection-hint"></div>
-      <div class="scenario-list" id="scenario-list">
-        <div class="loading">Loading scenarios...</div>
+      <div class="view-toggle" id="view-toggle" style="display: none;">
+        <button class="view-btn active" data-view="lobby">Fleet Lobby</button>
+        <button class="view-btn" data-view="missions">Missions</button>
       </div>
 
-      <div class="buttons">
+      <div class="section-title" id="main-title">Checking Server State...</div>
+      
+      <div class="list-container" id="main-list">
+        <div class="loading">Connecting...</div>
+      </div>
+
+      <div class="buttons" id="action-buttons" style="display: none;">
         <button class="btn load-btn" id="load-btn" disabled>Load Selected</button>
         <button class="btn refresh-btn" id="refresh-btn">🔄</button>
       </div>
 
-      <div class="status-box" id="status-box">
-        No scenario loaded
-      </div>
+      <div class="status-box" id="status-box">Ready</div>
     `;
   }
 
   _setupInteraction() {
-    this.shadowRoot.getElementById("load-btn").addEventListener("click", () => {
-      this._loadScenario();
-    });
-
-    this.shadowRoot.getElementById("refresh-btn").addEventListener("click", () => {
-      this._loadScenarios();
+    this.shadowRoot.getElementById("load-btn").addEventListener("click", () => this._loadScenario());
+    this.shadowRoot.getElementById("refresh-btn").addEventListener("click", () => this._refreshAll());
+    
+    // View toggler
+    const toggleBtns = this.shadowRoot.querySelectorAll(".view-btn");
+    toggleBtns.forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        toggleBtns.forEach(b => b.classList.remove("active"));
+        e.target.classList.add("active");
+        const view = e.target.dataset.view;
+        this._renderView(view);
+      });
     });
   }
 
   _bindConnectionStatus() {
     this._statusHandler = (event) => {
-      this._updateConnectionHint(event.detail.status);
+      if (event.detail.status === "connected" && !this._isLoading) {
+        this._refreshAll();
+      }
     };
     wsClient.addEventListener("status_change", this._statusHandler);
-    this._updateConnectionHint(wsClient.status);
-  }
-
-  _updateConnectionHint(status = wsClient.status) {
-    const hint = this.shadowRoot.getElementById("connection-hint");
-    if (!hint) return;
-
-    hint.classList.remove("connected", "connecting", "disconnected");
-    if (status === "connected") {
-      hint.classList.add("connected");
-      hint.textContent = "";
-      return;
-    }
-
-    if (status === "connecting") {
-      hint.classList.add("connecting");
-      hint.textContent = "Connecting to server…";
-      return;
-    }
-
-    hint.classList.add("disconnected");
-    hint.textContent = "Disconnected from server; can’t load scenarios yet.";
   }
 
   _setStatus(message, variant = "") {
     const statusBox = this.shadowRoot.getElementById("status-box");
     if (!statusBox) return;
     statusBox.textContent = message || "";
-    statusBox.classList.remove("info", "warning", "error", "success");
-    if (variant) {
-      statusBox.classList.add(variant);
-    }
+    statusBox.className = `status-box ${variant}`;
   }
 
-  _showMessage(text, type) {
-    const systemMessages = document.getElementById("system-messages");
-    if (systemMessages?.show) {
-      systemMessages.show({ type, text });
-    }
-  }
-
-  async _loadScenarios() {
-    const list = this.shadowRoot.getElementById("scenario-list");
-    const refreshBtn = this.shadowRoot.getElementById("refresh-btn");
-
-    // Debounce: prevent rapid refresh clicks
-    const now = Date.now();
-    if (now - this._lastRefreshTime < this._refreshDebounceMs) {
-      return;
-    }
-    this._lastRefreshTime = now;
-
-    // Prevent concurrent scenario list requests
-    if (this._isLoadingScenarios) {
-      return;
-    }
-
+  async _refreshAll() {
     if (wsClient.status !== "connected") {
-      list.innerHTML = '<div class="empty-state">Disconnected from server.</div>';
-      this._setStatus("Disconnected from server.", "warning");
-      this._updateConnectionHint(wsClient.status);
-      this._showMessage("Cannot load scenarios while disconnected.", "warning");
+      this._setStatus("Connecting...", "warning");
       try {
         await wsClient.connect();
-      } catch (error) {
-        this._showMessage(`Connection failed: ${error.message}`, "error");
-      }
-      if (wsClient.status !== "connected") {
-        this._setStatus("Unable to load scenarios while disconnected.", "error");
+      } catch (err) {
+        this._setStatus("Disconnected", "error");
         return;
       }
     }
 
-    this._isLoadingScenarios = true;
-    if (refreshBtn) refreshBtn.disabled = true;
-    list.innerHTML = '<div class="loading">Loading scenarios...</div>';
+    if (this._isLoading) return;
+    this._isLoading = true;
+    
+    const list = this.shadowRoot.getElementById("main-list");
+    list.innerHTML = '<div class="loading">Loading fleet status...</div>';
 
     try {
-      const response = await wsClient.send("list_scenarios", {});
+      // Check ships and detect active scenario
+      const shipsResp = await wsClient.send("list_ships", {});
+      this._ships = (shipsResp && shipsResp.success && shipsResp.data.ships) ? shipsResp.data.ships : [];
 
-      if (response && response.ok !== false && Array.isArray(response.scenarios)) {
-        this._scenarios = response.scenarios;
-        this._renderScenarios();
-      } else {
-        const errorMsg = response?.error || "No scenarios found";
-        list.innerHTML = '<div class="empty-state">No scenarios found</div>';
-        this._setStatus(`Failed to load scenarios: ${errorMsg}`, "error");
-        this._showMessage(`Scenario list failed: ${errorMsg}`, "error");
+      // Check current session to determine if we are captain
+      const statusResp = await wsClient.send("my_status", {});
+      this._isCaptain = (
+        statusResp && statusResp.success
+        && statusResp.data && statusResp.data.station === "captain"
+      );
+
+      // Detect active scenario from server state
+      const stateResp = await wsClient.send("get_state", {});
+      this._activeScenario = (stateResp && stateResp.active_scenario) || null;
+
+      // Check available missions
+      const scResp = await wsClient.send("list_scenarios", {});
+      this._scenarios = (scResp && scResp.ok !== false && scResp.scenarios) ? scResp.scenarios : [];
+
+      // Fetch station status for each ship
+      for (const ship of this._ships) {
+        const sResp = await wsClient.send("station_status", { ship: ship.id });
+        if (sResp && sResp.success) {
+          ship.stations = sResp.data.stations;
+        } else {
+          ship.stations = [];
+        }
       }
+
+      this._isLoading = false;
+
+      const hasShips = this._ships.length > 0;
+      const viewToggle = this.shadowRoot.getElementById("view-toggle");
+
+      if (hasShips) {
+        viewToggle.style.display = "flex";
+        // Default to lobby when ships exist
+        const activeBtn = this.shadowRoot.querySelector(".view-btn.active");
+        if (!activeBtn || activeBtn.dataset.view !== "lobby") {
+          this.shadowRoot.querySelectorAll(".view-btn").forEach(b => b.classList.remove("active"));
+          this.shadowRoot.querySelector(".view-btn[data-view='lobby']").classList.add("active");
+        }
+        this._renderView("lobby");
+      } else {
+        viewToggle.style.display = "none";
+        this.shadowRoot.querySelectorAll(".view-btn").forEach(b => b.classList.remove("active"));
+        this.shadowRoot.querySelector(".view-btn[data-view='missions']").classList.add("active");
+        this._renderView("missions");
+      }
+
     } catch (error) {
-      list.innerHTML = `<div class="empty-state">Failed to load scenarios: ${error.message}</div>`;
-      this._setStatus(`Failed to load scenarios: ${error.message}`, "error");
-      this._showMessage(`Scenario list failed: ${error.message}`, "error");
-    } finally {
-      this._isLoadingScenarios = false;
-      if (refreshBtn) refreshBtn.disabled = false;
+      this._isLoading = false;
+      this._setStatus(`Error: ${error.message}`, "error");
     }
   }
 
-  _renderScenarios() {
-    const list = this.shadowRoot.getElementById("scenario-list");
+  _renderView(view) {
+    const list = this.shadowRoot.getElementById("main-list");
+    const actions = this.shadowRoot.getElementById("action-buttons");
+    const title = this.shadowRoot.getElementById("main-title");
 
-    if (this._scenarios.length === 0) {
-      list.innerHTML = '<div class="empty-state">No scenarios available</div>';
-      return;
-    }
+    if (view === "missions") {
+      const hasActiveShips = this._ships.length > 0;
+      const loadBtn = this.shadowRoot.getElementById("load-btn");
 
-    list.innerHTML = this._scenarios.map(scenario => {
-      const isSelected = scenario.id === this._selectedScenario;
-      const isCurrent = scenario.id === this._currentScenario;
-      const classes = [
-        "scenario-item",
-        isSelected ? "selected" : "",
-        isCurrent ? "current" : ""
-      ].filter(Boolean).join(" ");
+      if (hasActiveShips) {
+        // Mission is active — show status instead of full picker
+        title.textContent = "Mission Active";
+        actions.style.display = "flex";
+        loadBtn.style.display = "";
+        loadBtn.textContent = this._isCaptain ? "Load New Mission" : "Load Selected";
 
-      const difficulty = this._getDifficultyStars(scenario);
-
-      return `
-        <div class="${classes}" data-id="${scenario.id}">
-          <div class="scenario-name">
-            ${difficulty ? `<span class="difficulty">${difficulty}</span>` : ''}
-            ${scenario.name || scenario.id}
+        const scenarioLabel = this._activeScenario || "Unknown Mission";
+        list.innerHTML = \`
+          <div class="list-item selected">
+            <div class="item-name">\${scenarioLabel}</div>
+            <div class="item-desc">
+              \${this._ships.length} ship(s) in simulation.
+              \${this._isCaptain ? "As captain, you may load a new mission." : "Only the captain can change the mission."}
+            </div>
           </div>
-          <div class="scenario-desc ${scenario.error ? 'scenario-error' : ''}">
-            ${scenario.error || scenario.description || scenario.mission_description || 'No description'}
-          </div>
-        </div>
-      `;
-    }).join("");
+        \`;
 
-    // Add click handlers
-    list.querySelectorAll(".scenario-item").forEach(item => {
-      item.addEventListener("click", () => {
-        this._selectScenario(item.dataset.id);
+        if (!this._isCaptain) {
+          loadBtn.disabled = true;
+          loadBtn.title = "Only the captain can load a new mission";
+          return;
+        }
+
+        // Captain can still pick a new scenario below the active banner
+        if (this._scenarios.length > 0) {
+          list.innerHTML += \`<div class="section-title" style="margin-top:12px">Replace With</div>\`;
+          list.innerHTML += this._scenarios.map(sc => {
+            const isSelected = sc.id === this._selectedScenario;
+            return \`
+              <div class="list-item clickable \${isSelected ? 'selected' : ''}" data-id="\${sc.id}">
+                <div class="item-name">\${sc.name || sc.id}</div>
+                <div class="item-desc">\${sc.description || sc.mission_description || ''}</div>
+              </div>
+            \`;
+          }).join("");
+        }
+
+        loadBtn.disabled = !this._selectedScenario;
+        list.querySelectorAll(".list-item.clickable").forEach(item => {
+          item.addEventListener("click", () => {
+            this._selectedScenario = item.dataset.id;
+            this._renderView("missions");
+          });
+        });
+        return;
+      }
+
+      // No active ships — normal scenario picker
+      title.textContent = "Available Missions";
+      actions.style.display = "flex";
+      loadBtn.style.display = "";
+      loadBtn.textContent = "Load Selected";
+
+      if (this._scenarios.length === 0) {
+        list.innerHTML = '<div class="empty-state">No missions found.</div>';
+        return;
+      }
+
+      list.innerHTML = this._scenarios.map(sc => {
+        const isSelected = sc.id === this._selectedScenario;
+        return \`
+          <div class="list-item clickable \${isSelected ? 'selected' : ''}" data-id="\${sc.id}">
+            <div class="item-name">\${sc.name || sc.id}</div>
+            <div class="item-desc">\${sc.description || sc.mission_description || ''}</div>
+          </div>
+        \`;
+      }).join("");
+
+      loadBtn.disabled = !this._selectedScenario;
+      list.querySelectorAll(".list-item").forEach(item => {
+        item.addEventListener("click", () => {
+          this._selectedScenario = item.dataset.id;
+          this._renderView("missions");
+        });
       });
-    });
+    } else if (view === "lobby") {
+      title.textContent = "Fleet Lobby - Join a Station";
+      actions.style.display = "flex";
+      this.shadowRoot.getElementById("load-btn").style.display = "none"; // Hide load btn in lobby
+
+      if (this._ships.length === 0) {
+        list.innerHTML = '<div class="empty-state">No active fleet out there.</div>';
+        return;
+      }
+
+      list.innerHTML = this._ships.map(ship => {
+        const stationsHtml = (ship.stations || []).map(st => {
+          const isVacant = !st.claimed;
+          const statusClass = isVacant ? "vacant" : "occupied";
+          const display = isVacant ? "JOIN" : (st.player || "TAKEN");
+          return \`<button class="station-btn \${statusClass}" data-ship="\${ship.id}" data-station="\${st.station}" \${!isVacant ? 'disabled' : ''}>
+            \${st.station}<br/><b>\${display}</b>
+          </button>\`;
+        }).join("");
+
+        return \`
+          <div class="list-item">
+            <div class="item-name">\${ship.name || ship.id}</div>
+            <div class="item-desc">\${ship.class || 'Unknown Class'}</div>
+            <div class="station-grid">
+              \${stationsHtml}
+            </div>
+          </div>
+        \`;
+      }).join("");
+
+      list.querySelectorAll(".station-btn.vacant").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+          this._joinStation(btn.dataset.ship, btn.dataset.station);
+        });
+      });
+    }
   }
 
-  _getDifficultyStars(scenario) {
-    // Infer difficulty from name or explicit property
-    const name = (scenario.name || "").toLowerCase();
-    let stars = 1;
+  async _joinStation(shipId, stationName) {
+    this._setStatus(\`Joining \${stationName} on \${shipId}...\`, "info");
+    try {
+      // 1. Assign to ship
+      const assignResp = await wsClient.send("assign_ship", { ship: shipId });
+      if (!assignResp.success) throw new Error(assignResp.message);
 
-    if (name.includes("tutorial") || name.includes("basic")) stars = 1;
-    else if (name.includes("combat") || name.includes("intercept")) stars = 2;
-    else if (name.includes("escort") || name.includes("defend")) stars = 3;
-    else if (scenario.difficulty) stars = scenario.difficulty;
+      // 2. Claim station
+      const claimResp = await wsClient.send("claim_station", { station: stationName, ship: shipId });
+      if (!claimResp.success) throw new Error(claimResp.message);
 
-    return '<span class="difficulty-star">★</span>'.repeat(stars);
-  }
+      this._setStatus(\`Joined \${stationName}!\`, "success");
+      
+      // Dispatch an event so the rest of the GUI knows
+      this.dispatchEvent(new CustomEvent("scenario-loaded", {
+        detail: { assignedShip: shipId, station: stationName },
+        bubbles: true
+      }));
 
-  _selectScenario(id) {
-    this._selectedScenario = id;
-    this._renderScenarios();
-    this._updateLoadButton();
-  }
-
-  _updateLoadButton() {
-    const loadBtn = this.shadowRoot.getElementById("load-btn");
-    loadBtn.disabled = !this._selectedScenario;
+      // Collapse the loader panel
+      const panel = this.closest('flaxos-panel');
+      if (panel) panel.setAttribute('collapsed', '');
+      
+      this._refreshAll();
+    } catch (err) {
+      this._setStatus(\`Failed to join: \${err.message}\`, "error");
+    }
   }
 
   async _loadScenario() {
     if (!this._selectedScenario) return;
-
-    // Prevent concurrent scenario loads
-    if (this._isLoadingScenario) {
-      return;
-    }
-
-    const loadBtn = this.shadowRoot.getElementById("load-btn");
-
-    if (wsClient.status !== "connected") {
-      this._setStatus("Disconnected from server.", "warning");
-      this._updateConnectionHint(wsClient.status);
-      this._showMessage("Cannot load scenario while disconnected.", "warning");
-      try {
-        await wsClient.connect();
-      } catch (error) {
-        this._showMessage(`Connection failed: ${error.message}`, "error");
-      }
-      if (wsClient.status !== "connected") {
-        this._setStatus("Unable to load scenario while disconnected.", "error");
-        return;
-      }
-    }
-
-    this._isLoadingScenario = true;
-    loadBtn.disabled = true;
     this._setStatus(`Loading ${this._selectedScenario}...`, "info");
 
     try {
-      const response = await wsClient.send("load_scenario", {
-        scenario: this._selectedScenario
-      });
+      const response = await wsClient.send("load_scenario", { scenario: this._selectedScenario });
+
+      // Check for permission denial (mission-active guard)
+      if (response && response.ok === false) {
+        const errMsg = response.error || "Unknown error";
+        const isPermission = errMsg.toLowerCase().includes("captain") || errMsg.toLowerCase().includes("mission already");
+        this._setStatus(errMsg, isPermission ? "warning" : "error");
+        return;
+      }
 
       if (response && response.ok !== false) {
-        this._currentScenario = this._selectedScenario;
+        this._setStatus(`Loaded: ${this._selectedScenario}`, "success");
 
-        // Build status message
-        let statusMsg = `Loaded: ${this._selectedScenario} (${response.ships_loaded} ships)`;
-        if (response.auto_assigned) {
-          statusMsg += ` - Assigned to ${response.assigned_ship}`;
-        }
-        this._setStatus(statusMsg, "success");
-
-        console.log("Scenario loaded:", {
-          scenario: this._selectedScenario,
-          shipsLoaded: response.ships_loaded,
-          playerShipId: response.player_ship_id,
-          autoAssigned: response.auto_assigned,
-          assignedShip: response.assigned_ship,
-          station: response.station
-        });
-
-        // Collapse the parent panel now that a scenario is active —
-        // the player's focus should shift to helm/tactical, not the loader.
-        const panel = this.closest('flaxos-panel');
-        if (panel) panel.setAttribute('collapsed', '');
-
-        // Dispatch event for other components
         this.dispatchEvent(new CustomEvent("scenario-loaded", {
-          detail: {
-            scenario: this._selectedScenario,
-            shipsLoaded: response.ships_loaded,
-            playerShipId: response.player_ship_id,
-            autoAssigned: response.auto_assigned,
-            assignedShip: response.assigned_ship,
-            station: response.station,
-            mission: response.mission
-          },
-          bubbles: true
+          detail: response,
+          bubbles: true,
         }));
 
-        this._renderScenarios();
+        this._selectedScenario = null;
+        this.shadowRoot.getElementById("load-btn").disabled = true;
+
+        // Refresh to show the newly loaded fleet in the lobby
+        this._refreshAll();
       } else {
-        const errorMsg = response?.error || 'Unknown error';
-        this._setStatus(`Failed: ${errorMsg}`, "error");
-        this._showMessage(`Scenario load failed: ${errorMsg}`, "error");
+        this._setStatus(`Failed: ${response?.error || 'Unknown'}`, "error");
       }
     } catch (error) {
       this._setStatus(`Error: ${error.message}`, "error");
-      this._showMessage(`Scenario load failed: ${error.message}`, "error");
-    } finally {
-      this._isLoadingScenario = false;
-      loadBtn.disabled = false;
     }
-  }
-
-  /**
-   * Get currently loaded scenario ID
-   */
-  getCurrentScenario() {
-    return this._currentScenario;
   }
 }
 

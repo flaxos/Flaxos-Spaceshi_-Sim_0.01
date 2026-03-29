@@ -315,23 +315,37 @@ class UnifiedServer:
             return self._handle_list_ship_classes()
 
         if cmd == "load_scenario":
-            # Allow scenario loading - auto-assign client to player ship afterward
-            # Permission check is relaxed for single-player experience
+            from server.stations.station_types import StationType
+
+            has_active_ships = len(self.runner.simulator.ships) > 0
+            is_captain = (
+                session
+                and session.station == StationType.CAPTAIN
+            )
+
+            # Guard: if a mission is already running, only the captain may reload
+            if has_active_ships and not is_captain:
+                return Response.error(
+                    "Mission already in progress — only the captain can reload",
+                    ErrorCode.PERMISSION_DENIED,
+                ).to_dict()
+
             result = self._handle_load_scenario(req)
 
-            # If successful, auto-assign client to the player ship with captain control
+            # Purge stale station claims from the previous simulation
+            if result.get("ok") and self.station_manager:
+                active_ids = set(self.runner.simulator.ships.keys())
+                self.station_manager.purge_claims_for_missing_ships(active_ids)
+
+            # Auto-assign loading client to player ship as captain
             if result.get("ok") and result.get("player_ship_id"):
                 player_ship_id = result["player_ship_id"]
-                from server.stations.station_types import StationType
 
-                # Assign client to player ship
                 self.station_manager.assign_to_ship(client_id, player_ship_id)
-
-                # Claim captain station for full ship control
                 self.station_manager.claim_station(
                     client_id,
                     player_ship_id,
-                    StationType.CAPTAIN
+                    StationType.CAPTAIN,
                 )
 
                 result["auto_assigned"] = True
@@ -500,7 +514,12 @@ class UnifiedServer:
             filtered = self.telemetry_filter.filter_telemetry_for_client(
                 client_id, full_telemetry
             )
-            return {"ok": True, "t": self.runner.simulator.time, **filtered}
+            result = {"ok": True, "t": self.runner.simulator.time, **filtered}
+            # Include active scenario metadata so clients can detect mission state
+            if self.runner._current_scenario_name:
+                result["active_scenario"] = self.runner._current_scenario_name
+            result["ship_count"] = len(self.runner.simulator.ships)
+            return result
 
         # Get specific ship
         if not session.ship_id:
@@ -668,6 +687,7 @@ class UnifiedServer:
         return {
             "ok": True,
             "scenario": scenario_name,
+            "scenario_name": self.runner._current_scenario_name or scenario_name,
             "ships_loaded": loaded,
             "player_ship_id": self.runner.player_ship_id,
             "mission": self.runner.get_mission_status(),

@@ -670,10 +670,6 @@
           <flaxos-panel title="Flight Data" collapsible priority="secondary" domain="nav" class="helm-flight-data-panel">
             <flight-data-panel></flight-data-panel>
           </flaxos-panel>
-
-          <flaxos-panel title="Nav Display" collapsible priority="primary" domain="helm" class="helm-nav-display-panel">
-            <helm-nav-display></helm-nav-display>
-          </flaxos-panel>
         </div>
 
         <!-- CENTER: COMMAND & CONTROL — "What do I want to do?" -->
@@ -705,16 +701,8 @@
             <docking-panel></docking-panel>
           </flaxos-panel>
 
-          <flaxos-panel title="Navigation" collapsible priority="secondary" domain="nav" class="helm-nav-panel">
-            <helm-navigation-panel></helm-navigation-panel>
-          </flaxos-panel>
-
           <flaxos-panel title="Maneuver Planner" collapsible priority="tertiary" domain="helm" class="helm-maneuver-panel">
             <maneuver-planner></maneuver-planner>
-          </flaxos-panel>
-
-          <flaxos-panel title="Micro RCS" collapsible priority="tertiary" domain="helm" class="helm-micro-rcs-panel">
-            <micro-rcs-control></micro-rcs-control>
           </flaxos-panel>
         </div>
       </div>
@@ -1142,5 +1130,6 @@
       }
     }, { once: false });
   </script>
+
 </body>
 </html>
