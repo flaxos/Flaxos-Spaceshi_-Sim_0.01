@@ -121,10 +121,18 @@ class UnifiedServer:
         from server.telemetry.station_filter import StationTelemetryFilter
         from server.stations.crew_system import CrewManager
         from server.stations.ai_crew import AICrewManager
+        from server.stations.crew_binding import CrewStationBinder
+        from hybrid.systems.crew_binding_system import CrewBindingSystem
 
         self.station_manager = StationManager()
         self.crew_manager = CrewManager()
         self.ai_crew_manager = AICrewManager(default_competence=0.7)
+
+        # Wire up crew-station binding so crew skill multipliers affect gameplay.
+        # CrewBindingSystem instances on each ship delegate to this shared binder.
+        crew_binder = CrewStationBinder(self.crew_manager)
+        CrewBindingSystem.set_shared_state(self.crew_manager, crew_binder)
+        self.crew_binder = crew_binder
         self.dispatcher = StationAwareDispatcher(self.station_manager)
         self.telemetry_filter = StationTelemetryFilter(self.station_manager)
 

@@ -14,6 +14,7 @@ from typing import Optional, Dict, Any
 from hybrid.core.base_system import BaseSystem
 from server.stations.crew_system import CrewManager, CrewSkills, StationSkill
 from server.stations.crew_binding import CrewStationBinder
+from server.stations.station_types import StationType
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +48,21 @@ class CrewBindingSystem(BaseSystem):
         """Set the shared CrewManager and binder at server init time."""
         cls._shared_crew_manager = crew_manager
         cls._shared_binder = binder
+
+    @classmethod
+    def get_multiplier(cls, ship_id: str, station: StationType) -> float:
+        """Get crew performance multiplier for a station on a ship.
+
+        Returns 1.0 (no effect) when crew binding is not initialized,
+        so gameplay systems degrade gracefully without crew assignments.
+        """
+        binder = cls._shared_binder
+        if binder is None:
+            return 1.0
+        # Only apply multiplier if the ship has crew slots registered
+        if ship_id not in binder._slots:
+            return 1.0
+        return binder.get_station_multiplier(ship_id, station)
 
     def tick(self, dt: float, ship: Any = None, event_bus: Any = None) -> None:
         """No per-tick work needed for crew assignments."""
@@ -85,8 +101,6 @@ class CrewBindingSystem(BaseSystem):
         self, binder: CrewStationBinder, ship: Any, params: dict,
     ) -> dict:
         """Handle assign_crew command."""
-        from server.stations.station_types import StationType
-
         crew_id = params.get("crew_id")
         station_str = params.get("station")
         if not crew_id or not station_str:
@@ -104,8 +118,6 @@ class CrewBindingSystem(BaseSystem):
         self, binder: CrewStationBinder, ship: Any, params: dict,
     ) -> dict:
         """Handle transfer_crew command."""
-        from server.stations.station_types import StationType
-
         crew_id = params.get("crew_id")
         station_str = params.get("to_station")
         if not crew_id or not station_str:
@@ -123,8 +135,6 @@ class CrewBindingSystem(BaseSystem):
         self, binder: CrewStationBinder, ship: Any, params: dict,
     ) -> dict:
         """Handle unassign_crew command."""
-        from server.stations.station_types import StationType
-
         station_str = params.get("station")
         if not station_str:
             return {"ok": False, "error": "station is required"}

@@ -261,6 +261,13 @@ class TargetingSystem(BaseSystem):
             lock_rate = 1.0 / self.lock_acquisition_time
             lock_rate *= self._sensor_factor  # Degraded sensors lock slower
             lock_rate *= self._targeting_factor  # Cascade penalties (RCS/reactor)
+
+            # Crew skill: TACTICAL station crew affects lock speed.
+            # Skilled gunners acquire locks faster; unmanned stations lock slower.
+            from hybrid.systems.crew_binding_system import CrewBindingSystem
+            from server.stations.station_types import StationType
+            lock_rate *= CrewBindingSystem.get_multiplier(ship.id, StationType.TACTICAL)
+
             self.lock_progress = min(1.0, self.lock_progress + lock_rate * dt)
 
             if self.lock_progress >= 1.0:

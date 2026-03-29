@@ -338,8 +338,15 @@ class OpsSystem(BaseSystem):
                     )
                     continue
 
-                # Apply constrained repair through field repair manager
-                raw_repair = team.repair_rate * dt
+                # Apply constrained repair through field repair manager.
+                # Crew skill: OPS station crew affects repair speed.
+                # Skilled damage control officers direct teams more effectively.
+                from hybrid.systems.crew_binding_system import CrewBindingSystem
+                from server.stations.station_types import StationType
+                crew_repair_mult = CrewBindingSystem.get_multiplier(
+                    ship.id, StationType.OPS
+                )
+                raw_repair = team.repair_rate * dt * crew_repair_mult
                 actual_repair, pause_reason = (
                     self.field_repair.apply_repair_constraints(
                         subsystem=subsystem,
