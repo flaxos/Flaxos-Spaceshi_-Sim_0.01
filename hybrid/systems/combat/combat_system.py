@@ -334,9 +334,24 @@ class CombatSystem(BaseSystem):
         if not self._torpedo_manager:
             return error_dict("NO_TORPEDO_MANAGER", "Torpedo manager not available")
 
-        # Resolve target
+        # Resolve target — contact IDs (e.g. "C001") must be mapped back to
+        # real ship IDs (e.g. "pirate01") so the torpedo manager can look up
+        # the target in the ships dict for guidance and proximity detonation.
         all_ships = all_ships or {}
+        resolved_target_id = target_id
         target_ship = all_ships.get(target_id)
+
+        if not target_ship:
+            # target_id may be a stable contact ID from the sensor system.
+            # Reverse-lookup: find the real ship ID from the contact tracker.
+            sensors = self._ship_ref.systems.get("sensors")
+            if sensors and hasattr(sensors, "contact_tracker"):
+                tracker = sensors.contact_tracker
+                for real_id, stable_id in tracker.id_mapping.items():
+                    if stable_id == target_id:
+                        resolved_target_id = real_id
+                        target_ship = all_ships.get(real_id)
+                        break
 
         # Get target position/velocity from targeting system or direct reference
         target_pos = None
@@ -358,10 +373,12 @@ class CombatSystem(BaseSystem):
         self._torpedo_cooldown = self.torpedo_reload_time
         self.torpedoes_launched += 1
 
-        # Spawn torpedo — inherits launcher velocity
+        # Spawn torpedo — inherits launcher velocity.
+        # Use resolved_target_id (real ship ID) so the torpedo manager can
+        # look up the target ship for guidance updates and proximity fuse.
         torpedo = self._torpedo_manager.spawn(
             shooter_id=self._ship_ref.id,
-            target_id=target_id,
+            target_id=resolved_target_id,
             position=dict(self._ship_ref.position),
             velocity=dict(self._ship_ref.velocity),
             sim_time=self._sim_time,
@@ -379,7 +396,7 @@ class CombatSystem(BaseSystem):
             )
 
         return success_dict(
-            f"Torpedo launched at {target_id}",
+            f"Torpedo launched at {resolved_target_id}",
             torpedo_id=torpedo.id,
             target=target_id,
             profile=profile,

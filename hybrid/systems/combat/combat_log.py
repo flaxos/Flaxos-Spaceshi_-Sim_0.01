@@ -72,6 +72,11 @@ class CombatLog:
         self._event_bus.subscribe("cascade_cleared", self._on_cascade_cleared)
         self._event_bus.subscribe("target_locked", self._on_target_locked)
         self._event_bus.subscribe("target_lost", self._on_target_lost)
+        # Torpedo lifecycle events
+        self._event_bus.subscribe("torpedo_launched", self._on_torpedo_launched)
+        self._event_bus.subscribe("torpedo_detonation", self._on_torpedo_detonation)
+        self._event_bus.subscribe("torpedo_expired", self._on_torpedo_expired)
+        self._event_bus.subscribe("torpedo_intercepted", self._on_torpedo_intercepted)
 
     def _add_entry(self, entry: CombatLogEntry):
         """Add entry and assign an ID."""
@@ -98,8 +103,11 @@ class CombatLog:
         for entry in reversed(self._entries):
             if entry.id <= since_id:
                 break
-            if event_type and entry.event_type != event_type:
-                continue
+            if event_type:
+                # Support prefix matching for grouped event types
+                # (e.g. "torpedo" matches torpedo_launch, torpedo_hit, torpedo_miss)
+                if not entry.event_type.startswith(event_type) and entry.event_type != event_type:
+                    continue
             if weapon and entry.weapon != weapon:
                 continue
             if target and entry.target_id != target:
@@ -401,6 +409,176 @@ class CombatLog:
             target_id=target_id,
             summary=summary,
             chain=chain,
+            severity="info",
+        ))
+
+    # ── Torpedo Event Handlers ─────────────────────────────────
+
+    def _on_torpedo_launched(self, payload: dict):
+        """Handle torpedo launch event."""
+        torpedo_id = payload.get("torpedo_id", "unknown")
+        shooter = payload.get("shooter", "unknown")
+        target = payload.get("target", "unknown")
+        profile = payload.get("profile", "direct")
+
+        summary = f"Torpedo launched at {target} ({profile})"
+        chain = [
+            f"Torpedo {torpedo_id} launched",
+            f"Shooter: {shooter}",
+            f"Target: {target}",
+            f"Profile: {profile}",
+            "Torpedo drive ignited — tracking target",
+        ]
+
+        self._add_entry(CombatLogEntry(
+            id=0,
+            sim_time=0.0,
+            timestamp=time.time(),
+            event_type="torpedo_launch",
+            ship_id=shooter,
+            target_id=target,
+            summary=summary,
+            chain=chain,
+            details={
+                "torpedo_id": torpedo_id,
+                "profile": profile,
+            },
+            weapon="Torpedo",
+            severity="info",
+        ))
+
+    def _on_torpedo_detonation(self, payload: dict):
+        """Handle torpedo detonation/impact event."""
+        torpedo_id = payload.get("torpedo_id", "unknown")
+        shooter = payload.get("shooter", "unknown")
+        target = payload.get("target", "unknown")
+        impact_distance = payload.get("impact_distance", 0.0)
+        flight_time = payload.get("flight_time", 0.0)
+        damage_results = payload.get("damage_results", [])
+        feedback = payload.get("feedback", "")
+
+        # Use the pre-built feedback string if available, otherwise construct
+        summary = feedback or f"Torpedo impact on {target} at {impact_distance:.0f}m"
+
+        # Build detailed causal chain
+        chain = [
+            f"Torpedo {torpedo_id} detonated",
+            f"Target: {target}",
+            f"Impact distance: {impact_distance:.0f}m",
+            f"Flight time: {flight_time:.1f}s",
+        ]
+
+        total_hull_dmg = 0.0
+        subsystems_hit = []
+        for result in damage_results:
+            ship_hit = result.get("ship_id", "unknown")
+            hull_dmg = result.get("hull_damage", 0)
+            total_hull_dmg += hull_dmg
+            if hull_dmg > 0:
+                chain.append(f"Hull damage to {ship_hit}: {hull_dmg:.1f}")
+            for sub in result.get("subsystems_hit", []):
+                name = sub.get("subsystem", "unknown")
+                dmg = sub.get("damage", 0)
+                subsystems_hit.append(name)
+                chain.append(f"Subsystem hit: {name} ({dmg:.1f} damage)")
+
+        if not damage_results:
+            chain.append("No ships in blast radius")
+
+        severity = "hit" if total_hull_dmg > 0 else "miss"
+        if subsystems_hit:
+            severity = "damage"
+
+        self._add_entry(CombatLogEntry(
+            id=0,
+            sim_time=0.0,
+            timestamp=time.time(),
+            event_type="torpedo_hit",
+            ship_id=shooter,
+            target_id=target,
+            summary=summary,
+            chain=chain,
+            details={
+                "torpedo_id": torpedo_id,
+                "impact_distance": impact_distance,
+                "flight_time": flight_time,
+                "hull_damage": total_hull_dmg,
+                "subsystems_hit": subsystems_hit,
+            },
+            weapon="Torpedo",
+            severity=severity,
+        ))
+
+    def _on_torpedo_expired(self, payload: dict):
+        """Handle torpedo expiry (fuel exhausted or lifetime exceeded)."""
+        torpedo_id = payload.get("torpedo_id", "unknown")
+        shooter = payload.get("shooter", "unknown")
+        target = payload.get("target", "unknown")
+        flight_time = payload.get("flight_time", 0.0)
+        reason = payload.get("reason", "lifetime_exceeded")
+
+        reason_label = {
+            "fuel_exhausted_past_target": "fuel exhausted past target",
+            "lifetime_exceeded": "guidance timeout",
+        }.get(reason, reason)
+
+        summary = f"Torpedo expired — {reason_label} (target: {target})"
+        chain = [
+            f"Torpedo {torpedo_id} lost",
+            f"Target: {target}",
+            f"Reason: {reason_label}",
+            f"Flight time: {flight_time:.1f}s",
+            "No impact — torpedo failed to reach target",
+        ]
+
+        self._add_entry(CombatLogEntry(
+            id=0,
+            sim_time=0.0,
+            timestamp=time.time(),
+            event_type="torpedo_miss",
+            ship_id=shooter,
+            target_id=target,
+            summary=summary,
+            chain=chain,
+            details={
+                "torpedo_id": torpedo_id,
+                "flight_time": flight_time,
+                "reason": reason,
+            },
+            weapon="Torpedo",
+            severity="miss",
+        ))
+
+    def _on_torpedo_intercepted(self, payload: dict):
+        """Handle torpedo interception by PDC fire."""
+        torpedo_id = payload.get("torpedo_id", "unknown")
+        shooter = payload.get("shooter", "unknown")
+        target = payload.get("target", "unknown")
+        intercepted_by = payload.get("intercepted_by", "PDC")
+
+        summary = f"Torpedo intercepted by {intercepted_by} (target: {target})"
+        chain = [
+            f"Torpedo {torpedo_id} destroyed",
+            f"Launched by: {shooter}",
+            f"Targeting: {target}",
+            f"Intercepted by: {intercepted_by}",
+            "PDC point defense successful — torpedo neutralized",
+        ]
+
+        self._add_entry(CombatLogEntry(
+            id=0,
+            sim_time=0.0,
+            timestamp=time.time(),
+            event_type="torpedo_miss",
+            ship_id=shooter,
+            target_id=target,
+            summary=summary,
+            chain=chain,
+            details={
+                "torpedo_id": torpedo_id,
+                "intercepted_by": intercepted_by,
+            },
+            weapon="Torpedo",
             severity="info",
         ))
 

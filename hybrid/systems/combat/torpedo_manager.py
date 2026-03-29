@@ -327,10 +327,21 @@ class TorpedoManager:
             torpedo.datalink_active = False
             return
 
-        # Check if launcher still has sensor data on target
+        # Check if launcher still has sensor data on target.
+        # targeting.locked_target is a contact ID (e.g. "C001") while
+        # torpedo.target_id is a real ship ID (e.g. "pirate01").  Resolve
+        # via the contact tracker's id_mapping for comparison.
         targeting = launcher.systems.get("targeting") if hasattr(launcher, "systems") else None
         if targeting and hasattr(targeting, "target_data") and targeting.target_data:
-            if targeting.locked_target == torpedo.target_id:
+            locked = targeting.locked_target
+            # Direct match (both are same format) or contact-ID match
+            is_match = locked == torpedo.target_id
+            if not is_match:
+                sensors = launcher.systems.get("sensors") if hasattr(launcher, "systems") else None
+                if sensors and hasattr(sensors, "contact_tracker"):
+                    stable_id = sensors.contact_tracker.id_mapping.get(torpedo.target_id)
+                    is_match = (stable_id is not None and stable_id == locked)
+            if is_match:
                 torpedo.last_target_pos = dict(targeting.target_data.get("position", torpedo.last_target_pos))
                 torpedo.last_target_vel = dict(targeting.target_data.get("velocity", torpedo.last_target_vel))
                 return
