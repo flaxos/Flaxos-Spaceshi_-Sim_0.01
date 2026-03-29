@@ -83,7 +83,7 @@ class HelmSystem(BaseSystem):
             return
 
         # Power request
-        power_system = ship.systems.get("power")
+        power_system = ship.systems.get("power_management") or ship.systems.get("power")
         if power_system and not power_system.request_power(self.power_draw * dt, "helm"):
             return
 

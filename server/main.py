@@ -620,21 +620,60 @@ class UnifiedServer:
         allowed_displays = get_station_displays(station)
 
         event_categories = {
+            # HELM events
             "autopilot": ["nav_status", "autopilot_status"],
             "navigation": ["nav_status", "position", "velocity"],
             "propulsion": ["propulsion_status", "helm_status"],
+            "course": ["nav_status", "course_plot"],
+            "docking": ["docking_guidance"],
+
+            # TACTICAL events
             "weapon": ["weapons_status", "ammunition", "hardpoints"],
             "target": ["target_info", "targeting_status"],
+            "fire": ["weapons_status", "firing_solution"],
+            "pdc": ["pdc_status", "weapons_status"],
+            "torpedo": ["weapons_status", "ammunition", "hardpoints"],
+            "threat": ["threat_board"],
+
+            # OPS events
             "sensor": ["sensor_status", "contacts"],
             "contact": ["contacts", "contact_details"],
+            "detection": ["contacts", "detection_log"],
+            "ping": ["sensor_status"],
+            "ecm": ["ecm_status", "eccm_status"],
+            "signature": ["signature_analysis"],
+            "crew": ["crew_fatigue_status", "crew_station_status"],
+
+            # ENGINEERING events
             "power": ["power_grid", "power_management_status"],
             "reactor": ["reactor_status", "power_grid"],
             "damage": ["damage_report", "hull_integrity"],
+            "repair": ["repair_queue", "damage_report"],
+            "system": ["system_status"],
+            "fuel": ["fuel_status"],
+            "engineering": ["engineering_status", "system_status"],
+
+            # COMMS events
             "comm": ["comm_log", "message_queue"],
             "fleet": ["fleet_status"],
+            "hail": ["comm_log"],
+            "message": ["message_queue"],
+            "iff": ["iff_contacts"],
+
+            # FLEET_COMMANDER events
+            "fleet_tactical": ["fleet_tactical_display", "threat_board"],
+            "fleet_formation": ["fleet_formation_view"],
+            "fleet_status": ["fleet_status_board"],
+            "engagement": ["engagement_summary"],
+
+            # System-wide events (all stations see these)
             "critical": ["all"],
             "alert": ["all"],
             "mission": ["all"],
+            "mission_update": ["all"],
+            "mission_complete": ["all"],
+            "hint": ["all"],
+            "gimbal_lock": ["nav_status", "helm_status"],
         }
 
         filtered = []

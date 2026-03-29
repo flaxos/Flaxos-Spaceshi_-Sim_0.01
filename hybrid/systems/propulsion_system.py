@@ -153,7 +153,7 @@ class PropulsionSystem(BaseSystem):
 
         # Power check
         total_power = self.power_draw + (self.power_draw_per_thrust * thrust_magnitude * dt)
-        power_system = ship.systems.get("power")
+        power_system = ship.systems.get("power_management") or ship.systems.get("power")
         if power_system and not power_system.request_power(total_power, "propulsion"):
             logger.warning(f"Propulsion on {ship.id} reduced due to power shortage")
             thrust_world_x = thrust_world_y = thrust_world_z = 0.0

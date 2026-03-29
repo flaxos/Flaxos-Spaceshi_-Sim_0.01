@@ -35,7 +35,7 @@ class BioMonitorSystem(BaseSystem):
         if not self.enabled:
             return
 
-        power_system = ship.systems.get("power")
+        power_system = ship.systems.get("power_management") or ship.systems.get("power")
         if power_system and not power_system.request_power(self.power_draw * dt, "bio_monitor"):
             event_bus.publish("bio_monitor_offline", {"source": "bio_monitor"})
             return

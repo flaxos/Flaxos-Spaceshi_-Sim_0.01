@@ -1,14 +1,27 @@
 # hybrid/systems/power_system.py
-"""Power generation, storage and distribution for ships."""
+"""Power generation, storage and distribution for ships.
+
+Legacy flat power model.  When a PowerManagementSystem (multi-reactor)
+also exists on the same ship, request_power() delegates to it so that
+there is a single source of truth for power accounting.
+"""
 
 from hybrid.core.base_system import BaseSystem
 
 class PowerSystem(BaseSystem):
-    """Handles power generation, storage and distribution."""
+    """Handles power generation, storage and distribution.
+
+    If the ship also has a ``power_management`` system, this instance
+    delegates ``request_power`` calls to it to avoid double-accounting.
+    """
 
     def __init__(self, config=None):
         super().__init__(config)
         config = config or {}
+
+        # Reference to the ship, set during tick() so delegation can
+        # find the PowerManagementSystem when both coexist.
+        self._ship_ref = None
 
         # Generation and storage
         self.generation_rate = float(config.get("generation", 10.0))
@@ -31,7 +44,20 @@ class PowerSystem(BaseSystem):
         self._last_draw = 0.0
         self._last_dt = 0.0
 
+    def _get_delegate(self):
+        """Return the PowerManagementSystem if one coexists on this ship."""
+        if self._ship_ref is None:
+            return None
+        systems = getattr(self._ship_ref, "systems", None)
+        if systems is None:
+            return None
+        pm = systems.get("power_management")
+        if pm is not None and pm is not self:
+            return pm
+        return None
+
     def tick(self, dt, ship, event_bus):
+        self._ship_ref = ship
         damage_factor = 1.0
         if ship is not None and hasattr(ship, "damage_model"):
             damage_factor = ship.damage_model.get_combined_factor("power")
@@ -117,6 +143,15 @@ class PowerSystem(BaseSystem):
         return super().command(action, params)
 
     def request_power(self, amount, system_name):
+        """Request power for a system.
+
+        If a PowerManagementSystem coexists on the same ship, the call
+        is delegated so that only one system tracks power accounting.
+        """
+        delegate = self._get_delegate()
+        if delegate is not None:
+            return delegate.request_power(amount, system_name)
+
         if not self.enabled:
             return False
         if amount <= 0:

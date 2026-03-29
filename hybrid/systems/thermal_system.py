@@ -286,7 +286,8 @@ class ThermalSystem(BaseSystem):
         pm = ship.systems.get("power_management")
         if pm and hasattr(pm, "get_state"):
             state = pm.get_state()
-            total_output = state.get("total_output", 0)
+            # PowerManagementSystem.get_state() returns "total_available", not "total_output"
+            total_output = state.get("total_available", 0)
             total_capacity = state.get("total_capacity", 1)
             if total_capacity > 0:
                 return min(1.0, total_output / total_capacity)
