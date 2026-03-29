@@ -107,6 +107,8 @@ import "../components/science-analysis-panel.js";
 import "../components/tutorial-overlay.js";
 // Inter-station messaging
 import "../components/station-chat.js";
+// Multi-target tracking
+import "../components/multi-track-panel.js";
 
 // App state
 const app = {
