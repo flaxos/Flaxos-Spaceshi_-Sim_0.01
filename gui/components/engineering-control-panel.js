@@ -8,6 +8,7 @@
  * - Emergency coolant vent (confirmation required)
  */
 
+import { wsClient } from "../js/ws-client.js";
 import { stateManager } from "../js/state-manager.js";
 
 class EngineeringControlPanel extends HTMLElement {
@@ -36,10 +37,7 @@ class EngineeringControlPanel extends HTMLElement {
   }
 
   async _sendCommand(cmd, args = {}) {
-    if (window.flaxosApp && window.flaxosApp.sendCommand) {
-      return window.flaxosApp.sendCommand(cmd, args);
-    }
-    return null;
+    return wsClient.sendShipCommand(cmd, args);
   }
 
   render() {

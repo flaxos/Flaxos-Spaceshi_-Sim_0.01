@@ -15,6 +15,7 @@ const SUBSYSTEM_ORDER = [
   "targeting",
   "weapons",
   "life_support",
+  "radiators",
 ];
 
 const SUBSYSTEM_LABELS = {
@@ -25,6 +26,7 @@ const SUBSYSTEM_LABELS = {
   targeting: "Targeting",
   weapons: "Weapons",
   life_support: "Life Support",
+  radiators: "Radiators",
 };
 
 // Estimated repair times (seconds) based on damage severity

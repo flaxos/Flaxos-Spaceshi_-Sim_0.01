@@ -930,7 +930,10 @@ class TacticalMap extends HTMLElement {
 
     // Heading indicator
     if (this._showHeading) {
-      ctx.rotate((heading * Math.PI) / 180);
+      // Yaw=0 is +X (east) in physics, but rotate(0) draws up (+Z/north on canvas).
+      // Subtract 90 degrees to align heading arrow with the physics convention.
+      const headingRad = (heading * Math.PI) / 180 - Math.PI / 2;
+      ctx.rotate(headingRad);
       ctx.strokeStyle = "#00aaff";
       ctx.lineWidth = 2;
       ctx.beginPath();
@@ -946,7 +949,7 @@ class TacticalMap extends HTMLElement {
       ctx.closePath();
       ctx.fillStyle = "#00aaff";
       ctx.fill();
-      ctx.rotate(-(heading * Math.PI) / 180);
+      ctx.rotate(-headingRad);
     }
 
     // Player ship icon (triangle)

@@ -8,6 +8,7 @@
  * - Status readout
  */
 
+import { wsClient } from "../js/ws-client.js";
 import { stateManager } from "../js/state-manager.js";
 
 class ECMControlPanel extends HTMLElement {
@@ -35,10 +36,7 @@ class ECMControlPanel extends HTMLElement {
   }
 
   async _sendCommand(cmd, args = {}) {
-    if (window.flaxosApp && window.flaxosApp.sendCommand) {
-      return window.flaxosApp.sendCommand(cmd, args);
-    }
-    return null;
+    return wsClient.sendShipCommand(cmd, args);
   }
 
   render() {
