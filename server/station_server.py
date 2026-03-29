@@ -374,6 +374,7 @@ class StationServer:
             "target": ["target_info", "targeting_status"],
             "fire": ["weapons_status", "firing_solution"],
             "pdc": ["pdc_status", "weapons_status"],
+            "torpedo": ["weapons_status", "ammunition", "hardpoints"],
             "threat": ["threat_board"],
 
             # OPS events

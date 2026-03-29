@@ -540,6 +540,16 @@ class MultiTrackPanel extends HTMLElement {
     const truthWeapons = weapons?.truth_weapons || {};
     const trackIds = tracks.map((t) => t.contact_id);
 
+    // Skip full re-render if any dropdown in the assignments section is
+    // currently open (focused).  Rebuilding innerHTML while a <select> is
+    // open destroys the native dropdown menu, making it impossible to
+    // pick a value.  Instead, do a targeted in-place update of existing
+    // <select> elements so the DOM stays stable.
+    const assignSection = this.shadowRoot.getElementById("assignments-section");
+    const activeEl = this.shadowRoot.activeElement;
+    const dropdownOpen = activeEl && activeEl.tagName === "SELECT" &&
+      assignSection && assignSection.contains(activeEl);
+
     // PDC mounts
     const pdcContainer = this.shadowRoot.getElementById("pdc-assignments");
     const pdcMounts = Object.keys(truthWeapons).filter((id) => id.startsWith("pdc"));
@@ -548,6 +558,10 @@ class MultiTrackPanel extends HTMLElement {
       pdcContainer.innerHTML = trackIds.length === 0
         ? '<div class="no-weapons-msg">Add tracks to assign weapons</div>'
         : '<div class="no-weapons-msg">No PDC mounts available</div>';
+    } else if (dropdownOpen) {
+      // In-place update: sync option lists and selected values without
+      // destroying existing DOM elements
+      this._updateSelectsInPlace(pdcContainer, "pdcMount", pdcMounts, trackIds, pdcAssignments);
     } else {
       let html = "";
       for (const mount of pdcMounts) {
@@ -587,6 +601,8 @@ class MultiTrackPanel extends HTMLElement {
       splitContainer.innerHTML = trackIds.length === 0
         ? ""
         : '<div class="no-weapons-msg">No split-fire mounts available</div>';
+    } else if (dropdownOpen) {
+      this._updateSelectsInPlace(splitContainer, "splitMount", nonPdcMounts, trackIds, splitAssignments);
     } else {
       let html = "";
       for (const mount of nonPdcMounts) {
@@ -615,6 +631,48 @@ class MultiTrackPanel extends HTMLElement {
           }
         });
       });
+    }
+  }
+
+  /**
+   * Update existing <select> elements in-place without destroying the DOM.
+   * This preserves focus and keeps native dropdown menus open while state
+   * updates arrive.
+   *
+   * For each mount, finds the existing <select> by data attribute, syncs
+   * its option list with the current track IDs, and updates the selected
+   * value to match server state -- but only if the user is not actively
+   * interacting with that specific select.
+   */
+  _updateSelectsInPlace(container, dataAttrKey, mounts, trackIds, assignments) {
+    for (const mount of mounts) {
+      const attrName = dataAttrKey === "pdcMount" ? "data-pdc-mount" : "data-split-mount";
+      const sel = container.querySelector(`select[${attrName}="${mount}"]`);
+      if (!sel) continue;
+
+      const assigned = assignments[mount] || "";
+      const isFocused = (this.shadowRoot.activeElement === sel);
+
+      // Sync options: ensure option list matches current trackIds
+      const desiredValues = ["", ...trackIds];
+      const existingValues = Array.from(sel.options).map((o) => o.value);
+
+      if (JSON.stringify(desiredValues) !== JSON.stringify(existingValues)) {
+        // Options changed (tracks added/removed) -- rebuild options only
+        const currentVal = sel.value;
+        sel.innerHTML = `<option value="">-- primary --</option>` +
+          trackIds.map((cid) =>
+            `<option value="${cid}" ${cid === assigned ? "selected" : ""}>${cid}</option>`
+          ).join("");
+        // Preserve user's in-progress selection if they have the dropdown open
+        if (isFocused && desiredValues.includes(currentVal)) {
+          sel.value = currentVal;
+        }
+      } else if (!isFocused) {
+        // Options unchanged and user is not interacting -- sync selected value
+        sel.value = assigned;
+      }
+      // If focused and options unchanged, leave it alone entirely
     }
   }
 

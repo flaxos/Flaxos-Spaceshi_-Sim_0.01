@@ -26,6 +26,9 @@ const EVENT_TYPE_LABELS = {
   reload: "RELOAD",
   lock: "LOCK",
   lock_lost: "LOST",
+  torpedo_launch: "TORP",
+  torpedo_hit: "IMPACT",
+  torpedo_miss: "TORP MISS",
 };
 
 const POLL_INTERVAL_MS = 800;
@@ -165,6 +168,11 @@ class CombatLog extends HTMLElement {
           background: #ff4444;
         }
 
+        .filter-btn.torpedo.active {
+          background: #cc66ff;
+          color: #000;
+        }
+
         .spacer { flex: 1; }
 
         .scroll-indicator {
@@ -243,6 +251,7 @@ class CombatLog extends HTMLElement {
         .entry-tag.damage { background: rgba(255, 170, 0, 0.15); color: #ffaa00; }
         .entry-tag.critical { background: rgba(255, 68, 68, 0.15); color: #ff4444; }
         .entry-tag.info { background: rgba(0, 170, 255, 0.15); color: #00aaff; }
+        .entry-tag.torpedo { background: rgba(204, 102, 255, 0.15); color: #cc66ff; }
 
         .entry-summary {
           color: var(--text-primary, #e0e0e0);
@@ -318,6 +327,7 @@ class CombatLog extends HTMLElement {
         <button class="filter-btn critical" data-filter="cascade">CASCADE</button>
         <button class="filter-btn" data-filter="reload">RELOAD</button>
         <button class="filter-btn" data-filter="lock">LOCK</button>
+        <button class="filter-btn torpedo" data-filter="torpedo">TORP</button>
         <span class="spacer"></span>
         <span class="count-badge" id="count-badge">0 entries</span>
         <span class="scroll-indicator" id="scroll-indicator">&#x25BC; Auto</span>
@@ -428,7 +438,9 @@ class CombatLog extends HTMLElement {
 
     const tagLabel =
       EVENT_TYPE_LABELS[entry.event_type] || entry.event_type?.toUpperCase() || "?";
-    const tagClass = entry.severity || "info";
+    // Use torpedo-specific tag styling for torpedo events
+    const isTorpedoEvent = entry.event_type?.startsWith("torpedo");
+    const tagClass = isTorpedoEvent ? "torpedo" : (entry.severity || "info");
 
     const simTime = entry.sim_time != null ? `T+${entry.sim_time.toFixed(1)}s` : "";
 
