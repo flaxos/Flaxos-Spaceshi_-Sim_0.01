@@ -107,6 +107,8 @@ import "../components/science-analysis-panel.js";
 import "../components/tutorial-overlay.js";
 // Inter-station messaging
 import "../components/station-chat.js";
+// Mission comms choices (branching dialogue)
+import "../components/comms-choice-panel.js";
 // Multi-target tracking
 import "../components/multi-track-panel.js";
 
