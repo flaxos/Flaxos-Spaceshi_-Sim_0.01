@@ -96,9 +96,9 @@ class Objective:
         elif self.type == ObjectiveType.AVOID_DETECTION:
             return self._check_avoid_detection(sim, player_ship)
         elif self.type == ObjectiveType.ESCAPE_RANGE:
-            return self._check_escape_range(sim, player_ship)
+            return self._check_escape_range(sim, player_ship, tracker)
         elif self.type == ObjectiveType.AMMO_DEPLETED:
-            return self._check_ammo_depleted(sim, player_ship)
+            return self._check_ammo_depleted(sim, player_ship, tracker)
 
         return False
 
@@ -442,10 +442,15 @@ class Objective:
 
         return False
 
-    def _check_escape_range(self, sim, player_ship) -> bool:
+    def _check_escape_range(self, sim, player_ship, tracker=None) -> bool:
         """Check if target has escaped beyond the threshold range.
 
-        Fails when target ship exceeds ``escape_range`` from the player.
+        This is a guard objective: it fails if the target escapes beyond
+        ``escape_range``, and auto-completes when all other required
+        objectives are completed (meaning the player won before the
+        target could escape).  Without the auto-complete logic, guard
+        objectives block mission success because _evaluate_mission_status
+        requires ALL required objectives to be COMPLETED.
         """
         target_id = self.params.get("target")
         escape_range = self.params.get("escape_range", 500000)  # 500km default
@@ -465,12 +470,30 @@ class Objective:
             logger.info(f"Objective {self.id} failed: {target_id} escaped at {current_range:.0f}m")
             return False
 
+        # Auto-complete when all other required objectives succeed --
+        # the player won before the target could escape.
+        if tracker:
+            other_required = [
+                obj for obj in tracker.objectives.values()
+                if obj.required and obj.id != self.id
+            ]
+            if other_required and all(
+                obj.status == ObjectiveStatus.COMPLETED for obj in other_required
+            ):
+                self.status = ObjectiveStatus.COMPLETED
+                self.completion_time = sim.time
+                self.progress = 1.0
+                logger.info(f"Objective {self.id} completed: target contained")
+                return True
+
         return False
 
-    def _check_ammo_depleted(self, sim, player_ship) -> bool:
+    def _check_ammo_depleted(self, sim, player_ship, tracker=None) -> bool:
         """Check if ship has run out of ammunition.
 
-        Fails when the target ship's combat system reports zero ammo remaining.
+        Guard objective: fails when the target ship's combat system
+        reports zero ammo remaining.  Auto-completes when all other
+        required objectives succeed (player won with ammo to spare).
         """
         target_id = self.params.get("target")
         target_ship = sim.ships.get(target_id)
@@ -492,6 +515,22 @@ class Objective:
             self.failure_reason = f"{target_id} ammunition depleted"
             logger.info(f"Objective {self.id} failed: {target_id} out of ammo")
             return False
+
+        # Auto-complete when all other required objectives succeed --
+        # the player won with ammo remaining.
+        if tracker:
+            other_required = [
+                obj for obj in tracker.objectives.values()
+                if obj.required and obj.id != self.id
+            ]
+            if other_required and all(
+                obj.status == ObjectiveStatus.COMPLETED for obj in other_required
+            ):
+                self.status = ObjectiveStatus.COMPLETED
+                self.completion_time = sim.time
+                self.progress = 1.0
+                logger.info(f"Objective {self.id} completed: ammo conserved")
+                return True
 
         return False
 
