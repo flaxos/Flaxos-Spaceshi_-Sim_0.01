@@ -432,3 +432,152 @@ def test_mission_has_time_limit():
     assert mission.time_limit == 600, (
         f"Expected 600s time limit, got {mission.time_limit}"
     )
+
+
+# ---------------------------------------------------------------------------
+# Test 13: Surviving until time limit = mission success, not failure
+# ---------------------------------------------------------------------------
+
+def test_survive_until_time_limit_succeeds():
+    """When avoid_mission_kill is the only required objective and the timer
+    expires with the player alive, the mission should be SUCCESS.
+
+    Regression test for the fleet_battle win condition bug where
+    avoid_mission_kill stayed IN_PROGRESS forever (no other required
+    objectives to gate on), so time expiry always meant FAILURE.
+    """
+    from hybrid.scenarios.objectives import (
+        Objective, ObjectiveType, ObjectiveStatus, ObjectiveTracker,
+    )
+    from hybrid.scenarios.mission import Mission
+
+    # Build a minimal mission that mirrors fleet_battle's structure:
+    # one required avoid_mission_kill, several optional kill objectives.
+    objectives = [
+        Objective("flagship_survives", ObjectiveType.AVOID_MISSION_KILL,
+                  "Keep the flagship operational",
+                  {"target": "player"}, required=True),
+        Objective("kill_enemy", ObjectiveType.MISSION_KILL,
+                  "Neutralize enemy", {"target": "enemy_1"}, required=False),
+    ]
+
+    mission = Mission(
+        name="Test Fleet Battle",
+        description="Survive the engagement",
+        objectives=objectives,
+        time_limit=600,
+    )
+    mission.start(sim_time=0.0)
+
+    # Simulate a mock sim where the player is alive and time exceeds limit
+    class MockDamageModel:
+        def is_mission_kill(self):
+            return False
+        def get_degradation_factor(self, sys):
+            return 1.0
+
+    class MockShip:
+        def __init__(self, ship_id):
+            self.id = ship_id
+            self.position = {"x": 0, "y": 0, "z": 0}
+            self.velocity = {"x": 0, "y": 0, "z": 0}
+            self.hull_integrity = 100
+            self.damage_model = MockDamageModel()
+        def is_destroyed(self):
+            return False
+
+    class MockSim:
+        def __init__(self, t):
+            self.time = t
+            self.ships = {
+                "player": MockShip("player"),
+                "enemy_1": MockShip("enemy_1"),
+            }
+
+    # Time just before limit -- mission should still be in progress
+    sim_before = MockSim(599.0)
+    mission.update(sim_before, sim_before.ships["player"])
+    assert mission.tracker.mission_status == "in_progress", (
+        "Mission should be in_progress before time limit"
+    )
+
+    # Time past limit -- player survived, mission should succeed
+    sim_after = MockSim(601.0)
+    mission.update(sim_after, sim_after.ships["player"])
+
+    flagship_obj = mission.tracker.objectives["flagship_survives"]
+    assert flagship_obj.status == ObjectiveStatus.COMPLETED, (
+        f"flagship_survives should be COMPLETED after surviving the time limit, "
+        f"got {flagship_obj.status}"
+    )
+    assert mission.tracker.mission_status == "success", (
+        f"Mission should be SUCCESS when player survives the time limit, "
+        f"got '{mission.tracker.mission_status}'"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Test 14: Player killed before time limit = mission failure (unchanged)
+# ---------------------------------------------------------------------------
+
+def test_player_killed_before_time_limit_fails():
+    """If the player is mission-killed before time expires, the mission
+    should still fail -- the fix must not break this path.
+    """
+    from hybrid.scenarios.objectives import (
+        Objective, ObjectiveType, ObjectiveStatus,
+    )
+    from hybrid.scenarios.mission import Mission
+
+    objectives = [
+        Objective("flagship_survives", ObjectiveType.AVOID_MISSION_KILL,
+                  "Keep the flagship operational",
+                  {"target": "player"}, required=True),
+    ]
+
+    mission = Mission(
+        name="Test Fleet Battle Fail",
+        description="Survive the engagement",
+        objectives=objectives,
+        time_limit=600,
+    )
+    mission.start(sim_time=0.0)
+
+    class MockDamageModel:
+        def __init__(self, killed=False):
+            self._killed = killed
+        def is_mission_kill(self):
+            return self._killed
+        def get_degradation_factor(self, sys):
+            return 0.0 if self._killed else 1.0
+
+    class MockShip:
+        def __init__(self, ship_id, killed=False):
+            self.id = ship_id
+            self.position = {"x": 0, "y": 0, "z": 0}
+            self.velocity = {"x": 0, "y": 0, "z": 0}
+            self.hull_integrity = 0 if killed else 100
+            self.damage_model = MockDamageModel(killed)
+        def is_destroyed(self):
+            return self.hull_integrity <= 0
+
+    class MockSim:
+        def __init__(self, t, player_killed=False):
+            self.time = t
+            self.ships = {
+                "player": MockShip("player", killed=player_killed),
+            }
+
+    # Player gets mission-killed at t=300
+    sim = MockSim(300.0, player_killed=True)
+    mission.update(sim, sim.ships["player"])
+
+    flagship_obj = mission.tracker.objectives["flagship_survives"]
+    assert flagship_obj.status == ObjectiveStatus.FAILED, (
+        f"flagship_survives should be FAILED when player is killed, "
+        f"got {flagship_obj.status}"
+    )
+    assert mission.tracker.mission_status == "failure", (
+        f"Mission should be FAILURE when player is killed, "
+        f"got '{mission.tracker.mission_status}'"
+    )

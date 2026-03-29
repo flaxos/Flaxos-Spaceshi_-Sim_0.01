@@ -58,6 +58,8 @@ ships:
         enabled: true
         railguns: 2
         pdcs: 4
+        torpedoes: 1
+        torpedo_capacity: 8
       weapons:
         enabled: true
         power_draw: 40

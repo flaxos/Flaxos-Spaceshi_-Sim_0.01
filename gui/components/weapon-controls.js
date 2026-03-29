@@ -403,7 +403,7 @@ class WeaponControls extends HTMLElement {
         <div class="group-title">Torpedoes</div>
         <button class="fire-btn torpedo-btn" id="torpedo-btn" data-testid="torpedo-btn">
           FIRE TORPEDO
-          <span class="torpedo-count" id="torpedo-count">(10)</span>
+          <span class="torpedo-count" id="torpedo-count">(0)</span>
         </button>
         <div class="warning-box hidden" id="no-lock-warning">
           No target lock - torpedoes will fire dumb
@@ -495,7 +495,7 @@ class WeaponControls extends HTMLElement {
 
     // Torpedo count
     const torpedoData = weapons?.torpedoes || weapons?.torpedo || {};
-    const torpedoCount = torpedoData.loaded ?? torpedoData.count ?? 10;
+    const torpedoCount = torpedoData.loaded ?? torpedoData.count ?? 0;
     const torpedoBtn = this.shadowRoot.getElementById("torpedo-btn");
     const countSpan = this.shadowRoot.getElementById("torpedo-count");
     countSpan.textContent = `(${torpedoCount})`;

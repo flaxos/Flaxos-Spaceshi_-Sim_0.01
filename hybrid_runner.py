@@ -295,8 +295,58 @@ class HybridRunner:
             player_ship = next(iter(self.simulator.ships.values()))
         if player_ship:
             previous_status = self.last_mission_status or self.mission.tracker.mission_status
+
+            # Snapshot per-objective statuses before the update so we can
+            # detect individual completions/failures this tick.
+            obj_statuses_before = {
+                obj_id: obj.status
+                for obj_id, obj in self.mission.tracker.objectives.items()
+            }
+
             self.mission.update(self.simulator, player_ship)
             current_status = self.mission.tracker.mission_status
+
+            # --- Notify comms of individual objective changes ---
+            comms = player_ship.systems.get("comms")
+            for obj_id, obj in self.mission.tracker.objectives.items():
+                old_status = obj_statuses_before.get(obj_id)
+                if obj.status == old_status:
+                    continue
+                # Objective just completed or failed -- push to comms
+                if obj.status.value == "completed":
+                    msg = f"OBJECTIVE COMPLETE: {obj.description}"
+                    if comms:
+                        comms.add_system_message(
+                            msg,
+                            from_source="MISSION CONTROL",
+                            time=self.simulator.time,
+                        )
+                    player_ship.event_bus.publish("objective_complete", {
+                        "type": "objective_complete",
+                        "ship_id": player_ship.id,
+                        "objective_id": obj_id,
+                        "description": obj.description,
+                        "sim_time": self.simulator.time,
+                    })
+                elif obj.status.value == "failed":
+                    reason = obj.failure_reason or "Unknown"
+                    msg = f"OBJECTIVE FAILED: {obj.description} -- {reason}"
+                    if comms:
+                        comms.add_system_message(
+                            msg,
+                            from_source="MISSION CONTROL",
+                            time=self.simulator.time,
+                        )
+                    player_ship.event_bus.publish("objective_failed", {
+                        "type": "objective_failed",
+                        "ship_id": player_ship.id,
+                        "objective_id": obj_id,
+                        "description": obj.description,
+                        "failure_reason": reason,
+                        "sim_time": self.simulator.time,
+                    })
+
+            # --- Notify comms of mission-level status changes ---
             if current_status != previous_status:
                 event_name = "mission_complete" if current_status in ("success", "failure") else "mission_update"
                 payload = {
@@ -310,6 +360,15 @@ class HybridRunner:
                     "sim_time": self.simulator.time,
                 }
                 player_ship.event_bus.publish(event_name, payload)
+
+                # Post mission result to comms channel
+                if comms:
+                    comms.add_system_message(
+                        payload["message"],
+                        from_source="MISSION CONTROL",
+                        time=self.simulator.time,
+                    )
+
             self.last_mission_status = current_status
     
     def _update_state_cache(self):
