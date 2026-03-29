@@ -91,6 +91,8 @@ import "../components/helm-nav-display.js";
 import "../components/ops-control-panel.js";
 // ECM Electronic Warfare
 import "../components/ecm-control-panel.js";
+// ECCM Counter-Jamming
+import "../components/eccm-control-panel.js";
 // Torpedo System
 import "../components/torpedo-status.js";
 // Engineering Station Controls
