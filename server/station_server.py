@@ -257,12 +257,39 @@ class StationServer:
             ship_telemetry
         )
 
-        return {
+        result = {
             "ok": True,
             "ship": ship_id,
             "state": filtered,
             "t": self.runner.simulator.time
         }
+
+        # Include simulation-wide projectiles and torpedoes for stations
+        # that need them (TACTICAL, CAPTAIN).  These live on the simulator,
+        # not per-ship, so get_ship_telemetry() doesn't include them.
+        from server.stations.station_types import StationType
+        if session.station in (StationType.TACTICAL, StationType.CAPTAIN):
+            sim = self.runner.simulator
+            # Projectiles
+            projectiles = []
+            if hasattr(sim, "projectile_manager"):
+                for proj in sim.projectile_manager.projectiles:
+                    projectiles.append({
+                        "position": proj.position,
+                        "velocity": proj.velocity,
+                        "type": getattr(proj, "weapon_type", "unknown"),
+                        "shooter": getattr(proj, "shooter_id", None),
+                        "target": getattr(proj, "target_id", None),
+                    })
+            result["projectiles"] = projectiles
+
+            # Torpedoes
+            torpedoes = []
+            if hasattr(sim, "torpedo_manager"):
+                torpedoes = sim.torpedo_manager.get_state()
+            result["torpedoes"] = torpedoes
+
+        return result
 
     def _handle_get_events(self, client_id: str, req: dict) -> dict:
         """
