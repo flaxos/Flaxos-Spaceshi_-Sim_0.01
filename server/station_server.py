@@ -270,17 +270,10 @@ class StationServer:
         from server.stations.station_types import StationType
         if session.station in (StationType.TACTICAL, StationType.CAPTAIN):
             sim = self.runner.simulator
-            # Projectiles
+            # Projectiles — use get_state() API (same pattern as torpedoes)
             projectiles = []
             if hasattr(sim, "projectile_manager"):
-                for proj in sim.projectile_manager.projectiles:
-                    projectiles.append({
-                        "position": proj.position,
-                        "velocity": proj.velocity,
-                        "type": getattr(proj, "weapon_type", "unknown"),
-                        "shooter": getattr(proj, "shooter_id", None),
-                        "target": getattr(proj, "target_id", None),
-                    })
+                projectiles = sim.projectile_manager.get_state()
             result["projectiles"] = projectiles
 
             # Torpedoes

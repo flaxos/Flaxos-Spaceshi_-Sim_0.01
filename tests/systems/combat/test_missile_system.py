@@ -2,7 +2,7 @@
 """Tests for the missile weapon subtype — light, high-G guided munitions.
 
 Missiles share the TorpedoManager flight/detonation pipeline but differ in:
-- Physical specs (80 kg, 12 kN thrust, 150 m/s^2 accel, 15 kg fuel)
+- Physical specs (95 kg, 10 kN thrust, ~105 m/s^2 accel, 30 kg fuel)
 - Warhead (25 hull damage, 10m lethal, 30m blast)
 - Guidance (augmented PN with N=5, terminal lead pursuit, G-limited)
 - Flight profiles (direct, evasive, terminal_pop, bracket)
@@ -18,21 +18,22 @@ class TestMissileSpecs:
 
     def test_missile_mass(self):
         from hybrid.systems.combat.torpedo_manager import MISSILE_MASS
-        assert MISSILE_MASS == 80.0
+        assert MISSILE_MASS == 95.0
 
     def test_missile_thrust(self):
         from hybrid.systems.combat.torpedo_manager import MISSILE_THRUST
-        assert MISSILE_THRUST == 12000.0
+        assert MISSILE_THRUST == 10000.0
 
     def test_missile_max_accel(self):
-        """Initial acceleration should be ~150 m/s^2 at full mass."""
+        """Initial acceleration should be ~105 m/s^2 at full mass (high-G)."""
         from hybrid.systems.combat.torpedo_manager import MISSILE_MASS, MISSILE_THRUST
         accel = MISSILE_THRUST / MISSILE_MASS
-        assert accel == 150.0
+        # 10kN / 95kg = 105.3 m/s^2 — still high-G enough to chase corvettes
+        assert 100.0 < accel < 110.0
 
     def test_missile_fuel(self):
         from hybrid.systems.combat.torpedo_manager import MISSILE_FUEL_MASS
-        assert MISSILE_FUEL_MASS == 15.0
+        assert MISSILE_FUEL_MASS == 30.0
 
     def test_missile_warhead_damage(self):
         from hybrid.systems.combat.torpedo_manager import (
@@ -53,7 +54,7 @@ class TestMissileSpecs:
             MISSILE_MAX_LIFETIME, TORPEDO_MAX_LIFETIME,
         )
         assert MISSILE_MAX_LIFETIME < TORPEDO_MAX_LIFETIME
-        assert MISSILE_MAX_LIFETIME == 60.0
+        assert MISSILE_MAX_LIFETIME == 90.0
 
     def test_missile_g_limit(self):
         from hybrid.systems.combat.torpedo_manager import MISSILE_G_LIMIT

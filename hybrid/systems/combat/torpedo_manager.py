@@ -13,9 +13,9 @@ Torpedoes — heavy ordnance for slow/large targets:
 - Guidance: proportional navigation
 
 Missiles — light ordnance for fast maneuvering ships:
-- Mass: 80 kg (warhead 10kg, drive 25kg, fuel 15kg, structure 30kg)
-- Thrust: 12 kN (~150 m/s² at full mass — high-G interceptor)
-- Burn time: ~30s. Delta-v: ~4,500 m/s (similar budget, spent faster)
+- Mass: 95 kg (warhead 10kg, drive 25kg, fuel 30kg, structure 30kg)
+- Thrust: 10 kN (~105 m/s² at full mass — high-G interceptor)
+- Burn time: ~53s. Delta-v: ~5,200 m/s (enough for boost + terminal at 80km)
 - Warhead: 10 kg shaped charge — blast radius 30m, lethal within 10m
 - Guidance: augmented PN with terminal lead correction
 - Flight profiles: direct, evasive, terminal_pop, bracket
@@ -97,11 +97,11 @@ WARHEAD_ARMOR_PEN = 0.8         # Fragmentation — moderate vs armor
 # The high thrust-to-mass ratio (150 m/s^2) lets them match corvette
 # evasive maneuvers, but the small fuel load means they burn out fast.
 
-MISSILE_MASS = 80.0              # kg total
+MISSILE_MASS = 95.0              # kg total (heavier fuel load for 40-80km engagements)
 MISSILE_WARHEAD_MASS = 10.0      # kg shaped charge
-MISSILE_FUEL_MASS = 15.0         # kg propellant
+MISSILE_FUEL_MASS = 30.0         # kg propellant — doubled from 15 to sustain boost+terminal
 MISSILE_DRY_MASS = MISSILE_MASS - MISSILE_FUEL_MASS  # 65 kg without fuel
-MISSILE_THRUST = 12000.0         # Newtons — high-G motor
+MISSILE_THRUST = 10000.0         # Newtons — high-G motor (reduced from 12kN to extend burn)
 MISSILE_ISP = 1800.0             # seconds (optimised for impulse, not efficiency)
 MISSILE_EXHAUST_VEL = MISSILE_ISP * 9.81  # ~17,658 m/s
 MISSILE_MAX_DELTA_V = MISSILE_EXHAUST_VEL * math.log(MISSILE_MASS / MISSILE_DRY_MASS)
@@ -111,7 +111,7 @@ MISSILE_ARM_DISTANCE = 300.0     # meters — arms faster than torpedoes
 MISSILE_PROXIMITY_FUSE = 10.0    # meters — smaller fuse radius (direct-hit weapon)
 MISSILE_BLAST_RADIUS = 30.0      # meters — shaped charge, not area-effect
 MISSILE_LETHAL_RADIUS = 10.0     # meters — tight kill zone
-MISSILE_MAX_LIFETIME = 60.0      # seconds — short burn, fast engagement
+MISSILE_MAX_LIFETIME = 90.0      # seconds — extended to match larger fuel load
 MISSILE_TERMINAL_RANGE = 3000.0  # meters — enters terminal phase closer
 MISSILE_G_LIMIT = 80.0           # G tolerance — structural limit on guidance corrections
 

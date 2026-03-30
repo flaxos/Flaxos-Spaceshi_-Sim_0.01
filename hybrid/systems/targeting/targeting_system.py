@@ -297,7 +297,16 @@ class TargetingSystem(BaseSystem):
 
             if self.lock_progress >= 1.0:
                 self.lock_state = LockState.LOCKED
-                self.lock_quality = self._sensor_factor * self.target_data["confidence"]
+                # Lock quality derives from track quality, which already
+                # incorporates range, acceleration, sensor health, ECM, and
+                # drive plume bonus.  Using raw sensor_factor * confidence
+                # here previously ignored the plume bonus — a ship with a
+                # 10 MW drive plume at 86km would get a marginal lock even
+                # though its track was solid.  Blend track_quality (physics-
+                # based) with sensor/cascade health for the final score.
+                self.lock_quality = min(1.0,
+                    self.track_quality * self._sensor_factor * self._targeting_factor
+                )
                 logger.info(f"Target lock acquired: {self.locked_target}")
                 event_bus.publish("target_locked", {
                     "ship_id": ship.id,
@@ -306,8 +315,11 @@ class TargetingSystem(BaseSystem):
                 })
 
         elif self.lock_state == LockState.LOCKED:
-            # Maintain lock quality based on sensor quality, cascade, and confidence
-            target_quality = self._sensor_factor * self._targeting_factor * self.target_data["confidence"]
+            # Maintain lock quality from track quality (includes plume bonus,
+            # range, acceleration, ECM) modulated by sensor/cascade health.
+            target_quality = min(1.0,
+                self.track_quality * self._sensor_factor * self._targeting_factor
+            )
             # Smooth transition
             self.lock_quality = self.lock_quality * 0.9 + target_quality * 0.1
 
