@@ -224,6 +224,9 @@ class Simulator:
 
         tick_start = time.monotonic()
 
+        # Stamp combat log with current sim_time before any events fire
+        self.combat_log.update_time(self.time)
+
         # Update all ships
         all_ships = list(self.ships.values())
 

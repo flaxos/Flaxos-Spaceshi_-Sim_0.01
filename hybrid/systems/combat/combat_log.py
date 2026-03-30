@@ -59,8 +59,21 @@ class CombatLog:
     def __init__(self, maxlen: int = 200):
         self._entries: deque = deque(maxlen=maxlen)
         self._next_id = 1
+        self._sim_time = 0.0
         self._event_bus = EventBus.get_instance()
         self._subscribe()
+
+    def update_time(self, sim_time: float) -> None:
+        """Update the current simulation time reference.
+
+        Called each tick by the simulator so that event handlers
+        can stamp entries with the correct sim_time without
+        requiring every event publisher to include it.
+
+        Args:
+            sim_time: Current simulation time in seconds.
+        """
+        self._sim_time = sim_time
 
     def _subscribe(self):
         """Subscribe to combat-relevant events."""
@@ -79,8 +92,9 @@ class CombatLog:
         self._event_bus.subscribe("torpedo_intercepted", self._on_torpedo_intercepted)
 
     def _add_entry(self, entry: CombatLogEntry):
-        """Add entry and assign an ID."""
+        """Add entry, assign an ID, and stamp current sim_time."""
         entry.id = self._next_id
+        entry.sim_time = self._sim_time
         self._next_id += 1
         self._entries.append(entry)
 
