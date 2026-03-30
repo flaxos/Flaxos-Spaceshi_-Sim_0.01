@@ -192,11 +192,13 @@ class WSBridge:
     """
 
     def __init__(self, ws_host: str = "0.0.0.0", ws_port: int = DEFAULT_WS_PORT,
-                 tcp_host: str = DEFAULT_HOST, tcp_port: int = DEFAULT_TCP_PORT):
+                 tcp_host: str = DEFAULT_HOST, tcp_port: int = DEFAULT_TCP_PORT,
+                 game_code: Optional[str] = None):
         self.ws_host = ws_host
         self.ws_port = ws_port
         self.tcp_host = tcp_host
         self.tcp_port = tcp_port
+        self.game_code = game_code
         # Per-WS-client TCP connections: websocket -> TCPConnection
         self._client_tcp: Dict[WebSocketServerProtocol, TCPConnection] = {}
         self.clients: Set[WebSocketServerProtocol] = set()
@@ -288,8 +290,62 @@ class WSBridge:
         except Exception:
             await self.unregister(websocket)
 
+    async def _authenticate(self, websocket: WebSocketServerProtocol) -> bool:
+        """Authenticate a WebSocket client using the shared game code.
+
+        Expects the first message to be {"type": "auth", "code": "XXXX"}.
+        Returns True if authentication succeeds, False otherwise.
+        When no game_code is configured, always returns True (no-op).
+        """
+        if not self.game_code:
+            return True
+
+        client_addr = websocket.remote_address
+        try:
+            raw = await asyncio.wait_for(websocket.recv(), timeout=10.0)
+        except (asyncio.TimeoutError, websockets.exceptions.ConnectionClosed):
+            logger.warning(f"Auth timeout from {client_addr}")
+            error_envelope = WSEnvelope.error("Authentication timeout")
+            try:
+                await websocket.send(error_envelope.to_wire())
+            except Exception:
+                pass
+            return False
+
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError:
+            logger.warning(f"Auth: invalid JSON from {client_addr}")
+            error_envelope = WSEnvelope.error("Authentication failed: invalid message")
+            try:
+                await websocket.send(error_envelope.to_wire())
+            except Exception:
+                pass
+            return False
+
+        if data.get("type") != "auth" or data.get("code") != self.game_code:
+            logger.warning(f"Auth: bad game code from {client_addr}")
+            error_envelope = WSEnvelope.error("Authentication failed: invalid game code")
+            try:
+                await websocket.send(error_envelope.to_wire())
+            except Exception:
+                pass
+            return False
+
+        logger.info(f"Auth: client {client_addr} authenticated")
+        return True
+
     async def handle_client(self, websocket: WebSocketServerProtocol):
-        """Handle messages from a WebSocket client."""
+        """Handle messages from a WebSocket client.
+
+        When a game code is configured, the first message must be an auth
+        message.  If authentication fails the connection is closed without
+        registering the client.
+        """
+        if not await self._authenticate(websocket):
+            await websocket.close(4001, "Authentication failed")
+            return
+
         await self.register(websocket)
         try:
             async for message in websocket:
@@ -410,12 +466,16 @@ class WSBridge:
         logger.info(f"TCP target: {self.tcp_host}:{self.tcp_port}")
         logger.info("Mode: per-client TCP connections (multiplayer)")
 
+        if self.game_code:
+            logger.info("Game code authentication enabled")
+
         async with websockets.serve(
             self.handle_client,
             self.ws_host,
             self.ws_port,
             ping_interval=30,
-            ping_timeout=10
+            ping_timeout=10,
+            max_size=1_048_576,  # 1 MB — explicit cap matching TCP buffer limit
         ):
             logger.info("WebSocket bridge running. Press Ctrl+C to stop.")
             health_task = asyncio.create_task(self._tcp_health_loop())
@@ -436,6 +496,11 @@ async def main():
     parser.add_argument("--ws-port", type=int, default=DEFAULT_WS_PORT, help="WebSocket port")
     parser.add_argument("--tcp-host", default=DEFAULT_HOST, help="TCP server host")
     parser.add_argument("--tcp-port", type=int, default=DEFAULT_TCP_PORT, help="TCP server port")
+    parser.add_argument(
+        "--game-code",
+        default=None,
+        help="Shared secret for WS authentication (omit to allow unauthenticated connections)",
+    )
     args = parser.parse_args()
 
     logger.info(f"Protocol version: {PROTOCOL_VERSION}")
@@ -444,7 +509,8 @@ async def main():
         ws_host=args.ws_host,
         ws_port=args.ws_port,
         tcp_host=args.tcp_host,
-        tcp_port=args.tcp_port
+        tcp_port=args.tcp_port,
+        game_code=args.game_code,
     )
 
     try:

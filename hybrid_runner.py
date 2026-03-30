@@ -102,6 +102,9 @@ class HybridRunner:
             "success_message": self.mission.success_message,
             "failure_message": self.mission.failure_message,
         })
+        # Include next_scenario if the mission defines one (for mission progression)
+        if getattr(self.mission, "next_scenario", None):
+            status["next_scenario"] = self.mission.next_scenario
         if include_hints:
             status["hints"] = self.mission.get_hints(clear=clear_hints)
         return status

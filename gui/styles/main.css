@@ -465,6 +465,33 @@ button.success,
   background: var(--text-dim);
 }
 
+/* ===== App game state: lobby / playing / ended ===== */
+/* In lobby state, dim all game views except mission (scenario loader). */
+body.state-lobby .view-container:not(#view-mission) {
+  opacity: 0.3;
+  pointer-events: none;
+  filter: saturate(0.3);
+  transition: opacity 0.3s ease, filter 0.3s ease;
+}
+body.state-lobby .view-container#view-mission {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* In ended state, keep views visible but slightly dimmed to signal game over. */
+body.state-ended .view-container:not(#view-mission) {
+  opacity: 0.6;
+  transition: opacity 0.3s ease;
+}
+
+/* Playing state: full visibility (default, no override needed). */
+body.state-playing .view-container {
+  opacity: 1;
+  pointer-events: auto;
+  filter: none;
+  transition: opacity 0.3s ease, filter 0.3s ease;
+}
+
 /* ===== Station accent colors ===== */
 /* Each view gets a distinct tint for panel-group labels, grid borders, and tab indicators */
 #view-helm        { --view-accent: #6699cc; }

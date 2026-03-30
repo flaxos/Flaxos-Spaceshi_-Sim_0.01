@@ -153,7 +153,8 @@ class ScenarioLoader:
             success_message=mission_data.get("success_message", ""),
             failure_message=mission_data.get("failure_message", ""),
             hints=mission_data.get("hints", []),
-            time_limit=mission_data.get("time_limit")
+            time_limit=mission_data.get("time_limit"),
+            next_scenario=mission_data.get("next_scenario")
         )
 
         return mission

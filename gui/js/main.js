@@ -118,12 +118,33 @@ import "../components/target-assessment.js";
 const app = {
   initialized: false,
   currentScenarioId: null,
+  // Game state machine: "lobby" | "playing" | "ended"
+  gameState: "lobby",
+  // next_scenario from mission YAML (for mission progression)
+  nextScenarioId: null,
   config: {
     wsUrl: null, // Auto-detect
     autoConnect: true,
     debugMode: false
   }
 };
+
+/**
+ * Transition the app game state and update the body class accordingly.
+ * Valid states: "lobby", "playing", "ended".
+ * @param {string} newState
+ */
+function setGameState(newState) {
+  const validStates = ["lobby", "playing", "ended"];
+  if (!validStates.includes(newState)) return;
+  const oldState = app.gameState;
+  if (oldState === newState) return;
+
+  app.gameState = newState;
+  document.body.classList.remove("state-lobby", "state-playing", "state-ended");
+  document.body.classList.add(`state-${newState}`);
+  console.log(`Game state: ${oldState} -> ${newState}`);
+}
 
 /**
  * Initialize the application
@@ -180,6 +201,9 @@ async function init() {
 
   app.initialized = true;
   console.log("GUI initialized");
+
+  // Set initial game state to lobby (dims game panels until scenario loads)
+  setGameState("lobby");
 
   // Dispatch ready event
   window.dispatchEvent(new CustomEvent("app:ready", { detail: app }));
@@ -240,6 +264,12 @@ function setupGlobalEvents() {
       app.currentScenarioId = scenario;
     }
 
+    // Track next_scenario from mission data for mission progression
+    app.nextScenarioId = (mission && mission.next_scenario) || null;
+
+    // Transition to playing state -- game panels become active
+    setGameState("playing");
+
     if (targetShipId) {
       stateManager.setPlayerShipId(targetShipId);
       if (scenario) {
@@ -280,7 +310,18 @@ function setupGlobalEvents() {
 
     // Show full-screen overlay on mission completion
     if (eventType === "mission_complete" && (status === "success" || status === "failure")) {
-      showMissionCompleteOverlay(status, message, title);
+      setGameState("ended");
+
+      // Fetch latest mission status to get next_scenario (event payload may not include it)
+      wsClient.send("get_mission", {}).then((resp) => {
+        if (resp?.ok && resp.mission?.next_scenario) {
+          app.nextScenarioId = resp.mission.next_scenario;
+        }
+        showMissionCompleteOverlay(status, message, title);
+      }).catch(() => {
+        // Fall back to overlay without next mission data
+        showMissionCompleteOverlay(status, message, title);
+      });
     }
   });
 }
@@ -410,6 +451,12 @@ function showMissionCompleteOverlay(status, message, missionName) {
   const heading = isSuccess ? "MISSION COMPLETE" : "MISSION FAILED";
   const icon = isSuccess ? "\u2713" : "\u2717";
 
+  // Build the button row: RETRY + optional NEXT MISSION + LOBBY
+  const hasNext = isSuccess && app.nextScenarioId;
+  const nextBtnHtml = hasNext
+    ? `<button class="mco-btn mco-next" style="background: ${accent}; border-color: ${accent}; color: #000;">NEXT MISSION</button>`
+    : "";
+
   overlay.innerHTML = `
     <div class="mco-backdrop"></div>
     <div class="mco-card">
@@ -419,6 +466,7 @@ function showMissionCompleteOverlay(status, message, missionName) {
       <div class="mco-message">${message || ""}</div>
       <div class="mco-buttons">
         <button class="mco-btn mco-retry" style="border-color: ${accent}; color: ${accent};">RETRY</button>
+        ${nextBtnHtml}
         <button class="mco-btn mco-lobby">RETURN TO LOBBY</button>
       </div>
       <p class="mco-hint">Press ESC to dismiss</p>
@@ -513,6 +561,12 @@ function showMissionCompleteOverlay(status, message, missionName) {
       background: var(--bg-hover, #22222e);
       border-color: var(--border-active, #3a3a4a);
     }
+    .mco-next {
+      font-weight: 700;
+    }
+    .mco-next:hover {
+      filter: brightness(1.15);
+    }
     .mco-hint {
       font-size: 0.7rem;
       color: var(--text-dim, #555566);
@@ -525,6 +579,12 @@ function showMissionCompleteOverlay(status, message, missionName) {
   overlay.querySelector(".mco-retry").addEventListener("click", () => {
     retryCurrentMission();
   });
+  const nextBtn = overlay.querySelector(".mco-next");
+  if (nextBtn) {
+    nextBtn.addEventListener("click", () => {
+      loadNextMission();
+    });
+  }
   overlay.querySelector(".mco-lobby").addEventListener("click", () => {
     returnToLobby();
   });
@@ -575,10 +635,38 @@ function retryCurrentMission() {
 }
 
 /**
+ * Load the next mission in the campaign chain (if available).
+ */
+function loadNextMission() {
+  const nextId = app.nextScenarioId;
+  if (!nextId) {
+    showSystemMessage("warning", "No next mission available", "Next Mission");
+    dismissMissionOverlay();
+    return;
+  }
+
+  dismissMissionOverlay();
+  showSystemMessage("info", `Loading next mission: ${nextId}...`, "Next Mission");
+  wsClient.send("load_scenario", { scenario: nextId }).then((resp) => {
+    if (resp && resp.ok !== false) {
+      document.dispatchEvent(new CustomEvent("scenario-loaded", {
+        detail: resp,
+        bubbles: true,
+      }));
+    } else {
+      showSystemMessage("error", resp?.error || "Failed to load next mission", "Next Mission");
+    }
+  }).catch((err) => {
+    showSystemMessage("error", `Next mission failed: ${err.message}`, "Next Mission");
+  });
+}
+
+/**
  * Return to the scenario lobby: switch to mission view and expand the loader.
  */
 function returnToLobby() {
   dismissMissionOverlay();
+  setGameState("lobby");
 
   // Switch to the mission view tab
   const viewTabs = document.getElementById("view-tabs");
@@ -628,6 +716,9 @@ window.flaxosApp = {
   helmRequests,
   sendCommand,
   showSystemMessage,
+  setGameState,
+  get gameState() { return app.gameState; },
+  get nextScenarioId() { return app.nextScenarioId; },
   config: app.config
 };
 
