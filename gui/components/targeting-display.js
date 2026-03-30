@@ -556,6 +556,60 @@ class TargetingDisplay extends HTMLElement {
 
         .request-solution-btn:hover { background: rgba(0, 170, 255, 0.2); }
         .request-solution-btn:active { background: rgba(0, 170, 255, 0.3); }
+
+        /* --- Range-to-target compact HUD line --- */
+        .range-hud {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          padding: 8px 10px;
+          margin-bottom: 12px;
+          background: rgba(0, 0, 0, 0.35);
+          border-radius: 6px;
+          border: 1px solid var(--border-default, #2a2a3a);
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+          font-size: 0.8rem;
+          letter-spacing: 0.3px;
+        }
+
+        .range-hud-item {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          white-space: nowrap;
+        }
+
+        .range-hud-label {
+          font-size: 0.6rem;
+          font-weight: 700;
+          color: var(--text-secondary, #888899);
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .range-hud-value {
+          color: var(--text-primary, #e0e0e0);
+          font-weight: 600;
+        }
+
+        .range-hud-value.closing {
+          color: var(--status-critical, #ff4444);
+        }
+
+        .range-hud-value.opening {
+          color: var(--status-nominal, #00ff88);
+        }
+
+        .range-hud-value.eta {
+          color: var(--status-info, #00aaff);
+        }
+
+        .range-hud-sep {
+          color: var(--text-dim, #555566);
+          font-size: 0.55rem;
+          user-select: none;
+        }
       </style>
 
       <div id="content">
@@ -627,6 +681,11 @@ class TargetingDisplay extends HTMLElement {
 
     // 2. Target header with state-appropriate styling
     html += this._renderTargetHeader(lockState, lockedTarget);
+
+    // 2b. Compact range-to-target HUD line (shown whenever we have range data)
+    if (range > 0) {
+      html += this._renderRangeHud(range, rangeRate, closing, tca);
+    }
 
     // 3. Track quality bar (always shown when tracking)
     if (lockState !== "none") {
@@ -777,6 +836,77 @@ class TargetingDisplay extends HTMLElement {
         <span class="target-id">${targetId}</span>
       </div>
     `;
+  }
+
+  // --- Compact range HUD line ---
+
+  /**
+   * Render a single-line range/closure/ETA display for quick glance.
+   * Format: "RNG: 42.3km | CLS: 340 m/s | ETA: 124s"
+   * ETA only shown when closing and range_rate is nonzero.
+   */
+  _renderRangeHud(range, rangeRate, closing, tca) {
+    const rangeStr = this._formatRange(range);
+    const closureAbs = Math.abs(rangeRate);
+    const closureClass = closing ? "closing" : "opening";
+    const closureLabel = closing ? "CLS" : "OPN";
+    const closureStr = closureAbs >= 1000
+      ? `${(closureAbs / 1000).toFixed(1)} km/s`
+      : `${closureAbs.toFixed(0)} m/s`;
+
+    // ETA: use server-provided TCA if available, otherwise estimate
+    // from range / closing speed (only meaningful when closing)
+    let etaStr = null;
+    if (closing && closureAbs > 0) {
+      if (tca != null && tca > 0) {
+        etaStr = this._formatEta(tca);
+      } else {
+        // Simple linear estimate: range / closing speed
+        const etaSec = range / closureAbs;
+        if (etaSec < 86400) {  // Ignore if more than a day
+          etaStr = this._formatEta(etaSec);
+        }
+      }
+    }
+
+    let html = `
+      <div class="range-hud" data-testid="range-hud">
+        <span class="range-hud-item">
+          <span class="range-hud-label">RNG</span>
+          <span class="range-hud-value">${rangeStr}</span>
+        </span>
+        <span class="range-hud-sep">|</span>
+        <span class="range-hud-item">
+          <span class="range-hud-label">${closureLabel}</span>
+          <span class="range-hud-value ${closureClass}">${closureStr}</span>
+        </span>
+    `;
+
+    if (etaStr) {
+      html += `
+        <span class="range-hud-sep">|</span>
+        <span class="range-hud-item">
+          <span class="range-hud-label">ETA</span>
+          <span class="range-hud-value eta">${etaStr}</span>
+        </span>
+      `;
+    }
+
+    html += `</div>`;
+    return html;
+  }
+
+  /**
+   * Format seconds into a human-readable ETA string.
+   * Under 120s: show seconds. Under 1h: show minutes. Otherwise hours.
+   */
+  _formatEta(seconds) {
+    if (seconds < 0) return "--";
+    if (seconds < 120) return `${Math.round(seconds)}s`;
+    if (seconds < 3600) return `${Math.round(seconds / 60)}m`;
+    const h = Math.floor(seconds / 3600);
+    const m = Math.round((seconds % 3600) / 60);
+    return `${h}h${m > 0 ? m + "m" : ""}`;
   }
 
   // --- Bar section (track quality, lock progress, lock quality) ---

@@ -302,3 +302,75 @@ def test_reregister_preserves_session(manager):
     # Ensure can_issue_command still works
     allowed, _ = manager.can_issue_command(client_id, "test_ship_001", "set_thrust")
     assert allowed is True
+
+
+# --- Captain succession tests ---
+
+
+def test_elect_new_captain_promotes_longest_connected(manager):
+    """When the captain disconnects, the longest-connected crew member is promoted."""
+    captain_id = manager.generate_client_id()
+    helm_id = manager.generate_client_id()
+    tac_id = manager.generate_client_id()
+
+    manager.register_client(captain_id, "captain_player")
+    manager.register_client(helm_id, "helm_player")
+    manager.register_client(tac_id, "tac_player")
+
+    # Make helm the oldest connection
+    manager.sessions[helm_id].connected_at = datetime.now() - timedelta(hours=2)
+    manager.sessions[tac_id].connected_at = datetime.now() - timedelta(hours=1)
+
+    ship = "test_ship_001"
+    for cid in (captain_id, helm_id, tac_id):
+        manager.assign_to_ship(cid, ship)
+
+    manager.claim_station(captain_id, ship, StationType.CAPTAIN)
+    manager.claim_station(helm_id, ship, StationType.HELM)
+    manager.claim_station(tac_id, ship, StationType.TACTICAL)
+
+    # Captain disconnects
+    manager.unregister_client(captain_id)
+
+    # Elect successor
+    new_captain = manager.elect_new_captain(ship)
+
+    assert new_captain == helm_id
+    session = manager.sessions[helm_id]
+    assert session.station == StationType.CAPTAIN
+    assert session.permission_level == PermissionLevel.CAPTAIN
+
+
+def test_elect_new_captain_returns_none_when_no_clients(manager):
+    """elect_new_captain returns None if no clients remain on the ship."""
+    result = manager.elect_new_captain("ghost_ship")
+    assert result is None
+
+
+def test_elect_new_captain_releases_old_station_first(manager):
+    """The promoted client's previous station is released before claiming CAPTAIN."""
+    cid1 = manager.generate_client_id()
+    cid2 = manager.generate_client_id()
+
+    manager.register_client(cid1, "player1")
+    manager.register_client(cid2, "player2")
+
+    ship = "test_ship_001"
+    manager.assign_to_ship(cid1, ship)
+    manager.assign_to_ship(cid2, ship)
+
+    manager.claim_station(cid1, ship, StationType.CAPTAIN)
+    manager.claim_station(cid2, ship, StationType.HELM)
+
+    # Captain disconnects
+    manager.unregister_client(cid1)
+
+    promoted = manager.elect_new_captain(ship)
+    assert promoted == cid2
+
+    # HELM station should now be free (cid2 was moved to CAPTAIN)
+    helm_owner = manager.get_station_owner(ship, StationType.HELM)
+    assert helm_owner is None
+
+    captain_owner = manager.get_station_owner(ship, StationType.CAPTAIN)
+    assert captain_owner == cid2
