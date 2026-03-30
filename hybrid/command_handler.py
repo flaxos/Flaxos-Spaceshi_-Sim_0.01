@@ -84,6 +84,7 @@ system_commands = {
     "designate_target": ("targeting", "lock"),
     "request_solution": ("targeting", "get_solution"),
     "set_pdc_mode": ("combat", "set_pdc_mode"),
+    "set_pdc_priority": ("combat", "set_pdc_priority"),
     "launch_torpedo": ("combat", "launch_torpedo"),
     "torpedo_status": ("combat", "torpedo_status"),
     "launch_missile": ("combat", "launch_missile"),

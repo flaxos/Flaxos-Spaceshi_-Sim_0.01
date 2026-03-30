@@ -119,6 +119,7 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             "designate_target",
             "request_solution",
             "set_pdc_mode",
+            "set_pdc_priority",
             "launch_torpedo",
             "torpedo_status",
             "launch_missile",

@@ -30,6 +30,44 @@ class DamageType(Enum):
     EXPLOSIVE = "explosive"   # Missiles/torpedoes
 
 
+class SlugType(Enum):
+    """Railgun slug variants with different penetration/fragmentation trade-offs.
+
+    STANDARD: Balanced tungsten penetrator — baseline damage and armor pen.
+    SABOT: Discarding-sabot round with narrow dart core. Punches through
+           heavier armor but the small cross-section fragments less inside
+           the target, dealing reduced subsystem damage.
+    FRAGMENTATION: Segmented slug that breaks apart on penetration. Poor
+                   at defeating armor (segments deflect) but devastating
+                   once inside — fragments spray across multiple subsystems.
+    """
+    STANDARD = "standard"
+    SABOT = "sabot"
+    FRAGMENTATION = "fragmentation"
+
+
+# Slug type modifiers applied to base WeaponSpecs values.
+# Keys: armor_penetration multiplier, subsystem_damage multiplier,
+#       extra_subsystem_hits (additional subsystems hit beyond the primary).
+SLUG_TYPE_MODIFIERS: Dict[str, Dict[str, float]] = {
+    SlugType.STANDARD.value: {
+        "armor_penetration_mult": 1.0,
+        "subsystem_damage_mult": 1.0,
+        "extra_subsystem_hits": 0,
+    },
+    SlugType.SABOT.value: {
+        "armor_penetration_mult": 1.5,   # Narrow dart punches through
+        "subsystem_damage_mult": 0.7,    # Less fragmentation inside target
+        "extra_subsystem_hits": 0,
+    },
+    SlugType.FRAGMENTATION.value: {
+        "armor_penetration_mult": 0.5,   # Segments deflect on armor
+        "subsystem_damage_mult": 1.5,    # Devastating fragmentation
+        "extra_subsystem_hits": 2,       # Sprays across 2 extra subsystems
+    },
+}
+
+
 @dataclass
 class WeaponSpecs:
     """Physical specifications for a weapon."""
@@ -638,6 +676,7 @@ class TruthWeapon:
         projectile_manager=None,
         shooter_pos: Dict = None,
         shooter_vel: Dict = None,
+        slug_type: Optional[str] = None,
     ) -> Dict:
         """Attempt to fire the weapon.
 
@@ -660,6 +699,8 @@ class TruthWeapon:
             projectile_manager: ProjectileManager for spawning ballistic slugs
             shooter_pos: Shooter position {x,y,z} for projectile spawn
             shooter_vel: Shooter velocity {x,y,z} for projectile velocity calc
+            slug_type: Railgun slug variant (standard/sabot/fragmentation).
+                None defaults to STANDARD. Only applies to railguns.
 
         Returns:
             dict: Fire result
@@ -719,6 +760,7 @@ class TruthWeapon:
                 shooter_vel=shooter_vel or {"x": 0, "y": 0, "z": 0},
                 ship_id=ship_id,
                 target_ship=target_ship,
+                slug_type=slug_type,
             )
 
         # PDC / instant-hit path (short range weapons)
@@ -744,6 +786,7 @@ class TruthWeapon:
         shooter_vel: Dict,
         ship_id: str,
         target_ship,
+        slug_type: Optional[str] = None,
     ) -> Dict:
         """Fire a railgun slug as a Newtonian projectile.
 
@@ -751,6 +794,10 @@ class TruthWeapon:
         trajectory at muzzle_velocity toward the computed intercept point.
         Hit/miss is determined by the ProjectileManager when the slug
         reaches the target's vicinity.
+
+        Slug type modifiers scale armor penetration, subsystem damage,
+        and extra subsystem hits at impact time. STANDARD is the default
+        when no slug_type is specified.
 
         Args:
             sim_time: Current simulation time
@@ -763,12 +810,18 @@ class TruthWeapon:
             shooter_vel: Shooter world velocity
             ship_id: Firing ship ID
             target_ship: Target ship object
+            slug_type: Slug variant (standard/sabot/fragmentation).
+                None defaults to standard.
 
         Returns:
             dict: Fire result with projectile info
         """
         self.last_fired = sim_time
         target_id = getattr(target_ship, 'id', None) if target_ship else None
+
+        # Resolve slug type modifiers — default to standard if unspecified
+        resolved_slug = slug_type or SlugType.STANDARD.value
+        slug_mods = SLUG_TYPE_MODIFIERS.get(resolved_slug, SLUG_TYPE_MODIFIERS[SlugType.STANDARD.value])
 
         # Consume ammo
         if self.ammo is not None:
@@ -807,8 +860,11 @@ class TruthWeapon:
         # Hit-location physics handles armor penetration at impact time,
         # so we pass base damage scaled only by weapon degradation.
         # The projectile carries mass and armor_pen for penetration calc on hit.
+        # Slug type modifiers scale subsystem damage and armor pen —
+        # sabot punches through armor but fragments less, frag does the opposite.
         effective_damage = self.specs.base_damage * damage_factor
-        subsystem_dmg = self.specs.subsystem_damage * damage_factor
+        subsystem_dmg = self.specs.subsystem_damage * damage_factor * slug_mods["subsystem_damage_mult"]
+        effective_armor_pen = self.specs.armor_penetration * slug_mods["armor_penetration_mult"]
         # No subsystem pre-selection — hit-location physics determines
         # which subsystem is hit based on intercept geometry
         subsystem_target = target_subsystem  # Only use explicit target, not random
@@ -842,7 +898,7 @@ class TruthWeapon:
             target_subsystem=subsystem_target,
             hit_radius=50.0,
             mass=self.specs.mass_per_round,
-            armor_penetration=self.specs.armor_penetration,
+            armor_penetration=effective_armor_pen,
             confidence=solution.confidence,
             confidence_factors=dict(solution.confidence_factors),
             target_vel_at_fire=dict(target_vel_snapshot) if target_vel_snapshot else {"x": 0, "y": 0, "z": 0},
@@ -869,6 +925,7 @@ class TruthWeapon:
             "projectile_id": proj.id,
             "time_of_flight": solution.time_of_flight,
             "ballistic": True,
+            "slug_type": resolved_slug,
         })
 
         return {
@@ -887,6 +944,7 @@ class TruthWeapon:
             "cone_radius_m": solution.cone_radius_m,
             "ammo_remaining": self.ammo,
             "heat": self.heat,
+            "slug_type": resolved_slug,
         }
 
     def _fire_instant(
