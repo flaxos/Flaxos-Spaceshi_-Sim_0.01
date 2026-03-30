@@ -369,6 +369,46 @@ class TargetAssessment extends HTMLElement {
           text-align: center;
         }
 
+        /* --- Range display line --- */
+        .range-line {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          padding: 6px 10px;
+          margin-bottom: 10px;
+          background: rgba(0, 0, 0, 0.25);
+          border-radius: 4px;
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+          font-size: 0.7rem;
+          letter-spacing: 0.3px;
+        }
+
+        .range-line-label {
+          font-size: 0.55rem;
+          font-weight: 700;
+          color: var(--text-secondary, #888899);
+          text-transform: uppercase;
+        }
+
+        .range-line-value {
+          color: var(--text-primary, #e0e0e0);
+        }
+
+        .range-line-value.closing {
+          color: var(--status-critical, #ff4444);
+        }
+
+        .range-line-value.opening {
+          color: var(--status-nominal, #00ff88);
+        }
+
+        .range-line-sep {
+          color: var(--text-dim, #555566);
+          font-size: 0.5rem;
+          user-select: none;
+        }
+
         /* --- No data state (locked but no assessment yet) --- */
         .no-data {
           text-align: center;
@@ -461,6 +501,9 @@ class TargetAssessment extends HTMLElement {
       </div>
     `;
 
+    // Range-to-target line (from targeting pipeline solution data)
+    html += this._renderRangeLine(targeting);
+
     // Hull integrity bar
     html += this._renderHullBar(hullEstimate);
 
@@ -515,6 +558,51 @@ class TargetAssessment extends HTMLElement {
 
     content.innerHTML = html;
     this._bindAssessButton();
+  }
+
+  /**
+   * Render compact range line from targeting solution data.
+   * Shows range and closing/opening speed if available.
+   */
+  _renderRangeLine(targeting) {
+    if (!targeting) return "";
+
+    // Solution data may be in targeting.solutions._basic or top-level
+    const solutions = targeting.solutions || {};
+    const basic = solutions._basic || {};
+    const range = basic.range ?? targeting.range ?? 0;
+    const rangeRate = basic.range_rate ?? targeting.range_rate ?? 0;
+    const closing = basic.closing ?? targeting.closing ?? false;
+
+    if (range <= 0) return "";
+
+    const rangeStr = this._formatRangeCompact(range);
+    const closureAbs = Math.abs(rangeRate);
+    const closureClass = closing ? "closing" : "opening";
+    const closureLabel = closing ? "CLS" : "OPN";
+    const closureStr = closureAbs >= 1000
+      ? `${(closureAbs / 1000).toFixed(1)} km/s`
+      : `${closureAbs.toFixed(0)} m/s`;
+
+    return `
+      <div class="range-line">
+        <span class="range-line-label">RNG</span>
+        <span class="range-line-value">${rangeStr}</span>
+        <span class="range-line-sep">|</span>
+        <span class="range-line-label">${closureLabel}</span>
+        <span class="range-line-value ${closureClass}">${closureStr}</span>
+      </div>
+    `;
+  }
+
+  /**
+   * Format range in meters to a compact display string.
+   */
+  _formatRangeCompact(meters) {
+    if (meters == null || meters === 0) return "---";
+    if (meters >= 1000000) return `${(meters / 1000).toFixed(0)} km`;
+    if (meters >= 1000) return `${(meters / 1000).toFixed(1)} km`;
+    return `${meters.toFixed(0)} m`;
   }
 
   /** Compute an aggregate hull estimate from subsystem health values */

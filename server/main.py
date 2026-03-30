@@ -64,6 +64,11 @@ class UnifiedServer:
     - STATION: Full multi-crew support with station permissions
     """
 
+    # Maximum bytes allowed in a single client's receive buffer before
+    # the connection is forcibly closed.  Prevents OOM from a malicious
+    # client that sends data without newlines.
+    MAX_BUFFER_SIZE: int = 1_000_000  # 1 MB
+
     def __init__(self, config: ServerConfig):
         self.config = config
         self.running = False
@@ -160,6 +165,13 @@ class UnifiedServer:
             daemon=True,
         )
         self._ai_crew_thread.start()
+
+        # Periodic stale-claim cleanup (runs every 60 seconds)
+        self._stale_claim_thread = threading.Thread(
+            target=self._stale_claim_cleanup_loop,
+            daemon=True,
+        )
+        self._stale_claim_thread.start()
 
         logger.info("Station system initialized with multi-crew support")
 
@@ -808,6 +820,15 @@ class UnifiedServer:
                         break
 
                     buf += data
+
+                    # Guard against unbounded buffer growth (OOM protection)
+                    if len(buf) > self.MAX_BUFFER_SIZE:
+                        logger.warning(
+                            f"Client {client_id} exceeded buffer limit "
+                            f"({len(buf)} bytes), disconnecting"
+                        )
+                        break
+
                     while b"\n" in buf:
                         line, buf = buf.split(b"\n", 1)
                         if not line.strip():
@@ -834,11 +855,33 @@ class UnifiedServer:
 
         finally:
             logger.info(f"Client disconnected: {client_id}")
+
+            # Capture station/ship before unregister clears them
+            _released_station = None
+            _released_ship = None
+            if self.config.mode == ServerMode.STATION and self.station_manager:
+                session = self.station_manager.get_session(client_id)
+                if session:
+                    _released_station = session.station
+                    _released_ship = session.ship_id
+
             with self.client_lock:
                 self.clients.pop(client_id, None)
             self.rate_limiter.remove_client(client_id)
+
             if self.config.mode == ServerMode.STATION and self.station_manager:
                 self.station_manager.unregister_client(client_id)
+
+                # Auto-promote a new captain if the departing client held
+                # CAPTAIN.  Without this, pause / time-scale / load-scenario
+                # become permanently locked out.
+                if (
+                    _released_station is not None
+                    and _released_station.value == "captain"
+                    and _released_ship
+                ):
+                    self.station_manager.elect_new_captain(_released_ship)
+
             conn.close()
 
     def _ai_crew_tick_loop(self) -> None:
@@ -854,6 +897,27 @@ class UnifiedServer:
             except Exception as e:
                 logger.debug(f"AI crew tick error: {e}")
             _time.sleep(2.0)  # AI acts every 2 seconds
+
+    def _stale_claim_cleanup_loop(self) -> None:
+        """Periodically release stations held by clients that stopped heartbeating.
+
+        The StationManager.cleanup_stale_claims() method already exists but
+        was never invoked.  This daemon thread calls it every 60 seconds so
+        that inactive clients do not permanently block stations.
+        """
+        import time as _time
+        while self.running:
+            _time.sleep(60.0)
+            try:
+                if self.station_manager:
+                    removed = self.station_manager.cleanup_stale_claims()
+                    if removed:
+                        logger.info(
+                            f"Stale-claim cleanup released {len(removed)} "
+                            f"client(s): {removed}"
+                        )
+            except Exception as e:
+                logger.debug(f"Stale-claim cleanup error: {e}")
 
     def start(self) -> None:
         """Start the server."""

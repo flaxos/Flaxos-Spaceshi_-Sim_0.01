@@ -194,6 +194,38 @@ class ScenarioLoader extends HTMLElement {
           font-style: italic;
         }
 
+        .briefing-box {
+          margin-bottom: 12px;
+          padding: 12px;
+          background: var(--bg-dark, #111118);
+          border: 1px solid var(--border-default, #2a2a3a);
+          border-left: 3px solid var(--status-info, #00aaff);
+          border-radius: 4px;
+          max-height: 220px;
+          overflow-y: auto;
+        }
+
+        .briefing-box[hidden] {
+          display: none;
+        }
+
+        .briefing-header {
+          font-size: 0.75rem;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          color: var(--status-info, #00aaff);
+          margin-bottom: 8px;
+        }
+
+        .briefing-text {
+          font-size: 0.78rem;
+          line-height: 1.5;
+          color: var(--text-primary, #e0e0e0);
+          white-space: pre-line;
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+        }
+
         .view-toggle {
           display: flex;
           gap: 8px;
@@ -227,6 +259,11 @@ class ScenarioLoader extends HTMLElement {
       
       <div class="list-container" id="main-list">
         <div class="loading">Connecting...</div>
+      </div>
+
+      <div class="briefing-box" id="briefing-box" hidden>
+        <div class="briefing-header" id="briefing-header"></div>
+        <div class="briefing-text" id="briefing-text"></div>
       </div>
 
       <div class="buttons" id="action-buttons" style="display: none;">
@@ -392,6 +429,7 @@ class ScenarioLoader extends HTMLElement {
         }
 
         loadBtn.disabled = !this._selectedScenario;
+        this._showBriefing(this._selectedScenario);
         list.querySelectorAll(".list-item.clickable").forEach(item => {
           item.addEventListener("click", () => {
             this._selectedScenario = item.dataset.id;
@@ -409,6 +447,7 @@ class ScenarioLoader extends HTMLElement {
 
       if (this._scenarios.length === 0) {
         list.innerHTML = '<div class="empty-state">No missions found.</div>';
+        this._showBriefing(null);
         return;
       }
 
@@ -423,6 +462,7 @@ class ScenarioLoader extends HTMLElement {
       }).join("");
 
       loadBtn.disabled = !this._selectedScenario;
+      this._showBriefing(this._selectedScenario);
       list.querySelectorAll(".list-item").forEach(item => {
         item.addEventListener("click", () => {
           this._selectedScenario = item.dataset.id;
@@ -433,6 +473,7 @@ class ScenarioLoader extends HTMLElement {
       title.textContent = "Fleet Lobby - Join a Station";
       actions.style.display = "flex";
       this.shadowRoot.getElementById("load-btn").style.display = "none"; // Hide load btn in lobby
+      this._showBriefing(null); // Hide briefing in lobby view
 
       if (this._ships.length === 0) {
         list.innerHTML = '<div class="empty-state">No active fleet out there.</div>';
@@ -497,6 +538,30 @@ class ScenarioLoader extends HTMLElement {
     }
   }
 
+  /** Show or hide the briefing panel for the currently selected scenario. */
+  _showBriefing(scenarioId) {
+    const box = this.shadowRoot.getElementById("briefing-box");
+    const header = this.shadowRoot.getElementById("briefing-header");
+    const text = this.shadowRoot.getElementById("briefing-text");
+    if (!box || !header || !text) return;
+
+    if (!scenarioId) {
+      box.hidden = true;
+      return;
+    }
+
+    const sc = this._scenarios.find(s => s.id === scenarioId);
+    const briefing = sc && sc.briefing;
+    if (!briefing) {
+      box.hidden = true;
+      return;
+    }
+
+    header.textContent = sc.mission_name || sc.name || scenarioId;
+    text.textContent = briefing;
+    box.hidden = false;
+  }
+
   async _loadScenario() {
     if (!this._selectedScenario) return;
     this._setStatus(`Loading ${this._selectedScenario}...`, "info");
@@ -522,6 +587,7 @@ class ScenarioLoader extends HTMLElement {
 
         this._selectedScenario = null;
         this.shadowRoot.getElementById("load-btn").disabled = true;
+        this._showBriefing(null);
 
         // Refresh to show the newly loaded fleet in the lobby
         this._refreshAll();

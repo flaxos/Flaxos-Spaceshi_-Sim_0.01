@@ -85,6 +85,7 @@ class HybridRunner:
                 if mission:
                     summary["mission_name"] = mission.name
                     summary["mission_description"] = mission.description
+                    summary["briefing"] = mission.briefing
             except Exception as exc:
                 summary["error"] = str(exc)
             scenarios.append(summary)

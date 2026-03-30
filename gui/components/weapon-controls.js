@@ -367,6 +367,143 @@ class WeaponControls extends HTMLElement {
           border-top: 1px solid var(--border-default, #2a2a3a);
         }
 
+        /* --- Ammo/Heat HUD bar (above fire controls) --- */
+        .ammo-heat-hud {
+          padding: 8px 10px;
+          margin-bottom: 14px;
+          background: rgba(0, 0, 0, 0.3);
+          border: 1px solid var(--border-default, #2a2a3a);
+          border-radius: 6px;
+        }
+
+        .ammo-summary {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px 12px;
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+          font-size: 0.7rem;
+          margin-bottom: 6px;
+        }
+
+        .ammo-item {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          white-space: nowrap;
+        }
+
+        .ammo-label {
+          color: var(--text-secondary, #888899);
+          font-weight: 600;
+          font-size: 0.6rem;
+          text-transform: uppercase;
+          letter-spacing: 0.3px;
+        }
+
+        .ammo-value {
+          color: var(--text-primary, #e0e0e0);
+        }
+
+        .ammo-value.low {
+          color: var(--status-warning, #ffaa00);
+        }
+
+        .ammo-value.critical {
+          color: var(--status-critical, #ff4444);
+        }
+
+        .ammo-value.empty {
+          color: var(--text-dim, #555566);
+        }
+
+        .ammo-separator {
+          color: var(--text-dim, #555566);
+          font-size: 0.55rem;
+          user-select: none;
+        }
+
+        .heat-bar-section {
+          margin-bottom: 4px;
+        }
+
+        .heat-bar-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 3px;
+        }
+
+        .heat-bar-label {
+          font-size: 0.6rem;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.3px;
+          color: var(--text-secondary, #888899);
+        }
+
+        .heat-bar-value {
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+          font-size: 0.65rem;
+        }
+
+        .heat-bar-value.cool { color: var(--status-nominal, #00ff88); }
+        .heat-bar-value.warm { color: var(--status-warning, #ffaa00); }
+        .heat-bar-value.hot { color: var(--status-critical, #ff4444); }
+
+        .heat-bar-container {
+          height: 8px;
+          background: var(--bg-input, #1a1a24);
+          border-radius: 4px;
+          overflow: hidden;
+        }
+
+        .heat-bar-fill {
+          height: 100%;
+          border-radius: 4px;
+          transition: width 0.3s ease, background 0.3s ease;
+        }
+
+        .heat-bar-fill.cool {
+          background: var(--status-nominal, #00ff88);
+        }
+
+        .heat-bar-fill.warm {
+          background: var(--status-warning, #ffaa00);
+        }
+
+        .heat-bar-fill.hot {
+          background: linear-gradient(90deg, #ff4444, #ff6644);
+        }
+
+        .reload-status {
+          margin-top: 6px;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 4px 10px;
+          font-size: 0.65rem;
+        }
+
+        .reload-item {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          color: var(--status-warning, #ffaa00);
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+        }
+
+        .reload-indicator {
+          width: 5px;
+          height: 5px;
+          border-radius: 50%;
+          background: var(--status-warning, #ffaa00);
+          animation: reload-blink 1s ease-in-out infinite;
+        }
+
+        @keyframes reload-blink {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.3; }
+        }
+
         .cease-fire-btn {
           width: 100%;
           padding: 12px 16px;
@@ -457,6 +594,8 @@ class WeaponControls extends HTMLElement {
           min-height: 52px;
         }
       </style>
+
+      <div class="ammo-heat-hud" id="ammo-heat-hud"></div>
 
       <div class="weapon-group target-lock-row">
         <div class="group-title">Target Lock</div>
@@ -563,6 +702,9 @@ class WeaponControls extends HTMLElement {
     const combat = stateManager.getCombat();
     const ship = stateManager.getShipState();
 
+    // Update ammo/heat HUD (above all fire controls)
+    this._updateAmmoHeatHud(weapons);
+
     // Update target lock button
     const lockBtn = this.shadowRoot.getElementById("lock-btn");
     const lockState = targeting?.lock_state || "none";
@@ -636,6 +778,152 @@ class WeaponControls extends HTMLElement {
 
     // Render assessment data if available
     this._renderAssessment();
+  }
+
+  /**
+   * Render the compact ammo/heat summary HUD.
+   * Shows per-weapon-type ammo counts, aggregate heat bar,
+   * and reload status for any weapon currently cycling.
+   */
+  _updateAmmoHeatHud(weapons) {
+    const hud = this.shadowRoot.getElementById("ammo-heat-hud");
+    if (!hud) return;
+
+    const truthWeapons = weapons?.truth_weapons || {};
+    const torpedoData = weapons?.torpedoes || weapons?.torpedo || {};
+    const missileData = weapons?.missiles || {};
+
+    // Aggregate ammo by weapon type (railgun, pdc) from truth_weapons
+    const ammoByType = {};
+    let totalHeat = 0;
+    let totalMaxHeat = 0;
+    const reloading = [];
+
+    for (const [mountId, w] of Object.entries(truthWeapons)) {
+      const wtype = w.weapon_type || (mountId.startsWith("pdc") ? "pdc" : "railgun");
+      if (!ammoByType[wtype]) {
+        ammoByType[wtype] = { current: 0, capacity: 0 };
+      }
+      ammoByType[wtype].current += w.ammo ?? 0;
+      ammoByType[wtype].capacity += w.ammo_capacity ?? 0;
+
+      totalHeat += w.heat ?? 0;
+      totalMaxHeat += w.max_heat ?? 0;
+
+      if (w.reloading) {
+        const pct = Math.round((w.reload_progress ?? 0) * 100);
+        const displayName = mountId.replace(/_/g, " ").toUpperCase();
+        reloading.push({ name: displayName, pct });
+      }
+    }
+
+    // Torpedo/missile ammo
+    const trpLoaded = torpedoData.loaded ?? torpedoData.count ?? 0;
+    const trpCapacity = torpedoData.capacity ?? trpLoaded;
+    const mslLoaded = missileData.loaded ?? missileData.count ?? 0;
+    const mslCapacity = missileData.capacity ?? mslLoaded;
+
+    // Torpedo/missile cooldowns count as reloading
+    if ((torpedoData.cooldown ?? 0) > 0) {
+      reloading.push({ name: "TORPEDO TUBE", pct: null, cooldown: torpedoData.cooldown });
+    }
+    if ((missileData.cooldown ?? 0) > 0) {
+      reloading.push({ name: "MISSILE BAY", pct: null, cooldown: missileData.cooldown });
+    }
+
+    // If no weapons data at all, show minimal state
+    const hasAnyData = Object.keys(truthWeapons).length > 0 || trpCapacity > 0 || mslCapacity > 0;
+    if (!hasAnyData) {
+      hud.innerHTML = `
+        <div class="ammo-summary">
+          <span class="ammo-item">
+            <span class="ammo-label">WEAPONS</span>
+            <span class="ammo-value empty">NO DATA</span>
+          </span>
+        </div>
+      `;
+      return;
+    }
+
+    // Build ammo summary items
+    const ammoItems = [];
+    // Type abbreviation map
+    const typeLabels = { railgun: "RG", pdc: "PDC" };
+
+    for (const [wtype, data] of Object.entries(ammoByType)) {
+      const label = typeLabels[wtype] || wtype.toUpperCase();
+      const ratio = data.capacity > 0 ? data.current / data.capacity : 1;
+      const colorClass = ratio <= 0 ? "empty" : ratio <= 0.15 ? "critical" : ratio <= 0.35 ? "low" : "";
+      ammoItems.push(
+        `<span class="ammo-item">` +
+        `<span class="ammo-label">${label}:</span>` +
+        `<span class="ammo-value ${colorClass}">${data.current}/${data.capacity}</span>` +
+        `</span>`
+      );
+    }
+
+    // Torpedoes (only show if ship has tubes)
+    if (trpCapacity > 0) {
+      const ratio = trpCapacity > 0 ? trpLoaded / trpCapacity : 1;
+      const colorClass = ratio <= 0 ? "empty" : ratio <= 0.15 ? "critical" : ratio <= 0.35 ? "low" : "";
+      ammoItems.push(
+        `<span class="ammo-item">` +
+        `<span class="ammo-label">TRP:</span>` +
+        `<span class="ammo-value ${colorClass}">${trpLoaded}/${trpCapacity}</span>` +
+        `</span>`
+      );
+    }
+
+    // Missiles (only show if ship has launchers)
+    if (mslCapacity > 0) {
+      const ratio = mslCapacity > 0 ? mslLoaded / mslCapacity : 1;
+      const colorClass = ratio <= 0 ? "empty" : ratio <= 0.15 ? "critical" : ratio <= 0.35 ? "low" : "";
+      ammoItems.push(
+        `<span class="ammo-item">` +
+        `<span class="ammo-label">MSL:</span>` +
+        `<span class="ammo-value ${colorClass}">${mslLoaded}/${mslCapacity}</span>` +
+        `</span>`
+      );
+    }
+
+    // Ammo line with separators
+    const ammoHtml = ammoItems.join(`<span class="ammo-separator">|</span>`);
+
+    // Heat bar (aggregate across all truth_weapons)
+    let heatHtml = "";
+    if (totalMaxHeat > 0) {
+      const heatPct = Math.round((totalHeat / totalMaxHeat) * 100);
+      const heatClass = heatPct >= 80 ? "hot" : heatPct >= 50 ? "warm" : "cool";
+      heatHtml = `
+        <div class="heat-bar-section">
+          <div class="heat-bar-header">
+            <span class="heat-bar-label">WEAPONS HEAT</span>
+            <span class="heat-bar-value ${heatClass}">${Math.round(totalHeat)}/${Math.round(totalMaxHeat)}</span>
+          </div>
+          <div class="heat-bar-container">
+            <div class="heat-bar-fill ${heatClass}" style="width: ${Math.min(heatPct, 100)}%"></div>
+          </div>
+        </div>
+      `;
+    }
+
+    // Reload status
+    let reloadHtml = "";
+    if (reloading.length > 0) {
+      const items = reloading.map((r) => {
+        const statusText = r.pct != null
+          ? `${r.name} ${r.pct}%`
+          : `${r.name} ${r.cooldown.toFixed(1)}s`;
+        return `<span class="reload-item"><span class="reload-indicator"></span>${statusText}</span>`;
+      }).join("");
+      reloadHtml = `<div class="reload-status">${items}</div>`;
+    }
+
+    hud.innerHTML = `
+      <div class="ammo-summary">${ammoHtml}</div>
+      ${heatHtml}
+      ${reloadHtml}
+    `;
   }
 
   _updateRailgunMounts(weapons, targeting, hasLock) {
