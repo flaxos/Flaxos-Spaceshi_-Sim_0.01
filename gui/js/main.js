@@ -111,10 +111,13 @@ import "../components/station-chat.js";
 import "../components/comms-choice-panel.js";
 // Multi-target tracking
 import "../components/multi-track-panel.js";
+// Target damage assessment
+import "../components/target-assessment.js";
 
 // App state
 const app = {
   initialized: false,
+  currentScenarioId: null,
   config: {
     wsUrl: null, // Auto-detect
     autoConnect: true,
@@ -231,7 +234,12 @@ function setupGlobalEvents() {
   document.addEventListener("scenario-loaded", (e) => {
     const { playerShipId, scenario, shipsLoaded, autoAssigned, assignedShip, station, mission } = e.detail;
     const targetShipId = assignedShip || playerShipId;
-    
+
+    // Track scenario ID for mission retry
+    if (scenario) {
+      app.currentScenarioId = scenario;
+    }
+
     if (targetShipId) {
       stateManager.setPlayerShipId(targetShipId);
       if (scenario) {
@@ -245,7 +253,7 @@ function setupGlobalEvents() {
     } else {
       console.warn(`Scenario loaded or joined but no player ship ID received`);
     }
-    
+
     if (scenario) {
       showSystemMessage("success", `Scenario "${scenario}" loaded`, "Mission Ready");
     } else {
@@ -269,6 +277,11 @@ function setupGlobalEvents() {
     const severity = status === "success" ? "success" : status === "failure" ? "error" : "info";
 
     showSystemMessage(severity, message, title);
+
+    // Show full-screen overlay on mission completion
+    if (eventType === "mission_complete" && (status === "success" || status === "failure")) {
+      showMissionCompleteOverlay(status, message, title);
+    }
   });
 }
 
@@ -309,6 +322,7 @@ function handleKeyboardShortcut(event) {
 
   // Escape - always handle: close modals, clear focus
   if (event.key === "Escape") {
+    dismissMissionOverlay();
     document.activeElement?.blur();
   }
 
@@ -374,6 +388,215 @@ function showSystemMessage(type, message, title = "") {
   const container = document.getElementById("system-messages");
   if (!container) return null;
   return container.show({ type, text: message, title });
+}
+
+/**
+ * Show full-screen mission completion overlay.
+ * @param {string} status - "success" or "failure"
+ * @param {string} message - Result message from mission YAML
+ * @param {string} missionName - Mission name for the header
+ */
+function showMissionCompleteOverlay(status, message, missionName) {
+  // Remove existing overlay if present (prevent duplicates)
+  dismissMissionOverlay();
+
+  const isSuccess = status === "success";
+  const overlay = document.createElement("div");
+  overlay.id = "mission-complete-overlay";
+
+  const accent = isSuccess ? "#00ff88" : "#ff4444";
+  const accentDim = isSuccess ? "rgba(0, 255, 136, 0.08)" : "rgba(255, 68, 68, 0.08)";
+  const accentGlow = isSuccess ? "rgba(0, 255, 136, 0.15)" : "rgba(255, 68, 68, 0.15)";
+  const heading = isSuccess ? "MISSION COMPLETE" : "MISSION FAILED";
+  const icon = isSuccess ? "\u2713" : "\u2717";
+
+  overlay.innerHTML = `
+    <div class="mco-backdrop"></div>
+    <div class="mco-card">
+      <div class="mco-icon" style="color: ${accent}; text-shadow: 0 0 30px ${accentGlow};">${icon}</div>
+      <h1 class="mco-heading" style="color: ${accent};">${heading}</h1>
+      <p class="mco-mission-name">${missionName || ""}</p>
+      <div class="mco-message">${message || ""}</div>
+      <div class="mco-buttons">
+        <button class="mco-btn mco-retry" style="border-color: ${accent}; color: ${accent};">RETRY</button>
+        <button class="mco-btn mco-lobby">RETURN TO LOBBY</button>
+      </div>
+      <p class="mco-hint">Press ESC to dismiss</p>
+    </div>
+  `;
+
+  // Inject scoped styles
+  const style = document.createElement("style");
+  style.textContent = `
+    #mission-complete-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: mcoFadeIn 0.3s ease;
+    }
+    @keyframes mcoFadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .mco-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+    }
+    .mco-card {
+      position: relative;
+      text-align: center;
+      padding: 48px 56px;
+      max-width: 520px;
+      width: 90vw;
+      background: ${accentDim};
+      border: 1px solid ${accent};
+      border-radius: 12px;
+      box-shadow: 0 0 60px ${accentGlow}, inset 0 0 40px ${accentGlow};
+    }
+    .mco-icon {
+      font-size: 4rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .mco-heading {
+      font-family: var(--font-mono, "JetBrains Mono", monospace);
+      font-size: 1.8rem;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      margin: 0 0 8px;
+    }
+    .mco-mission-name {
+      font-size: 0.85rem;
+      color: var(--text-secondary, #888899);
+      margin: 0 0 20px;
+    }
+    .mco-message {
+      font-size: 0.9rem;
+      color: var(--text-primary, #e0e0e0);
+      line-height: 1.6;
+      white-space: pre-line;
+      margin-bottom: 32px;
+    }
+    .mco-buttons {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+    }
+    .mco-btn {
+      padding: 12px 28px;
+      font-family: var(--font-mono, "JetBrains Mono", monospace);
+      font-size: 0.85rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      min-width: 160px;
+    }
+    .mco-retry {
+      background: transparent;
+      border: 1px solid;
+    }
+    .mco-retry:hover {
+      background: ${accentGlow};
+    }
+    .mco-lobby {
+      background: var(--bg-input, #1a1a24);
+      border: 1px solid var(--border-default, #2a2a3a);
+      color: var(--text-primary, #e0e0e0);
+    }
+    .mco-lobby:hover {
+      background: var(--bg-hover, #22222e);
+      border-color: var(--border-active, #3a3a4a);
+    }
+    .mco-hint {
+      font-size: 0.7rem;
+      color: var(--text-dim, #555566);
+      margin: 20px 0 0;
+    }
+  `;
+  overlay.prepend(style);
+
+  // Wire buttons
+  overlay.querySelector(".mco-retry").addEventListener("click", () => {
+    retryCurrentMission();
+  });
+  overlay.querySelector(".mco-lobby").addEventListener("click", () => {
+    returnToLobby();
+  });
+
+  // Click backdrop to dismiss
+  overlay.querySelector(".mco-backdrop").addEventListener("click", () => {
+    dismissMissionOverlay();
+  });
+
+  document.body.appendChild(overlay);
+}
+
+/**
+ * Dismiss the mission completion overlay if visible.
+ */
+function dismissMissionOverlay() {
+  const overlay = document.getElementById("mission-complete-overlay");
+  if (overlay) {
+    overlay.remove();
+  }
+}
+
+/**
+ * Retry the current mission by reloading the same scenario.
+ */
+function retryCurrentMission() {
+  const scenarioId = app.currentScenarioId;
+  if (!scenarioId) {
+    showSystemMessage("warning", "No scenario to retry", "Retry");
+    dismissMissionOverlay();
+    return;
+  }
+
+  dismissMissionOverlay();
+  showSystemMessage("info", `Reloading ${scenarioId}...`, "Retry");
+  wsClient.send("load_scenario", { scenario: scenarioId }).then((resp) => {
+    if (resp && resp.ok !== false) {
+      document.dispatchEvent(new CustomEvent("scenario-loaded", {
+        detail: resp,
+        bubbles: true,
+      }));
+    } else {
+      showSystemMessage("error", resp?.error || "Failed to reload scenario", "Retry");
+    }
+  }).catch((err) => {
+    showSystemMessage("error", `Retry failed: ${err.message}`, "Retry");
+  });
+}
+
+/**
+ * Return to the scenario lobby: switch to mission view and expand the loader.
+ */
+function returnToLobby() {
+  dismissMissionOverlay();
+
+  // Switch to the mission view tab
+  const viewTabs = document.getElementById("view-tabs");
+  if (viewTabs) {
+    viewTabs.activeView = "mission";
+  }
+
+  // Expand the scenario-loader panel (remove collapsed attribute)
+  const loaderPanel = document.querySelector(".mis-scenario-panel");
+  if (loaderPanel) {
+    loaderPanel.removeAttribute("collapsed");
+  }
+
+  // Trigger a refresh on the scenario-loader component
+  const loader = document.querySelector("scenario-loader");
+  if (loader && typeof loader._refreshAll === "function") {
+    loader._refreshAll();
+  }
 }
 
 /**

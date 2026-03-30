@@ -230,9 +230,9 @@ body.tier-cpu-assist .helm-autopilot-status-panel {
 
 /* =========================================================================
    8. TACTICAL PANEL VISIBILITY — RAW TIER
-   "Full manual targeting workflow" (all 11 panels)
+   "Full manual targeting workflow" (all 12 panels)
 
-   Show:     ALL panels. Fire Control hero (span-6).
+   Show:     ALL panels. Fire Control hero (span-6). Target Status visible.
    ========================================================================= */
 
 /* RAW: show everything — hero sizing only */
@@ -243,9 +243,9 @@ body.tier-raw .tac-fire-ctrl-panel {
 
 /* =========================================================================
    9. TACTICAL PANEL VISIBILITY — ARCADE TIER
-   "Guided targeting, simplified threat picture" (~8 panels)
+   "Guided targeting, simplified threat picture" (~9 panels)
 
-   Show:     Sensors, Map, Targeting, Weapons, Firing Solution,
+   Show:     Sensors, Map, Targeting, Target Status, Weapons, Firing Solution,
              Fire Control (HERO), Torpedoes, Combat Log
    Hidden:   ECM, Threat Board shrinks to span-4
    ========================================================================= */
@@ -268,10 +268,10 @@ body.tier-arcade .tac-fire-ctrl-panel {
 
 /* =========================================================================
    10. TACTICAL PANEL VISIBILITY — CPU-ASSIST TIER
-   "Captain's targeting — simplified, 5-6 panels"
+   "Captain's targeting — simplified, 6-7 panels"
 
-   Show:     Sensors, Map, Targeting (simplified), Fire Control (HERO),
-             Weapons (ordnance status), Combat Log
+   Show:     Sensors, Map, Targeting (simplified), Target Status,
+             Fire Control (HERO), Weapons (ordnance status), Combat Log
    Hidden:   ECM, Threat Board, Subsystem Target, Torpedoes, Firing Solution
    ========================================================================= */
 
@@ -287,6 +287,11 @@ body.tier-cpu-assist .tac-solution-panel {
 /* Hero: Fire Control — dominates the simplified layout */
 body.tier-cpu-assist .tac-fire-ctrl-panel {
   grid-column: span 8;
+}
+
+/* Target Status widens when Firing Solution is hidden */
+body.tier-cpu-assist .tac-assessment-panel {
+  grid-column: span 6;
 }
 
 
