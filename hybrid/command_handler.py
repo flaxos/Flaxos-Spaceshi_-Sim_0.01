@@ -86,6 +86,8 @@ system_commands = {
     "set_pdc_mode": ("combat", "set_pdc_mode"),
     "launch_torpedo": ("combat", "launch_torpedo"),
     "torpedo_status": ("combat", "torpedo_status"),
+    "launch_missile": ("combat", "launch_missile"),
+    "missile_status": ("combat", "missile_status"),
     "assess_damage": ("targeting", "assess_damage"),
     # ECCM commands (routed through sensors — ECCM is a sensor capability)
     "eccm_frequency_hop": ("sensors", "eccm_frequency_hop"),

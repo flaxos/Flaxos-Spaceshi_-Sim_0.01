@@ -1,7 +1,8 @@
 /**
- * Torpedo Status Panel
- * Displays torpedo magazine state, active (outbound) torpedoes, and
- * incoming torpedo threats targeting this ship.
+ * Torpedo & Missile Status Panel
+ * Displays torpedo and missile magazine state, active (outbound) ordnance,
+ * and incoming threats targeting this ship.
+ * Missiles are distinguished by munition_type: "missile" in telemetry data.
  */
 
 import { stateManager } from "../js/state-manager.js";
@@ -176,6 +177,45 @@ class TorpedoStatus extends HTMLElement {
           font-style: italic;
         }
 
+        /* Missile magazine bar variant */
+        .bar-fill.missile { background: #ff8800; }
+
+        /* Missile section title */
+        .section-title.missile-title {
+          color: #ff8800;
+        }
+
+        /* Missile item border accent */
+        .torp-item.missile-item {
+          border-color: rgba(255, 136, 0, 0.3);
+        }
+
+        /* Missile type badge in ordnance list */
+        .munition-badge {
+          font-size: 0.6rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.3px;
+          padding: 1px 4px;
+          border-radius: 3px;
+        }
+
+        .munition-badge.torpedo-badge {
+          color: var(--status-info, #00aaff);
+          background: rgba(0, 170, 255, 0.15);
+        }
+
+        .munition-badge.missile-badge {
+          color: #ff8800;
+          background: rgba(255, 136, 0, 0.15);
+        }
+
+        .flight-profile {
+          font-size: 0.6rem;
+          color: var(--text-secondary, #888899);
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+        }
+
         .cooldown-text {
           color: var(--status-warning, #ffaa00);
           font-family: var(--font-mono, "JetBrains Mono", monospace);
@@ -225,8 +265,22 @@ class TorpedoStatus extends HTMLElement {
     const barClass = pct > 50 ? "nominal" : pct > 20 ? "warning" : "critical";
     const totalMass = loaded * TORPEDO_MASS_KG;
 
+    // Missile magazine data from weapons telemetry
+    const missileData = weapons?.missiles || {};
+    const mslLoaded = missileData.loaded ?? missileData.count ?? 0;
+    const mslCapacity = missileData.max ?? missileData.capacity ?? 0;
+    const mslCooldown = missileData.cooldown ?? null;
+    const mslLaunched = missileData.launched ?? 0;
+    const mslPct = mslCapacity > 0 ? (mslLoaded / mslCapacity) * 100 : 0;
+    const mslBarClass = mslPct > 50 ? "nominal missile" : mslPct > 20 ? "warning" : "critical";
+    const hasMissiles = mslCapacity > 0;
+
+    // Separate outbound ordnance into torpedoes and missiles
+    const outTorpedoes = outbound.filter(t => (t.munition_type || "torpedo") !== "missile");
+    const outMissiles = outbound.filter(t => t.munition_type === "missile");
+
     content.innerHTML = `
-      <!-- Magazine -->
+      <!-- Torpedo Magazine -->
       <div class="section">
         <div class="section-title">Torpedo Magazine</div>
         <div class="detail-row">
@@ -252,9 +306,33 @@ class TorpedoStatus extends HTMLElement {
         </div>` : ""}
       </div>
 
-      <!-- Active (outbound) torpedoes -->
+      ${hasMissiles ? `
+      <!-- Missile Magazine -->
       <div class="section">
-        <div class="section-title">Active Torpedoes (${outbound.length})</div>
+        <div class="section-title missile-title">Missile Magazine</div>
+        <div class="detail-row">
+          <span class="detail-label">Loaded</span>
+          <span class="detail-value">${mslLoaded}/${mslCapacity}</span>
+        </div>
+        <div class="bar">
+          <div class="bar-fill ${mslBarClass}" style="width: ${mslPct}%"></div>
+        </div>
+        ${mslCooldown ? `
+        <div class="detail-row">
+          <span class="detail-label">Tube Cooldown</span>
+          <span class="cooldown-text">${typeof mslCooldown === "number" ? mslCooldown.toFixed(1) + "s" : mslCooldown}</span>
+        </div>` : ""}
+        ${mslLaunched > 0 ? `
+        <div class="detail-row">
+          <span class="detail-label">Launched</span>
+          <span class="detail-value">${mslLaunched}</span>
+        </div>` : ""}
+      </div>
+      ` : ""}
+
+      <!-- Active outbound ordnance -->
+      <div class="section">
+        <div class="section-title">Active Ordnance (${outbound.length})</div>
         ${outbound.length > 0 ? outbound.map(t => this._renderTorpedo(t, false)).join("") : '<div class="empty-state" style="padding:8px">None in flight</div>'}
       </div>
 
@@ -271,6 +349,10 @@ class TorpedoStatus extends HTMLElement {
     const stateClass = stateVal === "boost" ? "boost" : stateVal === "terminal" ? "terminal" : "midcourse";
     const fuelPct = (t.fuel_percent ?? 0).toFixed(0);
     const hull = (t.hull_health ?? 100).toFixed(0);
+    const isMissile = t.munition_type === "missile";
+    const typeLabel = isMissile ? "MSL" : "TRP";
+    const badgeClass = isMissile ? "missile-badge" : "torpedo-badge";
+    const itemClass = isMissile ? "missile-item" : "";
 
     // Format distance to target
     const dist = t.distance;
@@ -295,10 +377,17 @@ class TorpedoStatus extends HTMLElement {
       }
     }
 
+    // Flight profile for missiles (direct, evasive, terminal_pop, bracket)
+    const profileStr = isMissile && t.profile
+      ? `<span class="flight-profile" title="Flight profile">${t.profile}</span>`
+      : "";
+
     return `
-      <div class="torp-item ${isIncoming ? "incoming" : ""}">
+      <div class="torp-item ${isIncoming ? "incoming" : ""} ${itemClass}">
+        <span class="munition-badge ${badgeClass}">${typeLabel}</span>
         <span class="torp-id">${t.id}</span>
         <span class="torp-state ${stateClass}">${stateVal}</span>
+        ${profileStr}
         <span class="torp-stats">
           <span title="Distance to target">D:${distStr}</span>
           <span title="Estimated time to impact">ETA:${etaStr}</span>

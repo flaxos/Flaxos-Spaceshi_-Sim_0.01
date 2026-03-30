@@ -207,6 +207,51 @@ def cmd_launch_torpedo(combat, ship, params):
     return error_dict("NO_TORPEDO", "No torpedo system available")
 
 
+def cmd_launch_missile(combat, ship, params):
+    """Fire missile with target designation and flight profile.
+
+    Missiles are lighter, higher-G munitions for fast maneuvering targets.
+    They support programmable flight profiles that modify midcourse
+    behaviour to complicate PDC defence.
+
+    Args:
+        combat: CombatSystem instance
+        ship: Ship object
+        params: Validated parameters with optional target and profile
+
+    Returns:
+        dict: Launch result
+    """
+    target_id = params.get("target")
+    profile = params.get("profile", "direct")
+
+    if not target_id:
+        targeting = ship.systems.get("targeting")
+        if targeting and targeting.locked_target:
+            target_id = targeting.locked_target
+
+    if not target_id:
+        return error_dict("NO_TARGET", "No target designated for missile launch")
+
+    # Route through combat system's launch_missile
+    all_ships = params.get("all_ships", {})
+    return combat.launch_missile(target_id, profile, all_ships)
+
+
+def cmd_missile_status(combat, ship, params):
+    """Get missile system status.
+
+    Args:
+        combat: CombatSystem instance
+        ship: Ship object
+        params: Validated parameters (none required)
+
+    Returns:
+        dict: Missile status
+    """
+    return combat.get_missile_status()
+
+
 def cmd_cycle_target(targeting, ship, params):
     """Cycle the primary target to the next contact in the track list.
 
@@ -463,6 +508,26 @@ def register_commands(dispatcher):
                     description="Attack profile for torpedo approach"),
         ],
         help_text="Launch torpedo with target designation and attack profile",
+        system="combat",
+    ))
+
+    dispatcher.register("launch_missile", CommandSpec(
+        handler=cmd_launch_missile,
+        args=[
+            ArgSpec("target", "str", required=False,
+                    description="Target ship ID (uses locked target if omitted)"),
+            ArgSpec("profile", "str", required=False, default="direct",
+                    choices=["direct", "evasive", "terminal_pop", "bracket"],
+                    description="Flight profile: direct, evasive, terminal_pop, bracket"),
+        ],
+        help_text="Launch missile with target designation and flight profile",
+        system="combat",
+    ))
+
+    dispatcher.register("missile_status", CommandSpec(
+        handler=cmd_missile_status,
+        args=[],
+        help_text="Get missile system status (loaded, cooldown, launched)",
         system="combat",
     ))
 

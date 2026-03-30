@@ -1,26 +1,30 @@
 # hybrid/systems/combat/torpedo_manager.py
-"""Torpedo manager for guided, self-propelled munitions.
+"""Guided munition manager for torpedoes and missiles.
 
-Torpedoes are fundamentally different from railgun slugs:
-- They have their own drive, fuel, and guidance system
-- They accelerate toward the target using onboard guidance
-- They can receive datalink updates from the launching ship
-- They are interceptable by PDCs (the primary PDC role)
-- Their warheads are explosive/fragmentation — area-effect damage
+Both torpedoes and missiles are self-propelled guided munitions that share
+launcher hardpoints. They differ in mass, acceleration, warhead, and
+guidance philosophy:
 
-Torpedo effectiveness depends on:
-- Launch geometry (closing speed matters — head-on is harder to intercept)
-- Target PDC coverage and ammunition
-- Torpedo fuel budget (limited delta-v for terminal maneuvers)
-- Whether the target detects the launch (IR signature from drive)
-
-Physics model:
+Torpedoes — heavy ordnance for slow/large targets:
 - Mass: 250 kg (warhead 50kg, drive 80kg, fuel 60kg, structure 60kg)
-- Thrust: 8 kN (gives ~32 m/s² at full mass, ~42 m/s² fuel-depleted)
-- ISP: 2000s (lower than ship drives — compact thruster)
-- Delta-v: ~4,600 m/s (enough for terminal maneuvers, not cross-system)
-- Terminal velocity: inherited from launcher + own burn
+- Thrust: 8 kN (~32 m/s² at full mass)
+- Burn time: ~120s. Delta-v: ~4,600 m/s
 - Warhead: 50 kg fragmentation — blast radius 100m, lethal within 30m
+- Guidance: proportional navigation
+
+Missiles — light ordnance for fast maneuvering ships:
+- Mass: 80 kg (warhead 10kg, drive 25kg, fuel 15kg, structure 30kg)
+- Thrust: 12 kN (~150 m/s² at full mass — high-G interceptor)
+- Burn time: ~30s. Delta-v: ~4,500 m/s (similar budget, spent faster)
+- Warhead: 10 kg shaped charge — blast radius 30m, lethal within 10m
+- Guidance: augmented PN with terminal lead correction
+- Flight profiles: direct, evasive, terminal_pop, bracket
+
+Shared traits:
+- Both fire from the same launcher bays (switchable ordnance)
+- Both have onboard drive, fuel, and guidance
+- Both can receive datalink updates from the launching ship
+- Both are interceptable by PDCs
 """
 
 import math
@@ -40,8 +44,14 @@ from hybrid.systems.combat.hit_location import compute_hit_location
 logger = logging.getLogger(__name__)
 
 
+class MunitionType(Enum):
+    """Distinguishes torpedo vs missile ordnance sharing the same launcher."""
+    TORPEDO = "torpedo"
+    MISSILE = "missile"
+
+
 class TorpedoState(Enum):
-    """Torpedo flight states."""
+    """Flight states for both torpedoes and missiles."""
     BOOST = "boost"          # Initial acceleration phase after launch
     MIDCOURSE = "midcourse"  # Coasting / periodic corrections
     TERMINAL = "terminal"    # Final approach — max thrust, evasive
@@ -81,12 +91,58 @@ WARHEAD_SUBSYSTEM_DAMAGE = 20.0 # Per-subsystem damage at lethal radius
 WARHEAD_ARMOR_PEN = 0.8         # Fragmentation — moderate vs armor
 
 
+# --- Missile physical specifications ---
+# Missiles are lighter, higher-G, shorter burn, smaller warhead.
+# Designed to chase fast maneuvering ships that torpedoes cannot catch.
+# The high thrust-to-mass ratio (150 m/s^2) lets them match corvette
+# evasive maneuvers, but the small fuel load means they burn out fast.
+
+MISSILE_MASS = 80.0              # kg total
+MISSILE_WARHEAD_MASS = 10.0      # kg shaped charge
+MISSILE_FUEL_MASS = 15.0         # kg propellant
+MISSILE_DRY_MASS = MISSILE_MASS - MISSILE_FUEL_MASS  # 65 kg without fuel
+MISSILE_THRUST = 12000.0         # Newtons — high-G motor
+MISSILE_ISP = 1800.0             # seconds (optimised for impulse, not efficiency)
+MISSILE_EXHAUST_VEL = MISSILE_ISP * 9.81  # ~17,658 m/s
+MISSILE_MAX_DELTA_V = MISSILE_EXHAUST_VEL * math.log(MISSILE_MASS / MISSILE_DRY_MASS)
+
+# Engagement parameters — tighter fuse, smaller blast, shorter life
+MISSILE_ARM_DISTANCE = 300.0     # meters — arms faster than torpedoes
+MISSILE_PROXIMITY_FUSE = 10.0    # meters — smaller fuse radius (direct-hit weapon)
+MISSILE_BLAST_RADIUS = 30.0      # meters — shaped charge, not area-effect
+MISSILE_LETHAL_RADIUS = 10.0     # meters — tight kill zone
+MISSILE_MAX_LIFETIME = 60.0      # seconds — short burn, fast engagement
+MISSILE_TERMINAL_RANGE = 3000.0  # meters — enters terminal phase closer
+MISSILE_G_LIMIT = 80.0           # G tolerance — structural limit on guidance corrections
+
+# IR/RCS — smaller, cooler, harder to see
+MISSILE_THRUST_IR = 300_000.0    # 300 kW — smaller plume than torpedo
+MISSILE_COAST_IR = 50.0          # 50 W — tiny thermal signature
+MISSILE_RCS_M2 = 0.03            # Very small radar cross-section
+
+# Warhead damage — less raw damage, but focused on direct hits
+MISSILE_WARHEAD_BASE_DAMAGE = 25.0     # Hull damage at lethal radius
+MISSILE_WARHEAD_SUB_DAMAGE = 15.0      # Per-subsystem damage at lethal radius
+MISSILE_WARHEAD_ARMOR_PEN = 0.6        # Shaped charge — moderate penetration
+
+# Flight profiles determine midcourse behaviour.
+# "direct" is shared with torpedoes; the rest are missile-only.
+MISSILE_FLIGHT_PROFILES = {"direct", "evasive", "terminal_pop", "bracket"}
+
+
 @dataclass
 class Torpedo:
-    """A self-propelled guided torpedo in flight."""
+    """A self-propelled guided munition in flight (torpedo or missile).
+
+    Both torpedoes and missiles share this dataclass.  The munition_type
+    field controls which physical specs and guidance law apply.
+    """
     id: str
     shooter_id: str
     target_id: str
+
+    # What kind of ordnance this is — determines specs and guidance
+    munition_type: MunitionType = MunitionType.TORPEDO
 
     # Kinematics
     position: Dict[str, float] = field(default_factory=lambda: {"x": 0, "y": 0, "z": 0})
@@ -110,10 +166,11 @@ class Torpedo:
     last_target_vel: Dict[str, float] = field(default_factory=lambda: {"x": 0, "y": 0, "z": 0})
     datalink_active: bool = True  # Can receive targeting updates from launcher
 
-    # Launch profile
-    profile: str = "direct"  # "direct" = straight at target, "evasive" = serpentine approach
+    # Launch profile — missiles support: direct, evasive, terminal_pop, bracket
+    profile: str = "direct"
 
     # Damage tracking (for PDC interception)
+    # Missiles are frailer: 40 HP vs 100 HP for torpedoes
     hull_health: float = 100.0   # PDC hits degrade this
     max_hull_health: float = 100.0
 
@@ -154,8 +211,14 @@ class TorpedoManager:
         target_pos: Dict[str, float],
         target_vel: Dict[str, float],
         profile: str = "direct",
+        munition_type: MunitionType = MunitionType.TORPEDO,
     ) -> Torpedo:
-        """Launch a new torpedo.
+        """Launch a new torpedo or missile.
+
+        Physical specs (mass, fuel, thrust, hull HP, engagement params)
+        are selected from the appropriate constant block based on
+        munition_type so both ordnance types share the same flight and
+        detonation pipeline.
 
         Args:
             shooter_id: Ship ID that launched
@@ -165,32 +228,57 @@ class TorpedoManager:
             sim_time: Current simulation time
             target_pos: Target position at launch
             target_vel: Target velocity at launch
-            profile: Attack profile ("direct" or "evasive")
+            profile: Attack profile (torpedoes: "direct"/"evasive";
+                     missiles: "direct"/"evasive"/"terminal_pop"/"bracket")
+            munition_type: TORPEDO or MISSILE
 
         Returns:
-            The spawned Torpedo
+            The spawned Torpedo (also used for missiles)
         """
+        if munition_type == MunitionType.MISSILE:
+            mass = MISSILE_MASS
+            fuel = MISSILE_FUEL_MASS
+            thrust = MISSILE_THRUST
+            dv_budget = MISSILE_MAX_DELTA_V
+            # Missiles are frailer — smaller airframe, less shielding
+            hull_hp = 40.0
+            prefix = "msl"
+        else:
+            mass = TORPEDO_MASS
+            fuel = TORPEDO_FUEL_MASS
+            thrust = TORPEDO_THRUST
+            dv_budget = TORPEDO_MAX_DELTA_V
+            hull_hp = 100.0
+            prefix = "torp"
+
         torpedo = Torpedo(
-            id=f"torp_{self._next_id}",
+            id=f"{prefix}_{self._next_id}",
             shooter_id=shooter_id,
             target_id=target_id,
+            munition_type=munition_type,
             position=dict(position),
             velocity=dict(velocity),
-            mass=TORPEDO_MASS,
-            fuel=TORPEDO_FUEL_MASS,
-            thrust=TORPEDO_THRUST,
+            mass=mass,
+            fuel=fuel,
+            thrust=thrust,
             state=TorpedoState.BOOST,
             spawn_time=sim_time,
             launch_position=dict(position),
             last_target_pos=dict(target_pos),
             last_target_vel=dict(target_vel),
             profile=profile,
+            hull_health=hull_hp,
+            max_hull_health=hull_hp,
+            delta_v_budget=dv_budget,
         )
         self._next_id += 1
         self._torpedoes.append(torpedo)
 
-        self._event_bus.publish("torpedo_launched", {
+        event_name = ("missile_launched" if munition_type == MunitionType.MISSILE
+                       else "torpedo_launched")
+        self._event_bus.publish(event_name, {
             "torpedo_id": torpedo.id,
+            "munition_type": munition_type.value,
             "shooter": shooter_id,
             "target": target_id,
             "position": torpedo.position,
@@ -217,19 +305,25 @@ class TorpedoManager:
             if not torpedo.alive:
                 continue
 
+            # Lifetime depends on munition type — missiles burn out faster
+            max_lifetime = (MISSILE_MAX_LIFETIME
+                            if torpedo.munition_type == MunitionType.MISSILE
+                            else TORPEDO_MAX_LIFETIME)
             age = sim_time - torpedo.spawn_time
-            if age > TORPEDO_MAX_LIFETIME:
+            if age > max_lifetime:
                 torpedo.alive = False
                 torpedo.state = TorpedoState.EXPIRED
                 dist = calculate_distance(torpedo.position, torpedo.last_target_pos)
                 speed = magnitude(torpedo.velocity)
+                label = torpedo.munition_type.value.capitalize()
                 logger.warning(
-                    "Torpedo %s expired: %.1fs flight, %.1f km from target, "
+                    "%s %s expired: %.1fs flight, %.1f km from target, "
                     "speed %.0f m/s, fuel %.1f kg remaining",
-                    torpedo.id, age, dist / 1000, speed, torpedo.fuel,
+                    label, torpedo.id, age, dist / 1000, speed, torpedo.fuel,
                 )
                 self._event_bus.publish("torpedo_expired", {
                     "torpedo_id": torpedo.id,
+                    "munition_type": torpedo.munition_type.value,
                     "shooter": torpedo.shooter_id,
                     "target": torpedo.target_id,
                     "flight_time": age,
@@ -251,20 +345,30 @@ class TorpedoManager:
             torpedo.position["y"] += torpedo.velocity["y"] * dt
             torpedo.position["z"] += torpedo.velocity["z"] * dt
 
-            # Check arming distance
+            # Arming distance — missiles arm sooner (lighter, less backblast risk)
             if not torpedo.armed:
+                arm_dist = (MISSILE_ARM_DISTANCE
+                            if torpedo.munition_type == MunitionType.MISSILE
+                            else TORPEDO_ARM_DISTANCE)
                 dist_from_launch = calculate_distance(torpedo.position, torpedo.launch_position)
-                if dist_from_launch >= TORPEDO_ARM_DISTANCE:
+                if dist_from_launch >= arm_dist:
                     torpedo.armed = True
+
+            # Proximity fuse radius depends on warhead type:
+            # Torpedoes have a wider fuse (area-effect fragmentation)
+            # Missiles have a tighter fuse (shaped-charge, needs near-hit)
+            prox_fuse = (MISSILE_PROXIMITY_FUSE
+                         if torpedo.munition_type == MunitionType.MISSILE
+                         else TORPEDO_PROXIMITY_FUSE)
 
             # Check proximity detonation against target.
             # Two checks are needed:
-            # 1) Swept-line test — did the torpedo pass through the fuse
+            # 1) Swept-line test — did the munition pass through the fuse
             #    zone during this tick's position advance?
-            # 2) Predictive closest-approach — will the torpedo reach the
+            # 2) Predictive closest-approach — will the munition reach the
             #    fuse zone on its current trajectory?  Real proximity fuses
             #    fire when they detect minimum range is imminent and within
-            #    lethal distance.  Without this, a fast torpedo can be many
+            #    lethal distance.  Without this, a fast munition can be many
             #    ticks away from the target at each check but still clearly
             #    on a collision course.
             if target_ship and torpedo.armed:
@@ -272,24 +376,17 @@ class TorpedoManager:
                 closest_dist, closest_point = self._swept_closest_approach(
                     old_pos, torpedo.position, target_ship.position
                 )
-                if closest_dist <= TORPEDO_PROXIMITY_FUSE:
+                if closest_dist <= prox_fuse:
                     torpedo.position = closest_point
                     event = self._detonate(torpedo, target_ship, sim_time, closest_dist, ships)
                     events.append(event)
                     continue
 
                 # --- Predictive proximity fuse ---
-                # A real proximity fuse triggers when it detects that the
-                # torpedo has reached (or is about to reach) its closest
-                # approach to the target and that distance is within the
-                # fuse radius.  We model this by computing the time of
-                # closest approach (TCA) from current relative kinematics.
-                # If the predicted miss distance is within fuse range, we
-                # detonate at that point — the fuse has done its job.
                 pred_dist, pred_point, tca = self._predict_closest_approach(
                     torpedo, target_ship
                 )
-                if pred_dist <= TORPEDO_PROXIMITY_FUSE and tca > 0:
+                if pred_dist <= prox_fuse and tca > 0:
                     # Advance torpedo to the detonation point
                     torpedo.position = pred_point
                     event = self._detonate(torpedo, target_ship, sim_time + tca, pred_dist, ships)
@@ -371,17 +468,27 @@ class TorpedoManager:
                     return
 
     def _update_guidance(self, torpedo: Torpedo, target_ship, dt: float, sim_time: float):
-        """Compute and apply thrust vector for torpedo guidance.
+        """Compute and apply thrust vector for guided munition.
 
-        Guidance modes:
+        Both torpedoes and missiles share the same proportional navigation
+        backbone.  Differences:
+        - Missiles use augmented PN with higher gain (N=5 vs N=4) and a
+          terminal lead-pursuit correction for fast-closing engagements.
+        - Missiles respect a G-limit on commanded acceleration.
+        - Missile flight profiles modify midcourse behaviour (jinking,
+          cold-coast, bracket approach).
+
+        Guidance phases:
         - BOOST: Full thrust toward intercept point
         - MIDCOURSE: Periodic corrections, may coast to save fuel
-        - TERMINAL: Max thrust, potential evasive maneuvers
+        - TERMINAL: Max thrust, tight corrections to hit
         """
         if torpedo.fuel <= 0:
             torpedo.acceleration = {"x": 0, "y": 0, "z": 0}
             torpedo.state = TorpedoState.MIDCOURSE  # Coasting, no fuel
             return
+
+        is_missile = torpedo.munition_type == MunitionType.MISSILE
 
         # Use actual target position if available, otherwise last known
         if target_ship:
@@ -395,75 +502,61 @@ class TorpedoManager:
         rel_pos = subtract_vectors(target_pos, torpedo.position)
         dist = magnitude(rel_pos)
 
+        # Per-type engagement parameters
+        terminal_range = (MISSILE_TERMINAL_RANGE if is_missile
+                          else TORPEDO_TERMINAL_RANGE)
+        max_lifetime = (MISSILE_MAX_LIFETIME if is_missile
+                        else TORPEDO_MAX_LIFETIME)
+
         # State transitions
-        # Terminal: close range, all-out attack
-        if dist <= TORPEDO_TERMINAL_RANGE:
+        if dist <= terminal_range:
             torpedo.state = TorpedoState.TERMINAL
         elif torpedo.state == TorpedoState.BOOST:
-            # Transition to MIDCOURSE only when the torpedo has enough
-            # closing speed to reach the target within its remaining lifetime.
-            # The old logic used a fixed 5-second timer, which left the torpedo
-            # crawling at ~210 m/s — far too slow for 86km engagements.
             age = sim_time - torpedo.spawn_time
-            remaining_time = TORPEDO_MAX_LIFETIME - age
-            # Compute current closing speed toward target
+            remaining_time = max_lifetime - age
             rel_vel = subtract_vectors(torpedo.velocity, target_vel)
             if dist > 1.0:
                 los = normalize_vector(rel_pos)
                 current_closing = dot_product(rel_vel, los)
             else:
                 current_closing = magnitude(torpedo.velocity)
-            # Stay in BOOST until closing speed can cover distance in remaining time
-            # with 20% margin for terminal maneuvers and target evasion
             required_speed = dist / max(1.0, remaining_time) * 1.2
-            # Also require a minimum boost duration of 5s for initial course alignment
-            if age > 5.0 and current_closing > required_speed:
+            # Missiles have shorter boost: 2s min (fast motor) vs 5s torpedoes
+            min_boost = 2.0 if is_missile else 5.0
+            if age > min_boost and current_closing > required_speed:
                 torpedo.state = TorpedoState.MIDCOURSE
+                label = torpedo.munition_type.value.capitalize()
                 logger.info(
-                    "Torpedo %s BOOST->MIDCOURSE at %.1fs: closing %.0f m/s "
+                    "%s %s BOOST->MIDCOURSE at %.1fs: closing %.0f m/s "
                     "(required %.0f), dist %.1f km, fuel %.1f kg",
-                    torpedo.id, age, current_closing, required_speed,
+                    label, torpedo.id, age, current_closing, required_speed,
                     dist / 1000, torpedo.fuel,
                 )
 
         # --- Proportional Navigation (PN) guidance ---
-        # PN steers perpendicular to the line of sight at a rate proportional
-        # to the LOS rotation rate.  This produces the tightest possible
-        # intercept trajectory for a constant-thrust missile.
-        #
-        # a_cmd = N * Vc * omega_LOS
-        #   N = navigation gain (3-5, we use 4)
-        #   Vc = closing speed (positive toward target)
-        #   omega_LOS = line-of-sight rotation rate
-        #
-        # For implementation we compute the PN acceleration vector and add a
-        # bias toward the predicted intercept point (augmented PN).
+        # Missiles use augmented PN (N=5) for tighter intercepts against
+        # maneuvering targets.  Torpedoes use standard PN (N=4).
+        pn_gain = 5.0 if is_missile else 4.0
 
-        PN_GAIN = 4.0  # Standard for guided munitions
-
-        # Relative velocity: torpedo - target (positive = closing)
+        # Relative velocity: munition - target (positive = closing)
         rel_vel_to_target = subtract_vectors(torpedo.velocity, target_vel)
         los_dir = normalize_vector(rel_pos) if dist > 1.0 else {"x": 1, "y": 0, "z": 0}
         closing_speed = dot_product(rel_vel_to_target, los_dir)
 
         # LOS rotation rate: omega = (V_perp) / R
-        # V_perp is the relative velocity component perpendicular to LOS
         v_along = scale_vector(los_dir, dot_product(rel_vel_to_target, los_dir))
         v_perp = subtract_vectors(rel_vel_to_target, v_along)
         omega_los = magnitude(v_perp) / max(1.0, dist)
 
-        # PN acceleration: perpendicular to LOS, opposing the LOS rotation
-        # Direction: cross-product equivalent -- the component of relative
-        # velocity that is perpendicular to LOS, inverted to cancel rotation
-        pn_accel_mag = PN_GAIN * abs(closing_speed) * omega_los
+        # PN acceleration perpendicular to LOS, opposing rotation
+        pn_accel_mag = pn_gain * abs(closing_speed) * omega_los
         if magnitude(v_perp) > 0.01:
             pn_dir = normalize_vector(v_perp)
-            # Negate: we want to cancel the lateral drift, not amplify it
             pn_dir = scale_vector(pn_dir, -1.0)
         else:
             pn_dir = {"x": 0, "y": 0, "z": 0}
 
-        # Predicted intercept point (for aim bias)
+        # Predicted intercept point (aim bias)
         tgo = dist / max(1.0, abs(closing_speed)) if closing_speed > 1.0 else dist / max(1.0, magnitude(torpedo.velocity))
         intercept = {
             "x": target_pos["x"] + target_vel["x"] * tgo,
@@ -477,18 +570,25 @@ class TorpedoManager:
         else:
             aim_dir = normalize_vector(aim_vec)
 
-        # Blend PN correction into aim direction for ALL phases.
-        # In terminal, PN dominates (tight correction to hit).
-        # In boost/midcourse, PN corrects the course gradually so the
-        # torpedo arrives at the intercept point on the right vector,
-        # not just aimed at the right point.
+        # Missiles add a terminal lead-pursuit bias: in the last 3s of
+        # predicted flight, blend toward pure pursuit of current position
+        # rather than predicted intercept.  This corrects for last-second
+        # target jinking that invalidates the intercept prediction.
+        if is_missile and torpedo.state == TorpedoState.TERMINAL and tgo < 3.0:
+            pursuit_dir = los_dir
+            # Blend: as tgo->0, pure pursuit dominates
+            blend = max(0.0, min(1.0, 1.0 - tgo / 3.0))
+            aim_dir = normalize_vector(add_vectors(
+                scale_vector(aim_dir, 1.0 - blend),
+                scale_vector(pursuit_dir, blend),
+            ))
+
+        # Blend PN correction into aim direction
         if pn_accel_mag > 0.01:
             accel_max = torpedo.thrust / torpedo.mass if torpedo.mass > 0 else 32.0
             if torpedo.state == TorpedoState.TERMINAL:
-                # Terminal: heavy PN weighting for accuracy
                 pn_weight = min(pn_accel_mag, accel_max * 0.8)
             else:
-                # Boost/midcourse: lighter PN to build correct approach vector
                 pn_weight = min(pn_accel_mag, accel_max * 0.4)
             los_weight = max(0.1, accel_max - pn_weight)
             blended = add_vectors(
@@ -499,30 +599,32 @@ class TorpedoManager:
             if dir_mag > 0.01:
                 aim_dir = normalize_vector(blended)
 
-        # Apply thrust based on state
+        # Missile flight profile modifiers — applied during MIDCOURSE only
+        if is_missile and torpedo.state == TorpedoState.MIDCOURSE:
+            aim_dir = self._apply_missile_profile(torpedo, aim_dir, dt, sim_time, dist)
+
+        # Determine thrust fraction based on flight phase
         if torpedo.state == TorpedoState.TERMINAL:
-            # Full thrust, no fuel conservation
             thrust_fraction = 1.0
         elif torpedo.state == TorpedoState.MIDCOURSE:
-            # Coast only when aligned AND closing fast enough to arrive
-            # in the remaining lifetime.  The old logic coasted whenever
-            # the heading was within 5 degrees, which let torpedoes drift
-            # at ~210 m/s and miss targets that were still 60+ km away.
-            vel_dir = normalize_vector(torpedo.velocity) if magnitude(torpedo.velocity) > 1.0 else aim_dir
-            cos_angle = dot_product(vel_dir, aim_dir)
-
-            age = sim_time - torpedo.spawn_time
-            remaining = TORPEDO_MAX_LIFETIME - age
-            required_closing = dist / max(1.0, remaining) * 1.3
-
-            if cos_angle > 0.996 and closing_speed > required_closing:
-                thrust_fraction = 0.0  # On course AND fast enough — coast
-            elif cos_angle > 0.99:
-                thrust_fraction = 0.5  # Roughly aligned — moderate thrust
+            # Missiles with terminal_pop profile coast cold during midcourse
+            # to reduce IR signature until terminal phase
+            if is_missile and torpedo.profile == "terminal_pop":
+                thrust_fraction = 0.0
             else:
-                thrust_fraction = 1.0  # Off-course — full correction burn
+                vel_dir = normalize_vector(torpedo.velocity) if magnitude(torpedo.velocity) > 1.0 else aim_dir
+                cos_angle = dot_product(vel_dir, aim_dir)
+                age = sim_time - torpedo.spawn_time
+                remaining = max_lifetime - age
+                required_closing = dist / max(1.0, remaining) * 1.3
+
+                if cos_angle > 0.996 and closing_speed > required_closing:
+                    thrust_fraction = 0.0
+                elif cos_angle > 0.99:
+                    thrust_fraction = 0.5
+                else:
+                    thrust_fraction = 1.0
         else:
-            # BOOST — full thrust
             thrust_fraction = 1.0
 
         # Apply thrust and consume fuel
@@ -530,19 +632,25 @@ class TorpedoManager:
             actual_thrust = torpedo.thrust * thrust_fraction
             accel_mag = actual_thrust / torpedo.mass
 
+            # Missiles have a structural G-limit — clamp commanded accel
+            if is_missile:
+                max_accel = MISSILE_G_LIMIT * 9.81  # Convert G to m/s^2
+                accel_mag = min(accel_mag, max_accel)
+
             torpedo.acceleration = {
                 "x": aim_dir["x"] * accel_mag,
                 "y": aim_dir["y"] * accel_mag,
                 "z": aim_dir["z"] * accel_mag,
             }
 
-            # Apply acceleration to velocity
             torpedo.velocity["x"] += torpedo.acceleration["x"] * dt
             torpedo.velocity["y"] += torpedo.acceleration["y"] * dt
             torpedo.velocity["z"] += torpedo.acceleration["z"] * dt
 
             # Consume fuel (Tsiolkovsky-consistent)
-            mass_flow = actual_thrust / TORPEDO_EXHAUST_VEL
+            exhaust_vel = (MISSILE_EXHAUST_VEL if is_missile
+                           else TORPEDO_EXHAUST_VEL)
+            mass_flow = actual_thrust / exhaust_vel
             fuel_consumed = mass_flow * dt
             fuel_consumed = min(fuel_consumed, torpedo.fuel)
             torpedo.fuel -= fuel_consumed
@@ -550,6 +658,83 @@ class TorpedoManager:
             torpedo.delta_v_used += accel_mag * dt
         else:
             torpedo.acceleration = {"x": 0, "y": 0, "z": 0}
+
+    def _apply_missile_profile(
+        self, missile: Torpedo, aim_dir: Dict[str, float],
+        dt: float, sim_time: float, dist: float,
+    ) -> Dict[str, float]:
+        """Apply missile flight profile modifiers during midcourse.
+
+        Profiles:
+        - direct: no modification (pure PN)
+        - evasive: random lateral jink each second to defeat PDC tracking
+        - terminal_pop: coast cold (handled in thrust_fraction), no aim change
+        - bracket: offset aim to approach from an oblique angle, converging
+                   in terminal phase (makes PDC engagement harder)
+
+        Args:
+            missile: The missile munition
+            aim_dir: Current aim direction from PN guidance
+            dt: Time step
+            sim_time: Current sim time
+            dist: Distance to target
+
+        Returns:
+            Modified aim direction
+        """
+        profile = missile.profile
+
+        if profile == "direct" or profile == "terminal_pop":
+            return aim_dir
+
+        if profile == "evasive":
+            # Jink: add a random perpendicular offset that changes every ~1s.
+            # The jink magnitude is 30% of max accel — enough to throw off
+            # PDC lead prediction without wasting too much delta-v.
+            jink_period = 1.0
+            jink_phase = int(sim_time / jink_period)
+            rng = random.Random(hash((missile.id, jink_phase)))
+            # Generate perpendicular offset using velocity cross product
+            jink_x = rng.uniform(-0.3, 0.3)
+            jink_y = rng.uniform(-0.3, 0.3)
+            jink_z = rng.uniform(-0.3, 0.3)
+            jink_vec = {"x": aim_dir["x"] + jink_x,
+                        "y": aim_dir["y"] + jink_y,
+                        "z": aim_dir["z"] + jink_z}
+            mag = magnitude(jink_vec)
+            if mag > 0.01:
+                return normalize_vector(jink_vec)
+            return aim_dir
+
+        if profile == "bracket":
+            # Offset approach angle by ~15 degrees perpendicular to LOS.
+            # This forces the target's PDCs to track a crossing target
+            # rather than a head-on one.  The offset decays as the missile
+            # approaches terminal range, converging to direct attack.
+            offset_strength = min(1.0, dist / max(1.0, MISSILE_TERMINAL_RANGE))
+            # Use a stable perpendicular direction based on missile ID hash
+            rng = random.Random(hash(missile.id))
+            perp = {"x": rng.uniform(-1, 1),
+                    "y": rng.uniform(-1, 1),
+                    "z": rng.uniform(-1, 1)}
+            # Remove component along aim_dir to get true perpendicular
+            dot = dot_product(perp, aim_dir)
+            perp = subtract_vectors(perp, scale_vector(aim_dir, dot))
+            pmag = magnitude(perp)
+            if pmag > 0.01:
+                perp = normalize_vector(perp)
+                # Blend: 26% perpendicular at max range, 0% at terminal
+                bracket_factor = 0.26 * offset_strength
+                result = add_vectors(
+                    scale_vector(aim_dir, 1.0 - bracket_factor),
+                    scale_vector(perp, bracket_factor),
+                )
+                rmag = magnitude(result)
+                if rmag > 0.01:
+                    return normalize_vector(result)
+            return aim_dir
+
+        return aim_dir
 
     def _detonate(
         self, torpedo: Torpedo, target_ship, sim_time: float,
@@ -576,11 +761,23 @@ class TorpedoManager:
 
         flight_time = sim_time - torpedo.spawn_time
 
-        # Damage scales with proximity (inverse square, capped)
-        # At lethal radius (30m): full damage
-        # At blast radius (100m): ~10% damage
-        # Beyond blast radius: no damage
+        # Select warhead specs based on munition type.
+        # Torpedoes: large fragmentation warhead, wide area damage.
+        # Missiles: small shaped charge, tight kill zone, fewer subsystems.
+        is_missile = torpedo.munition_type == MunitionType.MISSILE
+        if is_missile:
+            blast_radius = MISSILE_BLAST_RADIUS
+            lethal_radius = MISSILE_LETHAL_RADIUS
+            base_damage = MISSILE_WARHEAD_BASE_DAMAGE
+            sub_damage_base = MISSILE_WARHEAD_SUB_DAMAGE
+        else:
+            blast_radius = TORPEDO_BLAST_RADIUS
+            lethal_radius = TORPEDO_LETHAL_RADIUS
+            base_damage = WARHEAD_BASE_DAMAGE
+            sub_damage_base = WARHEAD_SUBSYSTEM_DAMAGE
+
         damage_results = []
+        munition_label = torpedo.munition_type.value
 
         # Check all ships within blast radius
         for ship_id, ship in ships.items():
@@ -588,29 +785,32 @@ class TorpedoManager:
                 continue  # Don't damage own ship
 
             dist = calculate_distance(torpedo.position, ship.position)
-            if dist > TORPEDO_BLAST_RADIUS:
+            if dist > blast_radius:
                 continue
 
             # Damage falloff: inverse-square from lethal radius
-            if dist <= TORPEDO_LETHAL_RADIUS:
+            if dist <= lethal_radius:
                 damage_factor = 1.0
             else:
-                damage_factor = (TORPEDO_LETHAL_RADIUS / dist) ** 2
+                damage_factor = (lethal_radius / dist) ** 2
                 damage_factor = max(0.1, min(1.0, damage_factor))
 
-            hull_damage = WARHEAD_BASE_DAMAGE * damage_factor
-            sub_damage = WARHEAD_SUBSYSTEM_DAMAGE * damage_factor
+            hull_damage = base_damage * damage_factor
+            sub_damage = sub_damage_base * damage_factor
 
-            # Area-effect: damage multiple subsystems
-            # Fragmentation hits everything on the facing side
+            # Subsystem targeting: torpedoes hit 2-3 (fragmentation area),
+            # missiles hit 1-2 (focused shaped charge)
             subsystems_hit = self._determine_blast_subsystems(torpedo, ship)
+            if is_missile:
+                # Shaped charge is focused — cap at 2 subsystems
+                subsystems_hit = subsystems_hit[:2]
 
             result = {"ship_id": ship_id, "distance": dist, "damage_factor": damage_factor}
 
             if hasattr(ship, "take_damage"):
                 dmg_result = ship.take_damage(
                     hull_damage,
-                    source=f"{torpedo.shooter_id}:torpedo",
+                    source=f"{torpedo.shooter_id}:{munition_label}",
                 )
                 result["hull_damage"] = hull_damage
                 result["damage_result"] = dmg_result
@@ -628,8 +828,11 @@ class TorpedoManager:
             damage_results.append(result)
 
         # Build event
+        event_type = ("missile_detonation" if is_missile
+                       else "torpedo_detonation")
         event = {
-            "type": "torpedo_detonation",
+            "type": event_type,
+            "munition_type": munition_label,
             "torpedo_id": torpedo.id,
             "shooter": torpedo.shooter_id,
             "target": torpedo.target_id,
@@ -642,7 +845,7 @@ class TorpedoManager:
             ),
         }
 
-        self._event_bus.publish("torpedo_detonation", event)
+        self._event_bus.publish(event_type, event)
         return event
 
     @staticmethod
@@ -794,10 +997,10 @@ class TorpedoManager:
         self, torpedo: Torpedo, target_ship, impact_distance: float,
         flight_time: float, damage_results: List[dict],
     ) -> str:
-        """Generate human-readable feedback for torpedo detonation.
+        """Generate human-readable feedback for munition detonation.
 
         Args:
-            torpedo: Detonating torpedo
+            torpedo: Detonating munition (torpedo or missile)
             target_ship: Primary target
             impact_distance: Distance at detonation
             flight_time: Total flight time
@@ -806,11 +1009,16 @@ class TorpedoManager:
         Returns:
             Human-readable feedback string
         """
+        is_missile = torpedo.munition_type == MunitionType.MISSILE
+        label = "Missile" if is_missile else "Torpedo"
+        lethal_r = MISSILE_LETHAL_RADIUS if is_missile else TORPEDO_LETHAL_RADIUS
+        prox_r = MISSILE_PROXIMITY_FUSE if is_missile else TORPEDO_PROXIMITY_FUSE
+
         target_name = getattr(target_ship, "name", torpedo.target_id) if target_ship else torpedo.target_id
 
-        if impact_distance <= TORPEDO_LETHAL_RADIUS:
-            proximity = "point-blank detonation"
-        elif impact_distance <= TORPEDO_PROXIMITY_FUSE:
+        if impact_distance <= lethal_r:
+            proximity = "direct hit" if is_missile else "point-blank detonation"
+        elif impact_distance <= prox_r:
             proximity = f"proximity detonation at {impact_distance:.0f}m"
         else:
             proximity = f"blast at {impact_distance:.0f}m range"
@@ -818,7 +1026,7 @@ class TorpedoManager:
         ships_hit = len(damage_results)
         subsystems_total = sum(len(r.get("subsystems_hit", [])) for r in damage_results)
 
-        feedback = f"Torpedo impact — {proximity} on {target_name}"
+        feedback = f"{label} impact — {proximity} on {target_name}"
         feedback += f", {flight_time:.1f}s flight time"
         if subsystems_total > 0:
             feedback += f", {subsystems_total} subsystems damaged"
@@ -878,22 +1086,26 @@ class TorpedoManager:
         return [t for t in self._torpedoes if t.alive and t.target_id == ship_id]
 
     def get_state(self) -> List[dict]:
-        """Get state of all active torpedoes for telemetry.
+        """Get state of all active munitions (torpedoes and missiles) for telemetry.
 
         Returns:
-            List of torpedo state dicts with distance and ETA to target
+            List of munition state dicts with distance and ETA to target
         """
         result = []
         for t in self._torpedoes:
             if not t.alive:
                 continue
 
+            is_missile = t.munition_type == MunitionType.MISSILE
+            fuel_max = MISSILE_FUEL_MASS if is_missile else TORPEDO_FUEL_MASS
+            thrust_ir = MISSILE_THRUST_IR if is_missile else TORPEDO_THRUST_IR
+            coast_ir = MISSILE_COAST_IR if is_missile else TORPEDO_COAST_IR
+            rcs = MISSILE_RCS_M2 if is_missile else TORPEDO_RCS_M2
+
             # Distance to last known target position
             dist = calculate_distance(t.position, t.last_target_pos)
 
-            # Estimated time to impact: uses closing speed from relative
-            # velocity projected onto the line-of-sight vector.
-            # Negative closing speed means torpedo is diverging.
+            # Estimated time to impact
             eta = None
             rel_pos = subtract_vectors(t.last_target_pos, t.position)
             rel_vel = subtract_vectors(t.velocity, t.last_target_vel)
@@ -906,12 +1118,13 @@ class TorpedoManager:
 
             result.append({
                 "id": t.id,
+                "munition_type": t.munition_type.value,
                 "shooter": t.shooter_id,
                 "target": t.target_id,
                 "position": t.position,
                 "velocity": t.velocity,
                 "state": t.state.value,
-                "fuel_percent": round((t.fuel / TORPEDO_FUEL_MASS * 100) if TORPEDO_FUEL_MASS > 0 else 0, 1),
+                "fuel_percent": round((t.fuel / fuel_max * 100) if fuel_max > 0 else 0, 1),
                 "armed": t.armed,
                 "hull_health": t.hull_health,
                 "profile": t.profile,
@@ -920,8 +1133,8 @@ class TorpedoManager:
                 "distance": round(dist, 1),
                 "eta": eta,
                 "is_thrusting": t.fuel > 0 and t.state in (TorpedoState.BOOST, TorpedoState.TERMINAL),
-                "ir_signature": TORPEDO_THRUST_IR if (t.fuel > 0 and t.state != TorpedoState.MIDCOURSE) else TORPEDO_COAST_IR,
-                "rcs_m2": TORPEDO_RCS_M2,
+                "ir_signature": thrust_ir if (t.fuel > 0 and t.state != TorpedoState.MIDCOURSE) else coast_ir,
+                "rcs_m2": rcs,
             })
         return result
 
