@@ -52,6 +52,11 @@ ships:
             mount_type: "fixed"
             position_offset: {x: 18, y: 2, z: 0}
             orientation: {azimuth: 0, elevation: 0}
+          - id: "hp_fwd_3"
+            weapon: "missile"
+            mount_type: "fixed"
+            position_offset: {x: 18, y: -2, z: 0}
+            orientation: {azimuth: 0, elevation: 0}
           - id: "hp_top_1"
             weapon: "pdc"
             mount_type: "turret"
@@ -65,6 +70,8 @@ ships:
         pdcs: 2
         torpedoes: 1
         torpedo_capacity: 12
+        missiles: 1
+        missile_capacity: 8
 
   - id: "pirate01"
     name: "Black Pearl"
@@ -125,7 +132,8 @@ mission:
 
     Weapons available:
     - 1x UNE-440 Railgun (20 rounds)
-    - 12x Torpedoes
+    - 12x Torpedoes (heavy, slow — best vs large/slow targets)
+    - 8x Missiles (light, high-G — best vs fast maneuvering ships)
     - PDC (1000 rounds)
 
     Good hunting!

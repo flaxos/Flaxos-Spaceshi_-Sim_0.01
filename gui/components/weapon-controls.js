@@ -4,7 +4,7 @@
  * target designation, and damage assessment.
  *
  * Uses commands: designate_target, request_solution, fire_railgun,
- * set_pdc_mode, launch_torpedo, assess_damage
+ * set_pdc_mode, launch_torpedo, launch_missile, assess_damage
  */
 
 import { stateManager } from "../js/state-manager.js";
@@ -17,6 +17,8 @@ class WeaponControls extends HTMLElement {
     this._unsubscribe = null;
     this._pdcMode = "auto";
     this._assessmentData = null;
+    // Launcher type: "torpedo" or "missile" — determines which command is sent
+    this._launcherType = "torpedo";
   }
 
   connectedCallback() {
@@ -150,6 +152,91 @@ class WeaponControls extends HTMLElement {
         .torpedo-count {
           font-size: 0.75rem;
           opacity: 0.9;
+        }
+
+        /* Launcher Type Selector — styled like PDC mode toggle */
+        .launcher-type-group {
+          display: flex;
+          gap: 4px;
+          background: var(--bg-input, #1a1a24);
+          border-radius: 8px;
+          padding: 4px;
+          margin-bottom: 8px;
+        }
+
+        .launcher-type-btn {
+          flex: 1;
+          padding: 8px 6px;
+          border: 1px solid transparent;
+          border-radius: 6px;
+          background: transparent;
+          color: var(--text-dim, #555566);
+          font-family: inherit;
+          font-size: 0.7rem;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.3px;
+          cursor: pointer;
+          transition: all 0.15s ease;
+          min-height: 36px;
+        }
+
+        .launcher-type-btn:hover {
+          color: var(--text-primary, #e0e0e0);
+          background: rgba(255, 255, 255, 0.05);
+        }
+
+        .launcher-type-btn.active {
+          color: var(--status-nominal, #00ff88);
+          border-color: var(--status-nominal, #00ff88);
+          background: rgba(0, 255, 136, 0.1);
+        }
+
+        .launcher-type-btn.active.missile {
+          color: #ff8800;
+          border-color: #ff8800;
+          background: rgba(255, 136, 0, 0.1);
+        }
+
+        .launcher-type-label {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          justify-content: center;
+        }
+
+        .launcher-type-indicator {
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          background: currentColor;
+          flex-shrink: 0;
+        }
+
+        /* Missile fire button variant */
+        .missile-btn {
+          background: #ff8800;
+          border: 2px solid #ff8800;
+          color: white;
+          box-shadow: 0 4px 12px rgba(255, 136, 0, 0.3);
+        }
+
+        .missile-btn:not(:disabled) {
+          animation: fire-ready-pulse-missile 2s ease-in-out infinite;
+        }
+
+        .missile-btn:hover:not(:disabled) {
+          filter: brightness(1.15);
+          transform: translateY(-1px);
+        }
+
+        .missile-btn:active:not(:disabled) {
+          transform: translateY(0);
+        }
+
+        @keyframes fire-ready-pulse-missile {
+          0%, 100% { box-shadow: 0 4px 12px rgba(255, 136, 0, 0.3); }
+          50% { box-shadow: 0 4px 20px rgba(255, 136, 0, 0.55), 0 0 8px rgba(255, 136, 0, 0.2); }
         }
 
         /* PDC Mode Selector */
@@ -400,13 +487,21 @@ class WeaponControls extends HTMLElement {
       </div>
 
       <div class="weapon-group">
-        <div class="group-title">Torpedoes</div>
-        <button class="fire-btn torpedo-btn" id="torpedo-btn" data-testid="torpedo-btn">
+        <div class="group-title">Launcher</div>
+        <div class="launcher-type-group" id="launcher-type-group" data-testid="launcher-type-group">
+          <button class="launcher-type-btn active" data-type="torpedo" data-testid="launcher-torpedo">
+            <span class="launcher-type-label"><span class="launcher-type-indicator"></span>TORPEDO</span>
+          </button>
+          <button class="launcher-type-btn" data-type="missile" data-testid="launcher-missile">
+            <span class="launcher-type-label"><span class="launcher-type-indicator"></span>MISSILE</span>
+          </button>
+        </div>
+        <button class="fire-btn torpedo-btn" id="launcher-fire-btn" data-testid="launcher-fire-btn">
           FIRE TORPEDO
-          <span class="torpedo-count" id="torpedo-count">(0)</span>
+          <span class="torpedo-count" id="launcher-count">(0)</span>
         </button>
         <div class="warning-box hidden" id="no-lock-warning">
-          No target lock - torpedoes will fire dumb
+          No target lock - ordnance will fire dumb
         </div>
       </div>
 
@@ -430,9 +525,17 @@ class WeaponControls extends HTMLElement {
       this._toggleTargetLock();
     });
 
-    // Fire torpedo
-    this.shadowRoot.getElementById("torpedo-btn").addEventListener("click", () => {
-      this._launchTorpedo();
+    // Launcher type toggle (torpedo / missile)
+    this.shadowRoot.getElementById("launcher-type-group").addEventListener("click", (e) => {
+      const btn = e.target.closest(".launcher-type-btn");
+      if (btn) {
+        this._setLauncherType(btn.dataset.type);
+      }
+    });
+
+    // Fire launcher (torpedo or missile based on selected type)
+    this.shadowRoot.getElementById("launcher-fire-btn").addEventListener("click", () => {
+      this._fireLauncher();
     });
 
     // PDC mode buttons
@@ -493,13 +596,39 @@ class WeaponControls extends HTMLElement {
       }
     });
 
-    // Torpedo count
+    // Launcher type toggle visual state
+    this.shadowRoot.querySelectorAll(".launcher-type-btn").forEach((btn) => {
+      const isActive = btn.dataset.type === this._launcherType;
+      btn.classList.toggle("active", isActive);
+      btn.classList.toggle("missile", isActive && btn.dataset.type === "missile");
+    });
+
+    // Launcher fire button — adapts to selected type (torpedo or missile)
     const torpedoData = weapons?.torpedoes || weapons?.torpedo || {};
     const torpedoCount = torpedoData.loaded ?? torpedoData.count ?? 0;
-    const torpedoBtn = this.shadowRoot.getElementById("torpedo-btn");
-    const countSpan = this.shadowRoot.getElementById("torpedo-count");
-    countSpan.textContent = `(${torpedoCount})`;
-    torpedoBtn.disabled = torpedoCount <= 0 || !hasLock;
+    const missileData = weapons?.missiles || {};
+    const missileCount = missileData.loaded ?? missileData.count ?? 0;
+
+    const fireBtn = this.shadowRoot.getElementById("launcher-fire-btn");
+    const countSpan = this.shadowRoot.getElementById("launcher-count");
+    const isMissile = this._launcherType === "missile";
+    const activeCount = isMissile ? missileCount : torpedoCount;
+
+    countSpan.textContent = `(${activeCount})`;
+    fireBtn.disabled = activeCount <= 0 || !hasLock;
+
+    // Switch button style and label based on launcher type
+    fireBtn.classList.toggle("torpedo-btn", !isMissile);
+    fireBtn.classList.toggle("missile-btn", isMissile);
+    fireBtn.textContent = "";
+    fireBtn.append(
+      document.createTextNode(isMissile ? "FIRE MISSILE " : "FIRE TORPEDO "),
+    );
+    const newCountSpan = document.createElement("span");
+    newCountSpan.className = "torpedo-count";
+    newCountSpan.id = "launcher-count";
+    newCountSpan.textContent = `(${activeCount})`;
+    fireBtn.appendChild(newCountSpan);
 
     // Assess button - needs a lock
     const assessBtn = this.shadowRoot.getElementById("assess-btn");
@@ -629,11 +758,18 @@ class WeaponControls extends HTMLElement {
     }
   }
 
-  async _launchTorpedo() {
+  _setLauncherType(type) {
+    if (type !== "torpedo" && type !== "missile") return;
+    this._launcherType = type;
+    this._updateDisplay();
+  }
+
+  async _fireLauncher() {
+    const cmd = this._launcherType === "missile" ? "launch_missile" : "launch_torpedo";
     try {
-      await wsClient.sendShipCommand("launch_torpedo", {});
+      await wsClient.sendShipCommand(cmd, {});
     } catch (error) {
-      console.error("Launch torpedo failed:", error);
+      console.error(`${cmd} failed:`, error);
     }
   }
 

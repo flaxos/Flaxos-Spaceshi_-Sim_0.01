@@ -862,22 +862,27 @@ class TacticalMap extends HTMLElement {
         continue;
       }
 
-      // Color by state: boost=green, midcourse=blue, terminal=pulsing red
+      const isMissile = torp.munition_type === "missile";
+
+      // Color by state and munition type:
+      // Torpedoes: boost=green, midcourse=blue, terminal=pulsing red
+      // Missiles: boost=orange, midcourse=amber, terminal=pulsing red-orange
       const state = (torp.state || "boost").toLowerCase();
       let color;
       if (state === "terminal") {
-        // Pulse effect for terminal phase — urgency
         const pulse = 0.5 + 0.5 * Math.sin(Date.now() / 150);
-        color = `rgba(255, 68, 68, ${0.5 + pulse * 0.5})`;
+        color = isMissile
+          ? `rgba(255, 100, 0, ${0.5 + pulse * 0.5})`
+          : `rgba(255, 68, 68, ${0.5 + pulse * 0.5})`;
       } else if (state === "midcourse") {
-        color = "#00aaff";
+        color = isMissile ? "#cc8800" : "#00aaff";
       } else {
-        color = "#00ff88";
+        color = isMissile ? "#ff8800" : "#00ff88";
       }
 
       const isIncoming = torp.target === shipId;
 
-      // Velocity trail (longer than projectiles — torpedoes are bigger threats)
+      // Velocity trail (longer than projectiles -- ordnance is a bigger threat)
       if (torp.velocity) {
         const vel = torp.velocity;
         const velMag = Math.sqrt(vel.x ** 2 + (vel.y || 0) ** 2 + vel.z ** 2);
@@ -898,29 +903,41 @@ class TacticalMap extends HTMLElement {
         }
       }
 
-      // Draw torpedo as a diamond (distinct from round projectile dots)
       const size = isIncoming ? 5 : 4;
       ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.moveTo(sx, sy - size);
-      ctx.lineTo(sx + size, sy);
-      ctx.lineTo(sx, sy + size);
-      ctx.lineTo(sx - size, sy);
-      ctx.closePath();
-      ctx.fill();
+
+      if (isMissile) {
+        // Draw missile as an arrow/triangle pointing in velocity direction
+        ctx.beginPath();
+        ctx.moveTo(sx, sy - size * 1.3);     // tip
+        ctx.lineTo(sx - size, sy + size);     // bottom-left
+        ctx.lineTo(sx + size, sy + size);     // bottom-right
+        ctx.closePath();
+        ctx.fill();
+      } else {
+        // Draw torpedo as a diamond (distinct from round projectile dots)
+        ctx.beginPath();
+        ctx.moveTo(sx, sy - size);
+        ctx.lineTo(sx + size, sy);
+        ctx.lineTo(sx, sy + size);
+        ctx.lineTo(sx - size, sy);
+        ctx.closePath();
+        ctx.fill();
+      }
 
       // Outline for incoming threats
       if (isIncoming) {
-        ctx.strokeStyle = "#ff4444";
+        ctx.strokeStyle = isMissile ? "#ff6600" : "#ff4444";
         ctx.lineWidth = 1.5;
         ctx.stroke();
       }
 
-      // Label: torpedo ID + state
+      // Label: ordnance ID + state, prefixed with type for missiles
+      const typePrefix = isMissile ? "MSL " : "";
       ctx.fillStyle = color;
       ctx.font = "9px monospace";
       ctx.textAlign = "left";
-      ctx.fillText(`${torp.id} [${state.toUpperCase()}]`, sx + size + 3, sy + 3);
+      ctx.fillText(`${typePrefix}${torp.id} [${state.toUpperCase()}]`, sx + size + 3, sy + 3);
     }
   }
 

@@ -121,6 +121,8 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             "set_pdc_mode",
             "launch_torpedo",
             "torpedo_status",
+            "launch_missile",
+            "missile_status",
             "assess_damage",
             # Multi-target tracking commands
             "cycle_target",

@@ -17,6 +17,8 @@ from hybrid.systems.weapons.truth_weapons import (
 )
 from hybrid.systems.combat.torpedo_manager import (
     TORPEDO_MASS, TORPEDO_FUEL_MASS,
+    MISSILE_MASS, MISSILE_FUEL_MASS,
+    MunitionType, MISSILE_FLIGHT_PROFILES,
 )
 
 logger = logging.getLogger(__name__)
@@ -42,6 +44,8 @@ class CombatSystem(BaseSystem):
                 - pdcs: Number of PDC mounts (default 2)
                 - torpedoes: Number of torpedo tubes (default 0)
                 - torpedo_capacity: Torpedoes per tube (default 4)
+                - missiles: Number of missile launchers (default 0)
+                - missile_capacity: Missiles per launcher (default 8)
                 - weapons: List of custom weapon configs
         """
         super().__init__(config)
@@ -72,13 +76,24 @@ class CombatSystem(BaseSystem):
             weapon.firing_arc = arc_lookup.get(mount_id)
             self.truth_weapons[mount_id] = weapon
 
-        # Torpedo tubes
+        # Torpedo tubes — heavy guided munitions for slow/large targets
         self.torpedo_tubes = config.get("torpedoes", config.get("torpedo_tubes", 0))
         self.torpedo_capacity = config.get("torpedo_capacity", 4)  # Per tube
         self.torpedoes_loaded: int = self.torpedo_tubes * self.torpedo_capacity
         self.torpedo_reload_time = config.get("torpedo_reload_time", 15.0)  # seconds
         self._torpedo_cooldown = 0.0  # Time until next launch
         self.torpedoes_launched = 0
+
+        # Missile launchers — share hardpoints with torpedoes, but tracked
+        # separately because they are different ordnance loaded into the
+        # same launcher bays.  missile_capacity is total missiles carried,
+        # not per-tube (since they share torpedo tubes for launch).
+        self.missile_launchers = config.get("missiles", config.get("missile_launchers", 0))
+        self.missile_capacity = config.get("missile_capacity", 8)
+        self.missiles_loaded: int = self.missile_launchers * self.missile_capacity
+        self.missile_reload_time = config.get("missile_reload_time", 8.0)  # seconds — faster than torpedoes
+        self._missile_cooldown = 0.0
+        self.missiles_launched = 0
 
         # Combat state
         self.engaging = False
@@ -128,9 +143,11 @@ class CombatSystem(BaseSystem):
         for weapon in self.truth_weapons.values():
             weapon.tick(dt, self._sim_time)
 
-        # Update torpedo tube cooldown
+        # Update launcher cooldowns (torpedo and missile share the tick)
         if self._torpedo_cooldown > 0:
             self._torpedo_cooldown = max(0, self._torpedo_cooldown - dt)
+        if self._missile_cooldown > 0:
+            self._missile_cooldown = max(0, self._missile_cooldown - dt)
 
         # Update firing solutions from targeting system
         self._update_weapon_solutions(ship)
@@ -404,6 +421,120 @@ class CombatSystem(BaseSystem):
             reload_time=self.torpedo_reload_time,
         )
 
+    def launch_missile(
+        self, target_id: str, profile: str = "direct", all_ships: dict = None,
+    ) -> dict:
+        """Launch a missile at a target.
+
+        Missiles are lighter, faster, higher-G munitions designed for
+        maneuvering ships.  They share the torpedo manager for flight
+        simulation but draw from a separate magazine.
+
+        Args:
+            target_id: Target ship ID
+            profile: Flight profile ("direct", "evasive", "terminal_pop", "bracket")
+            all_ships: Dict of all ships for target resolution
+
+        Returns:
+            dict: Launch result
+        """
+        if not self._ship_ref:
+            return error_dict("NO_SHIP", "Ship reference not available")
+
+        if self.missile_launchers <= 0:
+            return error_dict("NO_LAUNCHERS", "Ship has no missile launchers")
+
+        if self.missiles_loaded <= 0:
+            return error_dict("NO_MISSILES", "No missiles remaining")
+
+        if self._missile_cooldown > 0:
+            return error_dict("MISSILE_CYCLING",
+                              f"Missile launcher cycling ({self._missile_cooldown:.1f}s remaining)")
+
+        if profile not in MISSILE_FLIGHT_PROFILES:
+            return error_dict("INVALID_PROFILE",
+                              f"Unknown flight profile '{profile}'. "
+                              f"Valid: {', '.join(sorted(MISSILE_FLIGHT_PROFILES))}")
+
+        if self._damage_factor <= 0.0:
+            if hasattr(self._ship_ref, 'damage_model'):
+                weapons_sub = self._ship_ref.damage_model.subsystems.get("weapons")
+                if weapons_sub and weapons_sub.is_overheated():
+                    return error_dict("WEAPONS_OVERHEATED",
+                                      "Weapons offline — overheating, wait for cooldown")
+            return error_dict("WEAPONS_DESTROYED", "Weapons system has failed")
+
+        if getattr(self._ship_ref, "_cold_drift_active", False):
+            return error_dict("COLD_DRIFT", "Weapons offline — ship is in cold-drift mode")
+
+        if not self._torpedo_manager:
+            return error_dict("NO_TORPEDO_MANAGER", "Torpedo manager not available")
+
+        # Resolve target — same contact-ID lookup as launch_torpedo
+        all_ships = all_ships or {}
+        resolved_target_id = target_id
+        target_ship = all_ships.get(target_id)
+
+        if not target_ship:
+            sensors = self._ship_ref.systems.get("sensors")
+            if sensors and hasattr(sensors, "contact_tracker"):
+                tracker = sensors.contact_tracker
+                for real_id, stable_id in tracker.id_mapping.items():
+                    if stable_id == target_id:
+                        resolved_target_id = real_id
+                        target_ship = all_ships.get(real_id)
+                        break
+
+        # Get target position/velocity
+        target_pos = None
+        target_vel = None
+        if target_ship:
+            target_pos = target_ship.position
+            target_vel = target_ship.velocity
+        else:
+            targeting = self._ship_ref.systems.get("targeting")
+            if targeting and hasattr(targeting, "target_data") and targeting.target_data:
+                target_pos = targeting.target_data.get("position")
+                target_vel = targeting.target_data.get("velocity", {"x": 0, "y": 0, "z": 0})
+
+        if not target_pos:
+            return error_dict("NO_TARGET_DATA", "No position data for target")
+
+        # Consume missile
+        self.missiles_loaded -= 1
+        self._missile_cooldown = self.missile_reload_time
+        self.missiles_launched += 1
+
+        # Spawn missile through the torpedo manager with MISSILE type
+        missile = self._torpedo_manager.spawn(
+            shooter_id=self._ship_ref.id,
+            target_id=resolved_target_id,
+            position=dict(self._ship_ref.position),
+            velocity=dict(self._ship_ref.velocity),
+            sim_time=self._sim_time,
+            target_pos=dict(target_pos),
+            target_vel=dict(target_vel) if target_vel else {"x": 0, "y": 0, "z": 0},
+            profile=profile,
+            munition_type=MunitionType.MISSILE,
+        )
+
+        # Less heat than torpedo (smaller motor exhaust)
+        if hasattr(self._ship_ref, "damage_model"):
+            self._ship_ref.damage_model.add_heat(
+                "weapons", 15.0,
+                self._ship_ref.event_bus if hasattr(self._ship_ref, "event_bus") else None,
+                self._ship_ref.id,
+            )
+
+        return success_dict(
+            f"Missile launched at {resolved_target_id}",
+            missile_id=missile.id,
+            target=target_id,
+            profile=profile,
+            missiles_remaining=self.missiles_loaded,
+            reload_time=self.missile_reload_time,
+        )
+
     def get_torpedo_status(self) -> dict:
         """Get torpedo system status.
 
@@ -419,12 +550,27 @@ class CombatSystem(BaseSystem):
             launched=self.torpedoes_launched,
         )
 
+    def get_missile_status(self) -> dict:
+        """Get missile system status.
+
+        Returns:
+            dict: Missile status
+        """
+        return success_dict(
+            "Missile status",
+            launchers=self.missile_launchers,
+            loaded=self.missiles_loaded,
+            capacity=self.missile_launchers * self.missile_capacity,
+            cooldown=round(self._missile_cooldown, 1),
+            launched=self.missiles_launched,
+        )
+
     def get_total_ammo_mass(self) -> float:
         """Get total mass of all ammunition across all weapons.
 
         Used by ship._update_mass() for dynamic mass calculation (F=ma).
         Expending ammo makes the ship lighter and more maneuverable.
-        Includes torpedo mass.
+        Includes torpedo and missile mass.
 
         Returns:
             float: Total ammunition mass in kg.
@@ -434,6 +580,8 @@ class CombatSystem(BaseSystem):
             total += weapon.get_ammo_mass()
         # Torpedoes are heavy ordnance
         total += self.torpedoes_loaded * TORPEDO_MASS
+        # Missiles are lighter but still have mass
+        total += self.missiles_loaded * MISSILE_MASS
         return total
 
     def resupply(self) -> dict:
@@ -558,8 +706,23 @@ class CombatSystem(BaseSystem):
             all_ships = params.get("all_ships", {})
             return self.launch_torpedo(target_id, profile, all_ships)
 
+        elif action == "launch_missile":
+            target_id = params.get("target")
+            if not target_id and self._ship_ref:
+                targeting = self._ship_ref.systems.get("targeting")
+                if targeting and targeting.locked_target:
+                    target_id = targeting.locked_target
+            if not target_id:
+                return error_dict("NO_TARGET", "No target designated for missile launch")
+            profile = params.get("profile", "direct")
+            all_ships = params.get("all_ships", {})
+            return self.launch_missile(target_id, profile, all_ships)
+
         elif action == "torpedo_status":
             return self.get_torpedo_status()
+
+        elif action == "missile_status":
+            return self.get_missile_status()
 
         elif action == "status":
             return self.get_state()
@@ -603,6 +766,14 @@ class CombatSystem(BaseSystem):
                 "cooldown": round(self._torpedo_cooldown, 1),
                 "launched": self.torpedoes_launched,
                 "mass_per_torpedo": TORPEDO_MASS,
+            },
+            "missiles": {
+                "launchers": self.missile_launchers,
+                "loaded": self.missiles_loaded,
+                "capacity": self.missile_launchers * self.missile_capacity,
+                "cooldown": round(self._missile_cooldown, 1),
+                "launched": self.missiles_launched,
+                "mass_per_missile": MISSILE_MASS,
             },
         })
         return state
