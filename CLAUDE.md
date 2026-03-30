@@ -30,7 +30,7 @@ gui/
 | Weapon | Range | Speed | Role |
 |--------|-------|-------|------|
 | Railgun (UNE-440) | 0-500km effective | 20 km/s | High-skill penetrator, 1 subsystem per hit |
-| PDC (Narwhal-III) | 0-5km effective | 3 km/s | Auto-turret, ablative damage, point defense |
+| PDC (Narwhal-III) | 0-2km effective | 2 km/s | CIWS point defense, 3000 RPM, ablative damage at knife-fight range |
 
 ### Targeting Pipeline
 `contact → track → lock → firing solution → fire`

@@ -29,14 +29,14 @@ class TestWeaponSpecsMatchDesignDoc:
         assert RAILGUN_SPECS.name == "UNE-440 Railgun"
 
     def test_pdc_muzzle_velocity(self):
-        """PDC muzzle velocity == 3 km/s (3000 m/s)."""
+        """PDC muzzle velocity == 2 km/s (2000 m/s, 40mm rounds)."""
         from hybrid.systems.weapons.truth_weapons import PDC_SPECS
-        assert PDC_SPECS.muzzle_velocity == 3000.0
+        assert PDC_SPECS.muzzle_velocity == 2000.0
 
     def test_pdc_effective_range(self):
-        """PDC effective range == 5 km (5000 m)."""
+        """PDC effective range == 2 km (2000 m, accuracy-limited)."""
         from hybrid.systems.weapons.truth_weapons import PDC_SPECS
-        assert PDC_SPECS.effective_range == 5000.0
+        assert PDC_SPECS.effective_range == 2000.0
 
     def test_pdc_name(self):
         """PDC name is Narwhal-III PDC."""
@@ -59,9 +59,9 @@ class TestWeaponSpecsMatchDesignDoc:
         assert RAILGUN_SPECS.charge_time == 2.0
 
     def test_pdc_burst_count_defined(self):
-        """PDC has burst_count > 1 defined."""
+        """PDC has burst_count == 10 (Expanse-style sustained fire)."""
         from hybrid.systems.weapons.truth_weapons import PDC_SPECS
-        assert PDC_SPECS.burst_count == 5
+        assert PDC_SPECS.burst_count == 10
 
 
 # ---------------------------------------------------------------------------
@@ -592,7 +592,7 @@ class TestCombatSystemIntegration:
 
         assert result["ok"]
         assert cs.truth_weapons["railgun_1"].ammo == 20
-        assert cs.truth_weapons["pdc_1"].ammo == 2000
+        assert cs.truth_weapons["pdc_1"].ammo == 3000
 
     def test_weapon_state_includes_confidence(self):
         """Weapon get_state() includes solution confidence."""
@@ -611,3 +611,75 @@ class TestCombatSystemIntegration:
         state = railgun.get_state()
         assert "solution" in state
         assert "confidence" in state["solution"]
+
+
+# ---------------------------------------------------------------------------
+# 7. PDC Expanse-style Range Falloff
+# ---------------------------------------------------------------------------
+
+class TestPDCRangeFalloff:
+    """Verify the PDC range accuracy curve matches Expanse combat doctrine.
+
+    The curve is tuned so computer-controlled turrets are deadly at
+    knife-fight range but 40mm rounds disperse fast past 1km.
+    """
+
+    def test_pdc_accuracy_at_500m(self):
+        """PDC accuracy at 500m should be near base_accuracy (~0.95)."""
+        from hybrid.systems.weapons.truth_weapons import pdc_range_accuracy
+        acc = pdc_range_accuracy(500.0)
+        assert acc >= 0.90, f"PDC accuracy at 500m should be >=0.90, got {acc:.3f}"
+
+    def test_pdc_accuracy_at_1km(self):
+        """PDC accuracy at 1km should be ~0.70 (effective engagement)."""
+        from hybrid.systems.weapons.truth_weapons import pdc_range_accuracy
+        acc = pdc_range_accuracy(1000.0)
+        assert 0.55 <= acc <= 0.80, f"PDC accuracy at 1km should be 0.55-0.80, got {acc:.3f}"
+
+    def test_pdc_accuracy_at_2km(self):
+        """PDC accuracy at 2km (effective_range) should be low (~0.05-0.30)."""
+        from hybrid.systems.weapons.truth_weapons import pdc_range_accuracy
+        acc = pdc_range_accuracy(2000.0)
+        assert acc <= 0.10, f"PDC accuracy at 2km should be <=0.10, got {acc:.3f}"
+
+    def test_pdc_accuracy_beyond_range(self):
+        """PDC accuracy beyond effective range should be ~0.05 (floor)."""
+        from hybrid.systems.weapons.truth_weapons import pdc_range_accuracy
+        acc = pdc_range_accuracy(3000.0)
+        assert acc <= 0.06, f"PDC accuracy at 3km should be <=0.06, got {acc:.3f}"
+
+    def test_pdc_accuracy_point_blank(self):
+        """PDC accuracy at point blank should equal base_accuracy."""
+        from hybrid.systems.weapons.truth_weapons import pdc_range_accuracy, PDC_SPECS
+        acc = pdc_range_accuracy(100.0)
+        assert acc == PDC_SPECS.base_accuracy
+
+    def test_pdc_accuracy_monotonically_decreasing(self):
+        """PDC accuracy should decrease monotonically with range."""
+        from hybrid.systems.weapons.truth_weapons import pdc_range_accuracy
+        ranges = [100, 250, 500, 750, 1000, 1250, 1500, 1750, 2000]
+        accuracies = [pdc_range_accuracy(r) for r in ranges]
+        for i in range(1, len(accuracies)):
+            assert accuracies[i] <= accuracies[i - 1], (
+                f"Accuracy should decrease: {ranges[i-1]}m={accuracies[i-1]:.3f} "
+                f"> {ranges[i]}m={accuracies[i]:.3f}"
+            )
+
+    def test_railgun_uses_linear_falloff(self):
+        """Railgun should still use linear falloff, not the PDC curve."""
+        from hybrid.systems.weapons.truth_weapons import RAILGUN_SPECS, _range_accuracy
+        # Linear model: base_accuracy - accuracy_falloff * (range / effective_range)
+        # At 250km (half range): 0.85 - 0.3 * 0.5 = 0.70
+        acc = _range_accuracy(RAILGUN_SPECS, 250000.0)
+        expected = 0.85 - 0.3 * 0.5
+        assert abs(acc - expected) < 0.01, (
+            f"Railgun at 250km should use linear falloff: expected {expected:.3f}, got {acc:.3f}"
+        )
+
+    def test_pdc_fire_rate_is_3000_rpm(self):
+        """PDC cycle_time of 0.02s equals 50 rps = 3000 RPM."""
+        from hybrid.systems.weapons.truth_weapons import PDC_SPECS
+        rps = 1.0 / PDC_SPECS.cycle_time
+        rpm = rps * 60
+        assert abs(rps - 50.0) < 0.1, f"Expected 50 rps, got {rps:.1f}"
+        assert abs(rpm - 3000.0) < 10, f"Expected 3000 RPM, got {rpm:.0f}"
