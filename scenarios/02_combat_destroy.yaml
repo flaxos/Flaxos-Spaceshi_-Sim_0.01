@@ -37,6 +37,10 @@ ships:
             power_cost: 10
             max_heat: 100
             ammo: 12
+          - name: "missile"
+            power_cost: 8
+            max_heat: 60
+            ammo: 8
           - name: "pdc"
             power_cost: 5
             max_heat: 50

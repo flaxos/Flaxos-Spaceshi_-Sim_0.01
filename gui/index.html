@@ -224,12 +224,17 @@
 
     /* DECIDE group */
     .tac-targeting-panel {
-      grid-column: span 6;
+      grid-column: span 4;
+      min-height: var(--panel-height-md);
+    }
+
+    .tac-assessment-panel {
+      grid-column: span 4;
       min-height: var(--panel-height-md);
     }
 
     .tac-solution-panel {
-      grid-column: span 6;
+      grid-column: span 4;
       min-height: var(--panel-height-md);
     }
 
@@ -536,6 +541,7 @@
       .helm-docking-panel,
       .helm-nav-panel,
       .tac-sensors-panel,
+      .tac-assessment-panel,
       .tac-subsystem-panel,
       .tac-threat-panel,
       .tac-ecm-panel,
@@ -577,6 +583,7 @@
       .helm-docking-panel,
       .helm-nav-panel,
       .helm-micro-rcs-panel,
+      .tac-assessment-panel,
       .tac-subsystem-panel,
       .tac-threat-panel,
       .tac-ecm-panel,
@@ -726,6 +733,10 @@
         <div class="panel-group tac-decide-group" data-label="// DECIDE">
           <flaxos-panel title="Targeting" collapsible priority="primary" domain="weapons" class="tac-targeting-panel">
             <targeting-display></targeting-display>
+          </flaxos-panel>
+
+          <flaxos-panel title="Target Status" collapsible priority="primary" domain="weapons" class="tac-assessment-panel">
+            <target-assessment></target-assessment>
           </flaxos-panel>
 
           <flaxos-panel title="Firing Solution" collapsible priority="primary" domain="weapons" class="tac-solution-panel">
