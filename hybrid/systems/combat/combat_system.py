@@ -404,10 +404,13 @@ class CombatSystem(BaseSystem):
             profile=profile,
         )
 
-        # Generate heat from torpedo launch (exhaust backblast)
+        # Generate heat from torpedo launch (exhaust backblast).
+        # 15 heat per launch — a full 12-torpedo salvo with pauses is
+        # sustainable. Players can fire 6 torpedoes before needing to
+        # wait for dissipation (weapons max_heat 120, threshold 85% = 102).
         if hasattr(self._ship_ref, "damage_model"):
             self._ship_ref.damage_model.add_heat(
-                "weapons", 30.0,
+                "weapons", 15.0,
                 self._ship_ref.event_bus if hasattr(self._ship_ref, "event_bus") else None,
                 self._ship_ref.id,
             )
@@ -518,10 +521,13 @@ class CombatSystem(BaseSystem):
             munition_type=MunitionType.MISSILE,
         )
 
-        # Less heat than torpedo (smaller motor exhaust)
+        # Less heat than torpedo (smaller motor exhaust).
+        # 8 heat per launch — missiles are lighter ordnance with smaller
+        # backblast. A full 8-missile salvo (64 heat) stays well under
+        # the 102 overheat threshold even without cooling pauses.
         if hasattr(self._ship_ref, "damage_model"):
             self._ship_ref.damage_model.add_heat(
-                "weapons", 15.0,
+                "weapons", 8.0,
                 self._ship_ref.event_bus if hasattr(self._ship_ref, "event_bus") else None,
                 self._ship_ref.id,
             )

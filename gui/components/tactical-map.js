@@ -796,13 +796,14 @@ class TacticalMap extends HTMLElement {
       }
 
       // Draw projectile as a small bright dot with trail
-      const projType = (proj.type || "").toLowerCase();
+      // get_state() returns "weapon" (weapon_name), not "type"
+      const projWeapon = (proj.weapon || proj.type || "").toLowerCase();
       let color = "#ffffff";
-      if (projType.includes("railgun") || projType.includes("kinetic")) {
+      if (projWeapon.includes("railgun") || projWeapon.includes("kinetic")) {
         color = "#ffaa00";
-      } else if (projType.includes("pdc")) {
+      } else if (projWeapon.includes("pdc")) {
         color = "#ff6666";
-      } else if (projType.includes("torpedo") || projType.includes("missile")) {
+      } else if (projWeapon.includes("torpedo") || projWeapon.includes("missile")) {
         color = "#ff4444";
       }
 

@@ -79,9 +79,13 @@ SUBSYSTEM_HEALTH_SCHEMA = {
         "criticality": 4.0,
         "failure_threshold": 0.25,
         # v0.6.0: Heat settings (weapons generate heat per shot)
+        # Calibrated so a full torpedo salvo (12 x 15 = 180 heat) requires
+        # brief pauses, and a missile salvo (8 x 8 = 64 heat) is
+        # sustainable with minimal waiting. Dissipation at 3.0/s means
+        # 34s to cool from overheat threshold to zero.
         "max_heat": 120.0,
         "heat_generation": 5.0,      # Heat per weapon discharge
-        "heat_dissipation": 2.0,
+        "heat_dissipation": 3.0,     # Passive cooling rate (raised from 2.0)
         "overheat_threshold": 0.85,
         "overheat_penalty": 0.0,     # Cannot fire when overheated (binary)
     },
