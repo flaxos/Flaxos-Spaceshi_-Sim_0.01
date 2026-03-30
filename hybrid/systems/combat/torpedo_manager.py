@@ -221,6 +221,13 @@ class TorpedoManager:
             if age > TORPEDO_MAX_LIFETIME:
                 torpedo.alive = False
                 torpedo.state = TorpedoState.EXPIRED
+                dist = calculate_distance(torpedo.position, torpedo.last_target_pos)
+                speed = magnitude(torpedo.velocity)
+                logger.warning(
+                    "Torpedo %s expired: %.1fs flight, %.1f km from target, "
+                    "speed %.0f m/s, fuel %.1f kg remaining",
+                    torpedo.id, age, dist / 1000, speed, torpedo.fuel,
+                )
                 self._event_bus.publish("torpedo_expired", {
                     "torpedo_id": torpedo.id,
                     "shooter": torpedo.shooter_id,
@@ -389,44 +396,131 @@ class TorpedoManager:
         dist = magnitude(rel_pos)
 
         # State transitions
+        # Terminal: close range, all-out attack
         if dist <= TORPEDO_TERMINAL_RANGE:
             torpedo.state = TorpedoState.TERMINAL
-        elif torpedo.state == TorpedoState.BOOST and (sim_time - torpedo.spawn_time) > 5.0:
-            torpedo.state = TorpedoState.MIDCOURSE
+        elif torpedo.state == TorpedoState.BOOST:
+            # Transition to MIDCOURSE only when the torpedo has enough
+            # closing speed to reach the target within its remaining lifetime.
+            # The old logic used a fixed 5-second timer, which left the torpedo
+            # crawling at ~210 m/s — far too slow for 86km engagements.
+            age = sim_time - torpedo.spawn_time
+            remaining_time = TORPEDO_MAX_LIFETIME - age
+            # Compute current closing speed toward target
+            rel_vel = subtract_vectors(torpedo.velocity, target_vel)
+            if dist > 1.0:
+                los = normalize_vector(rel_pos)
+                current_closing = dot_product(rel_vel, los)
+            else:
+                current_closing = magnitude(torpedo.velocity)
+            # Stay in BOOST until closing speed can cover distance in remaining time
+            # with 20% margin for terminal maneuvers and target evasion
+            required_speed = dist / max(1.0, remaining_time) * 1.2
+            # Also require a minimum boost duration of 5s for initial course alignment
+            if age > 5.0 and current_closing > required_speed:
+                torpedo.state = TorpedoState.MIDCOURSE
+                logger.info(
+                    "Torpedo %s BOOST->MIDCOURSE at %.1fs: closing %.0f m/s "
+                    "(required %.0f), dist %.1f km, fuel %.1f kg",
+                    torpedo.id, age, current_closing, required_speed,
+                    dist / 1000, torpedo.fuel,
+                )
 
-        # Proportional navigation — lead the target
-        rel_vel = subtract_vectors(target_vel, torpedo.velocity)
-        closing_speed = -dot_product(rel_vel, normalize_vector(rel_pos)) if dist > 1.0 else 0
-        tgo = dist / max(1.0, abs(closing_speed)) if closing_speed > 0 else dist / max(1.0, magnitude(torpedo.velocity))
+        # --- Proportional Navigation (PN) guidance ---
+        # PN steers perpendicular to the line of sight at a rate proportional
+        # to the LOS rotation rate.  This produces the tightest possible
+        # intercept trajectory for a constant-thrust missile.
+        #
+        # a_cmd = N * Vc * omega_LOS
+        #   N = navigation gain (3-5, we use 4)
+        #   Vc = closing speed (positive toward target)
+        #   omega_LOS = line-of-sight rotation rate
+        #
+        # For implementation we compute the PN acceleration vector and add a
+        # bias toward the predicted intercept point (augmented PN).
 
-        # Predicted intercept point
+        PN_GAIN = 4.0  # Standard for guided munitions
+
+        # Relative velocity: torpedo - target (positive = closing)
+        rel_vel_to_target = subtract_vectors(torpedo.velocity, target_vel)
+        los_dir = normalize_vector(rel_pos) if dist > 1.0 else {"x": 1, "y": 0, "z": 0}
+        closing_speed = dot_product(rel_vel_to_target, los_dir)
+
+        # LOS rotation rate: omega = (V_perp) / R
+        # V_perp is the relative velocity component perpendicular to LOS
+        v_along = scale_vector(los_dir, dot_product(rel_vel_to_target, los_dir))
+        v_perp = subtract_vectors(rel_vel_to_target, v_along)
+        omega_los = magnitude(v_perp) / max(1.0, dist)
+
+        # PN acceleration: perpendicular to LOS, opposing the LOS rotation
+        # Direction: cross-product equivalent -- the component of relative
+        # velocity that is perpendicular to LOS, inverted to cancel rotation
+        pn_accel_mag = PN_GAIN * abs(closing_speed) * omega_los
+        if magnitude(v_perp) > 0.01:
+            pn_dir = normalize_vector(v_perp)
+            # Negate: we want to cancel the lateral drift, not amplify it
+            pn_dir = scale_vector(pn_dir, -1.0)
+        else:
+            pn_dir = {"x": 0, "y": 0, "z": 0}
+
+        # Predicted intercept point (for aim bias)
+        tgo = dist / max(1.0, abs(closing_speed)) if closing_speed > 1.0 else dist / max(1.0, magnitude(torpedo.velocity))
         intercept = {
             "x": target_pos["x"] + target_vel["x"] * tgo,
             "y": target_pos["y"] + target_vel["y"] * tgo,
             "z": target_pos["z"] + target_vel["z"] * tgo,
         }
-
-        # Aim vector toward intercept point
         aim_vec = subtract_vectors(intercept, torpedo.position)
         aim_dist = magnitude(aim_vec)
         if aim_dist < 1.0:
-            aim_dir = normalize_vector(rel_pos) if dist > 1.0 else {"x": 1, "y": 0, "z": 0}
+            aim_dir = los_dir
         else:
             aim_dir = normalize_vector(aim_vec)
+
+        # Blend PN correction into aim direction for ALL phases.
+        # In terminal, PN dominates (tight correction to hit).
+        # In boost/midcourse, PN corrects the course gradually so the
+        # torpedo arrives at the intercept point on the right vector,
+        # not just aimed at the right point.
+        if pn_accel_mag > 0.01:
+            accel_max = torpedo.thrust / torpedo.mass if torpedo.mass > 0 else 32.0
+            if torpedo.state == TorpedoState.TERMINAL:
+                # Terminal: heavy PN weighting for accuracy
+                pn_weight = min(pn_accel_mag, accel_max * 0.8)
+            else:
+                # Boost/midcourse: lighter PN to build correct approach vector
+                pn_weight = min(pn_accel_mag, accel_max * 0.4)
+            los_weight = max(0.1, accel_max - pn_weight)
+            blended = add_vectors(
+                scale_vector(aim_dir, los_weight),
+                scale_vector(pn_dir, pn_weight),
+            )
+            dir_mag = magnitude(blended)
+            if dir_mag > 0.01:
+                aim_dir = normalize_vector(blended)
 
         # Apply thrust based on state
         if torpedo.state == TorpedoState.TERMINAL:
             # Full thrust, no fuel conservation
             thrust_fraction = 1.0
         elif torpedo.state == TorpedoState.MIDCOURSE:
-            # Save fuel — only thrust when correction needed
-            # Coast if roughly on course (aim angle < 5 degrees from velocity)
+            # Coast only when aligned AND closing fast enough to arrive
+            # in the remaining lifetime.  The old logic coasted whenever
+            # the heading was within 5 degrees, which let torpedoes drift
+            # at ~210 m/s and miss targets that were still 60+ km away.
             vel_dir = normalize_vector(torpedo.velocity) if magnitude(torpedo.velocity) > 1.0 else aim_dir
             cos_angle = dot_product(vel_dir, aim_dir)
-            if cos_angle > 0.996:  # ~5 degrees
-                thrust_fraction = 0.0  # On course, coast
+
+            age = sim_time - torpedo.spawn_time
+            remaining = TORPEDO_MAX_LIFETIME - age
+            required_closing = dist / max(1.0, remaining) * 1.3
+
+            if cos_angle > 0.996 and closing_speed > required_closing:
+                thrust_fraction = 0.0  # On course AND fast enough — coast
+            elif cos_angle > 0.99:
+                thrust_fraction = 0.5  # Roughly aligned — moderate thrust
             else:
-                thrust_fraction = 0.5  # Correction burn
+                thrust_fraction = 1.0  # Off-course — full correction burn
         else:
             # BOOST — full thrust
             thrust_fraction = 1.0

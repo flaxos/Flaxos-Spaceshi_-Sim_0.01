@@ -274,7 +274,20 @@ class ScienceAnalysisPanel extends HTMLElement {
     const contacts = stateManager.getContacts?.() || [];
     if (!Array.isArray(contacts) || contacts.length === 0) return;
 
+    // Skip innerHTML rebuild if the dropdown is currently focused/open.
+    // Rebuilding destroys the native dropdown menu, making it impossible
+    // for the user to pick a value.  Instead, do an in-place option sync.
+    const isFocused = this.shadowRoot.activeElement === select;
+
     const currentValue = select.value;
+    const desiredIds = contacts.map(c => c.id || c.contact_id).filter(Boolean);
+
+    if (isFocused) {
+      // In-place update: only add/remove options, never tear down the DOM
+      this._syncSelectOptionsInPlace(select, contacts, currentValue);
+      return;
+    }
+
     const options = ['<option value="">-- Select Contact --</option>'];
 
     for (const c of contacts) {
@@ -290,6 +303,35 @@ class ScienceAnalysisPanel extends HTMLElement {
     if (currentValue) {
       select.value = currentValue;
     }
+  }
+
+  /**
+   * Sync <select> options in-place without destroying the DOM element.
+   * Preserves focus and keeps native dropdown menus open while state
+   * updates arrive.
+   */
+  _syncSelectOptionsInPlace(select, contacts, currentValue) {
+    const desiredIds = ["", ...contacts.map(c => c.id || c.contact_id).filter(Boolean)];
+    const existingIds = Array.from(select.options).map(o => o.value);
+
+    // Only rebuild if the option set actually changed
+    if (JSON.stringify(desiredIds) !== JSON.stringify(existingIds)) {
+      const options = ['<option value="">-- Select Contact --</option>'];
+      for (const c of contacts) {
+        const id = c.id || c.contact_id;
+        if (!id) continue;
+        const dist = c.distance ? `${(c.distance / 1000).toFixed(1)}km` : "?";
+        const cls = c.classification || "Unknown";
+        const label = `${id} — ${cls} @ ${dist}`;
+        options.push(`<option value="${id}">${label}</option>`);
+      }
+      select.innerHTML = options.join("");
+      // Restore user's in-progress selection if it still exists
+      if (desiredIds.includes(currentValue)) {
+        select.value = currentValue;
+      }
+    }
+    // If options unchanged and focused, leave it alone entirely
   }
 
   _showResult(command, result) {

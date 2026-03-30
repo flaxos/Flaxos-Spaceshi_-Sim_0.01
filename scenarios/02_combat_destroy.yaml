@@ -29,6 +29,10 @@ ships:
         lock_range: 500000.0
       weapons:
         weapons:
+          - name: "railgun"
+            power_cost: 15
+            max_heat: 80
+            ammo: 20
           - name: "torpedo"
             power_cost: 10
             max_heat: 100
@@ -39,9 +43,14 @@ ships:
             ammo: 1000
         hardpoints:
           - id: "hp_fwd_1"
-            weapon: "torpedo"
+            weapon: "railgun"
             mount_type: "fixed"
             position_offset: {x: 20, y: 0, z: 0}
+            orientation: {azimuth: 0, elevation: 0}
+          - id: "hp_fwd_2"
+            weapon: "torpedo"
+            mount_type: "fixed"
+            position_offset: {x: 18, y: 2, z: 0}
             orientation: {azimuth: 0, elevation: 0}
           - id: "hp_top_1"
             weapon: "pdc"
@@ -52,7 +61,7 @@ ships:
             mount_type: "turret"
             position_offset: {x: 5, y: -10, z: 0}
       combat:
-        railguns: 0
+        railguns: 1
         pdcs: 2
         torpedoes: 1
         torpedo_capacity: 12
@@ -115,6 +124,7 @@ mission:
     - Use PDC for point defense if they return fire
 
     Weapons available:
+    - 1x UNE-440 Railgun (20 rounds)
     - 12x Torpedoes
     - PDC (1000 rounds)
 

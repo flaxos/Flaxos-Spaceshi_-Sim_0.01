@@ -317,6 +317,20 @@ class ECCMControlPanel extends HTMLElement {
       return;
     }
 
+    // Check if the analyze-target dropdown is currently focused/open.
+    // Rebuilding innerHTML while a <select> is open destroys the native
+    // dropdown menu, making it impossible to pick a value.  When the
+    // dropdown is open, skip the full rebuild and do a targeted in-place
+    // update of just the select options and status values.
+    const analyzeSelect = this.shadowRoot.getElementById("analyze-target");
+    const dropdownOpen = analyzeSelect &&
+      this.shadowRoot.activeElement === analyzeSelect;
+
+    if (dropdownOpen) {
+      this._updateInPlace(eccm);
+      return;
+    }
+
     const mode = eccm.mode || "off";
     const isBurnThrough = mode === "burn_through";
     const isFreqHop = mode === "frequency_hop";
@@ -338,29 +352,7 @@ class ECCMControlPanel extends HTMLElement {
     }).join("");
 
     // Analysis result HTML
-    let analysisHTML = "";
-    if (this._analysisResult) {
-      const ar = this._analysisResult;
-      if (!ar.ecm_detected) {
-        analysisHTML = `
-          <div class="analysis-result no-ecm">
-            No ECM emissions detected
-          </div>`;
-      } else {
-        const threatLines = (ar.threats || []).map(t => {
-          const type = (t.type || "unknown").replace(/_/g, " ");
-          const severity = t.severity ? ` [${t.severity}]` : "";
-          return `<div class="threat-line">${type}${severity}</div>`;
-        }).join("");
-
-        const recLabel = (ar.recommendation || "none").replace(/_/g, " ");
-        analysisHTML = `
-          <div class="analysis-result threats">
-            ${threatLines}
-            <div class="recommendation">Recommend: ${recLabel}</div>
-          </div>`;
-      }
-    }
+    let analysisHTML = this._buildAnalysisHTML();
 
     container.innerHTML = `
       <!-- ECCM Mode Indicator -->
@@ -437,15 +429,15 @@ class ECCMControlPanel extends HTMLElement {
         <div class="section-title">Status</div>
         <div class="status-row">
           <span class="status-label">Mode</span>
-          <span class="status-value ${isBurnThrough ? 'critical' : isFreqHop ? 'active' : ''}">${mode.replace(/_/g, "-").toUpperCase()}</span>
+          <span class="status-value ${isBurnThrough ? 'critical' : isFreqHop ? 'active' : ''}" id="status-mode">${mode.replace(/_/g, "-").toUpperCase()}</span>
         </div>
         <div class="status-row">
           <span class="status-label">Sensor Health</span>
-          <span class="status-value ${eccm.sensor_health < 0.5 ? 'critical' : eccm.sensor_health < 0.8 ? 'warning' : ''}">${Math.round((eccm.sensor_health || 0) * 100)}%</span>
+          <span class="status-value ${eccm.sensor_health < 0.5 ? 'critical' : eccm.sensor_health < 0.8 ? 'warning' : ''}" id="status-sensor-health">${Math.round((eccm.sensor_health || 0) * 100)}%</span>
         </div>
         <div class="status-row">
           <span class="status-label">Power Draw</span>
-          <span class="status-value ${eccm.power_multiplier > 2 ? 'warning' : ''}">${eccm.power_multiplier || 1.0}x</span>
+          <span class="status-value ${eccm.power_multiplier > 2 ? 'warning' : ''}" id="status-power">${eccm.power_multiplier || 1.0}x</span>
         </div>
         ${isBurnThrough ? `
         <div class="status-row">
@@ -455,16 +447,93 @@ class ECCMControlPanel extends HTMLElement {
         ` : ''}
         <div class="status-row">
           <span class="status-label">Multi-Spectral</span>
-          <span class="status-value ${eccm.multispectral_active ? 'active' : ''}">${eccm.multispectral_active ? 'ACTIVE' : 'OFF'}</span>
+          <span class="status-value ${eccm.multispectral_active ? 'active' : ''}" id="status-multispec">${eccm.multispectral_active ? 'ACTIVE' : 'OFF'}</span>
         </div>
         <div class="status-row">
           <span class="status-label">Home-on-Jam</span>
-          <span class="status-value ${eccm.hoj_active ? 'active' : ''}">${eccm.hoj_active ? 'ACTIVE' : 'OFF'}</span>
+          <span class="status-value ${eccm.hoj_active ? 'active' : ''}" id="status-hoj">${eccm.hoj_active ? 'ACTIVE' : 'OFF'}</span>
         </div>
       </div>
     `;
 
     this._bindButtons();
+  }
+
+  /**
+   * Build the analysis result HTML fragment from cached _analysisResult.
+   * Extracted to avoid duplicating this logic across full rebuild and
+   * in-place update paths.
+   */
+  _buildAnalysisHTML() {
+    if (!this._analysisResult) return "";
+
+    const ar = this._analysisResult;
+    if (!ar.ecm_detected) {
+      return `
+        <div class="analysis-result no-ecm">
+          No ECM emissions detected
+        </div>`;
+    }
+
+    const threatLines = (ar.threats || []).map(t => {
+      const type = (t.type || "unknown").replace(/_/g, " ");
+      const severity = t.severity ? ` [${t.severity}]` : "";
+      return `<div class="threat-line">${type}${severity}</div>`;
+    }).join("");
+
+    const recLabel = (ar.recommendation || "none").replace(/_/g, " ");
+    return `
+      <div class="analysis-result threats">
+        ${threatLines}
+        <div class="recommendation">Recommend: ${recLabel}</div>
+      </div>`;
+  }
+
+  /**
+   * Targeted in-place update when the analyze-target dropdown is open.
+   * Updates status readout values and syncs the select's option list
+   * without destroying the DOM, so the native dropdown stays open.
+   */
+  _updateInPlace(eccm) {
+    // Sync the analyze-target <select> options without rebuilding
+    const select = this.shadowRoot.getElementById("analyze-target");
+    if (select) {
+      const contacts = stateManager.getContacts?.() || [];
+      const currentValue = select.value;
+      const desiredIds = ["", ...contacts.map(c => c.contact_id || c.id).filter(Boolean)];
+      const existingIds = Array.from(select.options).map(o => o.value);
+
+      // Only touch options if the contact set changed
+      if (JSON.stringify(desiredIds) !== JSON.stringify(existingIds)) {
+        const optionsHTML = '<option value="">-- select target --</option>' +
+          contacts.map(c => {
+            const label = c.name || c.classification || c.contact_id || c.id;
+            const id = c.contact_id || c.id;
+            return `<option value="${id}">${label}</option>`;
+          }).join("");
+        select.innerHTML = optionsHTML;
+        if (desiredIds.includes(currentValue)) {
+          select.value = currentValue;
+        }
+      }
+    }
+
+    // Update status text values in-place (these are safe -- no focus issues)
+    const mode = eccm.mode || "off";
+    const modeEl = this.shadowRoot.getElementById("status-mode");
+    if (modeEl) modeEl.textContent = mode.replace(/_/g, "-").toUpperCase();
+
+    const healthEl = this.shadowRoot.getElementById("status-sensor-health");
+    if (healthEl) healthEl.textContent = `${Math.round((eccm.sensor_health || 0) * 100)}%`;
+
+    const powerEl = this.shadowRoot.getElementById("status-power");
+    if (powerEl) powerEl.textContent = `${eccm.power_multiplier || 1.0}x`;
+
+    const multispecEl = this.shadowRoot.getElementById("status-multispec");
+    if (multispecEl) multispecEl.textContent = eccm.multispectral_active ? "ACTIVE" : "OFF";
+
+    const hojEl = this.shadowRoot.getElementById("status-hoj");
+    if (hojEl) hojEl.textContent = eccm.hoj_active ? "ACTIVE" : "OFF";
   }
 
   _bindButtons() {
