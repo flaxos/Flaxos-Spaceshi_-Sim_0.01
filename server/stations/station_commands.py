@@ -112,6 +112,13 @@ def register_station_commands(
                 message="Ship ID required"
             )
 
+        # Validate ship exists in simulation before assigning
+        if ship_provider and _resolve_ship(target_ship) is None:
+            return CommandResult(
+                success=False,
+                message=f"Ship '{target_ship}' does not exist"
+            )
+
         success = station_manager.assign_to_ship(client_id, target_ship)
 
         if success:

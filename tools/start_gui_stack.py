@@ -87,6 +87,11 @@ def main() -> int:
     parser.add_argument("--no-browser", action="store_true", help="Do not open browser")
     parser.add_argument("--editor-port", type=int, default=3200, help="Asset editor port")
     parser.add_argument("--no-editor", action="store_true", help="Do not start asset editor server")
+    parser.add_argument(
+        "--game-code",
+        default=None,
+        help="Shared secret for WS authentication (omit for open access)",
+    )
     args = parser.parse_args()
 
     _ensure_websockets()
@@ -131,6 +136,8 @@ def main() -> int:
         "--ws-port",
         str(args.ws_port),
     ]
+    if args.game_code:
+        ws_bridge_cmd.extend(["--game-code", args.game_code])
 
     http_cmd = [
         python,

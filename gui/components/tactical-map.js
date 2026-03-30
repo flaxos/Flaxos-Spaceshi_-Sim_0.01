@@ -40,6 +40,13 @@ class TacticalMap extends HTMLElement {
     this._ctx = null;
     // Track screen positions for click detection (separate from frozen state)
     this._contactScreenPositions = new Map();
+
+    // Kill confirmation: track contacts from previous frame to detect disappearances
+    this._previousContactIds = new Set();
+    // Last known world positions for contacts (for explosion placement)
+    this._lastContactPositions = new Map();
+    // Active explosion effects: {position: {x,z}, startTime, duration}
+    this._explosions = [];
   }
 
   connectedCallback() {
@@ -502,6 +509,37 @@ class TacticalMap extends HTMLElement {
     // Draw contacts
     const contacts = stateManager.getContacts() || [];
 
+    // Kill confirmation: detect contacts that disappeared since last frame.
+    // A contact that was tracked last frame but is now absent likely got destroyed.
+    const currentContactIds = new Set(contacts.map(c => c.id || c.contact_id));
+    for (const prevId of this._previousContactIds) {
+      if (!currentContactIds.has(prevId)) {
+        const lastPos = this._lastContactPositions.get(prevId);
+        if (lastPos) {
+          this._explosions.push({
+            position: { x: lastPos.x, z: lastPos.z },
+            startTime: performance.now(),
+            duration: 2000, // 2 seconds
+          });
+        }
+      }
+    }
+    this._previousContactIds = currentContactIds;
+
+    // Update last known positions for all current contacts
+    for (const contact of contacts) {
+      const pos = this._resolveContactPosition(contact, playerPos);
+      this._lastContactPositions.set(contact.id || contact.contact_id, { x: pos.x, z: pos.z });
+    }
+    // Clean up stale position entries for contacts gone for more than 10 seconds
+    for (const [id] of this._lastContactPositions) {
+      if (!currentContactIds.has(id)) {
+        // Keep for a bit so explosions can still reference it, then clean
+        // (the explosion already captured the position, so this is just housekeeping)
+        this._lastContactPositions.delete(id);
+      }
+    }
+
     // Auto-fit scale to show all contacts before rendering.
     if (this._autoFit && contacts.length > 0) {
       const prevIndex = this._scaleIndex;
@@ -530,6 +568,9 @@ class TacticalMap extends HTMLElement {
     // Draw torpedo tracks (separate from projectiles — torpedoes are guided,
     // larger, and need distinct rendering with state/target indicators)
     this._drawTorpedoes(ctx, playerPos, centerX, centerY, pixelsPerMeter);
+
+    // Draw kill confirmation explosions (on top of everything else)
+    this._drawExplosions(ctx, playerPos, centerX, centerY, pixelsPerMeter);
 
     // Draw player ship (always at center)
     this._drawPlayerShip(ctx, centerX, centerY, playerHeading, playerVel, pixelsPerMeter);
@@ -1316,6 +1357,110 @@ class TacticalMap extends HTMLElement {
     ctx.fillStyle = "#555566";
     ctx.fillText("E", cx + compassSize - 10, cy);
     ctx.fillText("W", cx - compassSize + 10, cy);
+  }
+
+  /**
+   * Draw kill confirmation explosion effects.
+   * Each explosion is an expanding ring with a fading flash at the contact's
+   * last known world position. Expired explosions are pruned.
+   */
+  _drawExplosions(ctx, playerPos, centerX, centerY, pixelsPerMeter) {
+    const now = performance.now();
+    // Prune expired explosions
+    this._explosions = this._explosions.filter(e => (now - e.startTime) < e.duration);
+
+    for (const explosion of this._explosions) {
+      const elapsed = now - explosion.startTime;
+      const progress = elapsed / explosion.duration; // 0..1
+
+      // World-to-screen transform
+      const relX = (explosion.position.x - playerPos.x) * pixelsPerMeter;
+      const relZ = (explosion.position.z - playerPos.z) * pixelsPerMeter;
+      const sx = centerX + relX;
+      const sy = centerY - relZ;
+
+      // Skip if off-screen
+      if (sx < -100 || sx > this._canvasWidth + 100 ||
+          sy < -100 || sy > this._canvasHeight + 100) {
+        continue;
+      }
+
+      ctx.save();
+
+      // Phase 1 (0-0.15): bright flash — white/yellow radial burst
+      if (progress < 0.15) {
+        const flashProgress = progress / 0.15;
+        const flashRadius = 5 + flashProgress * 25;
+        const flashAlpha = 1.0 - flashProgress * 0.3;
+        const grad = ctx.createRadialGradient(sx, sy, 0, sx, sy, flashRadius);
+        grad.addColorStop(0, `rgba(255, 255, 200, ${flashAlpha})`);
+        grad.addColorStop(0.4, `rgba(255, 160, 40, ${flashAlpha * 0.7})`);
+        grad.addColorStop(1, `rgba(255, 68, 0, 0)`);
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(sx, sy, flashRadius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Phase 2 (0-1.0): expanding ring
+      const ringRadius = 8 + progress * 50;
+      const ringAlpha = Math.max(0, 0.8 * (1 - progress));
+      ctx.strokeStyle = `rgba(255, 100, 30, ${ringAlpha})`;
+      ctx.lineWidth = Math.max(0.5, 3 * (1 - progress));
+      ctx.beginPath();
+      ctx.arc(sx, sy, ringRadius, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Secondary inner ring (slightly delayed)
+      if (progress > 0.1) {
+        const innerProgress = (progress - 0.1) / 0.9;
+        const innerRadius = 4 + innerProgress * 35;
+        const innerAlpha = Math.max(0, 0.5 * (1 - innerProgress));
+        ctx.strokeStyle = `rgba(255, 200, 60, ${innerAlpha})`;
+        ctx.lineWidth = Math.max(0.5, 2 * (1 - innerProgress));
+        ctx.beginPath();
+        ctx.arc(sx, sy, innerRadius, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      // Fading debris dots (8 particles expanding outward)
+      if (progress < 0.8) {
+        const particleAlpha = Math.max(0, 0.7 * (1 - progress / 0.8));
+        ctx.fillStyle = `rgba(255, 120, 40, ${particleAlpha})`;
+        const numParticles = 8;
+        for (let i = 0; i < numParticles; i++) {
+          const angle = (i / numParticles) * Math.PI * 2 + 0.3; // slight offset so it doesn't look too regular
+          const dist = 6 + progress * 45 * (0.7 + 0.3 * Math.sin(i * 1.7));
+          const px = sx + Math.cos(angle) * dist;
+          const py = sy + Math.sin(angle) * dist;
+          const dotSize = Math.max(0.5, 2 * (1 - progress));
+          ctx.beginPath();
+          ctx.arc(px, py, dotSize, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      // "KILL" label that fades in then out
+      if (progress > 0.1 && progress < 0.7) {
+        const labelProgress = (progress - 0.1) / 0.6;
+        const labelAlpha = labelProgress < 0.3
+          ? labelProgress / 0.3  // fade in
+          : 1.0 - (labelProgress - 0.3) / 0.7; // fade out
+        ctx.fillStyle = `rgba(255, 68, 68, ${Math.max(0, labelAlpha * 0.8)})`;
+        ctx.font = "bold 11px 'JetBrains Mono', monospace";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "bottom";
+        ctx.fillText("KILL", sx, sy - ringRadius - 4);
+      }
+
+      ctx.restore();
+    }
+
+    // Request another frame if explosions are still active (keeps animation smooth
+    // even when no state updates are arriving from the server)
+    if (this._explosions.length > 0) {
+      requestAnimationFrame(() => this._draw());
+    }
   }
 
   _handleCanvasClick(e) {

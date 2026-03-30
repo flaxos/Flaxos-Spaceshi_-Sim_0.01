@@ -79,6 +79,18 @@ class WSClient extends EventTarget {
 
       this.socket.onopen = () => {
         clearTimeout(timeout);
+
+        // If a game code is configured, send auth as the very first message
+        // before any pings or commands.
+        const gameCode = window.GAME_CODE;
+        if (gameCode) {
+          try {
+            this.socket.send(JSON.stringify({ type: "auth", code: gameCode }));
+          } catch (err) {
+            console.error("Failed to send auth message:", err);
+          }
+        }
+
         this._setStatus("connected");
         this.reconnectAttempts = 0;
         this._startPing();
@@ -428,6 +440,18 @@ class WSClient extends EventTarget {
     }
     this._pendingRequests.clear();
   }
+}
+
+// Bootstrap game code from URL query parameter (?game_code=XXXX).
+// Can also be set directly: window.GAME_CODE = "XXXX" before connecting.
+try {
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get("game_code");
+  if (code) {
+    window.GAME_CODE = code;
+  }
+} catch (_) {
+  // Ignore — running outside a browser (tests, etc.)
 }
 
 // Export singleton instance

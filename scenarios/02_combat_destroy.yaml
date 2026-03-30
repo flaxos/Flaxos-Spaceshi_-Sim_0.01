@@ -164,6 +164,8 @@ mission:
     Either the target escaped or you ran out of time.
     A tactical review is recommended.
 
+  next_scenario: "03_escort_protect"
+
   hints:
     - trigger: "start"
       message: "Use 'contacts' to locate the pirate ship"
