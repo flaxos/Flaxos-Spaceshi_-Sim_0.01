@@ -666,10 +666,11 @@ class CombatSystem(BaseSystem):
             target_ship = None
             target_id = params.get("target") or params.get("target_id")
             if target_id:
-                all_ships = params.get("all_ships", {})
+                all_ships_list = getattr(self._ship_ref, "_all_ships_ref", None) or []
+                all_ships = {s.id: s for s in all_ships_list} if isinstance(all_ships_list, list) else {}
                 target_ship = all_ships.get(target_id)
 
-                if not target_ship and self._ship_ref:
+                if not target_ship:
                     sensors = self._ship_ref.systems.get("sensors")
                     if sensors and hasattr(sensors, "contact_tracker"):
                         tracker = sensors.contact_tracker
