@@ -363,15 +363,26 @@ class Simulator:
         return self.time
         
     def _process_pdc_torpedo_intercept(self, all_ships):
-        """Process PDC auto-interception of incoming torpedoes.
+        """Process PDC interception of incoming torpedoes across all defense modes.
 
-        PDCs in 'auto' mode automatically engage incoming torpedoes.
-        This is the primary PDC role — point defense against guided munitions.
+        Modes:
+            auto     -- Engage closest incoming torpedo, one target per PDC
+            priority -- Engage targets in human-specified priority order,
+                        fall back to closest-first for unlisted threats
+            network  -- Coordinate 2+ PDCs to avoid double-engaging the same
+                        torpedo; round-robin assignment across the threat list
+            manual   -- No auto-engagement; PDCs only fire on explicit command
+            hold_fire-- All PDCs disabled, cease fire
+
+        After destroying a target, a PDC enters a 0.2 s re-acquisition delay
+        that models realistic tracker slew time before engaging the next threat.
+        All engagements are logged to the combat log for the weapons status panel.
 
         Args:
             all_ships: List of all ships in simulation
         """
         from hybrid.utils.math_utils import calculate_distance
+        from hybrid.systems.weapons.truth_weapons import pdc_range_accuracy
 
         for ship in all_ships:
             combat = ship.systems.get("combat") if hasattr(ship, "systems") else None
@@ -381,61 +392,195 @@ class Simulator:
             # Get torpedoes targeting this ship
             incoming = self.torpedo_manager.get_torpedoes_targeting(ship.id)
             if not incoming:
+                # No threats — clear stale network engagements
+                combat._pdc_engagements.clear()
                 continue
 
-            # Check each PDC in auto mode
+            sim_time = getattr(ship, "sim_time", self.time)
+
+            # Collect enabled PDC mounts and their current mode
+            pdc_mounts = []
             for mount_id, weapon in combat.truth_weapons.items():
                 if not mount_id.startswith("pdc"):
                     continue
-                if getattr(weapon, "pdc_mode", "auto") != "auto":
-                    continue
                 if not weapon.enabled:
                     continue
+                mode = getattr(weapon, "pdc_mode", "auto")
+                if mode in ("manual", "hold_fire"):
+                    continue
+                pdc_mounts.append((mount_id, weapon, mode))
 
-                # Find closest incoming torpedo within PDC range
-                best_torpedo = None
-                best_dist = float("inf")
-                for torp in incoming:
-                    dist = calculate_distance(ship.position, torp.position)
-                    if dist < weapon.specs.effective_range and dist < best_dist:
-                        best_dist = dist
-                        best_torpedo = torp
+            if not pdc_mounts:
+                continue
 
-                if not best_torpedo:
+            # Pre-compute distances for every incoming torpedo
+            torp_distances = {}
+            for torp in incoming:
+                torp_distances[torp.id] = calculate_distance(ship.position, torp.position)
+
+            # Sort incoming by distance (closest first) — used by auto and
+            # as fallback for priority mode
+            sorted_by_dist = sorted(incoming, key=lambda t: torp_distances[t.id])
+
+            # Build a lookup for fast torpedo access by ID
+            torp_by_id = {t.id: t for t in incoming}
+
+            # ---- Determine target assignment per PDC based on mode ----
+            # assignments: {mount_id: torpedo_object | None}
+            assignments: dict = {}
+
+            # Detect if any PDC is in network mode — if so, coordinate all
+            # auto/network PDCs together so they don't double-engage.
+            any_network = any(m == "network" for _, _, m in pdc_mounts)
+
+            if any_network:
+                # Network mode: distribute threats across PDCs round-robin.
+                # Existing engagements are preserved until the target is
+                # destroyed or moves out of range.
+                in_range = [
+                    t for t in sorted_by_dist
+                    if torp_distances[t.id] < pdc_mounts[0][1].specs.effective_range
+                ]
+                # Remove stale engagements (target destroyed or out of range)
+                live_ids = {t.id for t in in_range}
+                stale = [
+                    mid for mid, tid in combat._pdc_engagements.items()
+                    if tid not in live_ids
+                ]
+                for mid in stale:
+                    del combat._pdc_engagements[mid]
+
+                # Already-assigned torpedo IDs
+                assigned_torps = set(combat._pdc_engagements.values())
+                # PDCs that need a new target
+                unassigned_pdcs = [
+                    (mid, w) for mid, w, _ in pdc_mounts
+                    if mid not in combat._pdc_engagements
+                ]
+                # Torpedoes not yet covered by any PDC
+                uncovered = [t for t in in_range if t.id not in assigned_torps]
+
+                # Round-robin: assign one uncovered torpedo per free PDC
+                for (mid, w), torp in zip(unassigned_pdcs, uncovered):
+                    combat._pdc_engagements[mid] = torp.id
+
+                # Build final assignments from engagement map
+                for mid, w, _ in pdc_mounts:
+                    tid = combat._pdc_engagements.get(mid)
+                    assignments[mid] = torp_by_id.get(tid) if tid else None
+
+            else:
+                # Per-PDC independent assignment (auto or priority)
+                for mount_id, weapon, mode in pdc_mounts:
+                    if mode == "priority":
+                        target = self._pick_priority_target(
+                            combat.pdc_priority_targets,
+                            sorted_by_dist,
+                            torp_distances,
+                            weapon.specs.effective_range,
+                        )
+                    else:
+                        # Auto mode: closest in range
+                        target = None
+                        for torp in sorted_by_dist:
+                            if torp_distances[torp.id] < weapon.specs.effective_range:
+                                target = torp
+                                break
+                    assignments[mount_id] = target
+
+            # ---- Fire each PDC at its assigned target ----
+            for mount_id, weapon, mode in pdc_mounts:
+                target = assignments.get(mount_id)
+                if target is None:
                     continue
 
-                # Can this PDC fire right now?
-                if not weapon.can_fire(getattr(ship, "sim_time", self.time)):
+                # Re-acquisition delay: PDC is slewing to new target after a kill
+                if mount_id in combat._pdc_reacquire_timers:
                     continue
 
-                # PDC fires at torpedo — use Expanse-style range falloff
-                # Same curve as ship-to-ship fire: near-perfect at <500m,
-                # steep drop past 1km, desperation fire at effective_range.
-                from hybrid.systems.weapons.truth_weapons import pdc_range_accuracy
-                hit_chance = pdc_range_accuracy(best_dist)
-                import random
-                if random.random() < hit_chance:
-                    # Hit! Apply PDC damage to torpedo
+                if not weapon.can_fire(sim_time):
+                    continue
+
+                dist = torp_distances.get(target.id, float("inf"))
+                hit_chance = pdc_range_accuracy(dist)
+
+                # Ensure per-PDC stats exist (safety net for hot-added mounts)
+                if mount_id not in combat.pdc_stats:
+                    combat.pdc_stats[mount_id] = {
+                        "intercepts": 0, "misses": 0, "engagements": 0,
+                    }
+                combat.pdc_stats[mount_id]["engagements"] += 1
+
+                hit = random.random() < hit_chance
+                if hit:
                     pdc_damage = weapon.specs.base_damage * weapon.specs.burst_count
                     result = self.torpedo_manager.apply_pdc_damage(
-                        best_torpedo.id, pdc_damage,
+                        target.id, pdc_damage,
                         source=f"{ship.id}:{mount_id}",
                     )
+                    destroyed = result.get("destroyed", False)
+                    combat.pdc_stats[mount_id]["intercepts"] += 1
 
-                    # Consume ammo and set cooldown
-                    if weapon.ammo is not None:
-                        weapon.ammo = max(0, weapon.ammo - weapon.specs.burst_count)
-                    weapon.last_fired = getattr(ship, "sim_time", self.time)
-                    weapon.heat += 10.0
+                    if destroyed:
+                        # Start re-acquisition delay before engaging next threat
+                        combat._pdc_reacquire_timers[mount_id] = combat._pdc_reacquire_delay
+                        # Free network engagement slot so another PDC can assist
+                        if mount_id in combat._pdc_engagements:
+                            del combat._pdc_engagements[mount_id]
+                else:
+                    destroyed = False
+                    combat.pdc_stats[mount_id]["misses"] += 1
 
-                    self._event_bus.publish("pdc_torpedo_engage", {
-                        "ship_id": ship.id,
-                        "pdc_mount": mount_id,
-                        "torpedo_id": best_torpedo.id,
-                        "distance": best_dist,
-                        "hit": True,
-                        "destroyed": result.get("destroyed", False),
-                    })
+                # Consume ammo and apply heat regardless of hit/miss
+                if weapon.ammo is not None:
+                    weapon.ammo = max(0, weapon.ammo - weapon.specs.burst_count)
+                weapon.last_fired = sim_time
+                weapon.heat += 10.0
+
+                # Publish engagement event — the combat log subscribes to
+                # pdc_torpedo_engage via EventBus and builds narrative entries
+                # automatically (see combat_log.py _on_pdc_torpedo_engage).
+                self._event_bus.publish("pdc_torpedo_engage", {
+                    "ship_id": ship.id,
+                    "pdc_mount": mount_id,
+                    "torpedo_id": target.id,
+                    "distance": dist,
+                    "hit": hit,
+                    "destroyed": destroyed,
+                    "mode": mode,
+                })
+
+    @staticmethod
+    def _pick_priority_target(
+        priority_list: list,
+        sorted_by_dist: list,
+        torp_distances: dict,
+        effective_range: float,
+    ):
+        """Select the highest-priority torpedo within PDC range.
+
+        Walks the human-specified priority list first. If none of those
+        are in range, falls back to closest-first (auto behaviour).
+
+        Args:
+            priority_list: Ordered torpedo IDs from set_pdc_priority command
+            sorted_by_dist: Torpedoes sorted closest-first
+            torp_distances: {torpedo_id: distance_m} lookup
+            effective_range: PDC effective range in metres
+
+        Returns:
+            Torpedo object or None
+        """
+        torp_by_id = {t.id: t for t in sorted_by_dist}
+        # Walk priority list: first one that is in range wins
+        for tid in priority_list:
+            if tid in torp_by_id and torp_distances.get(tid, float("inf")) < effective_range:
+                return torp_by_id[tid]
+        # Fallback: closest in range (same as auto)
+        for torp in sorted_by_dist:
+            if torp_distances[torp.id] < effective_range:
+                return torp
+        return None
 
     def _process_sensor_interactions(self, all_ships):
         """Process sensor interactions between ships.

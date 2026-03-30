@@ -19,6 +19,18 @@ class WeaponControls extends HTMLElement {
     this._assessmentData = null;
     // Launcher type: "torpedo" or "missile" — determines which command is sent
     this._launcherType = "torpedo";
+
+    // Missile salvo size (1, 2, 4, or "all" resolved at fire time)
+    this._salvoSize = 1;
+    // Missile flight profile sent with launch_missile command
+    this._missileProfile = "direct";
+
+    // Auto-execute authorization state per weapon type.
+    // When authorized AND conditions are met (lock, solution, ammo, cooldown),
+    // the weapon fires automatically on the next _updateDisplay tick.
+    this._authorized = { railgun: false, torpedo: false, missile: false };
+    // Tracks in-flight salvo to prevent re-fire during staggered launch
+    this._salvoInProgress = false;
   }
 
   connectedCallback() {
@@ -593,6 +605,248 @@ class WeaponControls extends HTMLElement {
           font-size: 0.85rem;
           min-height: 52px;
         }
+
+        /* === Missile Salvo Selector === */
+        .salvo-row {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          margin-bottom: 8px;
+        }
+
+        .salvo-label {
+          font-size: 0.65rem;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.3px;
+          color: var(--text-secondary, #888899);
+          white-space: nowrap;
+        }
+
+        .salvo-group {
+          display: flex;
+          gap: 3px;
+          background: var(--bg-input, #1a1a24);
+          border-radius: 6px;
+          padding: 3px;
+          flex: 1;
+        }
+
+        .salvo-btn {
+          flex: 1;
+          padding: 5px 4px;
+          border: 1px solid transparent;
+          border-radius: 4px;
+          background: transparent;
+          color: var(--text-dim, #555566);
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+          font-size: 0.7rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.12s ease;
+          min-height: 28px;
+        }
+
+        .salvo-btn:hover {
+          color: var(--text-primary, #e0e0e0);
+          background: rgba(255, 255, 255, 0.05);
+        }
+
+        .salvo-btn.active {
+          color: #ff8800;
+          border-color: #ff8800;
+          background: rgba(255, 136, 0, 0.12);
+        }
+
+        /* === Missile Flight Profile Selector === */
+        .profile-row {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          margin-bottom: 8px;
+        }
+
+        .profile-label {
+          font-size: 0.65rem;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.3px;
+          color: var(--text-secondary, #888899);
+          white-space: nowrap;
+        }
+
+        .profile-group {
+          display: flex;
+          gap: 3px;
+          background: var(--bg-input, #1a1a24);
+          border-radius: 6px;
+          padding: 3px;
+          flex: 1;
+        }
+
+        .profile-btn {
+          flex: 1;
+          padding: 5px 4px;
+          border: 1px solid transparent;
+          border-radius: 4px;
+          background: transparent;
+          color: var(--text-dim, #555566);
+          font-family: inherit;
+          font-size: 0.6rem;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.2px;
+          cursor: pointer;
+          transition: all 0.12s ease;
+          min-height: 28px;
+          white-space: nowrap;
+        }
+
+        .profile-btn:hover {
+          color: var(--text-primary, #e0e0e0);
+          background: rgba(255, 255, 255, 0.05);
+        }
+
+        .profile-btn.active {
+          color: #ff8800;
+          border-color: #ff8800;
+          background: rgba(255, 136, 0, 0.12);
+        }
+
+        /* === Authorization Toggle Buttons === */
+        .auth-row {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          margin-top: 6px;
+        }
+
+        .auth-btn {
+          flex: 1;
+          padding: 6px 10px;
+          border-radius: 6px;
+          font-family: inherit;
+          font-size: 0.65rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          cursor: pointer;
+          min-height: 32px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          transition: all 0.15s ease;
+          border: 1px solid var(--border-default, #2a2a3a);
+          background: var(--bg-input, #1a1a24);
+          color: var(--text-dim, #555566);
+        }
+
+        .auth-btn:hover {
+          border-color: var(--border-active, #3a3a4a);
+          color: var(--text-secondary, #888899);
+          background: var(--bg-hover, #22222e);
+        }
+
+        .auth-btn.authorized {
+          border-color: var(--status-nominal, #00ff88);
+          color: var(--status-nominal, #00ff88);
+          background: rgba(0, 255, 136, 0.08);
+          animation: auth-pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes auth-pulse {
+          0%, 100% {
+            box-shadow: 0 0 6px rgba(0, 255, 136, 0.2);
+          }
+          50% {
+            box-shadow: 0 0 14px rgba(0, 255, 136, 0.45), 0 0 4px rgba(0, 255, 136, 0.15);
+          }
+        }
+
+        .auth-btn .auth-icon {
+          font-size: 0.8rem;
+          line-height: 1;
+        }
+
+        /* Conditions checklist shown below authorized weapon */
+        .auth-conditions {
+          display: none;
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+          font-size: 0.6rem;
+          color: var(--text-dim, #555566);
+          margin-top: 4px;
+          padding: 4px 8px;
+          background: rgba(0, 0, 0, 0.2);
+          border-radius: 4px;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+
+        .auth-conditions.visible {
+          display: flex;
+        }
+
+        .auth-cond {
+          white-space: nowrap;
+        }
+
+        .auth-cond.met {
+          color: var(--status-nominal, #00ff88);
+        }
+
+        .auth-cond.unmet {
+          color: var(--status-critical, #ff4444);
+        }
+
+        .auth-cond.pending {
+          color: var(--status-warning, #ffaa00);
+        }
+
+        /* Auto-fire flash overlay */
+        @keyframes fire-flash {
+          0% { opacity: 1; }
+          100% { opacity: 0; }
+        }
+
+        .fire-flash-overlay {
+          position: absolute;
+          inset: 0;
+          background: rgba(255, 68, 68, 0.25);
+          border-radius: 8px;
+          pointer-events: none;
+          animation: fire-flash 0.4s ease-out forwards;
+        }
+
+        .fire-flash-overlay.missile {
+          background: rgba(255, 136, 0, 0.25);
+        }
+
+        /* Wrapper for fire button + auth button side by side */
+        .fire-auth-row {
+          display: flex;
+          gap: 6px;
+          align-items: stretch;
+        }
+
+        .fire-auth-row .fire-btn {
+          flex: 1;
+        }
+
+        .fire-auth-row .auth-btn {
+          flex: 0 0 auto;
+          width: 44px;
+          min-height: 52px;
+        }
+
+        /* Salvo/profile controls only visible when missile type is selected */
+        .missile-options {
+          display: none;
+        }
+
+        .missile-options.visible {
+          display: block;
+        }
       </style>
 
       <div class="ammo-heat-hud" id="ammo-heat-hud"></div>
@@ -607,6 +861,13 @@ class WeaponControls extends HTMLElement {
       <div class="weapon-group" id="railgun-group">
         <div class="group-title">Railgun</div>
         <div id="railgun-mounts"></div>
+        <div class="auth-row">
+          <button class="auth-btn" id="auth-railgun" data-weapon="railgun" data-testid="auth-railgun"
+                  title="Authorize continuous railgun fire when conditions are met">
+            <span class="auth-icon">&#x1f512;</span> AUTH
+          </button>
+        </div>
+        <div class="auth-conditions" id="auth-cond-railgun"></div>
         <div class="fire-hint" id="railgun-hint"></div>
       </div>
 
@@ -635,10 +896,45 @@ class WeaponControls extends HTMLElement {
             <span class="launcher-type-label"><span class="launcher-type-indicator"></span>MISSILE</span>
           </button>
         </div>
-        <button class="fire-btn torpedo-btn" id="launcher-fire-btn" data-testid="launcher-fire-btn">
-          FIRE TORPEDO
-          <span class="torpedo-count" id="launcher-count">(0)</span>
-        </button>
+
+        <!-- Missile-only options: salvo size + flight profile -->
+        <div class="missile-options" id="missile-options">
+          <div class="salvo-row">
+            <span class="salvo-label">Salvo</span>
+            <div class="salvo-group" id="salvo-group" data-testid="salvo-group">
+              <button class="salvo-btn active" data-salvo="1">1x</button>
+              <button class="salvo-btn" data-salvo="2">2x</button>
+              <button class="salvo-btn" data-salvo="4">4x</button>
+              <button class="salvo-btn" data-salvo="all">ALL</button>
+            </div>
+          </div>
+          <div class="profile-row">
+            <span class="profile-label">Profile</span>
+            <div class="profile-group" id="profile-group" data-testid="profile-group">
+              <button class="profile-btn active" data-profile="direct">DIRECT</button>
+              <button class="profile-btn" data-profile="evasive">EVASIVE</button>
+              <button class="profile-btn" data-profile="terminal_pop">T-POP</button>
+              <button class="profile-btn" data-profile="bracket">BRACKET</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="fire-auth-row" id="launcher-fire-row" style="position: relative;">
+          <button class="fire-btn torpedo-btn" id="launcher-fire-btn" data-testid="launcher-fire-btn">
+            FIRE TORPEDO
+            <span class="torpedo-count" id="launcher-count">(0)</span>
+          </button>
+          <button class="auth-btn" id="auth-torpedo" data-weapon="torpedo" data-testid="auth-torpedo"
+                  title="Authorize auto-fire when conditions are met (single fire)">
+            <span class="auth-icon">&#x1f512;</span>
+          </button>
+          <button class="auth-btn" id="auth-missile" data-weapon="missile" data-testid="auth-missile"
+                  title="Authorize auto-fire salvo when conditions are met" style="display: none;">
+            <span class="auth-icon">&#x1f512;</span>
+          </button>
+        </div>
+        <div class="auth-conditions" id="auth-cond-torpedo"></div>
+        <div class="auth-conditions" id="auth-cond-missile"></div>
         <div class="warning-box hidden" id="no-lock-warning">
           No target lock - ordnance will fire dumb
         </div>
@@ -674,7 +970,27 @@ class WeaponControls extends HTMLElement {
 
     // Fire launcher (torpedo or missile based on selected type)
     this.shadowRoot.getElementById("launcher-fire-btn").addEventListener("click", () => {
-      this._fireLauncher();
+      if (this._launcherType === "missile") {
+        this._fireMissileSalvo();
+      } else {
+        this._fireLauncher();
+      }
+    });
+
+    // Missile salvo size selector
+    this.shadowRoot.getElementById("salvo-group").addEventListener("click", (e) => {
+      const btn = e.target.closest(".salvo-btn");
+      if (btn) {
+        this._setSalvoSize(btn.dataset.salvo);
+      }
+    });
+
+    // Missile flight profile selector
+    this.shadowRoot.getElementById("profile-group").addEventListener("click", (e) => {
+      const btn = e.target.closest(".profile-btn");
+      if (btn) {
+        this._setMissileProfile(btn.dataset.profile);
+      }
     });
 
     // PDC mode buttons
@@ -685,12 +1001,19 @@ class WeaponControls extends HTMLElement {
       }
     });
 
+    // Authorization toggle buttons
+    this.shadowRoot.querySelectorAll(".auth-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        this._toggleAuth(btn.dataset.weapon);
+      });
+    });
+
     // Assess damage
     this.shadowRoot.getElementById("assess-btn").addEventListener("click", () => {
       this._assessDamage();
     });
 
-    // Cease fire
+    // Cease fire — also de-authorizes all weapons
     this.shadowRoot.getElementById("cease-fire-btn").addEventListener("click", () => {
       this._ceaseFire();
     });
@@ -745,6 +1068,27 @@ class WeaponControls extends HTMLElement {
       btn.classList.toggle("missile", isActive && btn.dataset.type === "missile");
     });
 
+    // Show/hide missile-specific options (salvo size, flight profile)
+    const isMissile = this._launcherType === "missile";
+    const missileOpts = this.shadowRoot.getElementById("missile-options");
+    missileOpts.classList.toggle("visible", isMissile);
+
+    // Show correct auth button for current launcher type
+    const authTorpedo = this.shadowRoot.getElementById("auth-torpedo");
+    const authMissile = this.shadowRoot.getElementById("auth-missile");
+    authTorpedo.style.display = isMissile ? "none" : "";
+    authMissile.style.display = isMissile ? "" : "none";
+
+    // Salvo selector visual state
+    this.shadowRoot.querySelectorAll(".salvo-btn").forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.salvo === String(this._salvoSize));
+    });
+
+    // Flight profile selector visual state
+    this.shadowRoot.querySelectorAll(".profile-btn").forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.profile === this._missileProfile);
+    });
+
     // Launcher fire button — adapts to selected type (torpedo or missile)
     const torpedoData = weapons?.torpedoes || weapons?.torpedo || {};
     const torpedoCount = torpedoData.loaded ?? torpedoData.count ?? 0;
@@ -752,25 +1096,33 @@ class WeaponControls extends HTMLElement {
     const missileCount = missileData.loaded ?? missileData.count ?? 0;
 
     const fireBtn = this.shadowRoot.getElementById("launcher-fire-btn");
-    const countSpan = this.shadowRoot.getElementById("launcher-count");
-    const isMissile = this._launcherType === "missile";
     const activeCount = isMissile ? missileCount : torpedoCount;
 
-    countSpan.textContent = `(${activeCount})`;
     fireBtn.disabled = activeCount <= 0 || !hasLock;
 
     // Switch button style and label based on launcher type
     fireBtn.classList.toggle("torpedo-btn", !isMissile);
     fireBtn.classList.toggle("missile-btn", isMissile);
     fireBtn.textContent = "";
-    fireBtn.append(
-      document.createTextNode(isMissile ? "FIRE MISSILE " : "FIRE TORPEDO "),
-    );
+
+    if (isMissile) {
+      // Resolve effective salvo size for the label
+      const effectiveSalvo = this._getEffectiveSalvoSize(missileCount);
+      fireBtn.append(document.createTextNode(`FIRE MISSILE x${effectiveSalvo} `));
+    } else {
+      fireBtn.append(document.createTextNode("FIRE TORPEDO "));
+    }
     const newCountSpan = document.createElement("span");
     newCountSpan.className = "torpedo-count";
     newCountSpan.id = "launcher-count";
-    newCountSpan.textContent = `(${activeCount})`;
+    newCountSpan.textContent = `(${activeCount} remaining)`;
     fireBtn.appendChild(newCountSpan);
+
+    // Update authorization button visuals
+    this._updateAuthButtons(weapons, targeting, hasLock);
+
+    // --- Auto-execute queue: fire authorized weapons when conditions are met ---
+    this._processAutoExecute(weapons, targeting, hasLock);
 
     // Assess button - needs a lock
     const assessBtn = this.shadowRoot.getElementById("assess-btn");
@@ -1053,12 +1405,238 @@ class WeaponControls extends HTMLElement {
   }
 
   async _fireLauncher() {
-    const cmd = this._launcherType === "missile" ? "launch_missile" : "launch_torpedo";
+    // Torpedo: always single fire, with profile param
     try {
-      await wsClient.sendShipCommand(cmd, {});
+      await wsClient.sendShipCommand("launch_torpedo", { profile: "direct" });
     } catch (error) {
-      console.error(`${cmd} failed:`, error);
+      console.error("launch_torpedo failed:", error);
     }
+  }
+
+  /**
+   * Fire a missile salvo: sends launch_missile N times with 100ms stagger.
+   * Staggered launch overwhelms PDC coverage by spreading arrival windows.
+   */
+  async _fireMissileSalvo() {
+    const weapons = stateManager.getWeapons();
+    const missileData = weapons?.missiles || {};
+    const remaining = missileData.loaded ?? missileData.count ?? 0;
+    if (remaining <= 0) return;
+
+    const salvoSize = this._getEffectiveSalvoSize(remaining);
+    if (salvoSize <= 0) return;
+
+    this._salvoInProgress = true;
+
+    // Show fire flash
+    this._showFireFlash("missile");
+
+    for (let i = 0; i < salvoSize; i++) {
+      setTimeout(() => {
+        wsClient.sendShipCommand("launch_missile", { profile: this._missileProfile })
+          .catch((err) => console.error(`Salvo missile ${i + 1} failed:`, err));
+
+        // Mark salvo complete after the last missile launches
+        if (i === salvoSize - 1) {
+          this._salvoInProgress = false;
+        }
+      }, i * 100);
+    }
+  }
+
+  /**
+   * Resolve the effective salvo size based on the selector value and
+   * the number of missiles remaining. "all" fires everything.
+   */
+  _getEffectiveSalvoSize(remaining) {
+    if (this._salvoSize === "all") return Math.max(remaining, 0);
+    const requested = parseInt(this._salvoSize, 10);
+    if (isNaN(requested) || requested < 1) return 1;
+    return Math.min(requested, remaining);
+  }
+
+  _setSalvoSize(value) {
+    this._salvoSize = value === "all" ? "all" : parseInt(value, 10) || 1;
+    this._updateDisplay();
+  }
+
+  _setMissileProfile(profile) {
+    const valid = ["direct", "evasive", "terminal_pop", "bracket"];
+    if (!valid.includes(profile)) return;
+    this._missileProfile = profile;
+    this._updateDisplay();
+  }
+
+  // --- Authorization / Auto-Execute ---
+
+  _toggleAuth(weapon) {
+    if (!this._authorized.hasOwnProperty(weapon)) return;
+    this._authorized[weapon] = !this._authorized[weapon];
+    this._updateDisplay();
+  }
+
+  /**
+   * Update authorization button visuals and conditions checklists.
+   */
+  _updateAuthButtons(weapons, targeting, hasLock) {
+    const truthWeapons = weapons?.truth_weapons || {};
+    const torpedoData = weapons?.torpedoes || weapons?.torpedo || {};
+    const missileData = weapons?.missiles || {};
+
+    // -- Railgun auth --
+    const authRailgun = this.shadowRoot.getElementById("auth-railgun");
+    const condRailgun = this.shadowRoot.getElementById("auth-cond-railgun");
+    authRailgun.classList.toggle("authorized", this._authorized.railgun);
+    authRailgun.querySelector(".auth-icon").textContent = this._authorized.railgun ? "\u{1f513}" : "\u{1f512}";
+    authRailgun.title = this._authorized.railgun
+      ? "Click to de-authorize railgun auto-fire"
+      : "Authorize continuous railgun fire when conditions are met";
+
+    // Railgun conditions
+    const railguns = Object.entries(truthWeapons).filter(([id]) => id.startsWith("railgun"));
+    const anyRailgunReady = railguns.some(([, w]) => w.solution?.ready_to_fire && !w.reloading);
+    const anyRailgunAmmo = railguns.some(([, w]) => (w.ammo ?? 0) > 0);
+
+    if (this._authorized.railgun) {
+      condRailgun.classList.add("visible");
+      condRailgun.innerHTML = this._buildConditionsHtml([
+        { label: "LOCK", met: hasLock },
+        { label: "SOLUTION", met: anyRailgunReady },
+        { label: "AMMO", met: anyRailgunAmmo },
+      ]);
+    } else {
+      condRailgun.classList.remove("visible");
+    }
+
+    // -- Torpedo auth --
+    const authTorpedoBtn = this.shadowRoot.getElementById("auth-torpedo");
+    const condTorpedo = this.shadowRoot.getElementById("auth-cond-torpedo");
+    authTorpedoBtn.classList.toggle("authorized", this._authorized.torpedo);
+    authTorpedoBtn.querySelector(".auth-icon").textContent = this._authorized.torpedo ? "\u{1f513}" : "\u{1f512}";
+
+    const torpedoCount = torpedoData.loaded ?? torpedoData.count ?? 0;
+    const torpedoReady = torpedoCount > 0 && (torpedoData.cooldown ?? 0) <= 0;
+
+    if (this._authorized.torpedo) {
+      condTorpedo.classList.add("visible");
+      condTorpedo.innerHTML = this._buildConditionsHtml([
+        { label: "LOCK", met: hasLock },
+        { label: "AMMO", met: torpedoCount > 0 },
+        { label: "COOLDOWN", met: (torpedoData.cooldown ?? 0) <= 0, pending: (torpedoData.cooldown ?? 0) > 0 },
+      ]);
+    } else {
+      condTorpedo.classList.remove("visible");
+    }
+
+    // -- Missile auth --
+    const authMissileBtn = this.shadowRoot.getElementById("auth-missile");
+    const condMissile = this.shadowRoot.getElementById("auth-cond-missile");
+    authMissileBtn.classList.toggle("authorized", this._authorized.missile);
+    authMissileBtn.querySelector(".auth-icon").textContent = this._authorized.missile ? "\u{1f513}" : "\u{1f512}";
+
+    const missileCount = missileData.loaded ?? missileData.count ?? 0;
+    const missileReady = missileCount > 0 && (missileData.cooldown ?? 0) <= 0;
+
+    if (this._authorized.missile) {
+      condMissile.classList.add("visible");
+      condMissile.innerHTML = this._buildConditionsHtml([
+        { label: "LOCK", met: hasLock },
+        { label: "AMMO", met: missileCount > 0 },
+        { label: "COOLDOWN", met: (missileData.cooldown ?? 0) <= 0, pending: (missileData.cooldown ?? 0) > 0 },
+      ]);
+    } else {
+      condMissile.classList.remove("visible");
+    }
+  }
+
+  /**
+   * Build the HTML for a conditions checklist.
+   * Each condition has {label, met, pending?}.
+   */
+  _buildConditionsHtml(conditions) {
+    return conditions.map((c) => {
+      let cls = c.met ? "met" : (c.pending ? "pending" : "unmet");
+      let icon = c.met ? "\u2713" : (c.pending ? "\u23F3" : "\u2717");
+      return `<span class="auth-cond ${cls}">${c.label} ${icon}</span>`;
+    }).join("");
+  }
+
+  /**
+   * Auto-execute queue: check each authorized weapon type and fire
+   * when all conditions are satisfied. Runs every _updateDisplay tick.
+   */
+  _processAutoExecute(weapons, targeting, hasLock) {
+    const truthWeapons = weapons?.truth_weapons || {};
+    const torpedoData = weapons?.torpedoes || weapons?.torpedo || {};
+    const missileData = weapons?.missiles || {};
+
+    // --- Railgun auto-fire (continuous: stays authorized until manually de-authed) ---
+    if (this._authorized.railgun && hasLock) {
+      const railguns = Object.entries(truthWeapons).filter(([id]) => id.startsWith("railgun"));
+      for (const [mountId, w] of railguns) {
+        const ammo = w.ammo ?? 0;
+        const ready = w.solution?.ready_to_fire && ammo > 0 && !w.reloading;
+        if (ready) {
+          this._fireRailgun(mountId);
+          this._showFireFlash("railgun");
+          // Fire one mount per tick to avoid double-commanding the same mount
+          break;
+        }
+      }
+    }
+
+    // --- Torpedo auto-fire (single shot, de-authorizes after firing) ---
+    if (this._authorized.torpedo && hasLock) {
+      const torpedoCount = torpedoData.loaded ?? torpedoData.count ?? 0;
+      const torpedoReady = torpedoCount > 0 && (torpedoData.cooldown ?? 0) <= 0;
+      if (torpedoReady) {
+        this._fireLauncher();
+        this._authorized.torpedo = false;
+        this._showFireFlash("torpedo");
+      }
+    }
+
+    // --- Missile auto-fire (fires configured salvo, de-authorizes after salvo) ---
+    if (this._authorized.missile && hasLock && !this._salvoInProgress) {
+      const missileCount = missileData.loaded ?? missileData.count ?? 0;
+      const missileReady = missileCount > 0 && (missileData.cooldown ?? 0) <= 0;
+      if (missileReady) {
+        this._fireMissileSalvo();
+        this._authorized.missile = false;
+      }
+    }
+  }
+
+  /**
+   * Brief red/orange flash on the fire area to indicate auto-fire triggered.
+   */
+  _showFireFlash(type) {
+    // Find the appropriate container to flash
+    let target;
+    if (type === "railgun") {
+      target = this.shadowRoot.getElementById("railgun-mounts");
+    } else {
+      target = this.shadowRoot.getElementById("launcher-fire-row");
+    }
+    if (!target) return;
+
+    // Ensure container is positioned for the absolute overlay
+    const prevPosition = target.style.position;
+    if (!prevPosition || prevPosition === "static") {
+      target.style.position = "relative";
+    }
+
+    const flash = document.createElement("div");
+    flash.className = "fire-flash-overlay" + (type === "missile" ? " missile" : "");
+    target.appendChild(flash);
+
+    // Remove after animation completes
+    flash.addEventListener("animationend", () => {
+      flash.remove();
+      if (!prevPosition || prevPosition === "static") {
+        target.style.position = prevPosition || "";
+      }
+    });
   }
 
   async _assessDamage() {
@@ -1074,6 +1652,11 @@ class WeaponControls extends HTMLElement {
   }
 
   async _ceaseFire() {
+    // De-authorize all weapons on cease fire
+    this._authorized.railgun = false;
+    this._authorized.torpedo = false;
+    this._authorized.missile = false;
+
     try {
       await wsClient.sendShipCommand("set_pdc_mode", { mode: "hold_fire" });
     } catch (error) {

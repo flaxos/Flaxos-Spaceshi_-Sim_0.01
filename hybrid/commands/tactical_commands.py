@@ -5,7 +5,8 @@ Commands:
     designate_target: Select a sensor contact for tracking (starts targeting pipeline)
     request_solution: Compute firing solution for the designated target
     fire_railgun: Execute firing solution with a railgun mount
-    set_pdc_mode: Set PDC operating mode (auto, manual, hold_fire)
+    set_pdc_mode: Set PDC operating mode (auto, priority, network, manual, hold_fire)
+    set_pdc_priority: Set ordered threat engagement list for priority mode
     launch_torpedo: Fire torpedo with target designation and attack profile
     assess_damage: Request sensor analysis of target subsystem state
 """
@@ -116,17 +117,20 @@ def cmd_fire_railgun(combat, ship, params):
             target_ship = all_ships.get(target_id)
 
     target_subsystem = params.get("target_subsystem")
+    slug_type = params.get("slug_type")
 
-    return combat.fire_weapon(mount_id, target_ship, target_subsystem)
+    return combat.fire_weapon(mount_id, target_ship, target_subsystem, slug_type=slug_type)
 
 
 def cmd_set_pdc_mode(combat, ship, params):
     """Set PDC operating mode.
 
     Modes:
-        auto: PDCs automatically engage threats in range (point defense)
+        auto: PDCs automatically engage closest threat in range
         manual: PDCs only fire on explicit command
         hold_fire: PDCs cease all fire immediately
+        priority: Engage threats in human-specified priority order
+        network: Coordinate 2+ PDCs to avoid double-engaging the same torpedo
 
     Args:
         combat: CombatSystem instance
@@ -136,9 +140,10 @@ def cmd_set_pdc_mode(combat, ship, params):
     Returns:
         dict: Mode change confirmation with affected PDC mounts
     """
+    valid_modes = ("auto", "manual", "hold_fire", "priority", "network")
     mode = params.get("mode")
-    if mode not in ("auto", "manual", "hold_fire"):
-        return error_dict("INVALID_MODE", f"PDC mode must be 'auto', 'manual', or 'hold_fire', got '{mode}'")
+    if mode not in valid_modes:
+        return error_dict("INVALID_MODE", f"PDC mode must be one of {valid_modes}, got '{mode}'")
 
     affected = []
     for mount_id, weapon in combat.truth_weapons.items():
@@ -146,9 +151,12 @@ def cmd_set_pdc_mode(combat, ship, params):
             weapon.pdc_mode = mode
             if mode == "hold_fire":
                 weapon.enabled = False
-            elif mode in ("auto", "manual"):
+            else:
                 weapon.enabled = True
             affected.append(mount_id)
+
+    # Clear stale network engagements when switching modes
+    combat._pdc_engagements.clear()
 
     if not affected:
         return error_dict("NO_PDC", "No PDC mounts available on this ship")
@@ -169,22 +177,31 @@ def cmd_set_pdc_mode(combat, ship, params):
 
 
 def cmd_launch_torpedo(combat, ship, params):
-    """Fire torpedo with target designation and attack profile.
+    """Fire torpedo with target designation, warhead type, and guidance mode.
 
-    Currently routes through the legacy weapon fire system for torpedo
-    weapons if available. Target designation uses the locked target
-    from the targeting pipeline.
+    Warhead types control blast characteristics:
+    - fragmentation (default): area-effect shrapnel, current baseline stats
+    - shaped_charge: focused penetrating jet, needs near-direct hit
+    - emp: minimal hull damage, temporarily disables subsystems
+
+    Guidance modes control onboard CPU behaviour:
+    - dumb: no guidance after launch, immune to ECM
+    - guided (default): proportional navigation with datalink
+    - smart: enhanced terminal prediction, harder to evade
 
     Args:
         combat: CombatSystem instance
         ship: Ship object
-        params: Validated parameters with optional target and profile
+        params: Validated parameters with optional target, profile,
+            warhead_type, and guidance_mode
 
     Returns:
         dict: Launch result
     """
     target_id = params.get("target")
     profile = params.get("profile", "direct")
+    warhead_type = params.get("warhead_type")
+    guidance_mode = params.get("guidance_mode")
 
     # Try to get target from targeting system if not specified
     if not target_id:
@@ -208,22 +225,25 @@ def cmd_launch_torpedo(combat, ship, params):
 
 
 def cmd_launch_missile(combat, ship, params):
-    """Fire missile with target designation and flight profile.
+    """Fire missile with target designation, flight profile, warhead, and guidance.
 
     Missiles are lighter, higher-G munitions for fast maneuvering targets.
-    They support programmable flight profiles that modify midcourse
-    behaviour to complicate PDC defence.
+    They support programmable flight profiles, configurable warheads, and
+    selectable guidance CPU levels.
 
     Args:
         combat: CombatSystem instance
         ship: Ship object
-        params: Validated parameters with optional target and profile
+        params: Validated parameters with optional target, profile,
+            warhead_type, and guidance_mode
 
     Returns:
         dict: Launch result
     """
     target_id = params.get("target")
     profile = params.get("profile", "direct")
+    warhead_type = params.get("warhead_type")
+    guidance_mode = params.get("guidance_mode")
 
     if not target_id:
         targeting = ship.systems.get("targeting")
@@ -235,7 +255,8 @@ def cmd_launch_missile(combat, ship, params):
 
     # Route through combat system's launch_missile
     all_ships = params.get("all_ships", {})
-    return combat.launch_missile(target_id, profile, all_ships)
+    return combat.launch_missile(target_id, profile, all_ships,
+                                 warhead_type=warhead_type, guidance_mode=guidance_mode)
 
 
 def cmd_missile_status(combat, ship, params):
@@ -448,6 +469,42 @@ def cmd_assess_damage(targeting, ship, params):
     )
 
 
+def cmd_set_pdc_priority(combat, ship, params):
+    """Set PDC threat engagement priority order.
+
+    When PDC mode is 'priority', PDCs engage torpedoes in the order
+    specified here instead of the default closest-first. Torpedoes not
+    in the list are engaged in closest-first order after the priority
+    list is exhausted.
+
+    Args:
+        combat: CombatSystem instance
+        ship: Ship object
+        params: Validated parameters with torpedo_ids list
+
+    Returns:
+        dict: Confirmation with the accepted priority list
+    """
+    torpedo_ids = params.get("torpedo_ids")
+    if not isinstance(torpedo_ids, list):
+        return error_dict(
+            "INVALID_PARAMETER",
+            "torpedo_ids must be a list of torpedo IDs in priority order"
+        )
+    combat.pdc_priority_targets = list(torpedo_ids)
+
+    if hasattr(ship, "event_bus") and ship.event_bus:
+        ship.event_bus.publish("pdc_priority_set", {
+            "ship_id": ship.id,
+            "torpedo_ids": combat.pdc_priority_targets,
+        })
+
+    return success_dict(
+        f"PDC priority queue set ({len(torpedo_ids)} targets)",
+        torpedo_ids=combat.pdc_priority_targets,
+    )
+
+
 def register_commands(dispatcher):
     """Register all tactical commands with the dispatcher."""
 
@@ -482,6 +539,10 @@ def register_commands(dispatcher):
                     description="Target ship ID (uses locked target if omitted)"),
             ArgSpec("target_subsystem", "str", required=False,
                     description="Subsystem to target on the target ship"),
+            ArgSpec("slug_type", "str", required=False,
+                    choices=["standard", "sabot", "fragmentation"],
+                    description="Slug variant: standard (balanced), sabot (1.5x armor pen, 0.7x subsystem), "
+                                "fragmentation (0.5x armor pen, 1.5x subsystem, +2 extra subsystem hits)"),
         ],
         help_text="Fire railgun at locked target (spawns ballistic projectile)",
         system="combat",
@@ -491,10 +552,21 @@ def register_commands(dispatcher):
         handler=cmd_set_pdc_mode,
         args=[
             ArgSpec("mode", "str", required=True,
-                    choices=["auto", "manual", "hold_fire"],
-                    description="PDC mode: auto (point defense), manual (fire on command), hold_fire (cease)"),
+                    choices=["auto", "manual", "hold_fire", "priority", "network"],
+                    description="PDC mode: auto (closest-first), priority (human-ordered), "
+                                "network (coordinated multi-PDC), manual, hold_fire"),
         ],
-        help_text="Set PDC operating mode (auto, manual, hold_fire)",
+        help_text="Set PDC operating mode (auto, priority, network, manual, hold_fire)",
+        system="combat",
+    ))
+
+    dispatcher.register("set_pdc_priority", CommandSpec(
+        handler=cmd_set_pdc_priority,
+        args=[
+            ArgSpec("torpedo_ids", "list", required=True,
+                    description="Ordered list of torpedo IDs to engage in priority order"),
+        ],
+        help_text="Set PDC threat engagement priority order (for priority mode)",
         system="combat",
     ))
 
@@ -506,8 +578,16 @@ def register_commands(dispatcher):
             ArgSpec("profile", "str", required=False, default="direct",
                     choices=["direct", "evasive", "terminal"],
                     description="Attack profile for torpedo approach"),
+            ArgSpec("warhead_type", "str", required=False,
+                    choices=["fragmentation", "shaped_charge", "emp"],
+                    description="Warhead variant: fragmentation (60 dmg, area), "
+                                "shaped_charge (80 dmg, direct hit), emp (20 dmg, disables 2 subsystems)"),
+            ArgSpec("guidance_mode", "str", required=False,
+                    choices=["dumb", "guided", "smart"],
+                    description="Guidance CPU: dumb (no guidance, ECM-immune), "
+                                "guided (PN with datalink), smart (evasion prediction)"),
         ],
-        help_text="Launch torpedo with target designation and attack profile",
+        help_text="Launch torpedo with target designation, warhead type, and guidance mode",
         system="combat",
     ))
 
@@ -519,8 +599,16 @@ def register_commands(dispatcher):
             ArgSpec("profile", "str", required=False, default="direct",
                     choices=["direct", "evasive", "terminal_pop", "bracket"],
                     description="Flight profile: direct, evasive, terminal_pop, bracket"),
+            ArgSpec("warhead_type", "str", required=False,
+                    choices=["fragmentation", "shaped_charge", "emp"],
+                    description="Warhead variant: fragmentation (25 dmg, area), "
+                                "shaped_charge (40 dmg, direct hit), emp (10 dmg, disables 1 subsystem)"),
+            ArgSpec("guidance_mode", "str", required=False,
+                    choices=["dumb", "guided", "smart"],
+                    description="Guidance CPU: dumb (no guidance, ECM-immune), "
+                                "guided (PN with datalink), smart (evasion prediction)"),
         ],
-        help_text="Launch missile with target designation and flight profile",
+        help_text="Launch missile with target designation, warhead type, and guidance mode",
         system="combat",
     ))
 

@@ -50,6 +50,97 @@ class MunitionType(Enum):
     MISSILE = "missile"
 
 
+class WarheadType(Enum):
+    """Warhead variants for torpedoes and missiles.
+
+    FRAGMENTATION (default): Area-effect shrapnel — wide blast, multiple
+        subsystem hits. Current baseline stats for both torpedo and missile.
+    SHAPED_CHARGE: Focused penetrating jet — high hull damage but tiny
+        blast radius. Needs a near-direct hit but punches through armor.
+    EMP: Electromagnetic pulse — minimal hull damage but temporarily
+        disables subsystems (recoverable, not destroyed).
+    """
+    FRAGMENTATION = "fragmentation"
+    SHAPED_CHARGE = "shaped_charge"
+    EMP = "emp"
+
+
+class GuidanceMode(Enum):
+    """Guidance CPU levels for torpedoes and missiles.
+
+    DUMB: Fire-and-forget on initial aim vector. No course corrections.
+        Cheapest ordnance, immune to ECM jamming, but only hits targets
+        on predictable trajectories.
+    GUIDED (default): Proportional navigation with datalink updates.
+        Standard guidance — effective against non-evading or slow targets.
+    SMART: Enhanced terminal guidance with evasion prediction. The onboard
+        CPU models target acceleration history and predicts jinking patterns.
+        Harder to defeat with ECM but still defeated by chaff at close range.
+    """
+    DUMB = "dumb"
+    GUIDED = "guided"
+    SMART = "smart"
+
+
+# Per-warhead-type damage specs for torpedoes.
+# Keys: hull_damage, subsystem_damage, lethal_radius, blast_radius,
+#       subsystem_disable_duration (seconds, EMP only), max_subsystems_disabled.
+TORPEDO_WARHEAD_SPECS: Dict[str, Dict[str, float]] = {
+    WarheadType.FRAGMENTATION.value: {
+        "hull_damage": 60.0,
+        "subsystem_damage": 20.0,
+        "lethal_radius": 30.0,
+        "blast_radius": 100.0,
+        "subsystem_disable_duration": 0.0,
+        "max_subsystems_disabled": 0,
+    },
+    WarheadType.SHAPED_CHARGE.value: {
+        "hull_damage": 80.0,
+        "subsystem_damage": 20.0,
+        "lethal_radius": 10.0,
+        "blast_radius": 20.0,
+        "subsystem_disable_duration": 0.0,
+        "max_subsystems_disabled": 0,
+    },
+    WarheadType.EMP.value: {
+        "hull_damage": 20.0,
+        "subsystem_damage": 5.0,
+        "lethal_radius": 30.0,
+        "blast_radius": 100.0,
+        "subsystem_disable_duration": 30.0,
+        "max_subsystems_disabled": 2,
+    },
+}
+
+# Per-warhead-type damage specs for missiles.
+MISSILE_WARHEAD_SPECS: Dict[str, Dict[str, float]] = {
+    WarheadType.FRAGMENTATION.value: {
+        "hull_damage": 25.0,
+        "subsystem_damage": 15.0,
+        "lethal_radius": 10.0,
+        "blast_radius": 30.0,
+        "subsystem_disable_duration": 0.0,
+        "max_subsystems_disabled": 0,
+    },
+    WarheadType.SHAPED_CHARGE.value: {
+        "hull_damage": 40.0,
+        "subsystem_damage": 15.0,
+        "lethal_radius": 5.0,
+        "blast_radius": 10.0,
+        "subsystem_disable_duration": 0.0,
+        "max_subsystems_disabled": 0,
+    },
+    WarheadType.EMP.value: {
+        "hull_damage": 10.0,
+        "subsystem_damage": 5.0,
+        "lethal_radius": 10.0,
+        "blast_radius": 30.0,
+        "subsystem_disable_duration": 20.0,
+        "max_subsystems_disabled": 1,
+    },
+}
+
+
 class TorpedoState(Enum):
     """Flight states for both torpedoes and missiles."""
     BOOST = "boost"          # Initial acceleration phase after launch
@@ -169,6 +260,10 @@ class Torpedo:
     # Launch profile — missiles support: direct, evasive, terminal_pop, bracket
     profile: str = "direct"
 
+    # Warhead and guidance configuration
+    warhead_type: str = WarheadType.FRAGMENTATION.value
+    guidance_mode: str = GuidanceMode.GUIDED.value
+
     # Damage tracking (for PDC interception)
     # Missiles are frailer: 40 HP vs 100 HP for torpedoes
     hull_health: float = 100.0   # PDC hits degrade this
@@ -212,6 +307,8 @@ class TorpedoManager:
         target_vel: Dict[str, float],
         profile: str = "direct",
         munition_type: MunitionType = MunitionType.TORPEDO,
+        warhead_type: Optional[str] = None,
+        guidance_mode: Optional[str] = None,
     ) -> Torpedo:
         """Launch a new torpedo or missile.
 
@@ -231,6 +328,10 @@ class TorpedoManager:
             profile: Attack profile (torpedoes: "direct"/"evasive";
                      missiles: "direct"/"evasive"/"terminal_pop"/"bracket")
             munition_type: TORPEDO or MISSILE
+            warhead_type: Warhead variant (fragmentation/shaped_charge/emp).
+                None defaults to fragmentation.
+            guidance_mode: CPU assist level (dumb/guided/smart).
+                None defaults to guided.
 
         Returns:
             The spawned Torpedo (also used for missiles)
@@ -251,6 +352,10 @@ class TorpedoManager:
             hull_hp = 100.0
             prefix = "torp"
 
+        # Resolve warhead and guidance defaults
+        resolved_warhead = warhead_type or WarheadType.FRAGMENTATION.value
+        resolved_guidance = guidance_mode or GuidanceMode.GUIDED.value
+
         torpedo = Torpedo(
             id=f"{prefix}_{self._next_id}",
             shooter_id=shooter_id,
@@ -267,6 +372,8 @@ class TorpedoManager:
             last_target_pos=dict(target_pos),
             last_target_vel=dict(target_vel),
             profile=profile,
+            warhead_type=resolved_warhead,
+            guidance_mode=resolved_guidance,
             hull_health=hull_hp,
             max_hull_health=hull_hp,
             delta_v_budget=dv_budget,
@@ -283,6 +390,8 @@ class TorpedoManager:
             "target": target_id,
             "position": torpedo.position,
             "profile": profile,
+            "warhead_type": resolved_warhead,
+            "guidance_mode": resolved_guidance,
         })
 
         return torpedo
@@ -470,13 +579,13 @@ class TorpedoManager:
     def _update_guidance(self, torpedo: Torpedo, target_ship, dt: float, sim_time: float):
         """Compute and apply thrust vector for guided munition.
 
-        Both torpedoes and missiles share the same proportional navigation
-        backbone.  Differences:
-        - Missiles use augmented PN with higher gain (N=5 vs N=4) and a
-          terminal lead-pursuit correction for fast-closing engagements.
-        - Missiles respect a G-limit on commanded acceleration.
-        - Missile flight profiles modify midcourse behaviour (jinking,
-          cold-coast, bracket approach).
+        Guidance mode determines how much course correction the onboard
+        CPU performs:
+        - DUMB: No guidance — fires thrust along launch vector only during
+          boost phase, then coasts on ballistic trajectory.
+        - GUIDED (default): Proportional navigation with datalink updates.
+        - SMART: Enhanced PN with higher gain and terminal evasion
+          prediction — models target acceleration history to anticipate jinks.
 
         Guidance phases:
         - BOOST: Full thrust toward intercept point
@@ -486,6 +595,14 @@ class TorpedoManager:
         if torpedo.fuel <= 0:
             torpedo.acceleration = {"x": 0, "y": 0, "z": 0}
             torpedo.state = TorpedoState.MIDCOURSE  # Coasting, no fuel
+            return
+
+        # DUMB guidance: fire straight ahead during boost, then coast.
+        # No course corrections, no PN, no terminal maneuver.
+        # Advantage: immune to ECM jamming, cheap ordnance.
+        # Disadvantage: only hits non-maneuvering targets.
+        if torpedo.guidance_mode == GuidanceMode.DUMB.value:
+            self._update_dumb_guidance(torpedo, dt, sim_time)
             return
 
         is_missile = torpedo.munition_type == MunitionType.MISSILE
@@ -534,9 +651,18 @@ class TorpedoManager:
                 )
 
         # --- Proportional Navigation (PN) guidance ---
-        # Missiles use augmented PN (N=5) for tighter intercepts against
-        # maneuvering targets.  Torpedoes use standard PN (N=4).
-        pn_gain = 5.0 if is_missile else 4.0
+        # PN gain selection:
+        # - SMART guidance uses higher gain (N=6) for tighter intercepts
+        #   and better correction against maneuvering targets.
+        # - Missiles use augmented PN (N=5) for tighter intercepts.
+        # - Standard torpedoes use PN (N=4).
+        is_smart = torpedo.guidance_mode == GuidanceMode.SMART.value
+        if is_smart:
+            pn_gain = 6.0  # Enhanced CPU predicts evasion patterns
+        elif is_missile:
+            pn_gain = 5.0
+        else:
+            pn_gain = 4.0
 
         # Relative velocity: munition - target (positive = closing)
         rel_vel_to_target = subtract_vectors(torpedo.velocity, target_vel)
@@ -570,11 +696,32 @@ class TorpedoManager:
         else:
             aim_dir = normalize_vector(aim_vec)
 
-        # Missiles add a terminal lead-pursuit bias: in the last 3s of
-        # predicted flight, blend toward pure pursuit of current position
-        # rather than predicted intercept.  This corrects for last-second
-        # target jinking that invalidates the intercept prediction.
-        if is_missile and torpedo.state == TorpedoState.TERMINAL and tgo < 3.0:
+        # SMART guidance: include target acceleration in intercept prediction.
+        # The onboard CPU extrapolates the target's current acceleration into
+        # the predicted intercept point (second-order prediction).  This makes
+        # SMART munitions much harder to evade with constant-thrust maneuvers,
+        # but can be defeated by erratic jinking (frequent accel changes).
+        if is_smart and target_ship and hasattr(target_ship, "acceleration"):
+            target_accel = target_ship.acceleration
+            if target_accel:
+                intercept = {
+                    "x": intercept["x"] + 0.5 * target_accel.get("x", 0) * tgo * tgo,
+                    "y": intercept["y"] + 0.5 * target_accel.get("y", 0) * tgo * tgo,
+                    "z": intercept["z"] + 0.5 * target_accel.get("z", 0) * tgo * tgo,
+                }
+                aim_vec = subtract_vectors(intercept, torpedo.position)
+                aim_dist = magnitude(aim_vec)
+                if aim_dist >= 1.0:
+                    aim_dir = normalize_vector(aim_vec)
+
+        # Missiles (and SMART torpedoes in terminal) add a terminal
+        # lead-pursuit bias: in the last 3s of predicted flight, blend
+        # toward pure pursuit of current position rather than predicted
+        # intercept.  This corrects for last-second target jinking.
+        use_terminal_pursuit = (
+            (is_missile or is_smart) and torpedo.state == TorpedoState.TERMINAL and tgo < 3.0
+        )
+        if use_terminal_pursuit:
             pursuit_dir = los_dir
             # Blend: as tgo->0, pure pursuit dominates
             blend = max(0.0, min(1.0, 1.0 - tgo / 3.0))
@@ -658,6 +805,67 @@ class TorpedoManager:
             torpedo.delta_v_used += accel_mag * dt
         else:
             torpedo.acceleration = {"x": 0, "y": 0, "z": 0}
+
+    def _update_dumb_guidance(self, torpedo: Torpedo, dt: float, sim_time: float):
+        """Guidance for DUMB munitions: boost-phase-only thrust, then coast.
+
+        DUMB munitions fire along their initial velocity vector during the
+        boost phase. After boost ends (by time or fuel), they coast on a
+        ballistic trajectory with no course corrections. This makes them
+        immune to ECM jamming but useless against maneuvering targets.
+
+        Args:
+            torpedo: Munition in flight
+            dt: Time step in seconds
+            sim_time: Current simulation time
+        """
+        is_missile = torpedo.munition_type == MunitionType.MISSILE
+
+        # Boost for a fixed duration, then coast
+        age = sim_time - torpedo.spawn_time
+        boost_duration = 3.0 if is_missile else 8.0
+
+        if age > boost_duration or torpedo.fuel <= 0:
+            # Coast phase — no thrust, no corrections
+            torpedo.acceleration = {"x": 0, "y": 0, "z": 0}
+            torpedo.state = TorpedoState.MIDCOURSE
+            return
+
+        # Boost phase: thrust along current velocity direction
+        # (set at launch from the firing solution's aim vector)
+        vel_mag = magnitude(torpedo.velocity)
+        if vel_mag > 1.0:
+            thrust_dir = normalize_vector(torpedo.velocity)
+        else:
+            # Fallback: aim toward last known target position
+            aim_vec = subtract_vectors(torpedo.last_target_pos, torpedo.position)
+            aim_mag = magnitude(aim_vec)
+            if aim_mag > 1.0:
+                thrust_dir = normalize_vector(aim_vec)
+            else:
+                thrust_dir = {"x": 1, "y": 0, "z": 0}
+
+        accel_mag = torpedo.thrust / torpedo.mass
+        if is_missile:
+            max_accel = MISSILE_G_LIMIT * 9.81
+            accel_mag = min(accel_mag, max_accel)
+
+        torpedo.acceleration = {
+            "x": thrust_dir["x"] * accel_mag,
+            "y": thrust_dir["y"] * accel_mag,
+            "z": thrust_dir["z"] * accel_mag,
+        }
+        torpedo.velocity["x"] += torpedo.acceleration["x"] * dt
+        torpedo.velocity["y"] += torpedo.acceleration["y"] * dt
+        torpedo.velocity["z"] += torpedo.acceleration["z"] * dt
+
+        # Consume fuel
+        exhaust_vel = (MISSILE_EXHAUST_VEL if is_missile else TORPEDO_EXHAUST_VEL)
+        mass_flow = torpedo.thrust / exhaust_vel
+        fuel_consumed = min(mass_flow * dt, torpedo.fuel)
+        torpedo.fuel -= fuel_consumed
+        torpedo.mass -= fuel_consumed
+        torpedo.delta_v_used += accel_mag * dt
 
     def _apply_missile_profile(
         self, missile: Torpedo, aim_dir: Dict[str, float],
@@ -761,20 +969,25 @@ class TorpedoManager:
 
         flight_time = sim_time - torpedo.spawn_time
 
-        # Select warhead specs based on munition type.
-        # Torpedoes: large fragmentation warhead, wide area damage.
-        # Missiles: small shaped charge, tight kill zone, fewer subsystems.
+        # Select warhead specs from the per-type tables.
+        # Warhead type determines hull damage, blast radii, and subsystem effects.
+        # Falls back to legacy constants when the warhead type is not in the table
+        # (shouldn't happen, but defensive coding).
         is_missile = torpedo.munition_type == MunitionType.MISSILE
+        warhead = torpedo.warhead_type
+
         if is_missile:
-            blast_radius = MISSILE_BLAST_RADIUS
-            lethal_radius = MISSILE_LETHAL_RADIUS
-            base_damage = MISSILE_WARHEAD_BASE_DAMAGE
-            sub_damage_base = MISSILE_WARHEAD_SUB_DAMAGE
+            wh_specs = MISSILE_WARHEAD_SPECS.get(warhead, MISSILE_WARHEAD_SPECS[WarheadType.FRAGMENTATION.value])
         else:
-            blast_radius = TORPEDO_BLAST_RADIUS
-            lethal_radius = TORPEDO_LETHAL_RADIUS
-            base_damage = WARHEAD_BASE_DAMAGE
-            sub_damage_base = WARHEAD_SUBSYSTEM_DAMAGE
+            wh_specs = TORPEDO_WARHEAD_SPECS.get(warhead, TORPEDO_WARHEAD_SPECS[WarheadType.FRAGMENTATION.value])
+
+        blast_radius = wh_specs["blast_radius"]
+        lethal_radius = wh_specs["lethal_radius"]
+        base_damage = wh_specs["hull_damage"]
+        sub_damage_base = wh_specs["subsystem_damage"]
+        # EMP fields (zero for non-EMP warheads)
+        emp_disable_duration = wh_specs.get("subsystem_disable_duration", 0.0)
+        emp_max_disabled = int(wh_specs.get("max_subsystems_disabled", 0))
 
         damage_results = []
         munition_label = torpedo.munition_type.value
@@ -798,14 +1011,19 @@ class TorpedoManager:
             hull_damage = base_damage * damage_factor
             sub_damage = sub_damage_base * damage_factor
 
-            # Subsystem targeting: torpedoes hit 2-3 (fragmentation area),
-            # missiles hit 1-2 (focused shaped charge)
+            # Subsystem targeting varies by warhead type:
+            # FRAGMENTATION: 2-3 subsystems (area shrapnel)
+            # SHAPED_CHARGE: 1-2 subsystems (focused jet)
+            # EMP: subsystem disable (temporary, not permanent)
             subsystems_hit = self._determine_blast_subsystems(torpedo, ship)
-            if is_missile:
-                # Shaped charge is focused — cap at 2 subsystems
+            if warhead == WarheadType.SHAPED_CHARGE.value:
+                # Focused penetrating jet — only affects 1-2 subsystems
+                subsystems_hit = subsystems_hit[:2] if is_missile else subsystems_hit[:2]
+            elif is_missile:
                 subsystems_hit = subsystems_hit[:2]
 
-            result = {"ship_id": ship_id, "distance": dist, "damage_factor": damage_factor}
+            result = {"ship_id": ship_id, "distance": dist, "damage_factor": damage_factor,
+                      "warhead_type": warhead}
 
             if hasattr(ship, "take_damage"):
                 dmg_result = ship.take_damage(
@@ -825,6 +1043,29 @@ class TorpedoManager:
                         "damage": sub_damage,
                     })
 
+            # EMP warhead: temporarily disable subsystems instead of
+            # permanent destruction.  The disable is recoverable — subsystems
+            # regain function after the duration expires.  This uses the
+            # damage model's disable_temporarily() if available, otherwise
+            # falls back to regular damage (graceful degradation for older
+            # damage models that lack the method).
+            result["subsystems_disabled"] = []
+            if emp_disable_duration > 0 and emp_max_disabled > 0:
+                disable_targets = subsystems_hit[:emp_max_disabled]
+                if hasattr(ship, "damage_model"):
+                    for subsystem in disable_targets:
+                        if hasattr(ship.damage_model, "disable_temporarily"):
+                            ship.damage_model.disable_temporarily(
+                                subsystem, emp_disable_duration
+                            )
+                        else:
+                            # Fallback: apply heavy damage to simulate disable
+                            ship.damage_model.apply_damage(subsystem, 50.0)
+                        result["subsystems_disabled"].append({
+                            "subsystem": subsystem,
+                            "duration": emp_disable_duration,
+                        })
+
             damage_results.append(result)
 
         # Build event
@@ -839,6 +1080,7 @@ class TorpedoManager:
             "position": torpedo.position,
             "impact_distance": impact_distance,
             "flight_time": flight_time,
+            "warhead_type": warhead,
             "damage_results": damage_results,
             "feedback": self._generate_detonation_feedback(
                 torpedo, target_ship, impact_distance, flight_time, damage_results
@@ -1011,8 +1253,20 @@ class TorpedoManager:
         """
         is_missile = torpedo.munition_type == MunitionType.MISSILE
         label = "Missile" if is_missile else "Torpedo"
-        lethal_r = MISSILE_LETHAL_RADIUS if is_missile else TORPEDO_LETHAL_RADIUS
+
+        # Use warhead-specific radii for feedback accuracy
+        warhead = torpedo.warhead_type
+        if is_missile:
+            wh = MISSILE_WARHEAD_SPECS.get(warhead, MISSILE_WARHEAD_SPECS[WarheadType.FRAGMENTATION.value])
+        else:
+            wh = TORPEDO_WARHEAD_SPECS.get(warhead, TORPEDO_WARHEAD_SPECS[WarheadType.FRAGMENTATION.value])
+        lethal_r = wh["lethal_radius"]
         prox_r = MISSILE_PROXIMITY_FUSE if is_missile else TORPEDO_PROXIMITY_FUSE
+
+        # Include warhead type in label for non-default warheads
+        warhead_label = ""
+        if warhead != WarheadType.FRAGMENTATION.value:
+            warhead_label = f" ({warhead.replace('_', ' ')})"
 
         target_name = getattr(target_ship, "name", torpedo.target_id) if target_ship else torpedo.target_id
 
@@ -1025,11 +1279,14 @@ class TorpedoManager:
 
         ships_hit = len(damage_results)
         subsystems_total = sum(len(r.get("subsystems_hit", [])) for r in damage_results)
+        subsystems_disabled = sum(len(r.get("subsystems_disabled", [])) for r in damage_results)
 
-        feedback = f"{label} impact — {proximity} on {target_name}"
+        feedback = f"{label}{warhead_label} impact — {proximity} on {target_name}"
         feedback += f", {flight_time:.1f}s flight time"
         if subsystems_total > 0:
             feedback += f", {subsystems_total} subsystems damaged"
+        if subsystems_disabled > 0:
+            feedback += f", {subsystems_disabled} subsystems disabled"
         if ships_hit > 1:
             feedback += f", {ships_hit} ships in blast radius"
 
@@ -1128,6 +1385,8 @@ class TorpedoManager:
                 "armed": t.armed,
                 "hull_health": t.hull_health,
                 "profile": t.profile,
+                "warhead_type": t.warhead_type,
+                "guidance_mode": t.guidance_mode,
                 "alive": t.alive,
                 "age": 0.0,  # Filled by caller if needed
                 "distance": round(dist, 1),

@@ -13,12 +13,13 @@ from hybrid.core.event_bus import EventBus
 from hybrid.utils.errors import success_dict, error_dict
 from hybrid.systems.weapons.truth_weapons import (
     TruthWeapon, create_railgun, create_pdc,
-    RAILGUN_SPECS, PDC_SPECS, WeaponSpecs
+    RAILGUN_SPECS, PDC_SPECS, WeaponSpecs, SlugType,
 )
 from hybrid.systems.combat.torpedo_manager import (
     TORPEDO_MASS, TORPEDO_FUEL_MASS,
     MISSILE_MASS, MISSILE_FUEL_MASS,
     MunitionType, MISSILE_FLIGHT_PROFILES,
+    WarheadType, GuidanceMode,
 )
 
 logger = logging.getLogger(__name__)
@@ -95,6 +96,19 @@ class CombatSystem(BaseSystem):
         self._missile_cooldown = 0.0
         self.missiles_launched = 0
 
+        # PDC defense state -----------------------------------------------
+        # Priority defense: human-ordered engagement list of torpedo IDs
+        self.pdc_priority_targets: List[str] = []
+        # Network defense: per-PDC current engagement {mount_id: torpedo_id}
+        self._pdc_engagements: Dict[str, Optional[str]] = {}
+        # Re-acquisition delay after a PDC destroys a target (seconds).
+        # Models the realistic tracker slew time to acquire the next threat.
+        self._pdc_reacquire_delay: float = 0.2
+        # Per-PDC cooldown remaining after destroying a target
+        self._pdc_reacquire_timers: Dict[str, float] = {}
+        # Per-PDC intercept statistics for weapons status panel
+        self.pdc_stats: Dict[str, Dict[str, int]] = {}
+
         # Combat state
         self.engaging = False
         self.shots_fired = 0
@@ -116,6 +130,15 @@ class CombatSystem(BaseSystem):
 
         # Event bus
         self.event_bus = EventBus.get_instance()
+
+        # Initialise per-PDC stats after weapons are created
+        for mount_id in self.truth_weapons:
+            if mount_id.startswith("pdc"):
+                self.pdc_stats[mount_id] = {
+                    "intercepts": 0,
+                    "misses": 0,
+                    "engagements": 0,
+                }
 
     def tick(self, dt: float, ship, event_bus):
         """Update combat system each tick.
@@ -148,6 +171,17 @@ class CombatSystem(BaseSystem):
             self._torpedo_cooldown = max(0, self._torpedo_cooldown - dt)
         if self._missile_cooldown > 0:
             self._missile_cooldown = max(0, self._missile_cooldown - dt)
+
+        # Tick down PDC re-acquisition timers (post-kill slew delay)
+        expired = []
+        for mid, remaining in self._pdc_reacquire_timers.items():
+            remaining -= dt
+            if remaining <= 0:
+                expired.append(mid)
+            else:
+                self._pdc_reacquire_timers[mid] = remaining
+        for mid in expired:
+            del self._pdc_reacquire_timers[mid]
 
         # Update firing solutions from targeting system
         self._update_weapon_solutions(ship)
@@ -185,12 +219,18 @@ class CombatSystem(BaseSystem):
                 target_accel=target_accel,
             )
 
-    def fire_weapon(self, weapon_id: str, target_ship=None, target_subsystem: str = None) -> dict:
+    def fire_weapon(
+        self, weapon_id: str, target_ship=None,
+        target_subsystem: str = None, slug_type: Optional[str] = None,
+    ) -> dict:
         """Fire a specific weapon.
 
         Args:
             weapon_id: Weapon mount identifier
             target_ship: Target ship object (optional, uses locked target)
+            target_subsystem: Specific subsystem to target
+            slug_type: Railgun slug variant (standard/sabot/fragmentation).
+                Ignored for non-railgun weapons.
 
         Returns:
             dict: Fire result
@@ -252,6 +292,7 @@ class CombatSystem(BaseSystem):
             projectile_manager=self._projectile_manager,
             shooter_pos=self._ship_ref.position if hasattr(self._ship_ref, "position") else None,
             shooter_vel=self._ship_ref.velocity if hasattr(self._ship_ref, "velocity") else None,
+            slug_type=slug_type,
         )
 
         if result.get("ok"):
@@ -322,13 +363,20 @@ class CombatSystem(BaseSystem):
             **weapon.get_state()
         }
 
-    def launch_torpedo(self, target_id: str, profile: str = "direct", all_ships: dict = None) -> dict:
+    def launch_torpedo(
+        self, target_id: str, profile: str = "direct", all_ships: dict = None,
+        warhead_type: Optional[str] = None, guidance_mode: Optional[str] = None,
+    ) -> dict:
         """Launch a torpedo at a target.
 
         Args:
             target_id: Target ship ID
             profile: Attack profile ("direct" or "evasive")
             all_ships: Dict of all ships for target resolution
+            warhead_type: Warhead variant (fragmentation/shaped_charge/emp).
+                Defaults to fragmentation.
+            guidance_mode: Guidance CPU level (dumb/guided/smart).
+                Defaults to guided.
 
         Returns:
             dict: Launch result
@@ -411,6 +459,8 @@ class CombatSystem(BaseSystem):
             target_pos=dict(target_pos),
             target_vel=dict(target_vel) if target_vel else {"x": 0, "y": 0, "z": 0},
             profile=profile,
+            warhead_type=warhead_type,
+            guidance_mode=guidance_mode,
         )
 
         # Generate heat from torpedo launch (exhaust backblast).
@@ -429,12 +479,15 @@ class CombatSystem(BaseSystem):
             torpedo_id=torpedo.id,
             target=target_id,
             profile=profile,
+            warhead_type=torpedo.warhead_type,
+            guidance_mode=torpedo.guidance_mode,
             torpedoes_remaining=self.torpedoes_loaded,
             reload_time=self.torpedo_reload_time,
         )
 
     def launch_missile(
         self, target_id: str, profile: str = "direct", all_ships: dict = None,
+        warhead_type: Optional[str] = None, guidance_mode: Optional[str] = None,
     ) -> dict:
         """Launch a missile at a target.
 
@@ -446,6 +499,10 @@ class CombatSystem(BaseSystem):
             target_id: Target ship ID
             profile: Flight profile ("direct", "evasive", "terminal_pop", "bracket")
             all_ships: Dict of all ships for target resolution
+            warhead_type: Warhead variant (fragmentation/shaped_charge/emp).
+                Defaults to fragmentation.
+            guidance_mode: Guidance CPU level (dumb/guided/smart).
+                Defaults to guided.
 
         Returns:
             dict: Launch result
@@ -528,6 +585,8 @@ class CombatSystem(BaseSystem):
             target_vel=dict(target_vel) if target_vel else {"x": 0, "y": 0, "z": 0},
             profile=profile,
             munition_type=MunitionType.MISSILE,
+            warhead_type=warhead_type,
+            guidance_mode=guidance_mode,
         )
 
         # Less heat than torpedo (smaller motor exhaust).
@@ -546,6 +605,8 @@ class CombatSystem(BaseSystem):
             missile_id=missile.id,
             target=target_id,
             profile=profile,
+            warhead_type=missile.warhead_type,
+            guidance_mode=missile.guidance_mode,
             missiles_remaining=self.missiles_loaded,
             reload_time=self.missile_reload_time,
         )
@@ -660,7 +721,8 @@ class CombatSystem(BaseSystem):
                                 break
 
             target_subsystem = params.get("target_subsystem")
-            return self.fire_weapon(weapon_id, target_ship, target_subsystem)
+            slug_type = params.get("slug_type")
+            return self.fire_weapon(weapon_id, target_ship, target_subsystem, slug_type=slug_type)
 
         elif action == "fire_all":
             target_ship = None
@@ -698,8 +760,12 @@ class CombatSystem(BaseSystem):
 
         elif action == "set_pdc_mode":
             mode = params.get("mode")
-            if mode not in ("auto", "manual", "hold_fire"):
-                return error_dict("INVALID_MODE", "PDC mode must be 'auto', 'manual', or 'hold_fire'")
+            valid_modes = ("auto", "manual", "hold_fire", "priority", "network")
+            if mode not in valid_modes:
+                return error_dict(
+                    "INVALID_MODE",
+                    f"PDC mode must be one of {valid_modes}, got '{mode}'"
+                )
             affected = []
             for mount_id, weapon in self.truth_weapons.items():
                 if mount_id.startswith("pdc"):
@@ -708,7 +774,23 @@ class CombatSystem(BaseSystem):
                     affected.append(mount_id)
             if not affected:
                 return error_dict("NO_PDC", "No PDC mounts available")
+            # Clear network engagements when switching modes so stale
+            # assignments don't persist across mode changes.
+            self._pdc_engagements.clear()
             return success_dict(f"PDC mode set to {mode.upper()}", mode=mode, affected_mounts=affected)
+
+        elif action == "set_pdc_priority":
+            torpedo_ids = params.get("torpedo_ids")
+            if not isinstance(torpedo_ids, list):
+                return error_dict(
+                    "INVALID_PARAMETER",
+                    "torpedo_ids must be a list of torpedo IDs in priority order"
+                )
+            self.pdc_priority_targets = list(torpedo_ids)
+            return success_dict(
+                f"PDC priority queue set ({len(torpedo_ids)} targets)",
+                torpedo_ids=self.pdc_priority_targets,
+            )
 
         elif action == "launch_torpedo":
             target_id = params.get("target")
@@ -722,7 +804,10 @@ class CombatSystem(BaseSystem):
             # Build ships dict from _all_ships_ref (params never includes all_ships)
             all_ships_list = getattr(self._ship_ref, "_all_ships_ref", None) or []
             all_ships = {s.id: s for s in all_ships_list} if isinstance(all_ships_list, list) else {}
-            return self.launch_torpedo(target_id, profile, all_ships)
+            warhead_type = params.get("warhead_type")
+            guidance_mode = params.get("guidance_mode")
+            return self.launch_torpedo(target_id, profile, all_ships,
+                                       warhead_type=warhead_type, guidance_mode=guidance_mode)
 
         elif action == "launch_missile":
             target_id = params.get("target")
@@ -736,7 +821,10 @@ class CombatSystem(BaseSystem):
             # Build ships dict from _all_ships_ref (params never includes all_ships)
             all_ships_list = getattr(self._ship_ref, "_all_ships_ref", None) or []
             all_ships = {s.id: s for s in all_ships_list} if isinstance(all_ships_list, list) else {}
-            return self.launch_missile(target_id, profile, all_ships)
+            warhead_type = params.get("warhead_type")
+            guidance_mode = params.get("guidance_mode")
+            return self.launch_missile(target_id, profile, all_ships,
+                                       warhead_type=warhead_type, guidance_mode=guidance_mode)
 
         elif action == "torpedo_status":
             return self.get_torpedo_status()
@@ -779,6 +867,9 @@ class CombatSystem(BaseSystem):
             "truth_weapons": weapons_state,
             "ready_weapons": self.get_ready_weapons(),
             "pdc_mode": pdc_mode,
+            "pdc_priority_targets": list(self.pdc_priority_targets),
+            "pdc_engagements": dict(self._pdc_engagements),
+            "pdc_stats": dict(self.pdc_stats),
             "torpedoes": {
                 "tubes": self.torpedo_tubes,
                 "loaded": self.torpedoes_loaded,
