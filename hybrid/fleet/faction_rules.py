@@ -13,9 +13,11 @@ HOSTILE_PAIRS: Set[FrozenSet[str]] = {
     frozenset({"pirates", "unsa"}),
     frozenset({"pirates", "civilian"}),
     frozenset({"pirates", "mars"}),
+    frozenset({"pirates", "neutral"}),
     frozenset({"hostile", "unsa"}),
     frozenset({"hostile", "civilian"}),
     frozenset({"hostile", "mars"}),
+    frozenset({"hostile", "neutral"}),
     # MCRN vs UNE factions (scenario-driven hostility)
     frozenset({"mcrn", "unsa"}),
 }
