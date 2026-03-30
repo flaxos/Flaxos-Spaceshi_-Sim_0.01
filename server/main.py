@@ -539,7 +539,24 @@ class UnifiedServer:
             client_id, ship_id, ship_telemetry
         )
 
-        return {"ok": True, "ship": ship_id, "state": filtered, "t": self.runner.simulator.time}
+        result = {"ok": True, "ship": ship_id, "state": filtered, "t": self.runner.simulator.time}
+
+        # Include simulation-wide projectiles and torpedoes for stations
+        # that need them (TACTICAL, CAPTAIN).  These live on the simulator,
+        # not per-ship, so get_ship_telemetry() doesn't include them.
+        from server.stations.station_types import StationType
+        if session.station in (StationType.TACTICAL, StationType.CAPTAIN):
+            sim = self.runner.simulator
+            result["projectiles"] = (
+                sim.projectile_manager.get_state()
+                if hasattr(sim, "projectile_manager") else []
+            )
+            result["torpedoes"] = (
+                sim.torpedo_manager.get_state()
+                if hasattr(sim, "torpedo_manager") else []
+            )
+
+        return result
 
     def _handle_get_events(self, req: dict) -> dict:
         """Handle get_events command (minimal mode)."""
