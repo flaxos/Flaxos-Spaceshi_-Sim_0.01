@@ -168,16 +168,6 @@ h3 { font-size: var(--font-size-base); }
   flex-wrap: wrap;
 }
 
-/* Main interface grid */
-#interface-grid {
-  flex: 1;
-  display: grid;
-  gap: var(--space-sm);
-  padding: var(--space-sm);
-  grid-template-columns: repeat(12, 1fr);
-  grid-auto-rows: minmax(clamp(140px, 18vh, 240px), auto);
-}
-
 /* Panel component base */
 .panel {
   background: var(--bg-panel);
@@ -531,26 +521,7 @@ body.state-playing .view-container {
 
 /* Responsive breakpoints */
 
-/* Intermediate breakpoint: 150% zoom on 1920px lands at ~1280px effective.
-   8-column grid keeps 2-per-row layout instead of collapsing to full-width. */
-@media (max-width: 1400px) {
-  #interface-grid {
-    grid-template-columns: repeat(8, 1fr);
-    gap: 10px;
-  }
-}
-
-@media (max-width: 1200px) {
-  #interface-grid {
-    grid-template-columns: repeat(6, 1fr);
-  }
-}
-
 @media (max-width: 768px) {
-  #interface-grid {
-    grid-template-columns: 1fr;
-  }
-
   .panel {
     min-height: 150px;
   }

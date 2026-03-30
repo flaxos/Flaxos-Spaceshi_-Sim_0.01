@@ -60,6 +60,8 @@ class StationTelemetryFilter:
             "contact_details": ["sensors"],
             "ops_status": ["ops"],
             "power_management_status": ["ops", "systems"],
+            "crew_fatigue_status": ["crew_fatigue"],
+            "crew_station_status": ["crew_fatigue"],
 
             # Engineering displays
             "power_grid": ["systems"],

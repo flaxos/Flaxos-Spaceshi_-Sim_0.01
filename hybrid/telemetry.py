@@ -193,6 +193,9 @@ def get_ship_telemetry(ship, sim_time: float = None) -> Dict[str, Any]:
     # Get docking system state
     docking_state = _get_docking_state(ship)
 
+    # Get crew fatigue system state
+    crew_fatigue_state = _get_crew_fatigue_state(ship)
+
     # Drift state: moving with no thrust applied
     is_drifting = acceleration_magnitude < 0.001 and velocity_magnitude > 0.01
 
@@ -263,6 +266,7 @@ def get_ship_telemetry(ship, sim_time: float = None) -> Dict[str, Any]:
         "engineering": engineering_state,
         "comms": comms_state,
         "docking": docking_state,
+        "crew_fatigue": crew_fatigue_state,
         "hull_integrity": getattr(ship, "hull_integrity", 0.0),
         "max_hull_integrity": getattr(ship, "max_hull_integrity", 0.0),
         "hull_percent": (
@@ -496,6 +500,30 @@ def _get_docking_state(ship) -> Dict[str, Any]:
     if docking and hasattr(docking, "get_state"):
         try:
             return docking.get_state()
+        except Exception:
+            pass
+    return {
+        "enabled": False,
+        "status": "unavailable",
+    }
+
+
+def _get_crew_fatigue_state(ship) -> Dict[str, Any]:
+    """Get crew fatigue system state for telemetry.
+
+    Exposes fatigue level, g-load, performance factor, and rest status
+    so the OPS station can monitor crew readiness.
+
+    Args:
+        ship: Ship object
+
+    Returns:
+        dict: Crew fatigue state (fatigue, g_load, performance, rest, status)
+    """
+    crew_fatigue = ship.systems.get("crew_fatigue")
+    if crew_fatigue and hasattr(crew_fatigue, "get_state"):
+        try:
+            return crew_fatigue.get_state()
         except Exception:
             pass
     return {
