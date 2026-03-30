@@ -221,9 +221,18 @@ class CombatSystem(BaseSystem):
         if target_ship is None:
             targeting = self._ship_ref.systems.get("targeting")
             if targeting and targeting.locked_target:
-                # Need to resolve target from simulator
-                # This will be passed in via params
-                pass
+                locked_id = targeting.locked_target
+                # Resolve contact ID to real ship ID via sensor contact tracker
+                all_ships = getattr(self._ship_ref, "_all_ships_ref", None) or []
+                ships_dict = {s.id: s for s in all_ships} if isinstance(all_ships, list) else {}
+                target_ship = ships_dict.get(locked_id)
+                if not target_ship:
+                    sensors = self._ship_ref.systems.get("sensors")
+                    if sensors and hasattr(sensors, "contact_tracker"):
+                        for real_id, stable_id in sensors.contact_tracker.id_mapping.items():
+                            if stable_id == locked_id:
+                                target_ship = ships_dict.get(real_id)
+                                break
 
         if target_subsystem is None:
             targeting = self._ship_ref.systems.get("targeting")
@@ -636,12 +645,12 @@ class CombatSystem(BaseSystem):
             target_ship = None
             target_id = params.get("target") or params.get("target_id")
             if target_id:
-                all_ships = params.get("all_ships", {})
+                # Build ships dict from _all_ships_ref (params never includes all_ships)
+                all_ships_list = getattr(self._ship_ref, "_all_ships_ref", None) or []
+                all_ships = {s.id: s for s in all_ships_list} if isinstance(all_ships_list, list) else {}
                 target_ship = all_ships.get(target_id)
 
-                if not target_ship and self._ship_ref:
-                    # target_id may be a stable contact ID from sensors.
-                    # Reverse-lookup the real ship ID via contact tracker.
+                if not target_ship:
                     sensors = self._ship_ref.systems.get("sensors")
                     if sensors and hasattr(sensors, "contact_tracker"):
                         tracker = sensors.contact_tracker
@@ -709,7 +718,9 @@ class CombatSystem(BaseSystem):
             if not target_id:
                 return error_dict("NO_TARGET", "No target designated for torpedo launch")
             profile = params.get("profile", "direct")
-            all_ships = params.get("all_ships", {})
+            # Build ships dict from _all_ships_ref (params never includes all_ships)
+            all_ships_list = getattr(self._ship_ref, "_all_ships_ref", None) or []
+            all_ships = {s.id: s for s in all_ships_list} if isinstance(all_ships_list, list) else {}
             return self.launch_torpedo(target_id, profile, all_ships)
 
         elif action == "launch_missile":
@@ -721,7 +732,9 @@ class CombatSystem(BaseSystem):
             if not target_id:
                 return error_dict("NO_TARGET", "No target designated for missile launch")
             profile = params.get("profile", "direct")
-            all_ships = params.get("all_ships", {})
+            # Build ships dict from _all_ships_ref (params never includes all_ships)
+            all_ships_list = getattr(self._ship_ref, "_all_ships_ref", None) or []
+            all_ships = {s.id: s for s in all_ships_list} if isinstance(all_ships_list, list) else {}
             return self.launch_missile(target_id, profile, all_ships)
 
         elif action == "torpedo_status":
