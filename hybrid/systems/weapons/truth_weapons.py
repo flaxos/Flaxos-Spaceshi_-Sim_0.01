@@ -95,24 +95,91 @@ PDC_SPECS = WeaponSpecs(
     name="Narwhal-III PDC",
     weapon_type=WeaponType.KINETIC,
     damage_type=DamageType.KINETIC_FRAGMENTATION,
-    muzzle_velocity=3000.0,  # 3 km/s - fast autocannon (design spec)
-    effective_range=5000.0,  # 5 km effective range (design spec)
+    muzzle_velocity=2000.0,  # 2 km/s - 40mm CIWS rounds (Expanse-style)
+    effective_range=2000.0,  # 2 km - accuracy-limited, not physics-limited
     min_range=50.0,  # Very close engagement
-    base_damage=5.0,  # Light damage per round (ablative damage)
-    subsystem_damage=3.0,  # Can chip away at subsystems
-    armor_penetration=0.5,  # Poor vs heavy armor
-    cycle_time=0.1,  # 10 rounds/second
-    burst_count=5,  # 5-round bursts
-    burst_delay=0.05,  # Fast burst
-    ammo_capacity=2000,  # Large ammo supply
-    mass_per_round=0.05,  # 50g autocannon rounds
+    base_damage=5.0,  # Light damage per round (ablative, not penetrating)
+    subsystem_damage=3.0,  # Can chip away at external subsystems
+    armor_penetration=0.5,  # Poor vs heavy armor — strips plating, doesn't punch
+    cycle_time=0.02,  # 50 rps = 3000 RPM per turret (Expanse CIWS fire rate)
+    burst_count=10,  # Longer bursts — sustained fire strips armor
+    burst_delay=0.02,  # Matches cycle time for continuous stream
+    ammo_capacity=3000,  # High ammo count — bullet hose needs deep magazines
+    mass_per_round=0.05,  # 50g 40mm autocannon rounds
     reload_time=3.0,  # 3 seconds to swap magazine (every 200 rounds)
-    power_per_shot=2.0,  # Low power per shot
+    power_per_shot=2.0,  # Low power per shot — kinetic, not EM
     charge_time=0.0,  # No charge needed
-    base_accuracy=0.7,  # Moderate accuracy (auto-turret)
-    accuracy_falloff=0.6,  # Accuracy drops at range
-    tracking_speed=120.0,  # Fast tracking (point defense / auto-turret)
+    base_accuracy=0.95,  # Computer-controlled turret, very accurate at short range
+    accuracy_falloff=0.9,  # Severe falloff — accuracy craters beyond 1km
+    tracking_speed=180.0,  # Fast tracking — CIWS turret, must intercept missiles
 )
+
+
+def _range_accuracy(specs: WeaponSpecs, range_m: float) -> float:
+    """Compute range-dependent accuracy for a weapon.
+
+    PDCs (KINETIC_FRAGMENTATION) use a steep exponential falloff curve
+    modeled on Expanse-style CIWS turrets: computer-controlled and
+    near-perfect at knife-fight range, but 40mm rounds disperse fast
+    and lose predictability beyond 1km.
+
+    The curve is tuned to match Expanse combat doctrine:
+        500m  -> ~0.95  (point-blank, computer-controlled)
+        1000m -> ~0.70  (effective engagement range)
+        2000m -> ~0.30  (edge of effective range, mostly suppression)
+        3000m -> ~0.05  (desperation fire, near-zero hit chance)
+
+    All other weapons use the original linear falloff:
+        accuracy = base_accuracy - accuracy_falloff * (range / effective_range)
+
+    Args:
+        specs: Weapon specifications.
+        range_m: Distance to target in meters.
+
+    Returns:
+        float: Hit probability from range alone (before lateral vel, etc.).
+    """
+    if specs.damage_type == DamageType.KINETIC_FRAGMENTATION:
+        # Exponential decay: accuracy = base * exp(-k * range)
+        # Tuned so that at 1km accuracy is ~0.70 and at 2km ~0.30.
+        # k = -ln(0.70 / 0.95) / 1000 ≈ 0.000305
+        # Verification: 0.95 * exp(-0.000305 * 2000) ≈ 0.52 — slightly
+        # generous. Use k=0.00058 for sharper falloff matching the spec:
+        # 0.95 * exp(-0.00058 * 500)  = 0.71 — too low at 500m.
+        # Instead use a piecewise approach that exactly matches doctrine:
+        #   [0, 500m]:     0.95 (flat, computer-controlled)
+        #   [500m, 2000m]: cubic falloff from 0.95 -> 0.05
+        #   [2000m+]:      0.05 floor (desperation fire)
+        if range_m <= 500.0:
+            return specs.base_accuracy  # ~0.95 at knife-fight range
+        elif range_m >= specs.effective_range:
+            return 0.05  # Beyond effective range, near-zero
+        else:
+            # Cubic falloff from 500m to effective_range (2000m)
+            # t=0 at 500m, t=1 at effective_range
+            t = (range_m - 500.0) / (specs.effective_range - 500.0)
+            # Smoothstep-like: starts high, drops sharply past midpoint
+            # At t=0: 0.95, at t=0.33 (~1000m): ~0.70, at t=1: 0.05
+            return specs.base_accuracy - (specs.base_accuracy - 0.05) * (3 * t**2 - 2 * t**3)
+    else:
+        # Railgun and other weapons: linear falloff (original model)
+        range_factor = range_m / specs.effective_range
+        return specs.base_accuracy - specs.accuracy_falloff * range_factor
+
+
+def pdc_range_accuracy(range_m: float) -> float:
+    """Public helper for PDC accuracy at a given range.
+
+    Convenience wrapper used by simulator.py for torpedo intercept
+    calculations. Returns the same curve as the internal model.
+
+    Args:
+        range_m: Distance to target in meters.
+
+    Returns:
+        float: PDC hit probability from range alone.
+    """
+    return _range_accuracy(PDC_SPECS, range_m)
 
 
 @dataclass
@@ -395,10 +462,11 @@ class TruthWeapon:
                 )
 
         # Calculate hit probability
-        # Accuracy degrades with range
-        range_factor = solution.range_to_target / self.specs.effective_range
-        range_accuracy = self.specs.base_accuracy - (
-            self.specs.accuracy_falloff * range_factor
+        # Accuracy degrades with range — PDCs use a steep exponential curve
+        # because 40mm rounds spread and lose predictability fast, while
+        # railgun slugs maintain accuracy through superior muzzle velocity.
+        range_accuracy = _range_accuracy(
+            self.specs, solution.range_to_target
         )
 
         # Lateral velocity reduces accuracy

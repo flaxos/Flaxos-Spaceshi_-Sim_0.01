@@ -408,11 +408,13 @@ class Simulator:
                 if not weapon.can_fire(getattr(ship, "sim_time", self.time)):
                     continue
 
-                # PDC fires at torpedo — simplified hit check
-                # PDC accuracy vs small fast target: range-based
-                range_factor = max(0.2, 1.0 - best_dist / weapon.specs.effective_range)
+                # PDC fires at torpedo — use Expanse-style range falloff
+                # Same curve as ship-to-ship fire: near-perfect at <500m,
+                # steep drop past 1km, desperation fire at effective_range.
+                from hybrid.systems.weapons.truth_weapons import pdc_range_accuracy
+                hit_chance = pdc_range_accuracy(best_dist)
                 import random
-                if random.random() < range_factor * weapon.specs.base_accuracy:
+                if random.random() < hit_chance:
                     # Hit! Apply PDC damage to torpedo
                     pdc_damage = weapon.specs.base_damage * weapon.specs.burst_count
                     result = self.torpedo_manager.apply_pdc_damage(

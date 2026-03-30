@@ -20,15 +20,16 @@ class TestTruthWeapons:
         assert RAILGUN_SPECS.ammo_capacity == 20
 
     def test_pdc_specs(self):
-        """Test PDC specifications match design doc (Narwhal-III)."""
+        """Test PDC specifications match Expanse-style CIWS rebalance."""
         from hybrid.systems.weapons.truth_weapons import PDC_SPECS
 
         assert PDC_SPECS.name == "Narwhal-III PDC"
-        assert PDC_SPECS.muzzle_velocity == 3000.0  # 3 km/s (design spec)
-        assert PDC_SPECS.effective_range == 5000.0  # 5 km (design spec)
-        assert PDC_SPECS.base_damage == 5.0
-        assert PDC_SPECS.cycle_time == 0.1  # Fast fire rate
-        assert PDC_SPECS.ammo_capacity == 2000
+        assert PDC_SPECS.muzzle_velocity == 2000.0  # 2 km/s (40mm rounds)
+        assert PDC_SPECS.effective_range == 2000.0  # 2 km (accuracy-limited)
+        assert PDC_SPECS.base_damage == 5.0  # Ablative, not penetrating
+        assert PDC_SPECS.cycle_time == 0.02  # 50 rps = 3000 RPM
+        assert PDC_SPECS.burst_count == 10  # Longer bursts
+        assert PDC_SPECS.ammo_capacity == 3000  # Deep magazines
 
     def test_create_railgun(self):
         """Test railgun creation."""
@@ -47,7 +48,7 @@ class TestTruthWeapons:
         pdc = create_pdc("test_pdc")
         assert pdc.mount_id == "test_pdc"
         assert pdc.specs.name == "Narwhal-III PDC"
-        assert pdc.ammo == 2000
+        assert pdc.ammo == 3000
         assert pdc.enabled
 
     def test_firing_solution_calculation(self):
@@ -100,11 +101,11 @@ class TestTruthWeapons:
 
         pdc = create_pdc("test")
 
-        # Target at 10km - beyond PDC's 5km range
+        # Target at 5km - beyond PDC's 2km effective range
         solution = pdc.calculate_solution(
             shooter_pos={"x": 0, "y": 0, "z": 0},
             shooter_vel={"x": 0, "y": 0, "z": 0},
-            target_pos={"x": 10000, "y": 0, "z": 0},
+            target_pos={"x": 5000, "y": 0, "z": 0},
             target_vel={"x": 0, "y": 0, "z": 0},
             target_id="target_1",
             sim_time=0.0
@@ -307,7 +308,7 @@ class TestCombatSystem:
 
         assert result["ok"]
         assert combat.truth_weapons["railgun_1"].ammo == 20
-        assert combat.truth_weapons["pdc_1"].ammo == 2000
+        assert combat.truth_weapons["pdc_1"].ammo == 3000
 
 
 class TestCombatIntegration:
