@@ -10,13 +10,14 @@ A Python-based spaceship combat simulation with client-server architecture. Hard
 ## Architecture
 ```
 server/
-  main.py              # Server entry point
-  [game logic modules]
+  main.py              # ONLY server entry point — all server code lives here
 tools/
   start_gui_stack.py   # GUI launcher
 gui/
   [web-based client]
 ```
+
+**Note:** `server/station_server.py` is DELETED. All server code lives in `server/main.py` (`UnifiedServer`). Any references to `station_server.py` in older docs are stale.
 
 ## Design Principles
 - **Systemic, not scripted:** Weapons follow physics rules, outcomes emerge from those rules.
@@ -31,6 +32,18 @@ gui/
 |--------|-------|-------|------|
 | Railgun (UNE-440) | 0-500km effective | 20 km/s | High-skill penetrator, 1 subsystem per hit |
 | PDC (Narwhal-III) | 0-2km effective | 2 km/s | CIWS point defense, 3000 RPM, ablative damage at knife-fight range |
+| Torpedo | 0-120s burn | ~4.6 km/s delta-v | Heavy guided munition, 50kg fragmentation warhead, anti-ship |
+| Missile | 0-80km effective | ~6.7 km/s delta-v | High-G interceptor, 4 flight profiles, anti-ship |
+
+### Missile Flight Profiles
+Missiles support four midcourse guidance profiles:
+- `direct` — straight intercept course (shared with torpedoes)
+- `evasive` — randomized weave to complicate PDC intercepts
+- `terminal_pop` — low approach then nose-up terminal dive
+- `bracket` — splits trajectory to present multiple threat vectors
+
+### Torpedoes vs Missiles
+Torpedoes (250 kg, 32 m/s²) are slow heavy ordnance with a 50 kg fragmentation warhead and 100m blast radius — suited for large, slow targets. Missiles (95 kg, 105 m/s²) are light, fast, high-G with a 10 kg shaped charge and 30m blast radius — suited for maneuvering ships. Both fire from the same launcher hardpoints. The GUI weapon-controls panel has a TORPEDO/MISSILE toggle.
 
 ### Targeting Pipeline
 `contact → track → lock → firing solution → fire`
@@ -40,8 +53,14 @@ gui/
 
 ### Subsystem Damage
 - Levels: nominal (100%) → impaired (50%) → destroyed (0%)
-- Systems: drive, RCS, sensors, weapons, reactor
-- Cascading effects: sensors down = blind, drive down = sitting duck, RCS down = can't aim
+- Systems: drive, RCS, sensors, weapons, reactor, radiators
+- Cascading effects: reactor destroyed = propulsion/weapons/sensors all degraded to 0
+- Armor model: per-section ablation (fore/aft/port/starboard/dorsal/ventral); ricochet above 70 degrees; PDC strips armor slowly, railguns punch through or ricochet
+
+### Mission Progression
+- Scenarios link via `next_scenario` field in YAML
+- On mission complete, the GUI overlay shows a NEXT MISSION button if `next_scenario` is defined
+- State machine: lobby → playing → ended
 
 ### Intercept Scenario
 - Player corvette vs fleeing freighter
@@ -85,3 +104,5 @@ If step 3 is missed, the command routes correctly through the hybrid layer but t
 4. **Commit small** — one logical change per commit
 5. **Document decisions** — add comments explaining WHY, not just WHAT
 6. **Diagnose first, fix second** — for physics/autopilot bugs, trace the data pipeline before writing code
+7. **`server/station_server.py` is DELETED** — all server code lives in `server/main.py`. Never edit or reference `station_server.py`.
+8. **Use `ship._all_ships_ref` for target resolution**, not `params.get('all_ships')` — the ship object carries a live reference to the current sim's ship dict, set each tick by `hybrid_runner.py`.

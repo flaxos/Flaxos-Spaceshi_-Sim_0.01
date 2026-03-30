@@ -589,7 +589,7 @@ class UnifiedServer:
         if not session.station:
             return {"ok": True, "events": [], "message": "Claim a station to view events"}
 
-        # Import filter function from station_server
+        # Filter events based on station permissions
         from server.stations.station_types import StationType, get_station_displays
 
         filtered = self._filter_events_for_station(

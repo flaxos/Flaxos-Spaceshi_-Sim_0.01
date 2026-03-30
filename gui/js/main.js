@@ -14,41 +14,24 @@ import "../components/command-prompt.js";
 import "../components/system-message.js";
 // Phase 3: Status Displays
 import "../components/ship-status.js";
-import "../components/navigation-display.js";
 import "../components/sensor-contacts.js";
 import "../components/targeting-display.js";
 import "../components/weapons-status.js";
 import "../components/firing-solution-display.js";
 // Phase 4: Visual Controls
-import "../components/throttle-control.js";
-import "../components/heading-control.js";
 import "../components/rcs-controls.js";
-import "../components/micro-rcs-control.js";
-import "../components/position-heading-calculator.js";
-import "../components/autopilot-control.js";
 import "../components/weapon-controls.js";
 import "../components/system-toggles.js";
 import "../components/power-management.js";
 import "../components/quick-actions.js";
-import "../components/manual-thrust.js";
 import "../components/tactical-map.js";
 // Phase 5: Integration
 import "../components/scenario-loader.js";
 import "../components/mission-objectives.js";
-// Phase 6: Mobile
-import "../components/touch-throttle.js";
-import "../components/touch-joystick.js";
-import { mobileLayout } from "../layouts/mobile-layout.js";
-import { initMobileGestures } from "./gestures.js";
 // Phase 7: Enhanced Navigation & Multi-Crew
-import "../components/flight-computer.js";
 import "../components/maneuver-planner.js";
-import { stationManager } from "./station-manager.js";
-// Phase 8: Inter-Station Communication
-import "../components/helm-requests.js";
 import { helmRequests } from "./helm-requests.js";
-// Sprint B: Navigation loop - set_course and autopilot
-import "../components/set-course-control.js";
+// Sprint B: Navigation loop - autopilot
 import "../components/autopilot-status.js";
 // View-based layout
 import "../components/view-tabs.js";
@@ -60,7 +43,6 @@ import "../components/tier-selector.js";
 // Phase 10: Helm Completion
 import "../components/helm-queue-panel.js";
 import "../components/docking-panel.js";
-import "../components/delta-v-display.js";
 // GUI Refactor: Merged panels
 import "../components/flight-data-panel.js";
 import "../components/manual-flight-panel.js";
@@ -83,10 +65,6 @@ import "../components/fleet-orders.js";
 import "../components/fleet-fire-control.js";
 import "../components/shared-contacts.js";
 import "../components/fleet-tactical-display.js";
-// Helm Navigation Commands
-import "../components/helm-navigation-panel.js";
-// Helm Navigation Display (comprehensive nav readout)
-import "../components/helm-nav-display.js";
 // Ops Station Controls
 import "../components/ops-control-panel.js";
 // ECM Electronic Warfare
@@ -176,13 +154,6 @@ async function init() {
 
   // Initialize state manager
   stateManager.init();
-
-  // Initialize mobile layout (Phase 6)
-  mobileLayout.init();
-  initMobileGestures();
-
-  // Initialize station manager (Phase 7)
-  stationManager.init();
 
   // Debug mode logging
   if (app.config.debugMode) {
@@ -711,8 +682,6 @@ window._flaxosModules = {
 window.flaxosApp = {
   wsClient,
   stateManager,
-  mobileLayout,
-  stationManager,
   helmRequests,
   sendCommand,
   showSystemMessage,

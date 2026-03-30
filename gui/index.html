@@ -117,11 +117,6 @@
       border-top: 2px solid var(--view-accent, transparent);
     }
 
-    /* Keep interface-grid for backward compatibility but hide it */
-    #interface-grid {
-      display: none;
-    }
-
     /* ===== Panel sizing within views ===== */
 
     /* --- Panel group wrappers (transparent to grid) --- */
@@ -204,11 +199,6 @@
       min-height: var(--panel-height-sm);
     }
 
-    .helm-nav-panel {
-      grid-column: span 4;
-      min-height: var(--panel-height-sm);
-    }
-
     /* --- Tactical view panels (grouped: Detect > Decide > Destroy) --- */
 
     /* DETECT group */
@@ -266,6 +256,16 @@
     }
 
     .tac-ecm-panel {
+      grid-column: span 4;
+      min-height: var(--panel-height-sm);
+    }
+
+    .tac-multi-track-panel {
+      grid-column: span 4;
+      min-height: var(--panel-height-sm);
+    }
+
+    .tac-eccm-panel {
       grid-column: span 4;
       min-height: var(--panel-height-sm);
     }
@@ -367,6 +367,11 @@
       min-height: var(--panel-height-sm);
     }
 
+    .ops-crew-binding-panel {
+      grid-column: span 4;
+      min-height: var(--panel-height-sm);
+    }
+
     /* Science view panels (sensor analysis, contact classification) */
     .sci-sensors-panel {
       grid-column: span 12;
@@ -402,6 +407,11 @@
     }
 
     .comms-chat-panel {
+      grid-column: span 6;
+      min-height: var(--panel-height-md);
+    }
+
+    .comms-choice-panel {
       grid-column: span 6;
       min-height: var(--panel-height-md);
     }
@@ -451,6 +461,11 @@
     }
 
     .mis-objectives-panel {
+      grid-column: span 6;
+      min-height: var(--panel-height-sm);
+    }
+
+    .mis-choice-panel {
       grid-column: span 6;
       min-height: var(--panel-height-sm);
     }
@@ -522,11 +537,13 @@
       .comms-contacts-panel,
       .comms-map-panel,
       .comms-chat-panel,
+      .comms-choice-panel,
       .fleet-roster-panel,
       .fleet-tactical-panel,
       .fleet-contacts-panel,
       .mis-scenario-panel,
       .mis-objectives-panel,
+      .mis-choice-panel,
       .mis-chat-panel,
       .sci-analysis-panel,
       .sci-log-panel {
@@ -539,12 +556,13 @@
       .helm-rcs-panel,
       .helm-queue-panel,
       .helm-docking-panel,
-      .helm-nav-panel,
       .tac-sensors-panel,
       .tac-assessment-panel,
       .tac-subsystem-panel,
       .tac-threat-panel,
       .tac-ecm-panel,
+      .tac-multi-track-panel,
+      .tac-eccm-panel,
       .helm-micro-rcs-panel,
       .eng-systems-panel,
       .eng-crew-panel,
@@ -557,6 +575,7 @@
       .ops-draw-panel,
       .ops-log-panel,
       .ops-crew-panel,
+      .ops-crew-binding-panel,
       .fleet-formation-panel,
       .fleet-orders-panel,
       .fleet-fire-panel {
@@ -581,12 +600,13 @@
       .helm-rcs-panel,
       .helm-queue-panel,
       .helm-docking-panel,
-      .helm-nav-panel,
       .helm-micro-rcs-panel,
       .tac-assessment-panel,
       .tac-subsystem-panel,
       .tac-threat-panel,
       .tac-ecm-panel,
+      .tac-multi-track-panel,
+      .tac-eccm-panel,
       .tac-sensors-panel,
       .ops-status-panel,
       .ops-subsystem-panel,
@@ -595,6 +615,7 @@
       .ops-profiles-panel,
       .ops-draw-panel,
       .ops-crew-panel,
+      .ops-crew-binding-panel,
       .ops-log-panel,
       .eng-systems-panel,
       .eng-crew-panel,
@@ -1027,9 +1048,6 @@
         <iframe id="editor-iframe" src="" style="width: 100%; height: 100%; border: none; background: var(--bg-primary, #0a0a0f);" title="Asset Editor"></iframe>
       </div>
     </div>
-
-    <!-- Legacy interface grid (hidden, kept for backward compatibility) -->
-    <main id="interface-grid"></main>
 
     <!-- Quick Actions Bar -->
     <quick-actions id="quick-actions"></quick-actions>

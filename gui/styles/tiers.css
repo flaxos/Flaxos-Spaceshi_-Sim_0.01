@@ -11,7 +11,7 @@
  * New panel classes (post-refactor):
  *   helm-flight-data-panel      (merged nav + delta-v)
  *   helm-manual-flight-panel    (merged throttle + heading)
- *   helm-maneuver-panel         (renamed from helm-old-fc-panel)
+ *   helm-maneuver-panel         (maneuver planner)
  *   helm-fc-panel               (unified flight computer)
  *   helm-contacts-panel
  *   helm-rcs-panel
@@ -130,17 +130,6 @@ body.tier-raw .helm-fc-panel {
   order: 99; /* Push to end of grid */
 }
 
-/* Legacy panels that should not appear (in case markup still references them) */
-body.tier-raw .helm-autopilot-panel,
-body.tier-raw .helm-course-panel,
-body.tier-raw .helm-requests-panel,
-body.tier-raw .helm-old-fc-panel,
-body.tier-raw .helm-nav-panel,
-body.tier-raw .helm-throttle-panel,
-body.tier-raw .helm-heading-panel,
-body.tier-raw .helm-deltav-panel {
-  display: none;
-}
 
 
 /* =========================================================================
@@ -167,15 +156,7 @@ body.tier-arcade .helm-rcs-panel {
   position: relative;
 }
 
-/* Legacy panels */
-body.tier-arcade .helm-old-fc-panel,
-body.tier-arcade .helm-requests-panel,
-body.tier-arcade .helm-autopilot-panel,
-body.tier-arcade .helm-course-panel,
-body.tier-arcade .helm-nav-panel,
-body.tier-arcade .helm-throttle-panel,
-body.tier-arcade .helm-heading-panel,
-body.tier-arcade .helm-deltav-panel,
+/* Micro RCS hidden in arcade tier (autopilot handles attitude) */
 body.tier-arcade .helm-micro-rcs-panel {
   display: none;
 }
@@ -197,17 +178,6 @@ body.tier-cpu-assist .helm-maneuver-panel {
   display: none;
 }
 
-/* Legacy panels */
-body.tier-cpu-assist .helm-old-fc-panel,
-body.tier-cpu-assist .helm-requests-panel,
-body.tier-cpu-assist .helm-autopilot-panel,
-body.tier-cpu-assist .helm-course-panel,
-body.tier-cpu-assist .helm-nav-panel,
-body.tier-cpu-assist .helm-throttle-panel,
-body.tier-cpu-assist .helm-heading-panel,
-body.tier-cpu-assist .helm-deltav-panel {
-  display: none;
-}
 
 
 /* =========================================================================
@@ -368,34 +338,22 @@ body.tier-cpu-assist helm-workflow-strip { --strip-accent: #c0a0ff; }
    ========================================================================= */
 
 /* RAW: hide automation/profile panels, show raw systems */
-body.tier-raw .eng-profiles-panel,
-body.tier-raw .eng-draw-panel,
 body.tier-raw .eng-crew-panel,
-body.tier-raw .eng-nav-panel,
-body.tier-raw .eng-log-panel,
-body.tier-raw .eng-pos-heading-panel {
+body.tier-raw .eng-log-panel {
   display: none;
 }
 
 /* ARCADE: hide low-level engineering, show balanced set */
-body.tier-arcade .eng-draw-panel,
 body.tier-arcade .eng-crew-panel,
-body.tier-arcade .helm-micro-rcs-panel,
-body.tier-arcade .eng-thrust-panel,
-body.tier-arcade .eng-pos-heading-panel,
-body.tier-arcade .eng-nav-panel {
+body.tier-arcade .helm-micro-rcs-panel {
   display: none;
 }
 
 /* CPU-ASSIST: minimal engineering — just status and profiles */
 body.tier-cpu-assist .eng-systems-panel,
 body.tier-cpu-assist .eng-power-panel,
-body.tier-cpu-assist .eng-draw-panel,
 body.tier-cpu-assist .eng-crew-panel,
-body.tier-cpu-assist .eng-nav-panel,
-body.tier-cpu-assist .eng-pos-heading-panel,
-body.tier-cpu-assist .helm-micro-rcs-panel,
-body.tier-cpu-assist .eng-thrust-panel {
+body.tier-cpu-assist .helm-micro-rcs-panel {
   display: none;
 }
 
