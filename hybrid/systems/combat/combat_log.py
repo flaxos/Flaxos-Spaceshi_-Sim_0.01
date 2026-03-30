@@ -95,6 +95,9 @@ class CombatLog:
         self._event_bus.subscribe("projectile_spawned", self._on_projectile_spawned)
         self._event_bus.subscribe("projectile_impact", self._on_projectile_impact)
         self._event_bus.subscribe("projectile_expired", self._on_projectile_expired)
+        # Missile lifecycle events (separate from torpedo — lighter munitions)
+        self._event_bus.subscribe("missile_launched", self._on_missile_launched)
+        self._event_bus.subscribe("missile_detonation", self._on_missile_detonation)
         # PDC point-defense intercepts (simulator fires PDCs at incoming torpedoes)
         self._event_bus.subscribe("pdc_torpedo_engage", self._on_pdc_torpedo_engage)
         # Ship-level damage and destruction
@@ -116,21 +119,30 @@ class CombatLog:
         Args:
             limit: Max entries to return
             since_id: Only return entries with id > since_id
-            event_type: Filter by event type
+            event_type: Filter by event type or comma-separated prefixes.
+                Supports prefix matching so "torpedo" matches torpedo_launch,
+                torpedo_hit, etc.  Multiple prefixes can be joined with commas
+                (e.g. "hit,projectile_hit,torpedo_hit,missile_hit") so that
+                cross-cutting category filters work correctly.
             weapon: Filter by weapon name
             target: Filter by target ship ID
 
         Returns:
             List of serialized combat log entries
         """
+        # Pre-split comma-separated prefixes once for the loop
+        type_prefixes: Optional[List[str]] = None
+        if event_type:
+            type_prefixes = [t.strip() for t in event_type.split(",") if t.strip()]
+
         result = []
         for entry in reversed(self._entries):
             if entry.id <= since_id:
                 break
-            if event_type:
-                # Support prefix matching for grouped event types
-                # (e.g. "torpedo" matches torpedo_launch, torpedo_hit, torpedo_miss)
-                if not entry.event_type.startswith(event_type) and entry.event_type != event_type:
+            if type_prefixes:
+                # Match if entry.event_type starts with ANY of the prefixes
+                if not any(entry.event_type.startswith(p) or entry.event_type == p
+                           for p in type_prefixes):
                     continue
             if weapon and entry.weapon != weapon:
                 continue
@@ -604,6 +616,109 @@ class CombatLog:
             },
             weapon="Torpedo",
             severity="info",
+        ))
+
+    # ── Missile Event Handlers ──────────────────────────────────
+
+    def _on_missile_launched(self, payload: dict):
+        """Handle missile launch event."""
+        torpedo_id = payload.get("torpedo_id", "unknown")
+        shooter = payload.get("shooter", "unknown")
+        target = payload.get("target", "unknown")
+        profile = payload.get("profile", "direct")
+
+        profile_labels = {
+            "direct": "DIRECT",
+            "evasive": "EVASIVE",
+            "terminal_pop": "TERMINAL POP",
+            "bracket": "BRACKET",
+        }
+        profile_label = profile_labels.get(profile, profile.upper())
+
+        summary = f"Missile launched at {target} ({profile_label})"
+        chain = [
+            f"Missile {torpedo_id} launched",
+            f"Shooter: {shooter}",
+            f"Target: {target}",
+            f"Flight profile: {profile_label}",
+            "Missile motor ignited -- tracking target",
+        ]
+
+        self._add_entry(CombatLogEntry(
+            id=0,
+            sim_time=0.0,
+            timestamp=time.time(),
+            event_type="missile_launch",
+            ship_id=shooter,
+            target_id=target,
+            summary=summary,
+            chain=chain,
+            details={
+                "torpedo_id": torpedo_id,
+                "profile": profile,
+            },
+            weapon="Missile",
+            severity="info",
+        ))
+
+    def _on_missile_detonation(self, payload: dict):
+        """Handle missile detonation/impact event."""
+        torpedo_id = payload.get("torpedo_id", "unknown")
+        shooter = payload.get("shooter", "unknown")
+        target = payload.get("target", "unknown")
+        impact_distance = payload.get("impact_distance", 0.0)
+        flight_time = payload.get("flight_time", 0.0)
+        damage_results = payload.get("damage_results", [])
+        feedback = payload.get("feedback", "")
+
+        summary = feedback or f"Missile impact on {target} at {impact_distance:.0f}m"
+
+        chain = [
+            f"Missile {torpedo_id} detonated",
+            f"Target: {target}",
+            f"Impact distance: {impact_distance:.0f}m",
+            f"Flight time: {flight_time:.1f}s",
+        ]
+
+        total_hull_dmg = 0.0
+        subsystems_hit = []
+        for result in damage_results:
+            ship_hit = result.get("ship_id", "unknown")
+            hull_dmg = result.get("hull_damage", 0)
+            total_hull_dmg += hull_dmg
+            if hull_dmg > 0:
+                chain.append(f"Hull damage to {ship_hit}: {hull_dmg:.1f}")
+            for sub in result.get("subsystems_hit", []):
+                name = sub.get("subsystem", "unknown")
+                dmg = sub.get("damage", 0)
+                subsystems_hit.append(name)
+                chain.append(f"Subsystem hit: {name} ({dmg:.1f} damage)")
+
+        if not damage_results:
+            chain.append("No ships in blast radius")
+
+        severity = "hit" if total_hull_dmg > 0 else "miss"
+        if subsystems_hit:
+            severity = "damage"
+
+        self._add_entry(CombatLogEntry(
+            id=0,
+            sim_time=0.0,
+            timestamp=time.time(),
+            event_type="missile_hit" if total_hull_dmg > 0 or subsystems_hit else "missile_miss",
+            ship_id=shooter,
+            target_id=target,
+            summary=summary,
+            chain=chain,
+            details={
+                "torpedo_id": torpedo_id,
+                "impact_distance": impact_distance,
+                "flight_time": flight_time,
+                "hull_damage": total_hull_dmg,
+                "subsystems_hit": subsystems_hit,
+            },
+            weapon="Missile",
+            severity=severity,
         ))
 
     # ── Projectile Event Handlers (Railgun slugs) ─────────────
