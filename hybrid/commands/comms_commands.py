@@ -18,12 +18,13 @@ logger = logging.getLogger(__name__)
 
 
 def cmd_set_transponder(comms, ship, params):
-    """Set IFF transponder state and/or code.
+    """Set IFF transponder state, code, and spoofing.
 
     Args:
         comms: CommsSystem instance
         ship: Ship object
-        params: Validated parameters (enabled, code)
+        params: Validated parameters (enabled, code, spoofed,
+                declared_class, declared_faction)
 
     Returns:
         dict: Transponder state change result
@@ -33,10 +34,9 @@ def cmd_set_transponder(comms, ship, params):
         "_ship": ship,
         "event_bus": getattr(ship, "event_bus", None),
     }
-    if "enabled" in params:
-        cmd_params["enabled"] = params["enabled"]
-    if "code" in params:
-        cmd_params["code"] = params["code"]
+    for key in ("enabled", "code", "spoofed", "declared_class", "declared_faction"):
+        if key in params:
+            cmd_params[key] = params[key]
     return comms._cmd_set_transponder(cmd_params)
 
 
@@ -133,8 +133,14 @@ def register_commands(dispatcher):
                     description="True to enable transponder, False to disable"),
             ArgSpec("code", "str", required=False,
                     description="IFF code to broadcast (can be spoofed)"),
+            ArgSpec("spoofed", "bool", required=False,
+                    description="True to broadcast false identity"),
+            ArgSpec("declared_class", "str", required=False,
+                    description="False ship class to broadcast when spoofed"),
+            ArgSpec("declared_faction", "str", required=False,
+                    description="False faction to broadcast when spoofed"),
         ],
-        help_text="Set IFF transponder state and/or identity code",
+        help_text="Set IFF transponder state, identity code, and spoofing",
         system="comms",
     ))
 

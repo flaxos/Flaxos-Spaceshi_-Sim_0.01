@@ -601,12 +601,16 @@ class AIController:
     # ── System interaction helpers ────────────────────────────────
 
     def _get_hostile_contacts(self) -> List[Tuple[str, object]]:
-        """Get hostile contacts from sensor system using faction rules.
+        """Get hostile contacts from sensor system using diplomatic state.
+
+        Only contacts whose faction is HOSTILE to ours are considered
+        threats.  UNKNOWN contacts are NOT treated as hostile — they
+        must be hailed or scanned first.
 
         Returns:
             List of (contact_id, ContactData) tuples sorted by threat.
         """
-        from hybrid.fleet.faction_rules import are_hostile
+        from hybrid.fleet.faction_rules import get_diplomatic_state, DiplomaticState
 
         sensors = self.ship.systems.get("sensors")
         if not sensors or not hasattr(sensors, "contact_tracker"):
@@ -618,7 +622,10 @@ class AIController:
         hostile = []
         for contact_id, contact in contacts.items():
             contact_faction = getattr(contact, "faction", None)
-            if contact_faction and are_hostile(self.ship.faction, contact_faction):
+            if not contact_faction:
+                continue
+            diplo = get_diplomatic_state(self.ship.faction, contact_faction)
+            if diplo == DiplomaticState.HOSTILE:
                 hostile.append((contact_id, contact))
 
         return AIThreatAssessment.prioritize_targets(hostile, self.ship)

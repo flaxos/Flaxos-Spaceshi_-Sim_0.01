@@ -202,6 +202,8 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             # ECM (OPS can also manage countermeasures)
             "set_emcon",
             "ecm_status",
+            # Transponder (OPS can manage identity spoofing)
+            "set_transponder",
             # Crew fatigue management
             "crew_rest",
             "cancel_rest",
