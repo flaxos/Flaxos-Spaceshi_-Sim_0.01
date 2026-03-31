@@ -55,6 +55,9 @@
   /* Touch targets (mobile) */
   --touch-min: 44px;
 
+  /* Panel height for controls-only panels (bridge controls, workflow strip) */
+  --panel-height-xs: clamp(120px, 16vh, 200px);
+
   /* Transitions */
   --transition-fast: 0.1s ease;
   --transition-base: 0.2s ease;
@@ -258,7 +261,7 @@ h3 { font-size: var(--font-size-base); }
 .progress-bar-fill {
   height: 100%;
   background: var(--status-nominal);
-  transition: width var(--transition-base);
+  transition: width 0.3s ease;
 }
 
 .progress-bar-fill.warning {
@@ -337,8 +340,9 @@ button:active,
 
 button:disabled,
 .btn:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
+  filter: saturate(0.5);
 }
 
 button.primary,
@@ -521,6 +525,15 @@ body.state-playing .view-container {
 
 /* Responsive breakpoints */
 
+/* Laptop/720p: slightly reduce font sizes for tighter fit */
+@media (max-width: 1440px) and (min-width: 1201px) {
+  :root {
+    --font-size-xs: 0.65rem;
+    --font-size-sm: 0.75rem;
+    --font-size-base: 0.85rem;
+  }
+}
+
 @media (max-width: 768px) {
   .panel {
     min-height: 150px;
@@ -699,6 +712,63 @@ body.state-playing .view-container {
 
 /* Tabular nums for all mono data */
 [data-mono] { font-variant-numeric: tabular-nums; }
+
+/* === Animation Budget Keyframes === */
+
+/* Status transition: nominal -> warning color crossfade (300ms) */
+@keyframes status-transition {
+  from { opacity: 0.7; }
+  to   { opacity: 1; }
+}
+
+/* Alert state: critical pulse glow loop (1.2s) */
+@keyframes alert-pulse {
+  0%, 100% { box-shadow: 0 0 4px rgba(255, 34, 34, 0.2); }
+  50%      { box-shadow: 0 0 16px rgba(255, 34, 34, 0.6); }
+}
+
+/* Progress bar fill: 300ms width transition (handled via CSS transition on .bar-fill) */
+
+/* === Alert Level Body Classes === */
+/* The status bar and tier accent line react to highest active alert */
+
+body.alert-advisory .status-bar,
+body.alert-advisory .bridge-controls {
+  border-bottom-color: var(--alert-advisory, #4488ff);
+}
+
+body.alert-caution .status-bar,
+body.alert-caution .bridge-controls {
+  border-bottom-color: var(--alert-caution, #ffaa00);
+  animation: alert-pulse 2s ease-in-out infinite;
+}
+
+body.alert-warning .status-bar,
+body.alert-warning .bridge-controls {
+  border-bottom-color: var(--alert-warning, #ff6600);
+  animation: alert-pulse 1s ease-in-out infinite;
+}
+
+body.alert-critical .status-bar,
+body.alert-critical .bridge-controls {
+  border-bottom-color: var(--alert-critical, #ff2222);
+  animation: alert-pulse 0.4s ease-in-out infinite;
+}
+
+/* === Sound Hook CSS Classes === */
+/* These CSS class contracts are observed by a future JS audio manager.
+ * Components add/remove these classes on events for visual + audio hooks.
+ *
+ * .pinging          — on sensor-contacts host when active ping fires
+ * .lock-acquired    — on targeting-display host when target locked
+ * .lock-lost        — on targeting-display host when target lost
+ * .weapon-fired     — on weapon-controls host when weapon fires
+ * .ammo-depleted    — on panel host when ammo reaches 0
+ * .damage-event     — on subsystem-status host when damage received
+ * .system-destroyed — on panel host when subsystem destroyed
+ * body.alert-*      — advisory/caution/warning/critical alert levels
+ * body.mission-success / body.mission-failed — mission outcome
+ */
 
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
