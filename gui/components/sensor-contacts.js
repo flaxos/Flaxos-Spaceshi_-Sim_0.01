@@ -26,6 +26,16 @@ class SensorContacts extends HTMLElement {
     this._subscribe();
     // Periodically purge expired stale contacts
     this._staleTimer = setInterval(() => this._purgeStaleContacts(), 2000);
+    // Rotating ASCII radar sweep for empty state
+    this._sweepChars = ["|", "/", "\u2014", "\\"];
+    this._sweepIdx = 0;
+    this._sweepTimer = setInterval(() => {
+      const icon = this.shadowRoot.querySelector(".empty-icon");
+      if (icon) {
+        this._sweepIdx = (this._sweepIdx + 1) % this._sweepChars.length;
+        icon.textContent = this._sweepChars[this._sweepIdx];
+      }
+    }, 500);
   }
 
   disconnectedCallback() {
@@ -36,6 +46,10 @@ class SensorContacts extends HTMLElement {
     if (this._staleTimer) {
       clearInterval(this._staleTimer);
       this._staleTimer = null;
+    }
+    if (this._sweepTimer) {
+      clearInterval(this._sweepTimer);
+      this._sweepTimer = null;
     }
   }
 
@@ -237,9 +251,33 @@ class SensorContacts extends HTMLElement {
           color: var(--bg-primary, #0a0a0f);
         }
 
+        /* IFF left-border color strips on contact rows */
+        .contact-row {
+          border-left: 2px solid transparent;
+        }
+        .contact-row.iff-hostile {
+          border-left-color: var(--status-critical, #ff4444);
+        }
+        .contact-row.iff-friendly {
+          border-left-color: var(--status-nominal, #00ff88);
+        }
+        .contact-row.iff-unknown {
+          border-left-color: var(--status-warning, #ffaa00);
+        }
+        .contact-row.iff-neutral {
+          border-left-color: var(--text-dim, #555566);
+        }
+
         .contact-row.stale {
           opacity: 0.35;
           pointer-events: none;
+          /* Slow blink for stale contacts — oscillates between 0.2 and 0.4 opacity */
+          animation: stale-blink 2s ease-in-out infinite;
+        }
+
+        @keyframes stale-blink {
+          0%, 100% { opacity: 0.2; }
+          50%      { opacity: 0.4; }
         }
 
         .contact-row.stale .contact-id {
@@ -340,15 +378,35 @@ class SensorContacts extends HTMLElement {
           padding: 24px;
         }
 
+        /* Rotating ASCII radar sweep character */
         .empty-icon {
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
           font-size: 2rem;
           margin-bottom: 8px;
           opacity: 0.5;
+          animation: radar-sweep 2s steps(4) infinite;
+        }
+
+        @keyframes radar-sweep {
+          0%   { content: "|"; }
+          25%  { content: "/"; }
+          50%  { content: "-"; }
+          75%  { content: "\\"; }
         }
 
         .select-indicator {
           width: 8px;
           color: var(--status-info, #00aaff);
+        }
+
+        /* Ping flash: border + glow flash on the host when ping fires */
+        :host(.pinging) {
+          animation: ping-flash 0.6s ease-out;
+        }
+
+        @keyframes ping-flash {
+          0%   { box-shadow: 0 0 8px rgba(0, 170, 255, 0.6); }
+          100% { box-shadow: none; }
         }
       </style>
 
@@ -496,6 +554,10 @@ class SensorContacts extends HTMLElement {
   async _doPing() {
     const pingBtn = this.shadowRoot.getElementById("ping-btn");
     pingBtn.disabled = true;
+
+    // Ping flash visual feedback — add class, remove after animation
+    this.classList.add("pinging");
+    setTimeout(() => this.classList.remove("pinging"), 700);
 
     try {
       await wsClient.sendShipCommand("ping_sensors", {});
@@ -681,8 +743,11 @@ class SensorContacts extends HTMLElement {
 
     const staleClass = isStale ? "stale" : "";
 
+    // Determine IFF classification for left-border color strip
+    const iff = this._getIffClass(contact);
+
     return `
-      <div class="contact-row ${isSelected ? 'selected' : ''} ${staleClass}" data-contact-id="${id}">
+      <div class="contact-row ${isSelected ? 'selected' : ''} ${staleClass} ${iff}" data-contact-id="${id}">
         <span class="contact-id">${isSelected ? '►' : ' '}${id.substring(0, 5)}</span>
         <span class="contact-class" title="${isStale ? 'Lost contact' : classification}">${isStale ? '<span class="stale-label">LOST</span>' : classification.substring(0, 8)}</span>
         <span class="contact-bearing">${isStale ? '---' : this._formatBearing(bearing) + '°'}</span>
@@ -761,6 +826,20 @@ class SensorContacts extends HTMLElement {
       return `${(meters / 1000).toFixed(1)} km`;
     }
     return `${meters.toFixed(0)} m`;
+  }
+
+  /**
+   * Determine IFF CSS class from contact faction/classification data.
+   * Returns a class like "iff-hostile", "iff-friendly", "iff-unknown", or "iff-neutral".
+   */
+  _getIffClass(contact) {
+    const faction = (contact.faction || contact.iff || "").toLowerCase();
+    const cls = (contact.classification || contact.class || "").toLowerCase();
+
+    if (faction === "hostile" || faction === "enemy" || cls === "hostile") return "iff-hostile";
+    if (faction === "friendly" || faction === "allied" || cls === "friendly") return "iff-friendly";
+    if (faction === "neutral" || cls === "neutral") return "iff-neutral";
+    return "iff-unknown";
   }
 
   /**

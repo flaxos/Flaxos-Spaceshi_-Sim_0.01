@@ -15,7 +15,8 @@ const DOMAIN_COLORS = {
 
 class FlaxosPanel extends HTMLElement {
   static get observedAttributes() {
-    return ["title", "collapsible", "collapsed", "minimizable", "priority", "domain", "disabled-reason"];
+    return ["title", "collapsible", "collapsed", "minimizable", "priority", "domain", "disabled-reason",
+            "data-damage", "data-damage-offline-label", "data-damage-pct"];
   }
 
   constructor() {
@@ -100,6 +101,11 @@ class FlaxosPanel extends HTMLElement {
   render() {
     const domainRule = this._getDomainColorRule();
     const isDisabled = this.disabledReason !== null;
+    const damageLevel = this.getAttribute("data-damage") || "nominal";
+    const offlineLabel = this.getAttribute("data-damage-offline-label") || "";
+    const damagePct = this.getAttribute("data-damage-pct") || "";
+    const isDestroyed = damageLevel === "destroyed";
+    const isImpaired = damageLevel === "impaired";
 
     this.shadowRoot.innerHTML = `
       <style>
@@ -119,7 +125,9 @@ class FlaxosPanel extends HTMLElement {
           background: var(--bg-panel-raised, #161622);
           border-color: var(--border-active, #3a3a4a);
           border-left: 3px solid var(--panel-domain-color, var(--border-active, #3a3a4a));
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+          box-shadow:
+            0 2px 12px rgba(0, 0, 0, 0.4),
+            inset 0 1px 0 rgba(255, 255, 255, 0.04);
         }
 
         /* --- Priority: tertiary --- */
@@ -162,10 +170,10 @@ class FlaxosPanel extends HTMLElement {
         }
 
         .title {
-          font-size: 0.8rem;
+          font-size: 0.75rem;
           font-weight: 600;
           text-transform: uppercase;
-          letter-spacing: 0.5px;
+          letter-spacing: 0.12em;
           color: var(--text-secondary, #888899);
         }
 
@@ -203,6 +211,12 @@ class FlaxosPanel extends HTMLElement {
 
         .content.collapsed {
           display: none;
+          opacity: 0;
+        }
+
+        .content {
+          /* Panel collapse/expand: 200ms animation budget */
+          transition: opacity 0.2s ease;
         }
 
         /* Block interaction when panel is disabled */
@@ -210,18 +224,59 @@ class FlaxosPanel extends HTMLElement {
           pointer-events: none;
         }
 
-        /* Damaged panel states */
-        :host([data-health="impaired"]) .content {
-          animation: damage-flicker 4s ease-in-out infinite;
-        }
-        :host([data-health="critical"]) .content {
-          animation: damage-flicker 1.5s ease-in-out infinite;
-          filter: contrast(0.85) brightness(0.9);
+        .title-row {
+          display: flex;
+          align-items: center;
+          gap: 8px;
         }
 
-        @keyframes damage-flicker {
-          0%, 94%, 96%, 98%, 100% { opacity: 1; }
-          95%, 97%                 { opacity: 0.65; }
+        /* --- IMPAIRED / DESTROYED badge in header --- */
+        .damage-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          padding: 1px 6px;
+          border-radius: 3px;
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+          font-size: 0.6rem;
+          font-weight: 600;
+          letter-spacing: 0.5px;
+          text-transform: uppercase;
+          line-height: 1.4;
+        }
+        .damage-badge.impaired {
+          color: var(--status-warning, #ffaa00);
+          background: rgba(255, 170, 0, 0.12);
+          border: 1px solid rgba(255, 170, 0, 0.3);
+        }
+        .damage-badge.destroyed {
+          color: var(--status-critical, #ff4444);
+          background: rgba(255, 68, 68, 0.12);
+          border: 1px solid rgba(255, 68, 68, 0.3);
+          animation: destroyed-pulse 1.5s ease-in-out infinite;
+        }
+        @keyframes destroyed-pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.6; }
+        }
+
+        /* --- Impaired: subtle interference on content --- */
+        .content.damage-impaired {
+          animation: impaired-interference 3s ease-in-out infinite;
+        }
+        @keyframes impaired-interference {
+          0%, 100% { filter: none; }
+          50% { filter: brightness(0.9) contrast(1.05); }
+          75% { filter: brightness(0.85); }
+        }
+
+        /* --- Destroyed: content faded out behind offline overlay --- */
+        .content.damage-destroyed {
+          pointer-events: none;
+        }
+        .content.damage-destroyed ::slotted(*) {
+          opacity: 0.1;
+          filter: saturate(0) brightness(0.5);
         }
 
         .collapse-icon {
@@ -266,10 +321,59 @@ class FlaxosPanel extends HTMLElement {
           letter-spacing: 0.5px;
           line-height: 1.4;
         }
+
+        /* --- OFFLINE overlay (destroyed subsystem) --- */
+        .offline-overlay {
+          position: absolute;
+          inset: 0;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          z-index: 6;
+          pointer-events: none;
+          background:
+            url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+            #060609;
+          background-blend-mode: overlay;
+        }
+        .offline-overlay .offline-icon {
+          font-size: 1.8rem;
+          color: var(--status-critical, #ff4444);
+          opacity: 0.7;
+          animation: offline-blink 2s step-end infinite;
+        }
+        @keyframes offline-blink {
+          0%, 80% { opacity: 0.7; }
+          50%, 70% { opacity: 0.3; }
+        }
+        .offline-overlay .offline-text {
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+          font-size: 0.75rem;
+          font-weight: 700;
+          color: var(--status-critical, #ff4444);
+          text-transform: uppercase;
+          letter-spacing: 1.5px;
+          text-align: center;
+          line-height: 1.6;
+          opacity: 0.85;
+        }
+        .offline-overlay .offline-sub {
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+          font-size: 0.6rem;
+          color: var(--text-dim, #555566);
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
       </style>
 
       <div class="header" part="header">
-        <span class="title" part="title">${this.title}</span>
+        <div class="title-row">
+          <span class="title" part="title">${this.title}</span>
+          ${isImpaired ? `<span class="damage-badge impaired">IMPAIRED${damagePct ? ` ${damagePct}%` : ""}</span>` : ""}
+          ${isDestroyed ? `<span class="damage-badge destroyed">DESTROYED</span>` : ""}
+        </div>
         <div class="actions" part="actions">
           <slot name="actions"></slot>
           ${this.collapsible ? `
@@ -282,11 +386,18 @@ class FlaxosPanel extends HTMLElement {
           ` : ""}
         </div>
       </div>
-      <div class="content${isDisabled ? " disabled" : ""}" id="content" part="content">
+      <div class="content${isDisabled ? " disabled" : ""}${isImpaired ? " damage-impaired" : ""}${isDestroyed ? " damage-destroyed" : ""}" id="content" part="content">
         <slot></slot>
         ${isDisabled ? `
           <div class="disabled-overlay">
             <span class="reason-text">${this._escapeHtml(this.disabledReason)}</span>
+          </div>
+        ` : ""}
+        ${isDestroyed ? `
+          <div class="offline-overlay">
+            <span class="offline-icon">&#x2718;</span>
+            <span class="offline-text">OFFLINE</span>
+            ${offlineLabel ? `<span class="offline-sub">${this._escapeHtml(offlineLabel)} DESTROYED</span>` : ""}
           </div>
         ` : ""}
       </div>

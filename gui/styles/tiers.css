@@ -44,6 +44,10 @@ body.tier-cpu-assist { --tier-accent: #c0a0ff; --tier-accent-rgb: 192, 160, 255;
 
 body.tier-raw {
   font-family: var(--font-mono, 'JetBrains Mono', 'Fira Code', 'Consolas', monospace);
+  /* Faint green tint on body text — phosphor feel */
+  --text-primary: #d8e8d8;
+  /* Bump scanline opacity for more visible CRT effect */
+  --scanline-opacity: 0.025;
 }
 
 body.tier-raw flaxos-panel {
@@ -62,24 +66,36 @@ body.tier-raw::after {
     to bottom,
     transparent 0px,
     transparent 3px,
-    rgba(0, 255, 64, var(--scanline-opacity, 0.022)) 3px,
-    rgba(0, 255, 64, var(--scanline-opacity, 0.022)) 4px
+    rgba(0, 255, 64, var(--scanline-opacity, 0.025)) 3px,
+    rgba(0, 255, 64, var(--scanline-opacity, 0.025)) 4px
   );
 }
 
 /* --- ARCADE: Mixed fonts, rounded, blue glow on interactives ------------ */
+
+body.tier-arcade {
+  /* Slightly bluer dark background for arcade's clean aesthetic */
+  --bg-void: #0c0c16;
+}
 
 body.tier-arcade flaxos-panel {
   border-radius: 8px;
   box-shadow: inset 0 0 30px rgba(68, 136, 255, 0.03);
 }
 
-/* Blue glow on buttons, inputs, selects inside arcade tier */
+/* Arcade primary panels: faint blue inset glow */
+body.tier-arcade flaxos-panel[priority="primary"] {
+  box-shadow:
+    inset 0 0 30px rgba(68, 136, 255, 0.05),
+    0 2px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Blue glow on buttons, inputs, selects inside arcade tier — stronger on hover */
 body.tier-arcade button:focus,
 body.tier-arcade button:hover,
 body.tier-arcade select:focus,
 body.tier-arcade input:focus {
-  box-shadow: 0 0 6px 1px rgba(68, 136, 255, 0.4);
+  box-shadow: 0 0 8px 2px rgba(68, 136, 255, 0.5);
   outline: none;
 }
 
@@ -93,6 +109,12 @@ body.tier-cpu-assist {
 body.tier-cpu-assist flaxos-panel {
   border-radius: 6px;
   background: var(--bg-panel-raised, #161622);
+}
+
+/* CPU-ASSIST primary panels: purple top accent instead of left border */
+body.tier-cpu-assist flaxos-panel[priority="primary"] {
+  border-top: 2px solid rgba(192, 160, 255, 0.4);
+  border-left-width: 1px;  /* override the 3px domain left border */
 }
 
 
@@ -392,4 +414,8 @@ body.tutorial-active flaxos-panel:not(.tutorial-highlight) {
     animation: none;
     box-shadow: 0 0 8px 2px var(--status-info, #4488ff);
   }
+  /* Disable uplift animations for accessibility */
+  .contact-row { transition: none !important; }
+  .weapon-status.empty { animation: none !important; }
+  .bar-fill { transition: none !important; }
 }

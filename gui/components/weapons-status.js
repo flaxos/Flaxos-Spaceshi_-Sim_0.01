@@ -44,6 +44,9 @@ class WeaponsStatus extends HTMLElement {
           margin-bottom: 16px;
           padding-bottom: 16px;
           border-bottom: 1px solid var(--border-default, #2a2a3a);
+          /* Domain-weapons left-border accent */
+          border-left: 2px solid var(--domain-weapons, #cc4444);
+          padding-left: 12px;
         }
 
         .weapon-section:last-child {
@@ -62,24 +65,31 @@ class WeaponsStatus extends HTMLElement {
         .weapon-name {
           font-weight: 600;
           color: var(--text-primary, #e0e0e0);
+          text-transform: uppercase;
+          font-size: 0.75rem;
+          letter-spacing: 0.08em;
         }
 
         .weapon-status {
-          font-size: 0.7rem;
+          font-size: 0.65rem;
           padding: 2px 8px;
           border-radius: 4px;
           text-transform: uppercase;
           font-weight: 600;
         }
 
+        /* READY: glowing dot border instead of flat bg */
         .weapon-status.ready {
-          background: rgba(0, 255, 136, 0.2);
+          background: transparent;
           color: var(--status-nominal, #00ff88);
+          border: 1px solid var(--status-nominal, #00ff88);
+          box-shadow: 0 0 6px rgba(0, 255, 136, 0.4);
         }
 
         .weapon-status.reloading {
-          background: rgba(255, 170, 0, 0.2);
+          background: rgba(255, 170, 0, 0.15);
           color: var(--status-warning, #ffaa00);
+          border: 1px solid rgba(255, 170, 0, 0.3);
           animation: pulse 1s ease-in-out infinite;
         }
 
@@ -90,8 +100,9 @@ class WeaponsStatus extends HTMLElement {
         }
 
         .weapon-status.tracking {
-          background: rgba(0, 170, 255, 0.2);
+          background: rgba(0, 170, 255, 0.15);
           color: var(--status-info, #00aaff);
+          border: 1px solid rgba(0, 170, 255, 0.3);
         }
 
         .weapon-status.offline {
@@ -99,15 +110,23 @@ class WeaponsStatus extends HTMLElement {
           color: var(--text-dim, #555566);
         }
 
+        /* EMPTY: irregular flicker using steps() timing */
         .weapon-status.empty {
-          background: rgba(255, 68, 68, 0.2);
+          background: rgba(255, 68, 68, 0.15);
           color: var(--status-critical, #ff4444);
-          animation: pulse 0.8s ease-in-out infinite;
+          border: 1px solid rgba(255, 68, 68, 0.3);
+          animation: ammo-empty 1.8s steps(1) infinite;
         }
 
         @keyframes pulse {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.6; }
+        }
+
+        /* Irregular flicker for empty weapons — not smooth, mechanical */
+        @keyframes ammo-empty {
+          0%, 89%, 91%, 100% { opacity: 1; }
+          90%                 { opacity: 0.3; }
         }
 
         .ammo-bar {
@@ -129,6 +148,18 @@ class WeaponsStatus extends HTMLElement {
           font-family: var(--font-mono, "JetBrains Mono", monospace);
           color: var(--text-primary, #e0e0e0);
           font-weight: 600;
+          font-variant-numeric: tabular-nums;
+        }
+
+        /* Current ammo in larger font, max in smaller */
+        .ammo-current {
+          font-size: 0.9rem;
+          font-weight: 700;
+        }
+
+        .ammo-max {
+          font-size: 0.65rem;
+          color: var(--text-dim, #555566);
         }
 
         .ammo-count.critical {
@@ -269,8 +300,13 @@ class WeaponsStatus extends HTMLElement {
         }
 
         .reload-bar .bar-fill {
-          background: var(--status-warning, #ffaa00);
-          transition: width 0.2s linear;
+          background: linear-gradient(
+            90deg,
+            var(--status-warning, #ffaa00) 0%,
+            rgba(255, 170, 0, 0.6) 100%
+          );
+          transition: width 0.3s linear;
+          box-shadow: 0 0 4px rgba(255, 170, 0, 0.3);
         }
 
         .empty-state {
@@ -426,7 +462,7 @@ class WeaponsStatus extends HTMLElement {
         <div class="ammo-bar">
           <div class="ammo-header">
             <span class="ammo-label">Ammo</span>
-            <span class="ammo-count ${countClass}">${ammo}/${capacity}</span>
+            <span class="ammo-count ${countClass}"><span class="ammo-current">${ammo}</span><span class="ammo-max">/${capacity}</span></span>
           </div>
           <div class="bar">
             <div class="bar-fill ${barClass}" style="width: ${percent}%"></div>
@@ -508,7 +544,7 @@ class WeaponsStatus extends HTMLElement {
         <div class="ammo-bar">
           <div class="ammo-header">
             <span class="ammo-label">${data.loaded !== undefined ? 'Loaded' : 'Ammo'}</span>
-            <span class="ammo-count">${current}/${data.max}</span>
+            <span class="ammo-count"><span class="ammo-current">${current}</span><span class="ammo-max">/${data.max}</span></span>
           </div>
           <div class="bar">
             <div class="bar-fill ${barClass}" style="width: ${percent}%"></div>

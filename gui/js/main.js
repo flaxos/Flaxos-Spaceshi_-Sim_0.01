@@ -91,6 +91,8 @@ import "../components/comms-choice-panel.js";
 import "../components/multi-track-panel.js";
 // Target damage assessment
 import "../components/target-assessment.js";
+// Damage visualization
+import { damageStateManager } from "./damage-state-manager.js";
 
 // App state
 const app = {
@@ -154,6 +156,9 @@ async function init() {
 
   // Initialize state manager
   stateManager.init();
+
+  // Initialize damage visualization (reacts to subsystem_health in telemetry)
+  damageStateManager.init();
 
   // Debug mode logging
   if (app.config.debugMode) {
