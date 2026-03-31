@@ -675,6 +675,12 @@
       <station-selector></station-selector>
       <tier-selector></tier-selector>
       <button id="tutorial-toggle-btn" style="margin-left: auto; padding: 4px 10px; background: var(--bg-input, #1a1a2e); border: 1px solid var(--border-default, #2a2a3a); color: var(--text-secondary, #a0a0b0); font-family: var(--font-mono, monospace); font-size: 0.7rem; border-radius: 4px; cursor: pointer;" onclick="document.querySelector('tutorial-overlay')?.toggle()">? TUTORIAL</button>
+
+      <!-- Audio Controls -->
+      <div id="audio-controls" style="display: flex; align-items: center; gap: 6px; margin-left: 8px;">
+        <button id="audio-mute-btn" title="Toggle mute" style="padding: 2px 6px; background: var(--bg-input, #1a1a2e); border: 1px solid var(--border-default, #2a2a3a); color: var(--text-secondary, #a0a0b0); font-size: 0.85rem; border-radius: 4px; cursor: pointer; min-width: 28px; line-height: 1;">VOL</button>
+        <input id="audio-volume-slider" type="range" min="0" max="100" value="60" title="Master volume" style="width: 64px; height: 14px; accent-color: var(--accent-primary, #4488ff); cursor: pointer;">
+      </div>
     </div>
 
     <!-- View Tabs -->
@@ -1056,6 +1062,43 @@
 
   <!-- Main Script -->
   <script type="module" src="js/main.js"></script>
+
+  <!-- Audio Controls Wiring -->
+  <script type="module">
+    // Wire mute button and volume slider to audioManager once app is ready.
+    window.addEventListener("app:ready", () => {
+      const am = window.flaxosApp?.audioManager;
+      if (!am) return;
+
+      const muteBtn = document.getElementById("audio-mute-btn");
+      const slider = document.getElementById("audio-volume-slider");
+
+      // Initialize slider from saved settings
+      slider.value = Math.round(am.masterVolume * 100);
+
+      function updateMuteLabel() {
+        muteBtn.textContent = am.muted ? "MUTE" : "VOL";
+        muteBtn.style.color = am.muted
+          ? "var(--status-danger, #ff4444)"
+          : "var(--text-secondary, #a0a0b0)";
+      }
+      updateMuteLabel();
+
+      muteBtn.addEventListener("click", () => {
+        am.toggleMute();
+        updateMuteLabel();
+      });
+
+      slider.addEventListener("input", (e) => {
+        am.setMasterVolume(parseInt(e.target.value, 10) / 100);
+        // Un-mute if user moves slider while muted
+        if (am.muted) {
+          am.toggleMute();
+          updateMuteLabel();
+        }
+      });
+    });
+  </script>
 
   <!-- View Switching Logic -->
   <script type="module">

@@ -93,6 +93,8 @@ import "../components/multi-track-panel.js";
 import "../components/target-assessment.js";
 // Damage visualization
 import { damageStateManager } from "./damage-state-manager.js";
+// Sound system
+import { audioManager } from "./audio-manager.js";
 // Phase 6: Mobile optimization
 import { mobileManager } from "./mobile-manager.js";
 import "../components/touch-throttle.js";
@@ -166,6 +168,9 @@ async function init() {
 
   // Initialize mobile layout detection and touch controls
   mobileManager.init();
+
+  // Initialize audio system (lazy AudioContext — created on first user click)
+  audioManager.init();
 
   // Debug mode logging
   if (app.config.debugMode) {
@@ -696,6 +701,7 @@ window.flaxosApp = {
   stateManager,
   helmRequests,
   mobileManager,
+  audioManager,
   sendCommand,
   showSystemMessage,
   setGameState,
