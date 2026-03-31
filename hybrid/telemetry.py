@@ -665,6 +665,9 @@ def get_sensor_contacts(ship) -> Dict[str, Any]:
         sim_time = getattr(sensors, "sim_time", 0.0)
         all_contacts = sensors.contact_tracker.get_all_contacts(sim_time)
 
+        # Compute diplomatic state for each contact relative to our faction
+        our_faction = getattr(ship, "faction", "")
+
         for contact_id, contact in all_contacts.items():
             position = getattr(contact, "position", ship.position)
             distance = calculate_distance(ship.position, position)
@@ -672,6 +675,9 @@ def get_sensor_contacts(ship) -> Dict[str, Any]:
 
             pos_dict = _serialize_vector(position)
             vel_dict = _serialize_vector(getattr(contact, "velocity", None))
+
+            contact_faction = getattr(contact, "faction", None)
+            diplo_state = _get_contact_diplomatic_state(our_faction, contact_faction)
 
             contacts_list.append({
                 "id": contact_id,
@@ -684,6 +690,8 @@ def get_sensor_contacts(ship) -> Dict[str, Any]:
                 "detection_method": getattr(contact, "detection_method", "passive"),
                 "name": getattr(contact, "name", None),
                 "classification": getattr(contact, "classification", None),
+                "faction": contact_faction,
+                "diplomatic_state": diplo_state,
             })
     else:
         # Legacy fallback for dict-based sensors without ContactTracker
@@ -697,6 +705,25 @@ def get_sensor_contacts(ship) -> Dict[str, Any]:
         "contacts": contacts_list,
         "count": len(contacts_list)
     }
+
+
+def _get_contact_diplomatic_state(our_faction: str, contact_faction: Optional[str]) -> str:
+    """Get the diplomatic state string for a contact.
+
+    Args:
+        our_faction: Our ship's faction.
+        contact_faction: The contact's faction (may be None).
+
+    Returns:
+        Diplomatic state string: "allied", "neutral", "hostile", or "unknown".
+    """
+    if not contact_faction:
+        return "unknown"
+    try:
+        from hybrid.fleet.faction_rules import get_diplomatic_state
+        return get_diplomatic_state(our_faction, contact_faction).value
+    except Exception:
+        return "unknown"
 
 
 def _serialize_vector(vec) -> Optional[Dict[str, float]]:
