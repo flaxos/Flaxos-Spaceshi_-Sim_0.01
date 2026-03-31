@@ -36,13 +36,19 @@ class ScienceAnalysisPanel extends HTMLElement {
   }
 
   async _sendCommand(cmd, args = {}) {
-    if (window.flaxosApp && window.flaxosApp.sendCommand) {
-      const result = await window.flaxosApp.sendCommand(cmd, args);
-      if (result && result.ok) {
-        this._lastResult = result;
-        this._showResult(cmd, result);
+    const wsClient = window._flaxosModules?.wsClient || window.flaxosApp?.wsClient;
+    if (wsClient && wsClient.sendShipCommand) {
+      try {
+        const result = await wsClient.sendShipCommand(cmd, args);
+        if (result && result.ok) {
+          this._lastResult = result;
+          this._showResult(cmd, result);
+        }
+        return result;
+      } catch (err) {
+        console.error(`Science command failed: ${cmd}`, err);
+        return null;
       }
-      return result;
     }
     return null;
   }
@@ -113,6 +119,15 @@ class ScienceAnalysisPanel extends HTMLElement {
           cursor: not-allowed;
         }
 
+        .btn-scan {
+          border-color: var(--status-info, #00aaff);
+          color: var(--status-info, #00aaff);
+        }
+
+        .btn-scan:hover:not(:disabled) {
+          background: rgba(0, 170, 255, 0.1);
+        }
+
         .result-panel {
           background: var(--bg-secondary, #12121a);
           border: 1px solid var(--border-default, #2a2a3a);
@@ -178,6 +193,17 @@ class ScienceAnalysisPanel extends HTMLElement {
           <button class="btn" id="btn-mass" disabled>Est. Mass</button>
           <button class="btn" id="btn-threat" disabled>Threat</button>
         </div>
+        <div class="section-title">Active Scans</div>
+        <div class="btn-row">
+          <button class="btn btn-scan" id="btn-spectral-scan" disabled
+            title="Spectral Analysis — identify drive type, ISP, max accel. Effective within 50 km.">
+            Spectral Scan
+          </button>
+          <button class="btn btn-scan" id="btn-composition-scan" disabled
+            title="Composition Scan — identify armor, hull class, mass. Effective within 20 km. Requires active radar ping.">
+            Composition Scan
+          </button>
+        </div>
       </div>
 
       <div class="section">
@@ -232,6 +258,18 @@ class ScienceAnalysisPanel extends HTMLElement {
         this._sendCommand("assess_threat", { contact_id: this._selectedContact });
       }
     });
+
+    this.shadowRoot.getElementById("btn-spectral-scan").addEventListener("click", () => {
+      if (this._selectedContact) {
+        this._sendCommand("science_spectral_analysis", { contact_id: this._selectedContact });
+      }
+    });
+
+    this.shadowRoot.getElementById("btn-composition-scan").addEventListener("click", () => {
+      if (this._selectedContact) {
+        this._sendCommand("science_composition_scan", { contact_id: this._selectedContact });
+      }
+    });
   }
 
   _updateButtons() {
@@ -240,6 +278,8 @@ class ScienceAnalysisPanel extends HTMLElement {
     this.shadowRoot.getElementById("btn-spectral").disabled = !hasContact;
     this.shadowRoot.getElementById("btn-mass").disabled = !hasContact;
     this.shadowRoot.getElementById("btn-threat").disabled = !hasContact;
+    this.shadowRoot.getElementById("btn-spectral-scan").disabled = !hasContact;
+    this.shadowRoot.getElementById("btn-composition-scan").disabled = !hasContact;
   }
 
   _updateDisplay() {
@@ -348,6 +388,10 @@ class ScienceAnalysisPanel extends HTMLElement {
       html = this._formatMass(result);
     } else if (command === "assess_threat") {
       html = this._formatThreat(result);
+    } else if (command === "science_spectral_analysis") {
+      html = this._formatSpectralScan(result);
+    } else if (command === "science_composition_scan") {
+      html = this._formatCompositionScan(result);
     } else {
       html = `<span class="value">${result.status || JSON.stringify(result)}</span>`;
     }
@@ -415,6 +459,32 @@ class ScienceAnalysisPanel extends HTMLElement {
 <span class="label">EMCON:</span> <span class="value">${cm.emcon_active ? "YES" : "no"}</span>
 <span class="label">Notes:</span> <span class="value">${ta.tactical_notes || "none"}</span>
 ${recs.length > 0 ? '\n<span class="highlight">RECOMMENDATIONS:</span>\n' + recs.map(r => `• ${r}`).join("\n") : ""}`;
+  }
+
+  _formatSpectralScan(r) {
+    const sd = r.spectral_scan || {};
+    const isp = sd.estimated_isp_range || [0, 0];
+    const conf = sd.drive_type_confidence ?? 0;
+    return `<span class="highlight">SPECTRAL SCAN: ${r.contact_id}</span>
+<span class="label">Drive Type:</span> <span class="value">${sd.drive_type || "unknown"}</span>
+<span class="label">Drive Confidence:</span> <span class="value">${(conf * 100).toFixed(0)}%</span>
+<span class="label">Est. ISP Range:</span> <span class="value">${isp[0].toLocaleString()} — ${isp[1].toLocaleString()} s</span>
+<span class="label">Est. Max Accel:</span> <span class="value">${sd.estimated_max_accel ? sd.estimated_max_accel.toFixed(1) + " m/s\u00B2" : "?"}</span>
+<span class="label">Scan Quality:</span> <span class="value">${sd.scan_quality ? (sd.scan_quality * 100).toFixed(0) + "%" : "?"}</span>
+<span class="label">Range:</span> <span class="value">${sd.range_km ? sd.range_km.toFixed(1) + " km" : "?"}</span>`;
+  }
+
+  _formatCompositionScan(r) {
+    const cd = r.composition_scan || {};
+    const conf = cd.class_confidence ?? 0;
+    return `<span class="highlight">COMPOSITION SCAN: ${r.contact_id}</span>
+<span class="label">Armor Type:</span> <span class="value">${cd.armor_type || "unknown"}</span>
+<span class="label">Armor Thickness:</span> <span class="value">${cd.armor_thickness_estimate ? cd.armor_thickness_estimate.toFixed(1) + " mm" : "?"}</span>
+<span class="label">Ship Class:</span> <span class="value">${cd.estimated_ship_class || "unknown"}</span>
+<span class="label">Class Confidence:</span> <span class="value">${(conf * 100).toFixed(0)}%</span>
+<span class="label">Est. Mass:</span> <span class="value">${cd.estimated_mass ? this._formatMassKg(cd.estimated_mass) : "?"}</span>
+<span class="label">Scan Quality:</span> <span class="value">${cd.scan_quality ? (cd.scan_quality * 100).toFixed(0) + "%" : "?"}</span>
+<span class="label">Range:</span> <span class="value">${cd.range_km ? cd.range_km.toFixed(1) + " km" : "?"}</span>`;
   }
 
   _formatPower(watts) {

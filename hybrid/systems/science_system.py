@@ -82,6 +82,10 @@ class ScienceSystem(BaseSystem):
             return self._cmd_assess_threat(params)
         elif action == "science_status":
             return self._cmd_science_status(params)
+        elif action == "science_spectral_scan":
+            return self._cmd_science_spectral_scan(params)
+        elif action == "science_composition_scan":
+            return self._cmd_science_composition_scan(params)
         return error_dict("UNKNOWN_COMMAND", f"Unknown science command: {action}")
 
     # ------------------------------------------------------------------
@@ -526,6 +530,63 @@ class ScienceSystem(BaseSystem):
             "class_identification": sensor_health > 0.4,
         }
         return state
+
+    # ------------------------------------------------------------------
+    # Command: science_spectral_scan (active scan — range-limited)
+    # ------------------------------------------------------------------
+
+    def _cmd_science_spectral_scan(self, params: dict) -> dict:
+        """Active spectral scan: identify drive type, ISP, and max accel.
+
+        Range-limited to 50 km. Quality degrades beyond 25 km.
+        Requires contact confidence > 0.3.
+        """
+        from hybrid.systems.science_scans import spectral_scan
+
+        ship = params.get("ship") or params.get("_ship")
+        contact, target_ship, err = self._get_contact_and_target(params)
+        if err:
+            return err
+
+        sensor_health = self._get_sensor_health(ship)
+        return spectral_scan(contact, target_ship, ship,
+                             sensor_health, self._sim_time)
+
+    # ------------------------------------------------------------------
+    # Command: science_composition_scan (active scan — range-limited)
+    # ------------------------------------------------------------------
+
+    def _cmd_science_composition_scan(self, params: dict) -> dict:
+        """Active composition scan: identify armor, hull class, and mass.
+
+        Range-limited to 20 km. Requires active radar ping data.
+        Requires contact confidence > 0.3.
+        """
+        from hybrid.systems.science_scans import composition_scan
+
+        ship = params.get("ship") or params.get("_ship")
+        contact, target_ship, err = self._get_contact_and_target(params)
+        if err:
+            return err
+
+        sensor_health = self._get_sensor_health(ship)
+
+        # Check for recent active sensor ping
+        has_active_ping = False
+        sensors = ship.systems.get("sensors") if ship else None
+        if sensors:
+            # Active sensor has ping data if it has been used recently
+            active = getattr(sensors, "active", None)
+            if active and hasattr(active, "last_ping_time"):
+                ping_age = self._sim_time - active.last_ping_time
+                has_active_ping = ping_age < 60.0  # Within last 60 seconds
+            elif active and hasattr(active, "contacts"):
+                # Fallback: if active sensor has any contacts, it has pinged
+                has_active_ping = len(active.contacts) > 0
+
+        return composition_scan(contact, target_ship, ship,
+                                sensor_health, self._sim_time,
+                                has_active_ping=has_active_ping)
 
     # ------------------------------------------------------------------
     # Telemetry

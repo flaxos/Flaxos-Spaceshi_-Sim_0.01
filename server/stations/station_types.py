@@ -308,6 +308,9 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             "estimate_mass",
             "assess_threat",
             "science_status",
+            # Active science scans (range-limited)
+            "science_spectral_analysis",
+            "science_composition_scan",
             # ECCM analysis (science officer can analyze jamming)
             "analyze_jamming",
             "eccm_status",

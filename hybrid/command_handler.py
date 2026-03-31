@@ -154,6 +154,8 @@ system_commands = {
     "estimate_mass": ("science", "estimate_mass"),
     "assess_threat": ("science", "assess_threat"),
     "science_status": ("science", "science_status"),
+    "science_spectral_analysis": ("science", "science_spectral_scan"),
+    "science_composition_scan": ("science", "science_composition_scan"),
     # Flight computer
     "flight_computer": ("flight_computer", "flight_computer"),
     # Fleet coordination commands
