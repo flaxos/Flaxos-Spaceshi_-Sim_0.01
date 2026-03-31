@@ -3,6 +3,11 @@ Station-aware command dispatcher with permission enforcement.
 
 Wraps existing command handlers with station permission checks to ensure
 commands are only executed if the client has the appropriate station claim.
+
+Crew fatigue integration:
+- When a ship's crew_fatigue system reports blackout, ALL human commands
+  are rejected (autopilot and AI commands are unaffected since they bypass
+  this dispatcher entirely).
 """
 
 from typing import Dict, Any, Callable, Optional, Tuple, Mapping, Union
@@ -45,10 +50,22 @@ class StationAwareDispatcher:
     Wraps existing command handlers with permission checks.
     """
 
+    # Commands that are exempt from blackout blocking.
+    # These are status queries or safety-critical commands that should
+    # always work even when crew is incapacitated.
+    BLACKOUT_EXEMPT_COMMANDS = frozenset({
+        "crew_fatigue_status", "crew_status", "crew_rest", "cancel_rest",
+        "get_state", "get_events", "get_combat_log", "get_mission",
+        "get_mission_hints", "get_tick_metrics",
+    })
+
     def __init__(self, station_manager: StationManager):
         self.station_manager = station_manager
         self.handlers: Dict[str, CommandHandler] = {}
         self.command_metadata: Dict[str, Dict[str, Any]] = {}
+        # Optional callback to resolve ship objects by ID.
+        # Set by register_legacy_commands so we can check crew fatigue.
+        self._ship_resolver: Optional[Callable[[str], Any]] = None
 
     def register_command(
         self,
@@ -123,10 +140,25 @@ class StationAwareDispatcher:
                     message=f"Permission denied: {reason}",
                 )
 
-        # 3. Update client activity
+        # 3. Check crew fatigue blackout (human commands only)
+        #    AI ships never route through this dispatcher, so this only
+        #    affects human players at station seats.
+        if command not in self.BLACKOUT_EXEMPT_COMMANDS:
+            blocked, reason = self._check_crew_blackout(ship_id)
+            if blocked:
+                logger.info(
+                    f"Command blocked by crew blackout: {command} "
+                    f"from {client_id} on {ship_id}"
+                )
+                return CommandResult(
+                    success=False,
+                    message=reason,
+                )
+
+        # 4. Update client activity
         self.station_manager.update_activity(client_id)
 
-        # 4. Execute the command
+        # 5. Execute the command
         try:
             handler = self.handlers[command]
             result = handler(client_id, ship_id, args)
@@ -138,6 +170,36 @@ class StationAwareDispatcher:
                 success=False,
                 message=f"Command execution failed: {str(e)}",
             )
+
+    def _check_crew_blackout(self, ship_id: str) -> Tuple[bool, str]:
+        """Check if the ship's crew is blacked out, blocking commands.
+
+        Only blocks when a ship_resolver is configured and the ship has
+        a crew_fatigue system reporting blackout.
+
+        Args:
+            ship_id: Ship to check
+
+        Returns:
+            Tuple of (is_blocked, reason_message)
+        """
+        if not self._ship_resolver or not ship_id:
+            return False, ""
+        ship = self._ship_resolver(ship_id)
+        if ship is None:
+            return False, ""
+        crew_fatigue = getattr(ship, "systems", {}).get("crew_fatigue")
+        if crew_fatigue is None:
+            return False, ""
+        crew_state = getattr(crew_fatigue, "crew", None)
+        if crew_state and crew_state.is_blacked_out:
+            g = round(crew_state.current_g, 1)
+            recovery = round(crew_state.blackout_recovery, 1)
+            return True, (
+                f"CREW BLACKOUT — manual operations suspended "
+                f"({g}g, recovery in {recovery}s)"
+            )
+        return False, ""
 
     def get_available_commands(self, client_id: str) -> Dict[str, Any]:
         """
@@ -279,6 +341,9 @@ def register_legacy_commands(dispatcher: StationAwareDispatcher, runner):
     from .station_types import get_station_for_command
 
     ship_map_provider = lambda: runner.simulator.ships
+
+    # Wire ship resolver for crew fatigue blackout checks
+    dispatcher._ship_resolver = lambda sid: runner.simulator.ships.get(sid)
 
     # Register all system commands from the legacy system
     registered_commands = set()

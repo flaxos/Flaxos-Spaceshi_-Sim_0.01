@@ -367,6 +367,9 @@ class UnifiedServer:
                 result["station"] = "captain"
                 logger.info(f"Auto-assigned {client_id} to {player_ship_id} as captain")
 
+                # Enable crew fatigue effects for the player ship
+                self._set_human_crew_flag(player_ship_id, True)
+
             # Register AI crew for all ships in the scenario
             if result.get("ok") and self.ai_crew_manager:
                 for sid in self.runner.simulator.ships:
@@ -430,7 +433,8 @@ class UnifiedServer:
         result = self.dispatcher.dispatch(client_id, ship_id or "", cmd, args)
 
         # Notify AI crew manager when stations are claimed/released
-        if self.ai_crew_manager and result.success:
+        # and update crew fatigue human-crew flag
+        if result.success:
             if cmd == "claim_station":
                 station_name = args.get("station", "")
                 from server.stations.station_types import StationType
@@ -438,13 +442,45 @@ class UnifiedServer:
                     st = StationType(station_name.lower())
                     sess = self.station_manager.get_session(client_id)
                     if sess and sess.ship_id:
-                        self.ai_crew_manager.deactivate_station(sess.ship_id, st)
+                        if self.ai_crew_manager:
+                            self.ai_crew_manager.deactivate_station(sess.ship_id, st)
+                        # Enable crew fatigue gameplay effects for this ship
+                        self._set_human_crew_flag(sess.ship_id, True)
                 except ValueError:
                     pass
             elif cmd == "release_station" and _pre_release_station and _pre_release_ship:
-                self.ai_crew_manager.activate_station(_pre_release_ship, _pre_release_station)
+                if self.ai_crew_manager:
+                    self.ai_crew_manager.activate_station(_pre_release_ship, _pre_release_station)
+                # Disable crew fatigue effects if no humans remain on ship
+                remaining = self.station_manager.get_clients_on_ship(_pre_release_ship)
+                has_humans = any(
+                    s.station is not None for s in remaining
+                    if s.client_id != client_id
+                )
+                if not has_humans:
+                    self._set_human_crew_flag(_pre_release_ship, False)
 
         return result.to_dict()
+
+    def _set_human_crew_flag(self, ship_id: str, has_human: bool) -> None:
+        """Set the has_human_crew flag on a ship's crew_fatigue system.
+
+        This controls whether crew fatigue gameplay penalties apply.
+        Only ships with human players at stations are affected.
+
+        Args:
+            ship_id: Ship to update
+            has_human: Whether any human has a station claimed
+        """
+        ship = self.runner.simulator.ships.get(ship_id)
+        if ship is None:
+            return
+        crew_fatigue = ship.systems.get("crew_fatigue")
+        if crew_fatigue is not None:
+            crew_fatigue.has_human_crew = has_human
+            logger.debug(
+                f"Ship {ship_id} crew_fatigue.has_human_crew = {has_human}"
+            )
 
     def _handle_resume_session(self, client_id: str, req: dict) -> dict:
         """

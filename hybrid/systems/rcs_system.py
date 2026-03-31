@@ -213,6 +213,15 @@ class RCSSystem(BaseSystem):
             ship.id, StationType.HELM
         )
 
+        # Crew fatigue: under high-G or fatigue, human crew responds
+        # more sluggishly to manual helm commands. AI ships have no
+        # crew_fatigue system so this returns 1.0 for them.
+        crew_fatigue = ship.systems.get("crew_fatigue")
+        if crew_fatigue is not None:
+            fatigue_perf = crew_fatigue.get_station_performance("helm")
+            if fatigue_perf < 1.0:
+                self.total_torque *= fatigue_perf
+
         # Apply torque to ship angular velocity
         # τ = I * α  =>  α = τ / I
         moment_of_inertia = getattr(ship, 'moment_of_inertia', ship.mass * 10.0)

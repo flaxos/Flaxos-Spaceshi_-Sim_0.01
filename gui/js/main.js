@@ -79,6 +79,7 @@ import "../components/engineering-control-panel.js";
 import "../components/comms-control-panel.js";
 // Crew Fatigue System
 import "../components/crew-fatigue-display.js";
+import "../components/crew-fatigue-overlay.js";
 // Science Station Analysis
 import "../components/science-analysis-panel.js";
 // Tutorial System
@@ -93,6 +94,8 @@ import "../components/multi-track-panel.js";
 import "../components/target-assessment.js";
 // Damage visualization
 import { damageStateManager } from "./damage-state-manager.js";
+// Keyboard flight controls (MANUAL tier)
+import * as keyboardFlight from "./keyboard-flight.js";
 
 // App state
 const app = {
@@ -159,6 +162,9 @@ async function init() {
 
   // Initialize damage visualization (reacts to subsystem_health in telemetry)
   damageStateManager.init();
+
+  // Initialize keyboard flight controls (activates in MANUAL tier)
+  keyboardFlight.init();
 
   // Debug mode logging
   if (app.config.debugMode) {

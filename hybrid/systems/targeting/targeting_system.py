@@ -293,6 +293,11 @@ class TargetingSystem(BaseSystem):
             from server.stations.station_types import StationType
             lock_rate *= CrewBindingSystem.get_multiplier(ship.id, StationType.TACTICAL)
 
+            # Crew fatigue: human operator G-load and fatigue degrades
+            # lock acquisition speed. Only affects player ships with the
+            # crew_fatigue system — AI ships have no crew_fatigue system.
+            lock_rate *= self._get_crew_fatigue_factor(ship, "tactical")
+
             self.lock_progress = min(1.0, self.lock_progress + lock_rate * dt)
 
             if self.lock_progress >= 1.0:
@@ -417,6 +422,10 @@ class TargetingSystem(BaseSystem):
         if hasattr(ship, 'get_effective_factor'):
             weapon_damage_factor = ship.get_effective_factor("weapons")
 
+        # Crew fatigue penalty on firing solution confidence.
+        # Only affects player ships — AI ships have no crew_fatigue system.
+        fatigue_factor = self._get_crew_fatigue_factor(ship, "tactical")
+
         for weapon_id, weapon in truth_weapons.items():
             if hasattr(weapon, 'calculate_solution'):
                 solution = weapon.calculate_solution(
@@ -431,6 +440,13 @@ class TargetingSystem(BaseSystem):
                     weapon_damage_factor=weapon_damage_factor,
                     target_accel=target_accel,
                 )
+                # Apply crew fatigue as a post-multiplier on confidence.
+                # Fatigued crew compute less precise firing solutions.
+                if fatigue_factor < 1.0:
+                    solution.confidence *= fatigue_factor
+                    solution.confidence_factors["crew_fatigue"] = round(
+                        fatigue_factor, 3
+                    )
                 self.firing_solutions[weapon_id] = {
                     "valid": solution.valid,
                     "ready": solution.ready_to_fire,
@@ -457,6 +473,24 @@ class TargetingSystem(BaseSystem):
             "cpa_distance": rel_motion.get("closest_approach_distance"),
             "target_subsystem": self.target_subsystem,
         }
+
+    def _get_crew_fatigue_factor(self, ship, station: str) -> float:
+        """Get crew fatigue performance factor for a station.
+
+        Returns 1.0 (no penalty) when the ship has no crew_fatigue system
+        (e.g. AI ships), so this is safe to call unconditionally.
+
+        Args:
+            ship: Ship object
+            station: Station name (e.g. "tactical", "helm")
+
+        Returns:
+            Performance multiplier (0.0 to 1.0)
+        """
+        crew_fatigue = ship.systems.get("crew_fatigue")
+        if crew_fatigue is None:
+            return 1.0
+        return crew_fatigue.get_station_performance(station)
 
     def _get_target_accel(self) -> Optional[Dict[str, float]]:
         """Estimate target acceleration from velocity changes.

@@ -146,6 +146,12 @@ class CrewFatigueSystem(BaseSystem):
         # Current crew state
         self.crew = CrewState()
 
+        # Whether this ship has human crew at the controls.
+        # When False, get_performance_factor() / get_station_performance()
+        # return 1.0 so AI ships are never penalized. Set to True by the
+        # server station system when a human claims a station on this ship.
+        self.has_human_crew: bool = False
+
         # Combat detection (driven by events)
         self._in_combat = False
         self._combat_cooldown = 0.0
@@ -345,9 +351,14 @@ class CrewFatigueSystem(BaseSystem):
         Combines fatigue degradation and current g-load impairment.
         Used by targeting, helm, ops systems to scale their effectiveness.
 
+        Returns 1.0 (no penalty) when has_human_crew is False, ensuring
+        AI ships are never penalized by crew fatigue.
+
         Returns:
             Performance multiplier (0.0 = incapacitated, 1.0 = peak)
         """
+        if not self.has_human_crew:
+            return 1.0
         if self.crew.is_blacked_out:
             return 0.0
 
@@ -370,12 +381,16 @@ class CrewFatigueSystem(BaseSystem):
         - ENGINEERING: Mildly impacted (physical repair work)
         - SENSORS/SCIENCE: Least impacted (cognitive, sitting work)
 
+        Returns 1.0 when has_human_crew is False (AI ships unaffected).
+
         Args:
             station: Station name (helm, tactical, ops, engineering, etc.)
 
         Returns:
             Performance multiplier (0.0 to 1.0)
         """
+        if not self.has_human_crew:
+            return 1.0
         base = self.get_performance_factor()
         if base == 0.0:
             return 0.0
@@ -504,6 +519,7 @@ class CrewFatigueSystem(BaseSystem):
             "performance": round(perf, 3),
             "is_blacked_out": self.crew.is_blacked_out,
             "blackout_timer": round(self.crew.blackout_timer, 1),
+            "blackout_recovery": round(self.crew.blackout_recovery, 1),
             "rest_ordered": self._rest_ordered,
             "in_combat": self._in_combat,
             "crew_experience": self.crew_experience,
