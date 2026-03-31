@@ -79,6 +79,12 @@ class StationTelemetryFilter:
             "comms_status": ["comms"],
             "comm_log": ["comms"],
 
+            # Science displays
+            "science_status": ["sensors", "systems"],
+            "signature_analysis": ["sensors", "emissions"],
+            "sensor_coverage": ["sensors"],
+            "detection_log": ["sensors"],
+
             # Emissions / signature displays
             "emissions_status": ["emissions"],
 
