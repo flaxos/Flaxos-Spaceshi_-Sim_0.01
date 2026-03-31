@@ -247,8 +247,12 @@ class StationTelemetryFilter:
         Returns:
             True if station can see events
         """
-        # Captain, Tactical (combat log), Ops (damage control), and Science (sensor events)
-        return station in [StationType.CAPTAIN, StationType.TACTICAL, StationType.OPS, StationType.SCIENCE]
+        # Captain, Tactical (combat log), Ops (damage control),
+        # Science (sensor events), Comms (hail/response events)
+        return station in [
+            StationType.CAPTAIN, StationType.TACTICAL, StationType.OPS,
+            StationType.SCIENCE, StationType.COMMS,
+        ]
 
     def get_telemetry_summary_for_client(self, client_id: str) -> Dict[str, Any]:
         """
