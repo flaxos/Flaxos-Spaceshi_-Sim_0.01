@@ -163,6 +163,12 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             "eccm_home_on_jam",
             "analyze_jamming",
             "eccm_status",
+            # Auto-tactical commands (CPU-ASSIST tier)
+            "enable_auto_tactical",
+            "disable_auto_tactical",
+            "set_engagement_rules",
+            "approve_tactical",
+            "deny_tactical",
             # Inter-station comms
             "station_message",
         },
@@ -172,6 +178,7 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             "pdc_status", "weapon_arcs", "targeting_status",
             "damage_assessment", "engagement_envelope",
             "ecm_status", "eccm_status", "emissions_status",
+            "auto_tactical_status",
         },
         required_systems={"weapons", "targeting"},
     ),
@@ -213,6 +220,12 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             "transfer_crew",
             "unassign_crew",
             "crew_station_status",
+            # Auto-ops commands (CPU-ASSIST tier)
+            "enable_auto_ops",
+            "disable_auto_ops",
+            "set_ops_mode",
+            "approve_ops",
+            "deny_ops",
             # Inter-station comms
             "station_message",
         },
@@ -223,6 +236,7 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             "power_management_status", "ops_status", "ecm_status",
             "crew_fatigue_status", "crew_station_status",
             "subsystem_health",
+            "auto_ops_status",
         },
         required_systems={"power", "power_management"},
     ),

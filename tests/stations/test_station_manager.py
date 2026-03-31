@@ -220,9 +220,9 @@ def test_cleanup_stale_claims(manager):
 
     # Manually set last_heartbeat to old time
     session = manager.sessions[client_id]
-    session.last_heartbeat = datetime.now() - timedelta(seconds=400)  # 400 seconds ago
+    session.last_heartbeat = datetime.now() - timedelta(seconds=1000)  # 1000 seconds ago
 
-    # Run cleanup (uses default timeout of 300 seconds from manager.claim_timeout_seconds)
+    # Run cleanup (uses default timeout of 900 seconds from manager.claim_timeout_seconds)
     removed = manager.cleanup_stale_claims()
 
     # Session should be removed

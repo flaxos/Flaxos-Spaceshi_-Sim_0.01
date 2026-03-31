@@ -1,0 +1,224 @@
+# Scenario 23: Fleet Coordination
+# Feature test: AI escort doctrine, coordinated salvos, fleet commands,
+# spread fire vs focus fire, multi-target tracking
+#
+# Player commands a destroyer flagship with 2 AI corvette escorts against
+# 3 hostile frigates.  Tests fleet coordination under fire.
+
+name: "Fleet Coordination"
+description: "Command a task force of three ships against a hostile frigate squadron"
+
+difficulty: "hard"
+player_count: "1-2"
+category: "fleet"
+
+dt: 0.1
+
+fleets:
+  - fleet_id: "strike_group"
+    name: "Strike Group Anvil"
+    faction: "unsa"
+    flagship: "player"
+    formation: "wedge"
+    ships: ["player", "escort_blade", "escort_lance"]
+
+ships:
+  # ── Player: destroyer flagship ─────────────────────────────────
+  - id: "player"
+    name: "UNS Anvil"
+    ship_class: "destroyer"
+    player_controlled: true
+    faction: "unsa"
+    position: {x: -150000, y: 0, z: 0}
+    velocity: {x: 80, y: 0, z: 0}
+    orientation: {pitch: 0, yaw: 0, roll: 0}
+    systems:
+      propulsion:
+        fuel_level: 1200.0
+
+  # ── AI Escort 1 ────────────────────────────────────────────────
+  - id: "escort_blade"
+    name: "UNS Blade"
+    ship_class: "corvette"
+    faction: "unsa"
+    ai_enabled: true
+    position: {x: -153000, y: 3000, z: 1000}
+    velocity: {x: 80, y: 0, z: 0}
+    orientation: {pitch: 0, yaw: 0, roll: 0}
+    ai_behavior:
+      role: "escort"
+      aggression: 0.6
+      engagement_range: 60000
+      protect_target: "player"
+      flee_threshold: 0.2
+      evade_threshold: 0.35
+      max_thrust_profile: 0.7
+      weapon_confidence_threshold: 0.25
+
+  # ── AI Escort 2 ────────────────────────────────────────────────
+  - id: "escort_lance"
+    name: "UNS Lance"
+    ship_class: "corvette"
+    faction: "unsa"
+    ai_enabled: true
+    position: {x: -153000, y: -3000, z: -1000}
+    velocity: {x: 80, y: 0, z: 0}
+    orientation: {pitch: 0, yaw: 0, roll: 0}
+    ai_behavior:
+      role: "escort"
+      aggression: 0.6
+      engagement_range: 60000
+      protect_target: "player"
+      flee_threshold: 0.2
+      evade_threshold: 0.35
+      max_thrust_profile: 0.7
+      weapon_confidence_threshold: 0.25
+
+  # ── Hostile frigates ───────────────────────────────────────────
+  - id: "hostile_frigate_1"
+    name: "OPA Fury"
+    ship_class: "frigate"
+    faction: "opa"
+    ai_enabled: true
+    position: {x: 0, y: 10000, z: 0}
+    velocity: {x: -30, y: 0, z: 0}
+    orientation: {pitch: 0, yaw: 180, roll: 0}
+    ai_behavior:
+      role: "combat"
+      aggression: 0.7
+      engagement_range: 80000
+      flee_threshold: 0.2
+      evade_threshold: 0.35
+      max_thrust_profile: 0.6
+      weapon_confidence_threshold: 0.2
+
+  - id: "hostile_frigate_2"
+    name: "OPA Vengeance"
+    ship_class: "frigate"
+    faction: "opa"
+    ai_enabled: true
+    position: {x: 5000, y: -15000, z: 5000}
+    velocity: {x: -25, y: 0, z: 0}
+    orientation: {pitch: 0, yaw: 180, roll: 0}
+    ai_behavior:
+      role: "combat"
+      aggression: 0.8
+      engagement_range: 80000
+      flee_threshold: 0.15
+      evade_threshold: 0.3
+      max_thrust_profile: 0.6
+      weapon_confidence_threshold: 0.2
+
+  - id: "hostile_frigate_3"
+    name: "OPA Reckoning"
+    ship_class: "frigate"
+    faction: "opa"
+    ai_enabled: true
+    position: {x: -10000, y: 0, z: -8000}
+    velocity: {x: -20, y: 10, z: 0}
+    orientation: {pitch: 0, yaw: 180, roll: 0}
+    ai_behavior:
+      role: "combat"
+      aggression: 0.6
+      engagement_range: 80000
+      flee_threshold: 0.25
+      evade_threshold: 0.4
+      max_thrust_profile: 0.5
+      weapon_confidence_threshold: 0.25
+
+mission:
+  name: "Operation: Iron Anvil"
+  description: "Destroy a hostile frigate squadron with your task force"
+
+  briefing: |
+    SITUATION:
+    Three OPA frigates — Fury, Vengeance, and Reckoning — are holding
+    position near a contested transit corridor.  They are coordinated
+    and well-armed.
+
+    FORCES:
+    Strike Group Anvil:
+      - UNS Anvil (destroyer, your flagship) — heavy weapons loadout
+      - UNS Blade (corvette, escort) — AI-controlled, will screen for you
+      - UNS Lance (corvette, escort) — AI-controlled, will screen for you
+
+    ENEMY:
+      - OPA Fury (frigate) — aggressive, will close to engagement range
+      - OPA Vengeance (frigate) — very aggressive, reckless tactics
+      - OPA Reckoning (frigate) — cautious, hangs back and uses range
+
+    OBJECTIVES:
+    Destroy all three hostile frigates.  Your flagship must survive.
+
+    TACTICAL NOTES:
+    - Your escorts will protect you and engage targets of opportunity.
+      Use fleet commands to coordinate their fire.
+    - Focus fire is more effective than spreading damage across all three.
+    - The OPA ships will try to bracket you — don't let them get behind you.
+    - Use torpedo salvos to force the enemy into PDC engagement, then close
+      with railguns while their defenses are occupied.
+    - Watch your escorts' health — if they go down, you lose screening.
+
+    Coordinate. Focus fire. Win together.
+
+  objectives:
+    - id: "kill_frigate_1"
+      type: "mission_kill"
+      description: "Neutralize OPA Fury"
+      required: true
+      params:
+        target: "hostile_frigate_1"
+
+    - id: "kill_frigate_2"
+      type: "mission_kill"
+      description: "Neutralize OPA Vengeance"
+      required: true
+      params:
+        target: "hostile_frigate_2"
+
+    - id: "kill_frigate_3"
+      type: "mission_kill"
+      description: "Neutralize OPA Reckoning"
+      required: true
+      params:
+        target: "hostile_frigate_3"
+
+    - id: "flagship_survives"
+      type: "avoid_mission_kill"
+      description: "Keep the Anvil operational"
+      required: true
+      params:
+        target: "player"
+
+  time_limit: 600  # 10 minutes
+
+  success_message: |
+    All hostile frigates neutralized.  Strike Group Anvil holds the field.
+
+    Your coordination of escorts and focused fire broke the enemy formation.
+    The transit corridor is clear.
+
+    Outstanding fleet command, Admiral.
+
+  failure_message: |
+    The Anvil has been neutralized.  Strike Group Anvil is combat ineffective.
+
+    Without flagship coordination, the escorts break off.  The OPA frigates
+    hold the corridor.
+
+    Review your fleet tactics:
+    - Did you focus fire or spread damage too thin?
+    - Did you protect your escorts or let them get isolated?
+    - Did you use torpedo salvos to saturate PDC coverage?
+
+  hints:
+    - trigger: "start"
+      message: "TF ANVIL: All ships, form up. Begin approach to engagement range."
+    - trigger: "range < 100000"
+      target: "hostile_frigate_1"
+      message: "TACTICAL: Enemy frigates detected. Recommend weapons free and coordinated approach."
+    - trigger: "range < 50000"
+      target: "hostile_frigate_1"
+      message: "TACTICAL: Entering weapons range. Focus fire on a single target for fastest kills."
+    - trigger: "time > 300"
+      message: "OPS: Five minutes elapsed. Half the engagement window remains."

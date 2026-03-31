@@ -1,0 +1,152 @@
+{
+  "class_id": "asteroid_base",
+  "class_name": "Asteroid Base",
+  "description": "Hidden outpost carved into a hollowed-out asteroid. Natural rock hull provides enormous passive protection. Extremely low thermal and radar signatures make it nearly indistinguishable from a natural rock body at range. Minimal attitude thrusters only — no real propulsion. Defensive weapons discourage boarding attempts.",
+  "dimensions": {
+    "length_m": 300.0,
+    "beam_m": 150.0,
+    "draft_m": 120.0
+  },
+  "crew_complement": {
+    "minimum": 50,
+    "standard": 120,
+    "maximum": 200
+  },
+  "mass": {
+    "dry_mass": 100000.0,
+    "max_fuel": 500.0,
+    "max_hull_integrity": 3000.0
+  },
+  "armor": {
+    "fore": { "thickness_cm": 20.0, "material": "asteroid_rock" },
+    "aft": { "thickness_cm": 15.0, "material": "asteroid_rock" },
+    "port": { "thickness_cm": 18.0, "material": "asteroid_rock" },
+    "starboard": { "thickness_cm": 18.0, "material": "asteroid_rock" },
+    "dorsal": { "thickness_cm": 25.0, "material": "asteroid_rock" },
+    "ventral": { "thickness_cm": 22.0, "material": "asteroid_rock" }
+  },
+  "systems": {
+    "propulsion": {
+      "enabled": true,
+      "power_draw": 10,
+      "max_thrust": 0.5,
+      "isp": 2000,
+      "max_fuel": 500.0,
+      "fuel_level": 500.0,
+      "drive_type": "attitude_only",
+      "placement": { "section": "aft", "position": { "x": -140.0, "y": 0.0, "z": 0.0 } }
+    },
+    "rcs": {
+      "enabled": true,
+      "max_torque": 50.0,
+      "attitude_rate": 0.5,
+      "thruster_count": 8,
+      "placement": [
+        { "section": "fore", "position": { "x": 140.0, "y": 0.0, "z": 0.0 } },
+        { "section": "aft", "position": { "x": -130.0, "y": 0.0, "z": 0.0 } }
+      ]
+    },
+    "sensors": {
+      "enabled": true,
+      "power_draw": 35,
+      "passive": { "range": 600000.0 },
+      "active": { "scan_range": 500000.0, "cooldown_time": 8.0 },
+      "signature_base": 0.2,
+      "ir_modifier": 0.3,
+      "rcs_modifier": 0.4,
+      "placement": { "section": "dorsal", "position": { "x": 50.0, "y": 0.0, "z": 55.0 } }
+    },
+    "navigation": {
+      "enabled": true,
+      "power_draw": 8
+    },
+    "targeting": {
+      "enabled": true,
+      "lock_time": 2.0,
+      "lock_range": 400000.0
+    },
+    "combat": {
+      "enabled": true,
+      "railguns": 0,
+      "pdcs": 4,
+      "missiles": 2,
+      "missile_capacity": 8
+    },
+    "ecm": {
+      "enabled": true,
+      "jammer_power": 60000.0,
+      "chaff_count": 0,
+      "flare_count": 0,
+      "jammer_heat": 18000.0
+    },
+    "power_management": {
+      "primary": { "output": 300.0 },
+      "secondary": { "output": 150.0 },
+      "tertiary": { "output": 80.0 },
+      "system_map": {
+        "propulsion": "primary",
+        "weapons": "primary",
+        "combat": "primary",
+        "sensors": "secondary",
+        "targeting": "secondary",
+        "rcs": "secondary",
+        "navigation": "tertiary"
+      }
+    },
+    "comms": {
+      "enabled": true,
+      "range": 1000000.0,
+      "power_draw": 10
+    }
+  },
+  "weapon_mounts": [
+    {
+      "mount_id": "pdc_1",
+      "weapon_type": "pdc",
+      "placement": { "section": "dorsal_fore", "position": { "x": 80.0, "y": 30.0, "z": 55.0 } },
+      "firing_arc": { "azimuth_min": -90, "azimuth_max": 45, "elevation_min": 0, "elevation_max": 90 },
+      "coverage": "fore_upper_port"
+    },
+    {
+      "mount_id": "pdc_2",
+      "weapon_type": "pdc",
+      "placement": { "section": "dorsal_fore", "position": { "x": 80.0, "y": -30.0, "z": 55.0 } },
+      "firing_arc": { "azimuth_min": -45, "azimuth_max": 90, "elevation_min": 0, "elevation_max": 90 },
+      "coverage": "fore_upper_starboard"
+    },
+    {
+      "mount_id": "pdc_3",
+      "weapon_type": "pdc",
+      "placement": { "section": "dorsal_aft", "position": { "x": -80.0, "y": 30.0, "z": 50.0 } },
+      "firing_arc": { "azimuth_min": 90, "azimuth_max": 270, "elevation_min": 0, "elevation_max": 90 },
+      "coverage": "aft_upper_port"
+    },
+    {
+      "mount_id": "pdc_4",
+      "weapon_type": "pdc",
+      "placement": { "section": "dorsal_aft", "position": { "x": -80.0, "y": -30.0, "z": 50.0 } },
+      "firing_arc": { "azimuth_min": 90, "azimuth_max": 270, "elevation_min": 0, "elevation_max": 90 },
+      "coverage": "aft_upper_starboard"
+    },
+    {
+      "mount_id": "missile_1",
+      "weapon_type": "missile",
+      "placement": { "section": "fore_concealed", "position": { "x": 100.0, "y": 0.0, "z": 20.0 } },
+      "firing_arc": { "azimuth_min": -90, "azimuth_max": 90, "elevation_min": -30, "elevation_max": 60 }
+    },
+    {
+      "mount_id": "missile_2",
+      "weapon_type": "missile",
+      "placement": { "section": "aft_concealed", "position": { "x": -100.0, "y": 0.0, "z": 20.0 } },
+      "firing_arc": { "azimuth_min": 90, "azimuth_max": 270, "elevation_min": -30, "elevation_max": 60 }
+    }
+  ],
+  "damage_model": {
+    "propulsion": { "max_health": 20.0, "health": 20.0, "criticality": 1.0, "failure_threshold": 0.3 },
+    "rcs": { "max_health": 30.0, "health": 30.0, "criticality": 1.0, "failure_threshold": 0.3 },
+    "weapons": { "max_health": 200.0, "health": 200.0, "criticality": 3.0, "failure_threshold": 0.2 },
+    "sensors": { "max_health": 150.0, "health": 150.0, "criticality": 4.0, "failure_threshold": 0.15 },
+    "reactor": { "max_health": 350.0, "health": 350.0, "criticality": 5.0, "failure_threshold": 0.1 },
+    "life_support": { "max_health": 250.0, "health": 250.0, "criticality": 3.0, "failure_threshold": 0.2 }
+  }
+}

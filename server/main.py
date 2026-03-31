@@ -195,6 +195,12 @@ class UnifiedServer:
         if not cmd:
             return Response.error("missing cmd", ErrorCode.MISSING_PARAM).to_dict()
 
+        # Heartbeat: fire-and-forget session keepalive
+        if cmd == "heartbeat":
+            if self.station_manager:
+                self.station_manager.update_activity(client_id)
+            return {"ok": True}
+
         # Rate limiting (skip for state polling and discovery)
         if cmd not in ("get_state", "get_events", "get_combat_log", "_discover", "_ping", "_resume_session", "list_ship_classes"):
             if not self.rate_limiter.allow(client_id):
@@ -367,6 +373,11 @@ class UnifiedServer:
                 result["station"] = "captain"
                 logger.info(f"Auto-assigned {client_id} to {player_ship_id} as captain")
 
+            # Auto-reassign connected-but-unassigned clients to
+            # the player ship after scenario reload purges their claims.
+            if result.get("ok") and result.get("player_ship_id"):
+                self._auto_reassign_orphaned_clients(result["player_ship_id"])
+
             # Register AI crew for all ships in the scenario
             if result.get("ok") and self.ai_crew_manager:
                 for sid in self.runner.simulator.ships:
@@ -445,6 +456,44 @@ class UnifiedServer:
                 self.ai_crew_manager.activate_station(_pre_release_ship, _pre_release_station)
 
         return result.to_dict()
+
+    def _auto_reassign_orphaned_clients(self, player_ship_id: str) -> None:
+        """
+        After a scenario reload, re-assign connected clients that lost
+        their ship/station to the player ship.
+
+        Each client is re-assigned to the player ship and re-claims
+        their previous station type (stored before the purge cleared it).
+        If no previous station is known, CAPTAIN is attempted.
+
+        Args:
+            player_ship_id: The player-controlled ship in the new scenario.
+        """
+        from server.stations.station_types import StationType
+
+        for session in self.station_manager.get_all_clients():
+            # Skip clients that already have a valid ship assignment
+            if session.ship_id:
+                continue
+
+            self.station_manager.assign_to_ship(session.client_id, player_ship_id)
+
+            # Try to reclaim previous station, fall back to CAPTAIN
+            station = session.station or StationType.CAPTAIN
+            success, _ = self.station_manager.claim_station(
+                session.client_id, player_ship_id, station,
+            )
+
+            if success:
+                logger.info(
+                    f"Auto-reassigned orphaned client {session.client_id} "
+                    f"to {player_ship_id} as {station.value}"
+                )
+            else:
+                logger.info(
+                    f"Could not auto-claim {station.value} for "
+                    f"{session.client_id} on {player_ship_id}"
+                )
 
     def _handle_resume_session(self, client_id: str, req: dict) -> dict:
         """

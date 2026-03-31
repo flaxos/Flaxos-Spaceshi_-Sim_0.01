@@ -1,0 +1,138 @@
+{
+  "class_id": "carrier",
+  "class_name": "Fleet Carrier",
+  "description": "Fighter operations platform and fleet command vessel. Carries up to 8 fighters in internal hangars. Minimal self-defense weapons — relies on its fighter screen and escort ships for protection. Extended communications suite for coordinating fleet-wide operations.",
+  "dimensions": {
+    "length_m": 180.0,
+    "beam_m": 50.0,
+    "draft_m": 35.0
+  },
+  "crew_complement": {
+    "minimum": 60,
+    "standard": 130,
+    "maximum": 200
+  },
+  "mass": {
+    "dry_mass": 20000.0,
+    "max_fuel": 6000.0,
+    "max_hull_integrity": 900.0
+  },
+  "armor": {
+    "fore": { "thickness_cm": 7.0, "material": "composite_cermet" },
+    "aft": { "thickness_cm": 4.0, "material": "composite_cermet" },
+    "port": { "thickness_cm": 5.5, "material": "composite_cermet" },
+    "starboard": { "thickness_cm": 5.5, "material": "composite_cermet" },
+    "dorsal": { "thickness_cm": 6.0, "material": "composite_cermet" },
+    "ventral": { "thickness_cm": 5.0, "material": "composite_cermet" }
+  },
+  "systems": {
+    "propulsion": {
+      "enabled": true,
+      "power_draw": 200,
+      "max_thrust": 900.0,
+      "isp": 4000,
+      "max_fuel": 6000.0,
+      "fuel_level": 6000.0,
+      "drive_type": "epstein_heavy",
+      "placement": { "section": "aft", "position": { "x": -88.0, "y": 0.0, "z": 0.0 } }
+    },
+    "rcs": {
+      "enabled": true,
+      "max_torque": 200.0,
+      "attitude_rate": 3.5,
+      "thruster_count": 40,
+      "placement": [
+        { "section": "fore", "position": { "x": 88.0, "y": 0.0, "z": 0.0 } },
+        { "section": "midship", "position": { "x": 0.0, "y": 0.0, "z": 0.0 } },
+        { "section": "aft", "position": { "x": -85.0, "y": 0.0, "z": 0.0 } }
+      ]
+    },
+    "sensors": {
+      "enabled": true,
+      "power_draw": 50,
+      "passive": { "range": 500000.0 },
+      "active": { "scan_range": 1000000.0, "cooldown_time": 3.0 },
+      "signature_base": 2.8,
+      "ir_modifier": 1.8,
+      "rcs_modifier": 3.5,
+      "placement": { "section": "fore", "position": { "x": 89.0, "y": 0.0, "z": 10.0 } }
+    },
+    "navigation": {
+      "enabled": true,
+      "power_draw": 18
+    },
+    "targeting": {
+      "enabled": true,
+      "lock_time": 2.0,
+      "lock_range": 400000.0
+    },
+    "combat": {
+      "enabled": true,
+      "railguns": 0,
+      "pdcs": 2
+    },
+    "ecm": {
+      "enabled": true,
+      "jammer_power": 100000.0,
+      "chaff_count": 16,
+      "flare_count": 16,
+      "jammer_heat": 25000.0,
+      "chaff_duration": 50.0
+    },
+    "power_management": {
+      "primary": { "output": 400.0 },
+      "secondary": { "output": 200.0 },
+      "tertiary": { "output": 100.0 },
+      "system_map": {
+        "propulsion": "primary",
+        "weapons": "primary",
+        "combat": "primary",
+        "sensors": "secondary",
+        "targeting": "secondary",
+        "rcs": "secondary",
+        "navigation": "tertiary"
+      }
+    },
+    "fleet_coord": {
+      "enabled": true,
+      "command_capable": true,
+      "power_draw": 3.5
+    },
+    "hangar": {
+      "enabled": true,
+      "capacity": 8,
+      "craft_class": "fighter",
+      "launch_time": 30.0,
+      "recovery_time": 45.0
+    },
+    "comms": {
+      "enabled": true,
+      "range": 2000000.0,
+      "power_draw": 12
+    }
+  },
+  "weapon_mounts": [
+    {
+      "mount_id": "pdc_1",
+      "weapon_type": "pdc",
+      "placement": { "section": "dorsal_midship", "position": { "x": 10.0, "y": 0.0, "z": 17.0 } },
+      "firing_arc": { "azimuth_min": -180, "azimuth_max": 180, "elevation_min": 0, "elevation_max": 90 },
+      "coverage": "upper_hemisphere"
+    },
+    {
+      "mount_id": "pdc_2",
+      "weapon_type": "pdc",
+      "placement": { "section": "ventral_midship", "position": { "x": -10.0, "y": 0.0, "z": -17.0 } },
+      "firing_arc": { "azimuth_min": -180, "azimuth_max": 180, "elevation_min": -90, "elevation_max": 0 },
+      "coverage": "lower_hemisphere"
+    }
+  ],
+  "damage_model": {
+    "propulsion": { "max_health": 200.0, "health": 200.0, "criticality": 5.0, "failure_threshold": 0.2 },
+    "rcs": { "max_health": 140.0, "health": 140.0, "criticality": 3.0, "failure_threshold": 0.2 },
+    "weapons": { "max_health": 60.0, "health": 60.0, "criticality": 2.0, "failure_threshold": 0.2 },
+    "sensors": { "max_health": 130.0, "health": 130.0, "criticality": 4.0, "failure_threshold": 0.2 },
+    "reactor": { "max_health": 250.0, "health": 250.0, "criticality": 5.0, "failure_threshold": 0.12 },
+    "life_support": { "max_health": 150.0, "health": 150.0, "criticality": 3.0, "failure_threshold": 0.2 }
+  }
+}

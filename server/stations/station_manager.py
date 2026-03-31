@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from typing import Dict, Optional, Set, List, Tuple
 from datetime import datetime
 import logging
+import threading
 
 from .station_types import StationType, PermissionLevel, get_station_commands
 
@@ -72,10 +73,12 @@ class StationManager:
         # client_id -> session
         self.sessions: Dict[str, ClientSession] = {}
         # Configuration
-        self.claim_timeout_seconds = 300  # 5 min inactive = auto-release
+        self.claim_timeout_seconds = 900  # 15 min inactive = auto-release
         self.allow_multiple_stations = False  # One station per client
         # Counter for generating client IDs
         self._next_client_id = 1
+        # Lock to prevent race conditions in captain election
+        self._election_lock = threading.Lock()
 
     def generate_client_id(self) -> str:
         """Generate a unique client ID"""
@@ -548,6 +551,9 @@ class StationManager:
         """
         Auto-promote the longest-connected active client on a ship to CAPTAIN.
 
+        Thread-safe: acquires ``_election_lock`` to prevent race conditions
+        when two clients disconnect simultaneously on the same ship.
+
         Called when the current captain disconnects or releases their station,
         so that pause, time-scale, and scenario-load commands remain available
         to the crew.
@@ -559,41 +565,42 @@ class StationManager:
             client_id of the newly promoted captain, or None if no eligible
             client exists on the ship.
         """
-        # Gather clients on this ship that are still active (have a session)
-        candidates = [
-            s for s in self.sessions.values()
-            if s.ship_id == ship_id
-        ]
-        if not candidates:
-            logger.info(f"No clients on ship {ship_id} to promote to captain")
-            return None
+        with self._election_lock:
+            # Gather clients on this ship that are still active (have a session)
+            candidates = [
+                s for s in self.sessions.values()
+                if s.ship_id == ship_id
+            ]
+            if not candidates:
+                logger.info(f"No clients on ship {ship_id} to promote to captain")
+                return None
 
-        # Pick the longest-connected session (earliest connected_at)
-        candidates.sort(key=lambda s: s.connected_at)
-        successor = candidates[0]
+            # Pick the longest-connected session (earliest connected_at)
+            candidates.sort(key=lambda s: s.connected_at)
+            successor = candidates[0]
 
-        # Release their current station first (if any) so claim_station
-        # does not reject with "already controlling X"
-        if successor.station:
-            self.release_station(successor.client_id, ship_id, successor.station)
+            # Release their current station first (if any) so claim_station
+            # does not reject with "already controlling X"
+            if successor.station:
+                self.release_station(successor.client_id, ship_id, successor.station)
 
-        success, msg = self.claim_station(
-            successor.client_id,
-            ship_id,
-            StationType.CAPTAIN,
-            PermissionLevel.CAPTAIN,
-        )
-        if success:
-            logger.info(
-                f"Captain succession on ship {ship_id}: "
-                f"{successor.client_id} ({successor.player_name}) promoted to CAPTAIN"
+            success, msg = self.claim_station(
+                successor.client_id,
+                ship_id,
+                StationType.CAPTAIN,
+                PermissionLevel.CAPTAIN,
             )
-            return successor.client_id
+            if success:
+                logger.info(
+                    f"Captain succession on ship {ship_id}: "
+                    f"{successor.client_id} ({successor.player_name}) promoted to CAPTAIN"
+                )
+                return successor.client_id
 
-        logger.warning(
-            f"Captain succession failed on ship {ship_id}: {msg}"
-        )
-        return None
+            logger.warning(
+                f"Captain succession failed on ship {ship_id}: {msg}"
+            )
+            return None
 
     def get_all_clients(self) -> List[ClientSession]:
         """

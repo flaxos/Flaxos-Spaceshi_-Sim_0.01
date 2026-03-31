@@ -196,6 +196,10 @@ def get_ship_telemetry(ship, sim_time: float = None) -> Dict[str, Any]:
     # Get crew fatigue system state
     crew_fatigue_state = _get_crew_fatigue_state(ship)
 
+    # Get auto-tactical and auto-ops state (CPU-ASSIST tier)
+    auto_tactical_state = _get_auto_system_state(ship, "auto_tactical")
+    auto_ops_state = _get_auto_system_state(ship, "auto_ops")
+
     # Drift state: moving with no thrust applied
     is_drifting = acceleration_magnitude < 0.001 and velocity_magnitude > 0.01
 
@@ -267,6 +271,8 @@ def get_ship_telemetry(ship, sim_time: float = None) -> Dict[str, Any]:
         "comms": comms_state,
         "docking": docking_state,
         "crew_fatigue": crew_fatigue_state,
+        "auto_tactical": auto_tactical_state,
+        "auto_ops": auto_ops_state,
         "hull_integrity": getattr(ship, "hull_integrity", 0.0),
         "max_hull_integrity": getattr(ship, "max_hull_integrity", 0.0),
         "hull_percent": (
@@ -524,6 +530,28 @@ def _get_crew_fatigue_state(ship) -> Dict[str, Any]:
     if crew_fatigue and hasattr(crew_fatigue, "get_state"):
         try:
             return crew_fatigue.get_state()
+        except Exception:
+            pass
+    return {
+        "enabled": False,
+        "status": "unavailable",
+    }
+
+
+def _get_auto_system_state(ship, system_name: str) -> Dict[str, Any]:
+    """Get auto-system state (auto_tactical or auto_ops) for telemetry.
+
+    Args:
+        ship: Ship object
+        system_name: System key ('auto_tactical' or 'auto_ops')
+
+    Returns:
+        dict: System state with proposals
+    """
+    system = ship.systems.get(system_name)
+    if system and hasattr(system, "get_state"):
+        try:
+            return system.get_state()
         except Exception:
             pass
     return {

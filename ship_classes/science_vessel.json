@@ -1,0 +1,123 @@
+{
+  "class_id": "science_vessel",
+  "class_name": "Research Vessel",
+  "description": "Dedicated research and reconnaissance platform with double-range passive sensors and enhanced science instrumentation. Low thermal signature makes it hard to detect at range. Minimal weapons — this ship gathers data, not kills.",
+  "dimensions": {
+    "length_m": 70.0,
+    "beam_m": 15.0,
+    "draft_m": 12.0
+  },
+  "crew_complement": {
+    "minimum": 15,
+    "standard": 28,
+    "maximum": 40
+  },
+  "mass": {
+    "dry_mass": 3500.0,
+    "max_fuel": 1500.0,
+    "max_hull_integrity": 180.0
+  },
+  "armor": {
+    "fore": { "thickness_cm": 2.5, "material": "composite" },
+    "aft": { "thickness_cm": 1.5, "material": "composite" },
+    "port": { "thickness_cm": 2.0, "material": "composite" },
+    "starboard": { "thickness_cm": 2.0, "material": "composite" },
+    "dorsal": { "thickness_cm": 2.0, "material": "composite" },
+    "ventral": { "thickness_cm": 2.0, "material": "composite" }
+  },
+  "systems": {
+    "propulsion": {
+      "enabled": true,
+      "power_draw": 80,
+      "max_thrust": 350.0,
+      "isp": 4000,
+      "max_fuel": 1500.0,
+      "fuel_level": 1500.0,
+      "drive_type": "epstein",
+      "placement": { "section": "aft", "position": { "x": -34.0, "y": 0.0, "z": 0.0 } }
+    },
+    "rcs": {
+      "enabled": true,
+      "max_torque": 45.0,
+      "attitude_rate": 12.0,
+      "thruster_count": 16,
+      "placement": [
+        { "section": "fore", "position": { "x": 34.0, "y": 0.0, "z": 0.0 } },
+        { "section": "aft", "position": { "x": -32.0, "y": 0.0, "z": 0.0 } }
+      ]
+    },
+    "sensors": {
+      "enabled": true,
+      "power_draw": 40,
+      "passive": { "range": 800000.0 },
+      "active": { "scan_range": 800000.0, "cooldown_time": 3.0 },
+      "signature_base": 0.7,
+      "ir_modifier": 0.6,
+      "rcs_modifier": 0.8,
+      "placement": { "section": "fore", "position": { "x": 34.5, "y": 0.0, "z": 3.0 } }
+    },
+    "navigation": {
+      "enabled": true,
+      "power_draw": 12
+    },
+    "targeting": {
+      "enabled": true,
+      "lock_time": 2.0,
+      "lock_range": 400000.0
+    },
+    "combat": {
+      "enabled": true,
+      "railguns": 0,
+      "pdcs": 1
+    },
+    "ecm": {
+      "enabled": true,
+      "jammer_power": 40000.0,
+      "chaff_count": 8,
+      "flare_count": 10,
+      "jammer_heat": 12000.0
+    },
+    "power_management": {
+      "primary": { "output": 140.0 },
+      "secondary": { "output": 90.0 },
+      "tertiary": { "output": 45.0 },
+      "system_map": {
+        "propulsion": "primary",
+        "weapons": "primary",
+        "combat": "primary",
+        "sensors": "secondary",
+        "targeting": "secondary",
+        "rcs": "secondary",
+        "navigation": "tertiary"
+      }
+    },
+    "science": {
+      "enabled": true,
+      "analysis_speed": 2.0,
+      "sample_capacity": 50,
+      "power_draw": 25
+    },
+    "comms": {
+      "enabled": true,
+      "range": 1500000.0,
+      "power_draw": 8
+    }
+  },
+  "weapon_mounts": [
+    {
+      "mount_id": "pdc_1",
+      "weapon_type": "pdc",
+      "placement": { "section": "dorsal_midship", "position": { "x": 5.0, "y": 0.0, "z": 6.0 } },
+      "firing_arc": { "azimuth_min": -180, "azimuth_max": 180, "elevation_min": -10, "elevation_max": 90 },
+      "coverage": "upper_hemisphere"
+    }
+  ],
+  "damage_model": {
+    "propulsion": { "max_health": 90.0, "health": 90.0, "criticality": 5.0, "failure_threshold": 0.2 },
+    "rcs": { "max_health": 65.0, "health": 65.0, "criticality": 3.0, "failure_threshold": 0.2 },
+    "weapons": { "max_health": 30.0, "health": 30.0, "criticality": 2.0, "failure_threshold": 0.25 },
+    "sensors": { "max_health": 100.0, "health": 100.0, "criticality": 5.0, "failure_threshold": 0.15 },
+    "reactor": { "max_health": 120.0, "health": 120.0, "criticality": 5.0, "failure_threshold": 0.15 },
+    "life_support": { "max_health": 70.0, "health": 70.0, "criticality": 3.0, "failure_threshold": 0.25 }
+  }
+}

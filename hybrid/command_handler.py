@@ -158,6 +158,18 @@ system_commands = {
     "science_composition_scan": ("science", "science_composition_scan"),
     # Flight computer
     "flight_computer": ("flight_computer", "flight_computer"),
+    # Auto-tactical commands (CPU-ASSIST tier)
+    "enable_auto_tactical": ("auto_tactical", "enable"),
+    "disable_auto_tactical": ("auto_tactical", "disable"),
+    "set_engagement_rules": ("auto_tactical", "set_engagement_rules"),
+    "approve_tactical": ("auto_tactical", "approve"),
+    "deny_tactical": ("auto_tactical", "deny"),
+    # Auto-ops commands (CPU-ASSIST tier)
+    "enable_auto_ops": ("auto_ops", "enable"),
+    "disable_auto_ops": ("auto_ops", "disable"),
+    "set_ops_mode": ("auto_ops", "set_mode"),
+    "approve_ops": ("auto_ops", "approve"),
+    "deny_ops": ("auto_ops", "deny"),
     # Fleet coordination commands
     "fleet_create": ("fleet_coord", "fleet_create"),
     "fleet_add_ship": ("fleet_coord", "fleet_add_ship"),

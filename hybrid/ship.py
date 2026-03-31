@@ -268,6 +268,8 @@ class Ship:
             "crew_fatigue": {},  # Crew fatigue and g-load performance model
             "science": {},   # Science for sensor analysis and contact classification
             "crew_binding": {},  # Crew-station assignment and performance multipliers
+            "auto_tactical": {},  # CPU-ASSIST automated targeting and fire proposals
+            "auto_ops": {},       # CPU-ASSIST automated ops management proposals
         }
 
         # Merge config with defaults (config takes precedence)

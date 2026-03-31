@@ -175,13 +175,13 @@ def _setup_combat_at_range(sim, player_id: str, target_id: str,
 
 class TestPreMission:
 
-    def test_list_scenarios_returns_all_12(self):
-        """ScenarioLoader.list_scenarios returns exactly 12 YAML files."""
+    def test_list_scenarios_returns_yaml_files(self):
+        """ScenarioLoader.list_scenarios returns at least the original 12 YAML files."""
         from hybrid.scenarios.loader import ScenarioLoader
         paths = ScenarioLoader.list_scenarios(SCENARIOS_DIR)
         yaml_paths = [p for p in paths if p.endswith((".yaml", ".yml"))]
-        assert len(yaml_paths) == 12, (
-            f"Expected 12 YAML scenarios, found {len(yaml_paths)}.\n"
+        assert len(yaml_paths) >= 12, (
+            f"Expected at least 12 YAML scenarios, found {len(yaml_paths)}.\n"
             f"Files: {[os.path.basename(p) for p in yaml_paths]}"
         )
 

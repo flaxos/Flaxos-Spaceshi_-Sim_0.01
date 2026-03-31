@@ -69,7 +69,14 @@ class HybridRunner:
         return self._load_scenario_file(scenario_path)
 
     def list_scenarios(self):
-        """List available scenarios with metadata."""
+        """List available scenarios with metadata.
+
+        Reads top-level fields (difficulty, player_count, category) from
+        the raw YAML in addition to the parsed scenario data so the GUI
+        mission selector can filter and sort missions.
+        """
+        import yaml as _yaml
+
         scenarios = []
         for path in ScenarioLoader.list_scenarios(self.scenarios_dir):
             scenario_id = os.path.splitext(os.path.basename(path))[0]
@@ -86,6 +93,18 @@ class HybridRunner:
                     summary["mission_name"] = mission.name
                     summary["mission_description"] = mission.description
                     summary["briefing"] = mission.briefing
+
+                # Read raw YAML for menu metadata fields that the
+                # ScenarioLoader.load() pipeline does not propagate.
+                try:
+                    with open(path, "r") as f:
+                        raw = _yaml.safe_load(f)
+                    if raw:
+                        for field in ("difficulty", "player_count", "category"):
+                            if field in raw:
+                                summary[field] = str(raw[field])
+                except Exception:
+                    pass  # metadata is optional — don't fail the listing
             except Exception as exc:
                 summary["error"] = str(exc)
             scenarios.append(summary)
