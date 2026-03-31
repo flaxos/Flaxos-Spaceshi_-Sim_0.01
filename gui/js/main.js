@@ -93,6 +93,8 @@ import "../components/multi-track-panel.js";
 import "../components/target-assessment.js";
 // Damage visualization
 import { damageStateManager } from "./damage-state-manager.js";
+// Keyboard flight controls (MANUAL tier)
+import * as keyboardFlight from "./keyboard-flight.js";
 // Phase 6: Mobile optimization
 import { mobileManager } from "./mobile-manager.js";
 import "../components/touch-throttle.js";
@@ -166,6 +168,9 @@ async function init() {
 
   // Initialize mobile layout detection and touch controls
   mobileManager.init();
+
+  // Initialize keyboard flight controls (activates in MANUAL tier)
+  keyboardFlight.init();
 
   // Debug mode logging
   if (app.config.debugMode) {
