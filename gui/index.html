@@ -307,11 +307,6 @@
       min-height: var(--panel-height-sm);
     }
 
-    .eng-crew-panel {
-      grid-column: span 4;
-      min-height: var(--panel-height-sm);
-    }
-
     .eng-log-panel {
       grid-column: span 4;
       min-height: var(--panel-height-sm);
@@ -566,7 +561,6 @@
       .tac-eccm-panel,
       .helm-micro-rcs-panel,
       .eng-systems-panel,
-      .eng-crew-panel,
       .eng-log-panel,
       .ops-status-panel,
       .ops-subsystem-panel,
@@ -619,7 +613,6 @@
       .ops-crew-binding-panel,
       .ops-log-panel,
       .eng-systems-panel,
-      .eng-crew-panel,
       .eng-log-panel,
       .fleet-formation-panel,
       .fleet-orders-panel,
@@ -895,8 +888,8 @@
             <subsystem-status-panel></subsystem-status-panel>
           </flaxos-panel>
 
-          <flaxos-panel title="Power Management" collapsible priority="secondary" domain="power" class="eng-power-panel">
-            <power-management></power-management>
+          <flaxos-panel title="Power Draw" collapsible priority="secondary" domain="power" class="eng-power-panel">
+            <power-draw-display></power-draw-display>
           </flaxos-panel>
         </div>
 
@@ -904,10 +897,6 @@
         <div class="panel-group" data-label="// MONITORING">
           <flaxos-panel title="Systems" collapsible priority="secondary" domain="power" class="eng-systems-panel">
             <system-toggles></system-toggles>
-          </flaxos-panel>
-
-          <flaxos-panel title="Crew Fatigue" collapsible priority="tertiary" domain="power" class="eng-crew-panel">
-            <crew-fatigue-display></crew-fatigue-display>
           </flaxos-panel>
 
           <flaxos-panel title="Event Log" collapsible priority="tertiary" domain="power" class="eng-log-panel">
