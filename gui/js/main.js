@@ -93,6 +93,10 @@ import "../components/multi-track-panel.js";
 import "../components/target-assessment.js";
 // Damage visualization
 import { damageStateManager } from "./damage-state-manager.js";
+// Phase 6: Mobile optimization
+import { mobileManager } from "./mobile-manager.js";
+import "../components/touch-throttle.js";
+import "../components/touch-joystick.js";
 
 // App state
 const app = {
@@ -159,6 +163,9 @@ async function init() {
 
   // Initialize damage visualization (reacts to subsystem_health in telemetry)
   damageStateManager.init();
+
+  // Initialize mobile layout detection and touch controls
+  mobileManager.init();
 
   // Debug mode logging
   if (app.config.debugMode) {
@@ -688,11 +695,13 @@ window.flaxosApp = {
   wsClient,
   stateManager,
   helmRequests,
+  mobileManager,
   sendCommand,
   showSystemMessage,
   setGameState,
   get gameState() { return app.gameState; },
   get nextScenarioId() { return app.nextScenarioId; },
+  get isMobile() { return mobileManager.isMobile(); },
   config: app.config
 };
 
