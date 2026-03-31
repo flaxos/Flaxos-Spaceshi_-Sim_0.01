@@ -8,6 +8,7 @@
 
 const STORAGE_KEY = "flaxos-control-tier";
 const TIERS = [
+  { id: "manual",    label: "MANUAL" },
   { id: "raw",       label: "RAW" },
   { id: "arcade",    label: "ARCADE" },
   { id: "cpu-assist", label: "CPU ASSIST" },
@@ -133,6 +134,13 @@ class TierSelector extends HTMLElement {
           color: var(--text-primary, #e0e0e0);
         }
 
+        /* --- MANUAL: amber flight-sim aesthetic --- */
+        .tier-btn[data-tier="manual"].active {
+          background: rgba(255, 136, 0, 0.08);
+          color: #ff8800;
+          box-shadow: inset 0 0 12px rgba(255, 136, 0, 0.1);
+        }
+
         /* --- RAW: green terminal aesthetic --- */
         .tier-btn[data-tier="raw"].active {
           background: rgba(0, 255, 136, 0.08);
@@ -162,6 +170,11 @@ class TierSelector extends HTMLElement {
           right: 20%;
           height: 2px;
           border-radius: 1px;
+        }
+
+        .tier-btn[data-tier="manual"].active::after {
+          background: #ff8800;
+          box-shadow: 0 0 4px #ff8800;
         }
 
         .tier-btn[data-tier="raw"].active::after {

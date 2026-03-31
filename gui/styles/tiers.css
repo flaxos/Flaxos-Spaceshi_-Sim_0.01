@@ -25,6 +25,7 @@
    1. TIER ACCENT COLORS
    ========================================================================= */
 
+body.tier-manual     { --tier-accent: #ff8800; --tier-accent-rgb: 255, 136, 0; }  /* Amber — stick-and-rudder */
 body.tier-raw        { --tier-accent: #ff4444; --tier-accent-rgb: 255, 68, 68; }  /* Red — danger, manual */
 body.tier-arcade     { --tier-accent: #4488ff; --tier-accent-rgb: 68, 136, 255; }  /* Blue — guided */
 body.tier-cpu-assist { --tier-accent: #c0a0ff; --tier-accent-rgb: 192, 160, 255; }  /* Purple — bridge command */
@@ -39,6 +40,41 @@ body.tier-cpu-assist { --tier-accent: #c0a0ff; --tier-accent-rgb: 192, 160, 255;
 /* =========================================================================
    2. PER-TIER VISUAL IDENTITY
    ========================================================================= */
+
+/* --- MANUAL: Flight-sim HUD, minimal chrome, amber accents ------------- */
+
+body.tier-manual {
+  font-family: var(--font-mono, 'JetBrains Mono', 'Fira Code', 'Consolas', monospace);
+  --text-primary: #ffe0b0;
+  --scanline-opacity: 0.015;
+}
+
+body.tier-manual flaxos-panel {
+  border-radius: 0;
+  border-width: 1px;
+  padding: 0;
+}
+
+body.tier-manual flaxos-panel[priority="primary"] {
+  border-left: 3px solid #ff8800;
+}
+
+/* Amber scanline overlay */
+body.tier-manual::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0px,
+    transparent 2px,
+    rgba(255, 136, 0, var(--scanline-opacity, 0.015)) 2px,
+    rgba(255, 136, 0, var(--scanline-opacity, 0.015)) 4px
+  );
+  mix-blend-mode: overlay;
+}
 
 /* --- RAW: Terminal aesthetic, monospace everything, sharp edges ---------- */
 
@@ -124,6 +160,79 @@ body.tier-cpu-assist flaxos-panel[priority="primary"] {
 
 flaxos-panel {
   transition: opacity 0.2s ease, max-height 0.3s ease;
+}
+
+
+/* =========================================================================
+   3B. HELM PANEL VISIBILITY — MANUAL TIER
+   "Stick and rudder" (~4 panels)
+
+   Show:     Contacts (compact), Flight Data, Manual Flight (HERO)
+   Hidden:   Everything else
+   ========================================================================= */
+
+body.tier-manual .helm-fc-panel,
+body.tier-manual .helm-autopilot-status-panel,
+body.tier-manual .helm-queue-panel,
+body.tier-manual .helm-docking-panel,
+body.tier-manual .helm-rcs-panel,
+body.tier-manual .helm-maneuver-panel,
+body.tier-manual .helm-micro-rcs-panel {
+  display: none;
+}
+
+body.tier-manual .helm-manual-flight-panel {
+  grid-column: span 8;
+}
+
+/* =========================================================================
+   3C. TACTICAL PANEL VISIBILITY — MANUAL TIER
+   Show only: Map (HERO), Fire Control, Targeting
+   ========================================================================= */
+
+body.tier-manual .tac-sensors-panel,
+body.tier-manual .tac-assessment-panel,
+body.tier-manual .tac-solution-panel,
+body.tier-manual .tac-multi-track-panel,
+body.tier-manual .tac-weapons-panel,
+body.tier-manual .tac-torpedo-panel,
+body.tier-manual .tac-subsystem-panel,
+body.tier-manual .tac-threat-panel,
+body.tier-manual .tac-ecm-panel,
+body.tier-manual .tac-eccm-panel,
+body.tier-manual .tac-combat-log-panel {
+  display: none;
+}
+
+body.tier-manual .tac-map-panel {
+  grid-column: span 12;
+}
+
+/* =========================================================================
+   3D. OPS PANEL VISIBILITY — MANUAL TIER
+   Show only: Ship Status, Power Profiles
+   ========================================================================= */
+
+body.tier-manual .ops-subsystem-panel,
+body.tier-manual .ops-systems-panel,
+body.tier-manual .ops-power-panel,
+body.tier-manual .ops-draw-panel,
+body.tier-manual .ops-crew-panel,
+body.tier-manual .ops-log-panel {
+  display: none;
+}
+
+/* =========================================================================
+   3E. ENGINEERING PANEL VISIBILITY — MANUAL TIER
+   Show only: Thermal, Eng Controls
+   ========================================================================= */
+
+body.tier-manual .eng-subsystem-panel,
+body.tier-manual .eng-power-panel,
+body.tier-manual .eng-systems-panel,
+body.tier-manual .eng-crew-panel,
+body.tier-manual .eng-log-panel {
+  display: none;
 }
 
 
