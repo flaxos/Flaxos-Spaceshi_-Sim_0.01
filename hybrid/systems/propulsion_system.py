@@ -75,8 +75,10 @@ class PropulsionSystem(BaseSystem):
         self._last_thrust_magnitude = 0.0
         self._last_dt = 0.0
 
-        # Bingo fuel warning — fire once when fuel drops below 10%
+        # Fuel state warnings — fire once per threshold crossing
         self._bingo_warned = False
+        self._fuel_low_warned = False
+        self._fuel_depleted_warned = False
 
         # Real-time fuel burn rate (kg/s) — updated each tick for
         # GUI display and delta-v time-remaining calculations
@@ -256,6 +258,25 @@ class PropulsionSystem(BaseSystem):
                     f"{self.fuel_level:.1f}/{self.max_fuel:.1f} kg "
                     f"({fuel_pct * 100:.1f}%)"
                 )
+
+        # Fuel low warning at 25%
+        if self.max_fuel > 0 and not self._fuel_low_warned:
+            fuel_pct = self.fuel_level / self.max_fuel
+            if fuel_pct < 0.25:
+                self._fuel_low_warned = True
+                event_bus.publish("fuel_low", {
+                    "ship_id": getattr(ship, "id", None),
+                    "fuel_pct": round(fuel_pct * 100, 1),
+                })
+
+        # Fuel depleted — kill thrust
+        if self.fuel_level <= 0 and not self._fuel_depleted_warned:
+            self._fuel_depleted_warned = True
+            self.throttle = 0.0
+            event_bus.publish("fuel_depleted", {
+                "ship_id": getattr(ship, "id", None),
+            })
+            logger.warning(f"FUEL DEPLETED on {getattr(ship, 'id', '?')}: thrust disabled")
 
         # Update max G-force capability (if we have ship mass)
         if hasattr(ship, 'mass') and ship.mass > 0:
@@ -438,9 +459,14 @@ class PropulsionSystem(BaseSystem):
         """Add fuel to tanks. Resets bingo warning if fuel rises above 10%."""
         amount = float(params.get("amount", self.max_fuel - self.fuel_level))
         self.fuel_level = min(self.max_fuel, self.fuel_level + amount)
-        # Reset bingo warning if fuel is back above threshold
-        if self.max_fuel > 0 and self.fuel_level / self.max_fuel >= 0.10:
-            self._bingo_warned = False
+        # Reset fuel warnings if fuel is back above thresholds
+        if self.max_fuel > 0:
+            pct = self.fuel_level / self.max_fuel
+            if pct >= 0.10:
+                self._bingo_warned = False
+                self._fuel_depleted_warned = False
+            if pct >= 0.25:
+                self._fuel_low_warned = False
         return {
             "status": "Refueled",
             "amount": amount,
@@ -471,6 +497,20 @@ class PropulsionSystem(BaseSystem):
         """
         return calculate_delta_v(ship_dry_mass, self.fuel_level, self.isp)
 
+    @property
+    def fuel_status(self) -> str:
+        """Current fuel state: nominal / low / critical / depleted."""
+        if self.max_fuel <= 0:
+            return "nominal"
+        pct = self.fuel_level / self.max_fuel
+        if pct <= 0:
+            return "depleted"
+        if pct < 0.10:
+            return "critical"
+        if pct < 0.25:
+            return "low"
+        return "nominal"
+
     def get_state(self):
         state = super().get_state()
         state.update({
@@ -490,6 +530,7 @@ class PropulsionSystem(BaseSystem):
                 self.fuel_level / self.fuel_burn_rate
                 if self.fuel_burn_rate > 0 else None
             ),  # seconds until tanks are dry at current burn rate
+            "fuel_status": self.fuel_status,
             "power_status": self.power_status,
             # Engine performance
             "isp": self.isp,
