@@ -469,13 +469,12 @@ body.tier-cpu-assist helm-workflow-strip { --strip-accent: #c0a0ff; }
    ========================================================================= */
 
 /* RAW: hide automation/profile panels, show raw systems */
-body.tier-raw .eng-crew-panel,
 body.tier-raw .eng-log-panel {
   display: none;
 }
 
 /* ARCADE: hide low-level engineering, show balanced set */
-body.tier-arcade .eng-crew-panel,
+body.tier-arcade .eng-subsystem-panel,
 body.tier-arcade .helm-micro-rcs-panel {
   display: none;
 }
@@ -483,7 +482,6 @@ body.tier-arcade .helm-micro-rcs-panel {
 /* CPU-ASSIST: minimal engineering — just status and profiles */
 body.tier-cpu-assist .eng-systems-panel,
 body.tier-cpu-assist .eng-power-panel,
-body.tier-cpu-assist .eng-crew-panel,
 body.tier-cpu-assist .helm-micro-rcs-panel {
   display: none;
 }

@@ -1,12 +1,15 @@
 /**
  * Multi-Target Tracking Panel
  *
- * Displays and manages the multi-track targeting system. Allows the
- * tactical officer to:
- *   - Maintain simultaneous tracks on multiple contacts
- *   - Cycle primary target (Tab key shortcut)
- *   - Assign individual PDC turrets to specific threats
- *   - Split-fire weapons across different targets
+ * Displays and manages the multi-track targeting system with inline
+ * weapon assignment. Each tracked contact renders as a card with:
+ *   - Contact ID + classification, bearing + range
+ *   - Track quality bar (color-coded)
+ *   - Lock state icon
+ *   - Inline PDC toggle buttons and split-fire weapon dropdown
+ *   - PRIMARY badge on first track
+ *
+ * PDC defense mode status shown at top of panel.
  *
  * Telemetry path: ship.targeting.multi_track
  *   { track_count, base_max_tracks, tracks[], primary_target,
@@ -34,17 +37,14 @@ class MultiTrackPanel extends HTMLElement {
     this._subscribe();
     this._setupInteraction();
 
-    // Listen for contact-selected events from sensor panel
     this._contactSelectedHandler = (e) => {
       this._selectedContact = e.detail.contactId;
       this._updateAddButton();
     };
     document.addEventListener("contact-selected", this._contactSelectedHandler);
 
-    // Tab key shortcut for cycling target
     this._keydownHandler = (e) => {
       if (e.key === "Tab" && !e.ctrlKey && !e.altKey && !e.metaKey) {
-        // Only intercept Tab if we have 2+ tracks and the tactical view is active
         const tacticalView = document.getElementById("view-tactical");
         if (tacticalView?.classList.contains("active")) {
           e.preventDefault();
@@ -79,341 +79,342 @@ class MultiTrackPanel extends HTMLElement {
   render() {
     this.shadowRoot.innerHTML = `
       <style>
-        :host {
-          display: block;
-          padding: 16px;
-          font-family: var(--font-sans, "Inter", sans-serif);
-        }
-
-        /* -- Track List -- */
-        .track-list {
-          margin-bottom: 16px;
-        }
-
-        .section-title {
-          font-size: 0.7rem;
-          font-weight: 600;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-          color: var(--text-secondary, #888899);
-          margin-bottom: 8px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-        }
-
-        .track-count {
-          font-family: var(--font-mono, "JetBrains Mono", monospace);
-          color: var(--text-dim, #555566);
-        }
-
-        .track-entry {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 8px 10px;
-          background: var(--bg-input, #1a1a24);
-          border: 1px solid var(--border-default, #2a2a3a);
-          border-radius: 6px;
-          margin-bottom: 4px;
-          transition: border-color 0.15s ease;
-        }
-
-        .track-entry.primary {
-          border-color: var(--status-info, #00aaff);
-          background: rgba(0, 170, 255, 0.06);
-        }
-
-        .track-priority {
-          width: 20px;
-          height: 20px;
-          border-radius: 4px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 0.65rem;
-          font-weight: 700;
-          font-family: var(--font-mono, "JetBrains Mono", monospace);
-          flex-shrink: 0;
-        }
-
-        .track-priority.pri-0 {
-          background: rgba(0, 170, 255, 0.2);
-          color: var(--status-info, #00aaff);
-        }
-
-        .track-priority.pri-1,
-        .track-priority.pri-2,
-        .track-priority.pri-3 {
-          background: rgba(255, 255, 255, 0.05);
-          color: var(--text-dim, #555566);
-        }
-
-        .track-info {
-          flex: 1;
-          min-width: 0;
-        }
-
-        .track-id {
-          font-size: 0.8rem;
-          font-weight: 600;
-          color: var(--text-primary, #e0e0e0);
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-
-        .track-meta {
-          font-size: 0.65rem;
-          color: var(--text-dim, #555566);
-          font-family: var(--font-mono, "JetBrains Mono", monospace);
-          display: flex;
-          gap: 8px;
-          margin-top: 2px;
-        }
-
-        .quality-bar {
-          width: 40px;
-          height: 4px;
-          background: rgba(255, 255, 255, 0.08);
-          border-radius: 2px;
-          overflow: hidden;
-          flex-shrink: 0;
-          align-self: center;
-        }
-
-        .quality-fill {
-          height: 100%;
-          border-radius: 2px;
-          transition: width 0.3s ease;
-        }
-
-        .quality-fill.high { background: var(--status-nominal, #00ff88); }
-        .quality-fill.mid { background: var(--status-warning, #ffaa00); }
-        .quality-fill.low { background: var(--status-critical, #ff4444); }
-
-        .remove-btn {
-          width: 24px;
-          height: 24px;
-          border: 1px solid var(--border-default, #2a2a3a);
-          border-radius: 4px;
-          background: transparent;
-          color: var(--text-dim, #555566);
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 0.75rem;
-          flex-shrink: 0;
-          transition: all 0.1s ease;
-          font-family: inherit;
-        }
-
-        .remove-btn:hover {
-          background: rgba(255, 68, 68, 0.1);
-          border-color: var(--status-critical, #ff4444);
-          color: var(--status-critical, #ff4444);
-        }
-
-        .empty-track-msg {
-          color: var(--text-dim, #555566);
-          font-size: 0.75rem;
-          font-style: italic;
-          text-align: center;
-          padding: 16px;
-        }
-
-        /* -- Track Actions (Add / Cycle) -- */
-        .track-actions {
-          display: flex;
-          gap: 6px;
-          margin-bottom: 16px;
-        }
-
-        .action-btn {
-          flex: 1;
-          padding: 10px 12px;
-          border-radius: 6px;
-          font-family: inherit;
-          font-size: 0.75rem;
-          font-weight: 600;
-          text-transform: uppercase;
-          letter-spacing: 0.3px;
-          cursor: pointer;
-          transition: all 0.1s ease;
-          min-height: 40px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 6px;
-        }
-
-        .add-track-btn {
-          background: rgba(0, 170, 255, 0.08);
-          border: 1px solid var(--status-info, #00aaff);
-          color: var(--status-info, #00aaff);
-        }
-
-        .add-track-btn:hover:not(:disabled) {
-          background: rgba(0, 170, 255, 0.15);
-        }
-
-        .add-track-btn:disabled {
-          opacity: 0.35;
-          cursor: not-allowed;
-        }
-
-        .cycle-btn {
-          background: rgba(0, 255, 136, 0.08);
-          border: 1px solid var(--status-nominal, #00ff88);
-          color: var(--status-nominal, #00ff88);
-        }
-
-        .cycle-btn:hover:not(:disabled) {
-          background: rgba(0, 255, 136, 0.15);
-        }
-
-        .cycle-btn:disabled {
-          opacity: 0.35;
-          cursor: not-allowed;
-        }
-
-        /* -- Weapon Assignments Section -- */
-        .assignments-section {
-          border-top: 1px solid var(--border-default, #2a2a3a);
-          padding-top: 12px;
-          margin-top: 4px;
-        }
-
-        .assignment-row {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          margin-bottom: 6px;
-        }
-
-        .mount-label {
-          font-size: 0.7rem;
-          font-weight: 600;
-          color: var(--text-secondary, #888899);
-          text-transform: uppercase;
-          width: 70px;
-          flex-shrink: 0;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-
-        .assign-select {
-          flex: 1;
-          padding: 6px 8px;
-          background: var(--bg-input, #1a1a24);
-          border: 1px solid var(--border-default, #2a2a3a);
-          border-radius: 4px;
-          color: var(--text-primary, #e0e0e0);
-          font-family: var(--font-mono, "JetBrains Mono", monospace);
-          font-size: 0.7rem;
-          min-height: 30px;
-        }
-
-        .assign-select:focus {
-          outline: none;
-          border-color: var(--status-info, #00aaff);
-        }
-
-        .assign-select option {
-          background: var(--bg-input, #1a1a24);
-          color: var(--text-primary, #e0e0e0);
-        }
-
-        .clear-all-btn {
-          width: 100%;
-          padding: 8px 12px;
-          border: 1px solid var(--status-warning, #ffaa00);
-          border-radius: 6px;
-          background: transparent;
-          color: var(--status-warning, #ffaa00);
-          font-family: inherit;
-          font-size: 0.7rem;
-          font-weight: 600;
-          text-transform: uppercase;
-          cursor: pointer;
-          transition: background 0.1s ease;
-          margin-top: 8px;
-          min-height: 34px;
-        }
-
-        .clear-all-btn:hover {
-          background: rgba(255, 170, 0, 0.1);
-        }
-
-        .no-weapons-msg {
-          color: var(--text-dim, #555566);
-          font-size: 0.7rem;
-          font-style: italic;
-          padding: 8px 0;
-        }
-
-        .kbd {
-          display: inline-block;
-          padding: 1px 5px;
-          font-size: 0.6rem;
-          font-family: var(--font-mono, "JetBrains Mono", monospace);
-          background: rgba(255, 255, 255, 0.06);
-          border: 1px solid var(--border-default, #2a2a3a);
-          border-radius: 3px;
-          color: var(--text-dim, #555566);
-        }
-
-        .weapons-assigned-tags {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 3px;
-          margin-top: 2px;
-        }
-
-        .weapon-tag {
-          font-size: 0.55rem;
-          padding: 1px 4px;
-          border-radius: 3px;
-          background: rgba(0, 170, 255, 0.12);
-          color: var(--status-info, #00aaff);
-          font-family: var(--font-mono, "JetBrains Mono", monospace);
-          text-transform: uppercase;
-        }
+        ${MultiTrackPanel.styles()}
       </style>
 
-      <!-- Track List -->
-      <div class="track-list">
-        <div class="section-title">
-          <span>Tracked Contacts</span>
-          <span class="track-count" id="track-count">0 / 4</span>
-        </div>
-        <div id="track-entries"></div>
+      <!-- PDC Mode Status -->
+      <div class="pdc-mode-bar" id="pdc-mode-bar">
+        <span class="pdc-mode-label">PDC MODE</span>
+        <span class="pdc-mode-value" id="pdc-mode-value">AUTO</span>
       </div>
 
-      <!-- Add / Cycle Actions -->
+      <!-- Track header -->
+      <div class="track-header">
+        <span class="track-header-title">Tracked Contacts</span>
+        <span class="track-count" id="track-count">0 / 4</span>
+      </div>
+
+      <!-- Track cards container -->
+      <div id="track-cards"></div>
+
+      <!-- Actions -->
       <div class="track-actions">
-        <button class="action-btn add-track-btn" id="add-track-btn" disabled
+        <button class="action-btn add-btn" id="add-track-btn" disabled
                 title="Select a contact from sensor panel first">
-          + ADD TRACK
+          + ADD
         </button>
         <button class="action-btn cycle-btn" id="cycle-btn" disabled
                 title="Cycle primary target (Tab)">
           CYCLE <span class="kbd">Tab</span>
         </button>
       </div>
+    `;
+  }
 
-      <!-- Weapon Assignments -->
-      <div class="assignments-section" id="assignments-section">
-        <div class="section-title">PDC Assignments</div>
-        <div id="pdc-assignments"></div>
+  /** All CSS for the component, extracted for readability */
+  static styles() {
+    return `
+      :host {
+        display: block;
+        padding: 12px;
+        font-family: var(--font-sans, "Inter", sans-serif);
+      }
 
-        <div class="section-title" style="margin-top: 12px;">Split Fire</div>
-        <div id="split-fire-assignments"></div>
+      /* --- PDC Mode Bar --- */
+      .pdc-mode-bar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 10px;
+        margin-bottom: 10px;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 6px;
+        border-left: 3px solid var(--domain-weapons, #cc4444);
+      }
+      .pdc-mode-label {
+        font-size: 0.6rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-dim, #555566);
+      }
+      .pdc-mode-value {
+        font-family: var(--font-mono, "JetBrains Mono", monospace);
+        font-size: 0.7rem;
+        font-weight: 600;
+        color: var(--domain-weapons, #cc4444);
+        text-transform: uppercase;
+      }
+      .pdc-mode-value.network {
+        color: var(--status-info, #00aaff);
+      }
+      .pdc-engage-info {
+        font-size: 0.55rem;
+        color: var(--text-dim, #555566);
+        margin-left: auto;
+        font-family: var(--font-mono, "JetBrains Mono", monospace);
+      }
 
-        <button class="clear-all-btn" id="clear-all-btn">Clear All Assignments</button>
-      </div>
+      /* --- Track header --- */
+      .track-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+      .track-header-title {
+        font-size: 0.65rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-secondary, #888899);
+      }
+      .track-count {
+        font-family: var(--font-mono, "JetBrains Mono", monospace);
+        font-size: 0.65rem;
+        color: var(--text-dim, #555566);
+      }
+
+      /* --- Track card --- */
+      .track-card {
+        padding: 10px;
+        margin-bottom: 6px;
+        background: var(--bg-input, #1a1a24);
+        border: 1px solid var(--border-default, #2a2a3a);
+        border-left: 3px solid var(--border-default, #2a2a3a);
+        border-radius: 6px;
+        transition: border-color 0.15s ease;
+      }
+      .track-card.primary {
+        border-left-color: var(--status-info, #00aaff);
+        background: rgba(0, 170, 255, 0.04);
+      }
+
+      .card-top {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 6px;
+      }
+
+      .lock-icon {
+        font-size: 0.8rem;
+        flex-shrink: 0;
+        width: 16px;
+        text-align: center;
+      }
+      .lock-icon.tracking { color: var(--status-warning, #ffaa00); }
+      .lock-icon.acquiring { color: var(--status-info, #00aaff); }
+      .lock-icon.locked { color: var(--status-nominal, #00ff88); }
+
+      .card-id {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--text-primary, #e0e0e0);
+        flex: 1;
+        min-width: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .primary-badge {
+        font-size: 0.5rem;
+        font-weight: 700;
+        padding: 2px 5px;
+        border-radius: 3px;
+        background: rgba(0, 170, 255, 0.15);
+        color: var(--status-info, #00aaff);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        flex-shrink: 0;
+      }
+
+      .remove-btn {
+        width: 22px;
+        height: 22px;
+        border: 1px solid var(--border-default, #2a2a3a);
+        border-radius: 4px;
+        background: transparent;
+        color: var(--text-dim, #555566);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.7rem;
+        flex-shrink: 0;
+        transition: all 0.1s ease;
+        font-family: inherit;
+      }
+      .remove-btn:hover {
+        background: rgba(255, 68, 68, 0.1);
+        border-color: var(--status-critical, #ff4444);
+        color: var(--status-critical, #ff4444);
+      }
+
+      /* Bearing + range line */
+      .card-meta {
+        font-size: 0.65rem;
+        color: var(--text-dim, #555566);
+        font-family: var(--font-mono, "JetBrains Mono", monospace);
+        font-variant-numeric: tabular-nums;
+        margin-bottom: 6px;
+      }
+
+      /* Track quality bar */
+      .quality-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 8px;
+      }
+      .quality-label {
+        font-size: 0.55rem;
+        font-weight: 600;
+        color: var(--text-dim, #555566);
+        text-transform: uppercase;
+        width: 20px;
+        flex-shrink: 0;
+      }
+      .quality-bar {
+        flex: 1;
+        height: 6px;
+        background: rgba(255, 255, 255, 0.06);
+        border-radius: 3px;
+        overflow: hidden;
+      }
+      .quality-fill {
+        height: 100%;
+        border-radius: 3px;
+        transition: width 0.3s ease;
+      }
+      .quality-fill.high { background: var(--status-nominal, #00ff88); }
+      .quality-fill.mid { background: var(--status-warning, #ffaa00); }
+      .quality-fill.low { background: var(--status-critical, #ff4444); }
+      .quality-pct {
+        font-size: 0.6rem;
+        font-family: var(--font-mono, "JetBrains Mono", monospace);
+        font-variant-numeric: tabular-nums;
+        color: var(--text-secondary, #888899);
+        width: 28px;
+        text-align: right;
+        flex-shrink: 0;
+      }
+
+      /* --- Inline PDC buttons --- */
+      .weapon-assign-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        margin-top: 4px;
+      }
+
+      .pdc-toggle {
+        padding: 3px 6px;
+        border-radius: 3px;
+        border: 1px solid var(--border-default, #2a2a3a);
+        background: transparent;
+        color: var(--text-dim, #555566);
+        font-family: var(--font-mono, "JetBrains Mono", monospace);
+        font-size: 0.55rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.1s ease;
+      }
+      .pdc-toggle:hover {
+        border-color: var(--domain-weapons, #cc4444);
+        color: var(--text-primary, #e0e0e0);
+      }
+      .pdc-toggle.assigned {
+        border-color: var(--status-nominal, #00ff88);
+        color: var(--status-nominal, #00ff88);
+        background: rgba(0, 255, 136, 0.08);
+      }
+
+      /* --- Inline split-fire select --- */
+      .split-select {
+        padding: 3px 6px;
+        border-radius: 3px;
+        border: 1px solid var(--border-default, #2a2a3a);
+        background: var(--bg-input, #1a1a24);
+        color: var(--text-primary, #e0e0e0);
+        font-family: var(--font-mono, "JetBrains Mono", monospace);
+        font-size: 0.55rem;
+        min-height: 22px;
+        cursor: pointer;
+      }
+      .split-select:focus {
+        outline: none;
+        border-color: var(--status-info, #00aaff);
+      }
+      .split-select option {
+        background: var(--bg-input, #1a1a24);
+        color: var(--text-primary, #e0e0e0);
+      }
+
+      /* --- Empty state --- */
+      .empty-msg {
+        color: var(--text-dim, #555566);
+        font-size: 0.75rem;
+        font-style: italic;
+        text-align: center;
+        padding: 16px;
+      }
+
+      /* --- Action buttons --- */
+      .track-actions {
+        display: flex;
+        gap: 6px;
+        margin-top: 10px;
+      }
+      .action-btn {
+        flex: 1;
+        padding: 8px 10px;
+        border-radius: 6px;
+        font-family: inherit;
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        cursor: pointer;
+        transition: all 0.1s ease;
+        min-height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+      }
+      .add-btn {
+        background: rgba(0, 170, 255, 0.08);
+        border: 1px solid var(--status-info, #00aaff);
+        color: var(--status-info, #00aaff);
+      }
+      .add-btn:hover:not(:disabled) { background: rgba(0, 170, 255, 0.15); }
+      .add-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+      .cycle-btn {
+        background: rgba(0, 255, 136, 0.08);
+        border: 1px solid var(--status-nominal, #00ff88);
+        color: var(--status-nominal, #00ff88);
+      }
+      .cycle-btn:hover:not(:disabled) { background: rgba(0, 255, 136, 0.15); }
+      .cycle-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+      .kbd {
+        display: inline-block;
+        padding: 1px 5px;
+        font-size: 0.55rem;
+        font-family: var(--font-mono, "JetBrains Mono", monospace);
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid var(--border-default, #2a2a3a);
+        border-radius: 3px;
+        color: var(--text-dim, #555566);
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .quality-fill { transition: none !important; }
+        .track-card { transition: none !important; }
+      }
     `;
   }
 
@@ -421,13 +422,8 @@ class MultiTrackPanel extends HTMLElement {
     this.shadowRoot.getElementById("add-track-btn").addEventListener("click", () => {
       this._addTrack();
     });
-
     this.shadowRoot.getElementById("cycle-btn").addEventListener("click", () => {
       this._cycleTarget();
-    });
-
-    this.shadowRoot.getElementById("clear-all-btn").addEventListener("click", () => {
-      this._clearAssignments();
     });
   }
 
@@ -444,236 +440,182 @@ class MultiTrackPanel extends HTMLElement {
     const pdcAssignments = mt?.pdc_assignments || {};
     const splitAssignments = mt?.split_fire_assignments || {};
 
+    // PDC mode from weapon state
+    this._updatePdcMode();
+
     // Track count
     const countEl = this.shadowRoot.getElementById("track-count");
-    countEl.textContent = `${tracks.length} / ${maxTracks}`;
+    if (countEl) countEl.textContent = `${tracks.length} / ${maxTracks}`;
 
-    // Track entries
-    this._renderTrackEntries(tracks, primaryTarget, pdcAssignments, splitAssignments);
+    // Track cards
+    this._renderTrackCards(tracks, primaryTarget, pdcAssignments, splitAssignments);
 
-    // Cycle button state: need 2+ tracks
+    // Button states
     const cycleBtn = this.shadowRoot.getElementById("cycle-btn");
-    cycleBtn.disabled = tracks.length < 2;
-    cycleBtn.title = tracks.length < 2
-      ? "Need 2+ tracked targets to cycle"
-      : "Cycle primary target (Tab)";
+    if (cycleBtn) {
+      cycleBtn.disabled = tracks.length < 2;
+      cycleBtn.title = tracks.length < 2
+        ? "Need 2+ tracked targets to cycle"
+        : "Cycle primary target (Tab)";
+    }
 
-    // Add button state
     this._updateAddButton();
-
-    // Weapon assignment dropdowns
-    this._renderWeaponAssignments(tracks, pdcAssignments, splitAssignments);
   }
 
-  _renderTrackEntries(tracks, primaryTarget, pdcAssignments, splitAssignments) {
-    const container = this.shadowRoot.getElementById("track-entries");
+  _updatePdcMode() {
+    const weapons = stateManager.getWeapons();
+    const pdcMode = weapons?.pdc_defense_mode || "auto";
+    const modeEl = this.shadowRoot.getElementById("pdc-mode-value");
+    if (!modeEl) return;
+
+    modeEl.textContent = pdcMode.toUpperCase();
+    modeEl.className = `pdc-mode-value ${pdcMode === "network" ? "network" : ""}`;
+  }
+
+  _renderTrackCards(tracks, primaryTarget, pdcAssignments, splitAssignments) {
+    const container = this.shadowRoot.getElementById("track-cards");
+    if (!container) return;
 
     if (tracks.length === 0) {
       container.innerHTML = `
-        <div class="empty-track-msg">
-          No contacts tracked. Select a contact and click Add Track.
+        <div class="empty-msg">
+          No contacts tracked. Select a contact and click Add.
         </div>
       `;
       return;
     }
 
-    // Build a map of weapon assignments per contact for display
-    const weaponsByContact = {};
+    const weapons = stateManager.getWeapons();
+    const truthWeapons = weapons?.truth_weapons || {};
+    const pdcMounts = Object.keys(truthWeapons).filter(id => id.startsWith("pdc"));
+    const nonPdcMounts = Object.keys(truthWeapons).filter(id => !id.startsWith("pdc"));
+
+    // Build reverse map: which PDCs are assigned to which contact
+    const pdcByContact = {};
     for (const [mount, cid] of Object.entries(pdcAssignments)) {
-      if (!weaponsByContact[cid]) weaponsByContact[cid] = [];
-      weaponsByContact[cid].push(mount);
+      if (!pdcByContact[cid]) pdcByContact[cid] = [];
+      pdcByContact[cid].push(mount);
     }
+
+    // Build reverse map: which non-PDC weapons are assigned to which contact
+    const splitByContact = {};
     for (const [mount, cid] of Object.entries(splitAssignments)) {
-      if (!weaponsByContact[cid]) weaponsByContact[cid] = [];
-      // Avoid duplicates if same mount in both dicts
-      if (!weaponsByContact[cid].includes(mount)) {
-        weaponsByContact[cid].push(mount);
-      }
+      if (!splitByContact[cid]) splitByContact[cid] = [];
+      splitByContact[cid].push(mount);
     }
 
     let html = "";
     for (const track of tracks) {
       const isPrimary = track.contact_id === primaryTarget;
       const qualPct = Math.round((track.quality_modifier || 0) * 100);
-      const qualClass = qualPct >= 70 ? "high" : qualPct >= 40 ? "mid" : "low";
-      const assignedWeapons = weaponsByContact[track.contact_id] || [];
+      const qualClass = qualPct >= 80 ? "high" : qualPct >= 50 ? "mid" : "low";
+
+      // Lock state icon: use data from track if available, else infer
+      const lockState = track.lock_state || "tracking";
+      const lockIcon = this._lockIcon(lockState);
+      const lockClass = lockState === "locked" ? "locked"
+        : lockState === "acquiring" ? "acquiring" : "tracking";
+
+      // Classification from contact data if available
+      const classification = track.classification || "";
+      const idLine = classification
+        ? `${track.contact_id} — ${classification.toUpperCase()}`
+        : track.contact_id;
+
+      // Bearing + range
+      const bearing = track.bearing != null
+        ? `${typeof track.bearing === 'number' ? track.bearing.toFixed(0) : '--'}deg`
+        : "--";
+      const range = track.range != null ? this._formatRange(track.range) : "--";
+
+      // PDC assignment buttons for this contact
+      const assignedPdcs = pdcByContact[track.contact_id] || [];
+
+      // Current split-fire weapon assigned to this contact
+      const assignedSplits = splitByContact[track.contact_id] || [];
+      // For the dropdown, find which non-PDC weapon targets this contact
+      const currentSplitMount = nonPdcMounts.find(m => splitAssignments[m] === track.contact_id) || "";
 
       html += `
-        <div class="track-entry ${isPrimary ? "primary" : ""}" data-contact="${track.contact_id}">
-          <div class="track-priority pri-${track.priority}">
-            ${isPrimary ? "P" : track.priority}
+        <div class="track-card ${isPrimary ? 'primary' : ''}" data-contact="${track.contact_id}">
+          <div class="card-top">
+            <span class="lock-icon ${lockClass}">${lockIcon}</span>
+            <span class="card-id">${idLine}</span>
+            ${isPrimary ? '<span class="primary-badge">PRIMARY</span>' : ''}
+            <button class="remove-btn" data-remove="${track.contact_id}" title="Remove track">X</button>
           </div>
-          <div class="track-info">
-            <div class="track-id">${track.contact_id}</div>
-            <div class="track-meta">
-              <span>Q:${qualPct}%</span>
-              ${assignedWeapons.length > 0
-                ? `<span>${assignedWeapons.length} wpn</span>`
-                : ""}
+
+          <div class="card-meta">${bearing} | ${range}</div>
+
+          <div class="quality-row">
+            <span class="quality-label">TQ</span>
+            <div class="quality-bar">
+              <div class="quality-fill ${qualClass}" style="width: ${qualPct}%"></div>
             </div>
-            ${assignedWeapons.length > 0 ? `
-              <div class="weapons-assigned-tags">
-                ${assignedWeapons.map(w => `<span class="weapon-tag">${this._shortMount(w)}</span>`).join("")}
-              </div>
-            ` : ""}
+            <span class="quality-pct">${qualPct}%</span>
           </div>
-          <div class="quality-bar">
-            <div class="quality-fill ${qualClass}" style="width: ${qualPct}%"></div>
+
+          <div class="weapon-assign-row">
+            ${pdcMounts.map(mount => {
+              const isAssigned = assignedPdcs.includes(mount);
+              return `<button class="pdc-toggle ${isAssigned ? 'assigned' : ''}"
+                data-pdc-mount="${mount}" data-contact="${track.contact_id}"
+                title="${isAssigned ? 'Unassign' : 'Assign'} ${this._shortMount(mount)} to ${track.contact_id}">
+                ${this._shortMount(mount)}
+              </button>`;
+            }).join('')}
+
+            ${nonPdcMounts.length > 0 ? `
+              <select class="split-select" data-split-contact="${track.contact_id}"
+                title="Assign weapon to fire at ${track.contact_id}">
+                <option value="">--</option>
+                ${nonPdcMounts.map(m =>
+                  `<option value="${m}" ${currentSplitMount === m ? 'selected' : ''}>${this._shortMount(m)}</option>`
+                ).join('')}
+              </select>
+            ` : ''}
           </div>
-          <button class="remove-btn" data-remove="${track.contact_id}" title="Remove track">X</button>
         </div>
       `;
     }
 
     container.innerHTML = html;
+    this._bindCardHandlers(container);
+  }
 
-    // Bind remove handlers
-    container.querySelectorAll(".remove-btn").forEach((btn) => {
+  /** Bind click/change handlers on newly-rendered card elements */
+  _bindCardHandlers(container) {
+    // Remove track buttons
+    container.querySelectorAll(".remove-btn").forEach(btn => {
+      btn.addEventListener("click", () => this._removeTrack(btn.dataset.remove));
+    });
+
+    // PDC toggle buttons
+    container.querySelectorAll(".pdc-toggle").forEach(btn => {
       btn.addEventListener("click", () => {
-        this._removeTrack(btn.dataset.remove);
+        const mount = btn.dataset.pdcMount;
+        const contactId = btn.dataset.contact;
+        const isAssigned = btn.classList.contains("assigned");
+        if (isAssigned) {
+          // Unassign: clear this PDC's assignment by assigning to empty
+          // Server treats empty contact_id as "revert to primary"
+          this._assignPdc(mount, "");
+        } else {
+          this._assignPdc(mount, contactId);
+        }
       });
     });
-  }
 
-  _renderWeaponAssignments(tracks, pdcAssignments, splitAssignments) {
-    const weapons = stateManager.getWeapons();
-    const truthWeapons = weapons?.truth_weapons || {};
-    const trackIds = tracks.map((t) => t.contact_id);
-
-    // Skip full re-render if any dropdown in the assignments section is
-    // currently open (focused).  Rebuilding innerHTML while a <select> is
-    // open destroys the native dropdown menu, making it impossible to
-    // pick a value.  Instead, do a targeted in-place update of existing
-    // <select> elements so the DOM stays stable.
-    const assignSection = this.shadowRoot.getElementById("assignments-section");
-    const activeEl = this.shadowRoot.activeElement;
-    const dropdownOpen = activeEl && activeEl.tagName === "SELECT" &&
-      assignSection && assignSection.contains(activeEl);
-
-    // PDC mounts
-    const pdcContainer = this.shadowRoot.getElementById("pdc-assignments");
-    const pdcMounts = Object.keys(truthWeapons).filter((id) => id.startsWith("pdc"));
-
-    if (pdcMounts.length === 0 || trackIds.length === 0) {
-      pdcContainer.innerHTML = trackIds.length === 0
-        ? '<div class="no-weapons-msg">Add tracks to assign weapons</div>'
-        : '<div class="no-weapons-msg">No PDC mounts available</div>';
-    } else if (dropdownOpen) {
-      // In-place update: sync option lists and selected values without
-      // destroying existing DOM elements
-      this._updateSelectsInPlace(pdcContainer, "pdcMount", pdcMounts, trackIds, pdcAssignments);
-    } else {
-      let html = "";
-      for (const mount of pdcMounts) {
-        const assigned = pdcAssignments[mount] || "";
-        html += `
-          <div class="assignment-row">
-            <span class="mount-label">${this._shortMount(mount)}</span>
-            <select class="assign-select" data-pdc-mount="${mount}">
-              <option value="">-- primary --</option>
-              ${trackIds.map((cid) =>
-                `<option value="${cid}" ${cid === assigned ? "selected" : ""}>${cid}</option>`
-              ).join("")}
-            </select>
-          </div>
-        `;
-      }
-      pdcContainer.innerHTML = html;
-
-      // Bind PDC assignment change handlers
-      pdcContainer.querySelectorAll("select").forEach((sel) => {
-        sel.addEventListener("change", () => {
-          const mount = sel.dataset.pdcMount;
-          const contactId = sel.value;
-          if (contactId) {
-            this._assignPdc(mount, contactId);
-          }
-          // Empty value = revert to primary (clear via clear_assignments)
-        });
-      });
-    }
-
-    // Split fire (railguns and other non-PDC mounts)
-    const splitContainer = this.shadowRoot.getElementById("split-fire-assignments");
-    const nonPdcMounts = Object.keys(truthWeapons).filter((id) => !id.startsWith("pdc"));
-
-    if (nonPdcMounts.length === 0 || trackIds.length === 0) {
-      splitContainer.innerHTML = trackIds.length === 0
-        ? ""
-        : '<div class="no-weapons-msg">No split-fire mounts available</div>';
-    } else if (dropdownOpen) {
-      this._updateSelectsInPlace(splitContainer, "splitMount", nonPdcMounts, trackIds, splitAssignments);
-    } else {
-      let html = "";
-      for (const mount of nonPdcMounts) {
-        const assigned = splitAssignments[mount] || "";
-        html += `
-          <div class="assignment-row">
-            <span class="mount-label">${this._shortMount(mount)}</span>
-            <select class="assign-select" data-split-mount="${mount}">
-              <option value="">-- primary --</option>
-              ${trackIds.map((cid) =>
-                `<option value="${cid}" ${cid === assigned ? "selected" : ""}>${cid}</option>`
-              ).join("")}
-            </select>
-          </div>
-        `;
-      }
-      splitContainer.innerHTML = html;
-
-      // Bind split-fire change handlers
-      splitContainer.querySelectorAll("select").forEach((sel) => {
-        sel.addEventListener("change", () => {
-          const mount = sel.dataset.splitMount;
-          const contactId = sel.value;
-          if (contactId) {
-            this._splitFire(mount, contactId);
-          }
-        });
-      });
-    }
-  }
-
-  /**
-   * Update existing <select> elements in-place without destroying the DOM.
-   * This preserves focus and keeps native dropdown menus open while state
-   * updates arrive.
-   *
-   * For each mount, finds the existing <select> by data attribute, syncs
-   * its option list with the current track IDs, and updates the selected
-   * value to match server state -- but only if the user is not actively
-   * interacting with that specific select.
-   */
-  _updateSelectsInPlace(container, dataAttrKey, mounts, trackIds, assignments) {
-    for (const mount of mounts) {
-      const attrName = dataAttrKey === "pdcMount" ? "data-pdc-mount" : "data-split-mount";
-      const sel = container.querySelector(`select[${attrName}="${mount}"]`);
-      if (!sel) continue;
-
-      const assigned = assignments[mount] || "";
-      const isFocused = (this.shadowRoot.activeElement === sel);
-
-      // Sync options: ensure option list matches current trackIds
-      const desiredValues = ["", ...trackIds];
-      const existingValues = Array.from(sel.options).map((o) => o.value);
-
-      if (JSON.stringify(desiredValues) !== JSON.stringify(existingValues)) {
-        // Options changed (tracks added/removed) -- rebuild options only
-        const currentVal = sel.value;
-        sel.innerHTML = `<option value="">-- primary --</option>` +
-          trackIds.map((cid) =>
-            `<option value="${cid}" ${cid === assigned ? "selected" : ""}>${cid}</option>`
-          ).join("");
-        // Preserve user's in-progress selection if they have the dropdown open
-        if (isFocused && desiredValues.includes(currentVal)) {
-          sel.value = currentVal;
+    // Split-fire dropdowns
+    container.querySelectorAll(".split-select").forEach(sel => {
+      sel.addEventListener("change", () => {
+        const mount = sel.value;
+        const contactId = sel.dataset.splitContact;
+        if (mount) {
+          this._splitFire(mount, contactId);
         }
-      } else if (!isFocused) {
-        // Options unchanged and user is not interacting -- sync selected value
-        sel.value = assigned;
-      }
-      // If focused and options unchanged, leave it alone entirely
-    }
+      });
+    });
   }
 
   _updateAddButton() {
@@ -684,7 +626,7 @@ class MultiTrackPanel extends HTMLElement {
     const trackCount = mt?.tracks?.length || 0;
     const maxTracks = mt?.base_max_tracks || 4;
     const alreadyTracking = (mt?.tracks || []).some(
-      (t) => t.contact_id === this._selectedContact
+      t => t.contact_id === this._selectedContact
     );
 
     const canAdd = this._selectedContact && !alreadyTracking && trackCount < maxTracks;
@@ -701,16 +643,32 @@ class MultiTrackPanel extends HTMLElement {
     }
   }
 
-  /** Shorten mount names for display: "railgun_1" -> "RG 1", "pdc_2" -> "PDC 2" */
+  // --- Display helpers ---
+
+  _lockIcon(state) {
+    // Unicode circles: empty = tracking, half = acquiring, full = locked
+    if (state === "locked") return "\u25CF";   // filled circle
+    if (state === "acquiring") return "\u25D0"; // half circle
+    return "\u25CB";                             // empty circle
+  }
+
   _shortMount(mountId) {
     return mountId
       .replace("railgun_", "RG ")
       .replace("pdc_", "PDC ")
       .replace("torpedo_", "TRP ")
+      .replace("missile_", "MSL ")
       .toUpperCase();
   }
 
-  // -- Server command wrappers --
+  _formatRange(meters) {
+    if (meters == null || meters === 0) return "--";
+    if (meters >= 1000000) return `${(meters / 1000).toFixed(0)}km`;
+    if (meters >= 1000) return `${(meters / 1000).toFixed(1)}km`;
+    return `${meters.toFixed(0)}m`;
+  }
+
+  // --- Server commands ---
 
   async _addTrack() {
     if (!this._selectedContact) return;
