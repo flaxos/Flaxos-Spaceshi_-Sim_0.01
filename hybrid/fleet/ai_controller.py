@@ -10,6 +10,11 @@ Phase 2: role differentiation via BehaviorProfile:
   - freighter: flee from threats, never fire, emit distress
   - escort:    interpose between threat and protected ship
   - patrol:    hold position, engage within range, return after
+Phase 3: doctrine-level behaviors (ai_doctrine.py):
+  - coordinated salvos: multi-ship fire timing
+  - evasion jinking: heading changes keyed to railgun ToF
+  - retreat conditions: subsystem-aware disengagement
+  - smart target prioritization: spread fire across enemies
 
 All system interactions use the real ship system APIs (targeting,
 combat, navigation) rather than abstract command routing.
@@ -22,6 +27,13 @@ import numpy as np
 
 from hybrid.fleet.npc_behavior import BehaviorProfile, get_profile, infer_role
 from hybrid.fleet.threat_assessment import AIThreatAssessment
+from hybrid.fleet.ai_doctrine import (
+    SalvoCoordinator,
+    EvasionState,
+    RetreatAssessment,
+    should_jink,
+    assess_retreat,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -95,6 +107,15 @@ class AIController:
         # Patrol home position -- captured when patrol behavior starts
         self._patrol_home: Optional[np.ndarray] = None
 
+        # ── Doctrine state (Phase 3) ──────────────────────────────
+        # Evasion jink tracking -- persists across decision cycles
+        self._evasion_state = EvasionState()
+        # Salvo coordinator -- shared instance, set externally by
+        # the scenario or fleet manager.  If None, ships fire freely.
+        self._salvo_coordinator: Optional[SalvoCoordinator] = None
+        # Cached retreat assessment -- refreshed each decision cycle
+        self._retreat: RetreatAssessment = RetreatAssessment()
+
         logger.info(
             "AI Controller initialized for %s (role=%s)",
             ship.id, self.profile.role,
@@ -143,6 +164,12 @@ class AIController:
         # immediately life-threatening.
         if self._check_fuel_reaction():
             return  # Fuel conservation took priority
+
+        # Doctrine: subsystem-aware retreat conditions (propulsion
+        # degraded, weapons destroyed, low ammo).  These are rational
+        # tactical decisions vs the panic reactions above.
+        if self._check_retreat_conditions():
+            return  # Retreat doctrine took priority
 
         # Execute current behavior
         if self.behavior == AIBehavior.IDLE:
@@ -301,6 +328,31 @@ class AIController:
 
         return False
 
+    def _check_retreat_conditions(self) -> bool:
+        """Check doctrine-level retreat conditions.
+
+        Evaluates subsystem health and ammo state.  Unlike the hull-
+        fraction thresholds in _check_damage_reaction, these are
+        tactical retreat decisions (e.g. weapons destroyed, propulsion
+        crippled, ammo depleted).
+
+        Returns:
+            True if a retreat condition overrode normal behavior.
+        """
+        self._retreat = assess_retreat(self.ship)
+
+        if self._retreat.should_retreat:
+            if self.behavior not in (AIBehavior.FLEE, AIBehavior.HOLD_POSITION):
+                logger.info(
+                    "AI %s: Retreat doctrine — %s, disengaging",
+                    self.ship.id, self._retreat.reason,
+                )
+                self.set_behavior(AIBehavior.HOLD_POSITION)
+                self._ensure_autopilot("hold")
+            return True
+
+        return False
+
     # ── Behavior implementations ──────────────────────────────────
 
     def _behavior_idle(self):
@@ -455,13 +507,14 @@ class AIController:
         """Attack hostile targets -- the core combat loop.
 
         Priority:
-          1. Acquire target if none
+          1. Acquire target if none (with tactical prioritization)
           2. Close to engagement range
-          3. Lock and fire
+          3. Evasion jinking while in weapon range
+          4. Lock and fire (with salvo coordination + ammo conservation)
         """
-        # Acquire target
+        # Acquire target using tactical prioritization when possible
         if not self.current_target:
-            threats = self._get_hostile_contacts()
+            threats = self._get_hostile_contacts_tactical()
             if not threats:
                 logger.info("AI %s: No threats, returning to idle", self.ship.id)
                 self._return_to_role_behavior()
@@ -481,10 +534,18 @@ class AIController:
                 # Contact lost
                 logger.info("AI %s: Target %s lost", self.ship.id, contact_id)
                 self.current_target = None
+                if self._salvo_coordinator:
+                    self._salvo_coordinator.clear_target(contact_id)
                 return
 
         # Get distance to target
         distance = self._distance_to(contact)
+
+        # Doctrine: evasion jinking when in weapon range.
+        # Change heading at intervals tuned to enemy railgun ToF
+        # to degrade their firing solution accuracy.
+        if distance <= self.engagement_range:
+            self._apply_evasion_jink(distance)
 
         # Range-based decision
         if distance > self.engagement_range:
@@ -540,6 +601,8 @@ class AIController:
 
         Used by freighters and heavily-damaged ships.  Emits a
         distress signal on the event bus so escort AI can react.
+        Doctrine: launches rearguard torpedoes/missiles if available
+        to discourage pursuit.
         """
         threats = self._get_hostile_contacts()
         if not threats:
@@ -550,6 +613,11 @@ class AIController:
 
         # Emit distress if we haven't yet
         self._emit_distress()
+
+        # Doctrine: launch rearguard ordnance while fleeing.
+        # Torpedoes/missiles fired during retreat force the pursuer
+        # to divert PDC attention or break off.
+        self._launch_rearguard(threats[0])
 
         # Engage evasive autopilot -- the best flee option available.
         # A dedicated "flee" autopilot would thrust directly away from
@@ -657,6 +725,11 @@ class AIController:
         (freighter), this method effectively never fires because the
         confidence check can never pass.
 
+        Doctrine integrations:
+          - Salvo coordination: delays fire if coordinator says wait
+          - Conservative fire: only fires high-confidence solutions
+            when ammo is low
+
         Args:
             contact_id: Stable contact ID.
             contact: ContactData instance.
@@ -680,6 +753,30 @@ class AIController:
 
         if lock_val != "locked":
             return  # Not locked yet, wait for targeting pipeline
+
+        # Doctrine: salvo coordination -- wait if coordinator says
+        # it's not our turn yet.
+        if self._salvo_coordinator:
+            if not self._salvo_coordinator.should_fire_now(
+                self.ship.id, contact_id, self._last_sim_time,
+            ):
+                return  # Hold fire for coordinated salvo
+
+        # Doctrine: conservative fire mode -- when ammo is low,
+        # only fire when the firing solution confidence is high
+        # enough to be worth the round.
+        if self._retreat.conservative_fire:
+            combat = self.ship.systems.get("combat")
+            if combat:
+                # Check if any weapon has a high-confidence solution
+                has_good_solution = False
+                for weapon in combat.truth_weapons.values():
+                    sol = weapon.current_solution
+                    if sol and sol.confidence >= 0.8:
+                        has_good_solution = True
+                        break
+                if not has_good_solution:
+                    return  # Save ammo for a better shot
 
         # Step 3: Fire all ready weapons
         combat = self.ship.systems.get("combat")
@@ -788,6 +885,160 @@ class AIController:
                 )
         except Exception as e:
             logger.warning("AI %s: Autopilot command failed: %s", self.ship.id, e)
+
+    # ── Doctrine helpers ────────────────────────────────────────────
+
+    def _get_hostile_contacts_tactical(self) -> List[Tuple[str, object]]:
+        """Get hostile contacts with tactical prioritization.
+
+        Uses the spread-fire logic to avoid all AI ships dogpiling
+        the same target.  Falls back to the base prioritization if
+        _all_ships_ref is not available.
+
+        Returns:
+            List of (contact_id, ContactData) sorted by tactical score.
+        """
+        from hybrid.fleet.faction_rules import get_diplomatic_state, DiplomaticState
+
+        sensors = self.ship.systems.get("sensors")
+        if not sensors or not hasattr(sensors, "contact_tracker"):
+            return []
+
+        sim_time = getattr(sensors, "sim_time", self._last_sim_time)
+        contacts = sensors.contact_tracker.get_all_contacts(sim_time)
+
+        hostile = []
+        for contact_id, contact in contacts.items():
+            contact_faction = getattr(contact, "faction", None)
+            if not contact_faction:
+                continue
+            diplo = get_diplomatic_state(self.ship.faction, contact_faction)
+            if diplo == DiplomaticState.HOSTILE:
+                hostile.append((contact_id, contact))
+
+        if not hostile:
+            return []
+
+        # Build friendly_targets map: how many friendly AI ships
+        # are already targeting each contact.
+        friendly_targets = self._build_friendly_target_map()
+
+        return AIThreatAssessment.prioritize_targets_tactical(
+            hostile, self.ship, friendly_targets,
+        )
+
+    def _build_friendly_target_map(self) -> Dict[str, int]:
+        """Count how many friendly AI ships target each contact.
+
+        Scans _all_ships_ref for same-faction AI ships and checks
+        their current_target.
+
+        Returns:
+            Dict of {contact_id: count_of_friendly_engagements}.
+        """
+        from hybrid.fleet.faction_rules import are_allied
+
+        counts: Dict[str, int] = {}
+        all_ships = getattr(self.ship, "_all_ships_ref", None) or []
+
+        for other in all_ships:
+            if other.id == self.ship.id:
+                continue
+            if not getattr(other, "ai_enabled", False):
+                continue
+            if not are_allied(
+                getattr(self.ship, "faction", ""),
+                getattr(other, "faction", ""),
+            ):
+                continue
+
+            ai = getattr(other, "ai_controller", None)
+            if ai and ai.current_target:
+                target_cid = ai.current_target[0]
+                counts[target_cid] = counts.get(target_cid, 0) + 1
+
+        return counts
+
+    def _apply_evasion_jink(self, range_to_target: float) -> None:
+        """Apply evasion doctrine heading change if due.
+
+        Calculates whether a jink is needed based on railgun ToF
+        at current range, and if so applies a random heading offset
+        through the navigation system.
+
+        Args:
+            range_to_target: Distance to closest threat in metres.
+        """
+        jink_angle = should_jink(
+            self._evasion_state, range_to_target, self._last_sim_time,
+        )
+        if jink_angle is None:
+            return
+
+        # Apply heading change through navigation system
+        nav = self.ship.systems.get("navigation")
+        if not nav or not hasattr(nav, "command"):
+            return
+
+        # Get current heading and offset it by jink_angle degrees.
+        # This uses the same heading command as manual flight.
+        current_heading = getattr(self.ship, "heading", 0.0)
+        new_heading = (current_heading + jink_angle) % 360.0
+
+        try:
+            nav.command("set_heading", {
+                "heading": new_heading,
+                "ship": self.ship,
+                "_ship": self.ship,
+                "_from_autopilot": True,
+            })
+            logger.debug(
+                "AI %s: Evasion jink %.0f° (heading %.0f → %.0f)",
+                self.ship.id, jink_angle, current_heading, new_heading,
+            )
+        except Exception as e:
+            logger.warning("AI %s: Jink command failed: %s", self.ship.id, e)
+
+    def _launch_rearguard(self, threat_tuple: Tuple[str, object]) -> None:
+        """Launch torpedoes or missiles as rearguard during retreat.
+
+        Only fires if the ship has ordnance loaded and the launcher
+        is not on cooldown.  Freighters skip this (no weapons).
+
+        Args:
+            threat_tuple: (contact_id, ContactData) of the pursuer.
+        """
+        if self.profile.weapon_confidence_threshold >= 1.0:
+            return  # Freighters don't fire
+
+        combat = self.ship.systems.get("combat")
+        if not combat:
+            return
+
+        contact_id, _ = threat_tuple
+
+        # Build ships dict for target resolution
+        all_ships = getattr(self.ship, "_all_ships_ref", None) or []
+        ships_dict = {s.id: s for s in all_ships}
+
+        # Prefer torpedoes (heavier ordnance, better deterrent)
+        if combat.torpedoes_loaded > 0 and combat._torpedo_cooldown <= 0:
+            combat.launch_torpedo(contact_id, "direct", ships_dict)
+            logger.info("AI %s: Rearguard torpedo launched at %s", self.ship.id, contact_id)
+        elif combat.missiles_loaded > 0 and combat._missile_cooldown <= 0:
+            combat.launch_missile(contact_id, "evasive", ships_dict)
+            logger.info("AI %s: Rearguard missile launched at %s", self.ship.id, contact_id)
+
+    def set_salvo_coordinator(self, coordinator: SalvoCoordinator) -> None:
+        """Attach a shared salvo coordinator for multi-ship fire timing.
+
+        Called by FleetManager or scenario setup to enable coordinated
+        salvos among AI ships on the same faction.
+
+        Args:
+            coordinator: Shared SalvoCoordinator instance.
+        """
+        self._salvo_coordinator = coordinator
 
     # ── Utility helpers ───────────────────────────────────────────
 
@@ -901,4 +1152,11 @@ class AIController:
             "dv_margin": round(self._get_delta_v_margin(), 2)
                          if self._get_delta_v_margin() != float("inf")
                          else None,
+            # Doctrine state (Phase 3)
+            "doctrine": {
+                "conservative_fire": self._retreat.conservative_fire,
+                "retreat_reason": self._retreat.reason or None,
+                "jink_count": self._evasion_state.jink_count,
+                "salvo_coordinated": self._salvo_coordinator is not None,
+            },
         }
