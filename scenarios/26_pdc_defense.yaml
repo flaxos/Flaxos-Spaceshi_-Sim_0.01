@@ -1,0 +1,168 @@
+# Scenario 26: PDC Defense
+# Feature test: PDC defense modes (auto/manual/network), multi-target
+# tracking, missile defense, point defense saturation
+#
+# Player commands a heavily armed destroyer with extensive PDC grid
+# against two frigates launching coordinated missile salvos.  Survive
+# 5 minutes and destroy or drive off the attackers.
+
+name: "PDC Defense"
+description: "Defend against coordinated missile salvos using point defense systems"
+
+difficulty: "extreme"
+player_count: "1"
+category: "combat"
+
+dt: 0.1
+
+ships:
+  # ── Player: PDC-heavy destroyer ────────────────────────────────
+  - id: "player"
+    name: "UNS Phalanx"
+    ship_class: "destroyer"
+    player_controlled: true
+    faction: "unsa"
+    position: {x: 0, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+    orientation: {pitch: 0, yaw: 0, roll: 0}
+    systems:
+      propulsion:
+        fuel_level: 1200.0
+
+  # ── Hostile frigate 1: missile platform ────────────────────────
+  - id: "missile_frigate_1"
+    name: "OPA Hailstorm"
+    ship_class: "frigate"
+    faction: "opa"
+    ai_enabled: true
+    position: {x: 60000, y: 20000, z: 5000}   # ~64km, port high
+    velocity: {x: -20, y: 0, z: 0}            # Closing slowly
+    orientation: {pitch: 0, yaw: 180, roll: 0}
+    ai_behavior:
+      role: "combat"
+      aggression: 0.6
+      engagement_range: 80000
+      flee_threshold: 0.3
+      evade_threshold: 0.4
+      max_thrust_profile: 0.4       # Hangs back, launches missiles
+      weapon_confidence_threshold: 0.15
+
+  # ── Hostile frigate 2: missile platform ────────────────────────
+  - id: "missile_frigate_2"
+    name: "OPA Tempest"
+    ship_class: "frigate"
+    faction: "opa"
+    ai_enabled: true
+    position: {x: 55000, y: -25000, z: -3000}  # ~61km, starboard low
+    velocity: {x: -15, y: 0, z: 0}
+    orientation: {pitch: 0, yaw: 180, roll: 0}
+    ai_behavior:
+      role: "combat"
+      aggression: 0.7
+      engagement_range: 80000
+      flee_threshold: 0.25
+      evade_threshold: 0.35
+      max_thrust_profile: 0.4
+      weapon_confidence_threshold: 0.15
+
+mission:
+  name: "Operation: Iron Curtain"
+  description: "Survive a sustained missile barrage and neutralize the threat"
+
+  briefing: |
+    TACTICAL ALERT:
+    Two OPA frigates — Hailstorm and Tempest — are on attack vectors
+    from opposing flanks.  They are configured as missile platforms and
+    will launch coordinated salvos to saturate your point defense.
+
+    YOUR SHIP:
+    The UNS Phalanx is a destroyer with an extensive PDC grid — your
+    best defense against incoming missiles.  You have railguns for
+    counter-attack and torpedoes for heavy strikes.
+
+    PDC DEFENSE MODES:
+    - AUTO: PDCs engage incoming threats automatically (recommended)
+    - MANUAL: Direct PDC fire at specific targets
+    - NETWORK: Coordinated PDC fire for maximum intercept coverage
+
+    THREAT ASSESSMENT:
+    - Each frigate carries missile and torpedo tubes
+    - Salvos will come from multiple vectors simultaneously
+    - PDC ammunition is limited — conserve where possible
+    - Missiles are fast and maneuverable; torpedoes are slow but deadly
+
+    OBJECTIVES:
+    1. Survive for 5 minutes under sustained fire
+    2. Destroy or drive off both attackers (both must be mission-killed)
+
+    TACTICS:
+    - Set PDCs to AUTO or NETWORK mode immediately
+    - Use railguns to strike the frigates at range
+    - Time your torpedo launches between incoming salvos
+    - The frigates are separated — you cannot fight both at once.
+      Close on one while your PDCs handle the other's missiles.
+    - Watch PDC ammo — if they run dry, you are defenseless
+
+    Brace for impact, Commander.  This will be intense.
+
+  objectives:
+    - id: "survive_barrage"
+      type: "survive_time"
+      description: "Survive for 5 minutes under fire"
+      required: true
+      params:
+        time: 300
+        start_time: 0
+
+    - id: "survive_intact"
+      type: "avoid_mission_kill"
+      description: "Keep the Phalanx operational"
+      required: true
+      params:
+        target: "player"
+
+    - id: "kill_hailstorm"
+      type: "mission_kill"
+      description: "Neutralize OPA Hailstorm"
+      required: false
+      params:
+        target: "missile_frigate_1"
+
+    - id: "kill_tempest"
+      type: "mission_kill"
+      description: "Neutralize OPA Tempest"
+      required: false
+      params:
+        target: "missile_frigate_2"
+
+  time_limit: 480  # 8 minutes
+
+  success_message: |
+    Five minutes survived.  The Phalanx's PDC grid held.
+
+    Dozens of missiles intercepted.  The OPA frigates' magazines are
+    depleted and they are breaking off.
+
+    Your point defense doctrine is validated.  Outstanding defensive
+    combat, Commander.
+
+  failure_message: |
+    The Phalanx has been overwhelmed.
+
+    Too many missiles penetrated the PDC screen.  Critical systems
+    are destroyed.  The ship drifts, burning.
+
+    Review your defense:
+    - Were PDCs set to the optimal mode?
+    - Did you prioritize the right incoming threats?
+    - Did you try to close on one frigate while defending against the other?
+
+  hints:
+    - trigger: "start"
+      message: "TACTICAL: Set PDCs to AUTO or NETWORK mode. Incoming threats expected within 60 seconds."
+    - trigger: "time > 60"
+      message: "TACTICAL: First salvos should be incoming. PDCs engaging. Watch ammo levels."
+    - trigger: "time > 150"
+      message: "TACTICAL: Halfway through the survival window. Consider counter-attacking."
+    - trigger: "time > 240"
+      message: "TACTICAL: One minute to survival objective. Hold the line."

@@ -85,6 +85,10 @@ class StationTelemetryFilter:
             "sensor_coverage": ["sensors"],
             "detection_log": ["sensors"],
 
+            # Auto-system displays (CPU-ASSIST tier)
+            "auto_tactical_status": ["auto_tactical"],
+            "auto_ops_status": ["auto_ops"],
+
             # Emissions / signature displays
             "emissions_status": ["emissions"],
 

@@ -1,0 +1,151 @@
+# Scenario 27: Wolf Pack
+# Feature test: multi-ship human play, coordinate between player ships,
+# tactical cooperation against a superior single target
+#
+# Two player-controlled corvettes must cooperate to take down a hostile
+# destroyer.  Tests 2-player coordination, flanking, and fire discipline.
+
+name: "Wolf Pack"
+description: "Two player corvettes coordinate to destroy a hostile destroyer"
+
+difficulty: "hard"
+player_count: "2"
+category: "fleet"
+
+dt: 0.1
+
+ships:
+  # ── Player 1: Alpha corvette ───────────────────────────────────
+  - id: "player"
+    name: "UNS Alpha"
+    ship_class: "corvette"
+    player_controlled: true
+    faction: "unsa"
+    position: {x: -80000, y: 20000, z: 0}
+    velocity: {x: 50, y: 0, z: 0}
+    orientation: {pitch: 0, yaw: 0, roll: 0}
+    systems:
+      propulsion:
+        fuel_level: 400.0
+
+  # ── Player 2: Beta corvette ────────────────────────────────────
+  - id: "player_beta"
+    name: "UNS Beta"
+    ship_class: "corvette"
+    player_controlled: true
+    faction: "unsa"
+    position: {x: -80000, y: -20000, z: 0}
+    velocity: {x: 50, y: 0, z: 0}
+    orientation: {pitch: 0, yaw: 0, roll: 0}
+    systems:
+      propulsion:
+        fuel_level: 400.0
+
+  # ── Target: hostile destroyer ──────────────────────────────────
+  - id: "hostile_destroyer"
+    name: "OPA Goliath"
+    ship_class: "destroyer"
+    faction: "opa"
+    ai_enabled: true
+    position: {x: 0, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+    orientation: {pitch: 0, yaw: 180, roll: 0}
+    ai_behavior:
+      role: "combat"
+      aggression: 0.7
+      engagement_range: 100000
+      flee_threshold: 0.15
+      evade_threshold: 0.3
+      max_thrust_profile: 0.5
+      weapon_confidence_threshold: 0.2
+
+mission:
+  name: "Operation: Wolfpack"
+  description: "Coordinate two corvettes to destroy a superior destroyer"
+
+  briefing: |
+    SITUATION:
+    The OPA destroyer "Goliath" is operating alone in our patrol zone.
+    A destroyer outguns any single corvette, but two coordinated wolves
+    can bring down the bear.
+
+    FORCES:
+    - UNS Alpha (corvette, Player 1) — approaching from port-high
+    - UNS Beta (corvette, Player 2) — approaching from starboard-low
+
+    ENEMY:
+    - OPA Goliath (destroyer) — 3 railguns, 6 PDCs, torpedoes, heavy armor
+    - The destroyer can only effectively engage one target at a time
+    - Its PDC grid can cover multiple arcs, but railguns must choose
+
+    TACTICS:
+    - Approach from OPPOSITE sides.  Force the Goliath to split its fire.
+    - While one corvette draws railgun fire, the other closes for torpedo runs.
+    - Corvettes are faster and more agile — use that advantage.
+    - Coordinate torpedo salvos from different vectors to overwhelm PDC coverage.
+    - Do NOT fly in formation — you want to present separate, divergent targets.
+    - If one corvette takes heavy damage, it should disengage while the other
+      presses the attack.
+
+    VICTORY: Destroy the Goliath.  Both corvettes must survive.
+    DEFEAT: Either corvette is destroyed.
+
+    Two wolves, one prey.  Coordinate and conquer.
+
+  objectives:
+    - id: "kill_destroyer"
+      type: "mission_kill"
+      description: "Destroy OPA Goliath"
+      required: true
+      params:
+        target: "hostile_destroyer"
+
+    - id: "alpha_survives"
+      type: "avoid_mission_kill"
+      description: "Keep UNS Alpha operational"
+      required: true
+      params:
+        target: "player"
+
+    - id: "beta_survives"
+      type: "avoid_mission_kill"
+      description: "Keep UNS Beta operational"
+      required: true
+      params:
+        target: "player_beta"
+
+  time_limit: 600  # 10 minutes
+
+  success_message: |
+    The Goliath is dead in the water.  Propulsion destroyed, weapons
+    offline, hull breached in multiple sections.
+
+    Two corvettes took down a destroyer through superior coordination.
+    This is the wolfpack doctrine in action.
+
+    Both ships operational.  Outstanding teamwork.
+
+  failure_message: |
+    A corvette has been destroyed.
+
+    Without coordinated pressure from two vectors, the surviving ship
+    cannot overcome the Goliath's superior firepower alone.
+
+    The wolfpack requires both wolves.
+
+    Review your tactics:
+    - Did you approach from opposite sides?
+    - Did you coordinate torpedo salvos?
+    - Did the damaged ship disengage in time?
+
+  hints:
+    - trigger: "start"
+      message: "COMMS: Alpha and Beta, approach from opposite flanks. Force the Goliath to split fire."
+    - trigger: "range < 60000"
+      target: "hostile_destroyer"
+      message: "TACTICAL: Entering engagement range. Coordinate your attack — hit from both sides simultaneously."
+    - trigger: "range < 20000"
+      target: "hostile_destroyer"
+      message: "TACTICAL: Close quarters. Torpedo range. Coordinate salvos from different vectors."
+    - trigger: "time > 300"
+      message: "OPS: Five minutes elapsed. If the Goliath isn't taking damage, reassess your approach vectors."

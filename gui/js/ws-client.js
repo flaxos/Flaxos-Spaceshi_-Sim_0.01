@@ -13,6 +13,7 @@ class WSClient extends EventTarget {
     this.maxReconnectAttempts = 10;
     this.reconnectDelay = 1000;
     this.pingInterval = null;
+    this.heartbeatInterval = null;
     this.latency = null;
     this.tcpConnected = false;
     this.tcpHost = null;
@@ -94,6 +95,7 @@ class WSClient extends EventTarget {
         this._setStatus("connected");
         this.reconnectAttempts = 0;
         this._startPing();
+        this._startHeartbeat();
         this._connectPromise = null;
         resolve();
       };
@@ -102,6 +104,7 @@ class WSClient extends EventTarget {
         clearTimeout(timeout);
         this._setStatus("disconnected");
         this._stopPing();
+        this._stopHeartbeat();
         this._clearPendingRequests();
         this._connectPromise = null;
         this._emit("close", { code: event.code, reason: event.reason });
@@ -128,6 +131,7 @@ class WSClient extends EventTarget {
   disconnect() {
     this.reconnectAttempts = this.maxReconnectAttempts; // Prevent reconnect
     this._stopPing();
+    this._stopHeartbeat();
     if (this._reconnectTimer) {
       clearTimeout(this._reconnectTimer);
       this._reconnectTimer = null;
@@ -373,6 +377,29 @@ class WSClient extends EventTarget {
     if (this.pingInterval) {
       clearInterval(this.pingInterval);
       this.pingInterval = null;
+    }
+  }
+
+  /**
+   * Start periodic heartbeat to keep session alive on the server.
+   * Sends a fire-and-forget heartbeat command every 30 seconds.
+   */
+  _startHeartbeat() {
+    this._stopHeartbeat();
+    this.heartbeatInterval = setInterval(() => {
+      if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+        this.sendAsync("heartbeat");
+      }
+    }, 30000);
+  }
+
+  /**
+   * Stop heartbeat interval
+   */
+  _stopHeartbeat() {
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
     }
   }
 

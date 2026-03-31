@@ -1,0 +1,126 @@
+{
+  "class_id": "fighter",
+  "class_name": "Light Interceptor",
+  "description": "Single-seat combat craft optimized for speed and agility. Extremely high thrust-to-mass ratio makes it lethal in close engagements but limited fuel reserves restrict operational range. Fragile — one good hit and you're dead.",
+  "dimensions": {
+    "length_m": 12.0,
+    "beam_m": 4.0,
+    "draft_m": 3.0
+  },
+  "crew_complement": {
+    "minimum": 1,
+    "standard": 1,
+    "maximum": 2
+  },
+  "mass": {
+    "dry_mass": 400.0,
+    "max_fuel": 150.0,
+    "max_hull_integrity": 50.0
+  },
+  "armor": {
+    "fore": { "thickness_cm": 1.0, "material": "composite" },
+    "aft": { "thickness_cm": 0.5, "material": "composite" },
+    "port": { "thickness_cm": 0.8, "material": "composite" },
+    "starboard": { "thickness_cm": 0.8, "material": "composite" },
+    "dorsal": { "thickness_cm": 0.8, "material": "composite" },
+    "ventral": { "thickness_cm": 0.8, "material": "composite" }
+  },
+  "systems": {
+    "propulsion": {
+      "enabled": true,
+      "power_draw": 30,
+      "max_thrust": 40.0,
+      "isp": 3000,
+      "max_fuel": 150.0,
+      "fuel_level": 150.0,
+      "drive_type": "epstein_light",
+      "placement": { "section": "aft", "position": { "x": -5.0, "y": 0.0, "z": 0.0 } }
+    },
+    "rcs": {
+      "enabled": true,
+      "max_torque": 15.0,
+      "attitude_rate": 45.0,
+      "thruster_count": 8,
+      "placement": [
+        { "section": "fore", "position": { "x": 5.5, "y": 0.0, "z": 0.0 } },
+        { "section": "aft", "position": { "x": -4.5, "y": 0.0, "z": 0.0 } }
+      ]
+    },
+    "sensors": {
+      "enabled": true,
+      "power_draw": 8,
+      "passive": { "range": 100000.0 },
+      "active": { "scan_range": 200000.0, "cooldown_time": 6.0 },
+      "signature_base": 0.3,
+      "ir_modifier": 0.8,
+      "rcs_modifier": 0.3,
+      "placement": { "section": "fore", "position": { "x": 5.8, "y": 0.0, "z": 0.5 } }
+    },
+    "navigation": {
+      "enabled": true,
+      "power_draw": 5
+    },
+    "targeting": {
+      "enabled": true,
+      "lock_time": 2.5,
+      "lock_range": 300000.0
+    },
+    "combat": {
+      "enabled": true,
+      "railguns": 0,
+      "pdcs": 1,
+      "missiles": 2,
+      "missile_capacity": 4
+    },
+    "ecm": {
+      "enabled": true,
+      "jammer_power": 15000.0,
+      "chaff_count": 4,
+      "flare_count": 6,
+      "jammer_heat": 5000.0
+    },
+    "power_management": {
+      "primary": { "output": 50.0 },
+      "secondary": { "output": 25.0 },
+      "tertiary": { "output": 12.0 },
+      "system_map": {
+        "propulsion": "primary",
+        "weapons": "primary",
+        "combat": "primary",
+        "sensors": "secondary",
+        "targeting": "secondary",
+        "rcs": "secondary",
+        "navigation": "tertiary"
+      }
+    }
+  },
+  "weapon_mounts": [
+    {
+      "mount_id": "pdc_1",
+      "weapon_type": "pdc",
+      "placement": { "section": "fore_ventral", "position": { "x": 3.0, "y": 0.0, "z": -1.2 } },
+      "firing_arc": { "azimuth_min": -60, "azimuth_max": 60, "elevation_min": -45, "elevation_max": 30 },
+      "coverage": "fore_lower"
+    },
+    {
+      "mount_id": "missile_1",
+      "weapon_type": "missile",
+      "placement": { "section": "port_wing", "position": { "x": 1.0, "y": 1.8, "z": -0.5 } },
+      "firing_arc": { "azimuth_min": -90, "azimuth_max": 90, "elevation_min": -45, "elevation_max": 45 }
+    },
+    {
+      "mount_id": "missile_2",
+      "weapon_type": "missile",
+      "placement": { "section": "starboard_wing", "position": { "x": 1.0, "y": -1.8, "z": -0.5 } },
+      "firing_arc": { "azimuth_min": -90, "azimuth_max": 90, "elevation_min": -45, "elevation_max": 45 }
+    }
+  ],
+  "damage_model": {
+    "propulsion": { "max_health": 30.0, "health": 30.0, "criticality": 5.0, "failure_threshold": 0.25 },
+    "rcs": { "max_health": 25.0, "health": 25.0, "criticality": 3.0, "failure_threshold": 0.25 },
+    "weapons": { "max_health": 20.0, "health": 20.0, "criticality": 4.0, "failure_threshold": 0.25 },
+    "sensors": { "max_health": 15.0, "health": 15.0, "criticality": 3.0, "failure_threshold": 0.25 },
+    "reactor": { "max_health": 35.0, "health": 35.0, "criticality": 5.0, "failure_threshold": 0.2 },
+    "life_support": { "max_health": 20.0, "health": 20.0, "criticality": 2.0, "failure_threshold": 0.3 }
+  }
+}

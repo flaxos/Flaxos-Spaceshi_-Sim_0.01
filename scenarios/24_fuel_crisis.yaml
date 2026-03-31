@@ -1,0 +1,160 @@
+# Scenario 24: Fuel Crisis
+# Feature test: fuel enforcement, PONR (point of no return), delta-v
+# budget planning, fuel tension, constrained resource management
+#
+# Player corvette has only 40% fuel and must reach a station 200km away.
+# A pirate patrols between player and station, forcing evasion or combat
+# — both cost fuel.  Every burn decision matters.
+
+name: "Fuel Crisis"
+description: "Reach a station with critically low fuel while evading a pirate patrol"
+
+difficulty: "hard"
+player_count: "1"
+category: "combat"
+
+dt: 0.1
+
+ships:
+  # ── Player: fuel-starved corvette ──────────────────────────────
+  - id: "player"
+    name: "UNS Vapor"
+    ship_class: "corvette"
+    player_controlled: true
+    faction: "unsa"
+    position: {x: -200000, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+    orientation: {pitch: 0, yaw: 0, roll: 0}
+    systems:
+      propulsion:
+        fuel_level: 160.0        # 40% of corvette's 400 max
+        max_fuel: 400.0
+
+  # ── Pirate: patrolling midway ──────────────────────────────────
+  - id: "pirate_hunter"
+    name: "Jackal"
+    ship_class: "corvette"
+    faction: "pirate"
+    ai_enabled: true
+    position: {x: -100000, y: 10000, z: 0}   # ~101km — midway between player and station
+    velocity: {x: 0, y: -20, z: 0}           # Patrolling
+    orientation: {pitch: 0, yaw: 180, roll: 0}
+    ai_behavior:
+      role: "patrol"
+      aggression: 0.7
+      engagement_range: 50000
+      flee_threshold: 0.25
+      evade_threshold: 0.4
+      max_thrust_profile: 0.6
+      weapon_confidence_threshold: 0.2
+      patrol_position: {x: -100000, y: 10000, z: 0}
+
+  # ── Destination: friendly station ──────────────────────────────
+  - id: "fuel_station"
+    name: "Pallas Fuel Depot"
+    class: "station"
+    faction: "unsa"
+    position: {x: 0, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+    mass: 80000
+    systems:
+      sensors:
+        passive:
+          range: 150000
+
+mission:
+  name: "Operation: Fumes"
+  description: "Reach Pallas Fuel Depot before running dry"
+
+  briefing: |
+    EMERGENCY FUEL STATUS:
+    The UNS Vapor is running on fumes.  After an extended patrol with no
+    resupply, your fuel reserves are at 40%.  Pallas Fuel Depot is 200km
+    ahead — your only option for refueling.
+
+    PROBLEM:
+    A pirate corvette — "Jackal" — is patrolling the midpoint between
+    your position and the depot.  Its patrol orbit puts it ~100km ahead
+    at the narrowest point.
+
+    FUEL MATH:
+    - Current fuel: 160 units (40% capacity)
+    - Distance to station: 200km
+    - Every burn costs fuel.  Evasive maneuvers cost MORE fuel.
+    - If you engage the pirate, combat burns will eat through reserves fast.
+    - If you try to go around, the longer path costs more fuel too.
+
+    OPTIONS:
+    1. DIRECT APPROACH: Build speed early, coast through pirate zone, brake
+       at the station.  Risk: pirate intercepts during coast phase.
+    2. EVASION: Offset approach to avoid pirate detection envelope.
+       Cost: extra fuel for the longer path.
+    3. FIGHT THROUGH: Engage and destroy the pirate, then proceed.
+       Cost: combat burns are expensive.  May not have enough fuel left.
+
+    Every burn must count.  Plan your delta-v budget carefully.
+    There is no second chance — run dry and you drift forever.
+
+  objectives:
+    - id: "reach_depot"
+      type: "reach_range"
+      description: "Reach Pallas Fuel Depot (within 5km)"
+      required: true
+      params:
+        target: "fuel_station"
+        range: 5000
+        initial_range: 200000
+
+    - id: "survive"
+      type: "avoid_mission_kill"
+      description: "Keep the Vapor operational"
+      required: true
+      params:
+        target: "player"
+
+    - id: "ammo_guard"
+      type: "ammo_depleted"
+      description: "Conserve ammunition"
+      required: false
+      params:
+        target: "player"
+
+    - id: "kill_pirate"
+      type: "mission_kill"
+      description: "Neutralize the Jackal (optional)"
+      required: false
+      params:
+        target: "pirate_hunter"
+
+  time_limit: 600  # 10 minutes
+
+  success_message: |
+    Pallas Fuel Depot in sight!  Docking clamps ready.
+
+    The Vapor's tanks are nearly empty but you made it.  Every burn
+    was calculated, every maneuver deliberate.  That is how you fly
+    on fumes.
+
+    Fuel crews are already connecting lines.  Well done, pilot.
+
+  failure_message: |
+    The UNS Vapor has gone dark.
+
+    Fuel exhausted, the ship drifts silently through the void.
+    Without propulsion, there is no recovery.  The pirate patrols
+    will find the derelict eventually.
+
+    Review your delta-v budget.  Every unnecessary burn was a step
+    closer to this outcome.
+
+  hints:
+    - trigger: "start"
+      message: "ENGINEERING: Fuel at 40%. Plan your burns carefully — every maneuver costs delta-v."
+    - trigger: "range < 120000"
+      target: "fuel_station"
+      message: "NAV: 120km to depot. Pirate patrol zone is ahead — decide: direct, evade, or fight."
+    - trigger: "range < 60000"
+      target: "fuel_station"
+      message: "NAV: 60km to depot. Begin planning deceleration burn."
+    - trigger: "time > 300"
+      message: "ENGINEERING: Half the time window elapsed. Fuel reserves continuing to drop."

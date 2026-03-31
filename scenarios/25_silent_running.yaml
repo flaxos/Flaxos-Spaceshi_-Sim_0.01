@@ -1,0 +1,209 @@
+# Scenario 25: Silent Running
+# Feature test: ECM/ECCM, EMCON mode, passive sensors, signature
+# management, stealth navigation under sensor coverage
+#
+# Player corvette with ECM suite must navigate through overlapping
+# patrol sensor coverage to reach a waypoint without being detected.
+
+name: "Silent Running"
+description: "Navigate through enemy sensor coverage without being detected"
+
+difficulty: "hard"
+player_count: "1"
+category: "stealth"
+
+dt: 0.1
+
+ships:
+  # ── Player: ECM-equipped corvette ──────────────────────────────
+  - id: "player"
+    name: "UNS Shadow"
+    ship_class: "corvette"
+    player_controlled: true
+    faction: "unsa"
+    position: {x: -120000, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+    orientation: {pitch: 0, yaw: 0, roll: 0}
+    systems:
+      propulsion:
+        fuel_level: 300.0
+      sensors:
+        passive:
+          range: 400000     # Excellent passive array
+        signature_base: 0.7 # Low-observable design
+      ecm:
+        enabled: true
+        emcon_active: true  # Start in EMCON
+        jammer_power: 50000.0
+        chaff_count: 6
+        flare_count: 6
+        emcon_ir_reduction: 0.15     # 85% IR reduction
+        emcon_rcs_reduction: 0.4     # 60% RCS reduction
+
+  # ── Patrol 1: northern coverage ────────────────────────────────
+  - id: "sentry_north"
+    name: "Patrol Sigma-1"
+    ship_class: "corvette"
+    faction: "hostile"
+    ai_enabled: true
+    position: {x: 0, y: 40000, z: 0}
+    velocity: {x: 0, y: -10, z: 0}
+    orientation: {pitch: 0, yaw: 270, roll: 0}
+    ai_behavior:
+      role: "patrol"
+      aggression: 0.5
+      engagement_range: 40000
+      flee_threshold: 0.3
+      evade_threshold: 0.5
+      patrol_position: {x: 0, y: 40000, z: 0}
+    systems:
+      sensors:
+        passive:
+          range: 80000
+        active:
+          scan_range: 200000
+
+  # ── Patrol 2: center coverage ──────────────────────────────────
+  - id: "sentry_center"
+    name: "Patrol Sigma-2"
+    ship_class: "corvette"
+    faction: "hostile"
+    ai_enabled: true
+    position: {x: 10000, y: 0, z: 0}
+    velocity: {x: -5, y: 0, z: 0}
+    orientation: {pitch: 0, yaw: 270, roll: 0}
+    ai_behavior:
+      role: "patrol"
+      aggression: 0.5
+      engagement_range: 40000
+      flee_threshold: 0.3
+      evade_threshold: 0.5
+      patrol_position: {x: 10000, y: 0, z: 0}
+    systems:
+      sensors:
+        passive:
+          range: 80000
+        active:
+          scan_range: 200000
+
+  # ── Patrol 3: southern coverage ────────────────────────────────
+  - id: "sentry_south"
+    name: "Patrol Sigma-3"
+    ship_class: "corvette"
+    faction: "hostile"
+    ai_enabled: true
+    position: {x: -5000, y: -35000, z: 0}
+    velocity: {x: 5, y: 10, z: 0}
+    orientation: {pitch: 0, yaw: 270, roll: 0}
+    ai_behavior:
+      role: "patrol"
+      aggression: 0.5
+      engagement_range: 40000
+      flee_threshold: 0.3
+      evade_threshold: 0.5
+      patrol_position: {x: -5000, y: -35000, z: 0}
+    systems:
+      sensors:
+        passive:
+          range: 80000
+        active:
+          scan_range: 200000
+
+mission:
+  name: "Operation: Ghost Protocol"
+  description: "Infiltrate through enemy sensor net to reach extraction waypoint"
+
+  briefing: |
+    SITUATION:
+    Three hostile corvettes maintain overlapping sensor coverage across
+    a 100km-wide corridor.  Their passive arrays have 80km range each,
+    creating a nearly continuous detection blanket.
+
+    YOUR SHIP:
+    The UNS Shadow is equipped with a low-observable hull (signature 0.7)
+    and a full ECM suite:
+      - EMCON mode: 85% IR reduction, 60% RCS reduction
+      - Jammer: active radar disruption (reveals your position!)
+      - Chaff: 6 bundles — radar scatter
+      - Flares: 6 units — IR decoys
+
+    EMCON is already engaged.  Keep it that way.
+
+    OBJECTIVE:
+    Reach the extraction waypoint at x=+120km, y=0 without being
+    detected.  You must avoid detection for the full transit.
+
+    TACTICS:
+    - With EMCON engaged and low signature hull, passive detection
+      range against you drops to ~20-30km.
+    - Build velocity with a short burn BEFORE entering the sensor net,
+      then coast through on momentum.
+    - The gap between Sigma-1 (north) and Sigma-3 (south) is ~75km.
+      The center patrol (Sigma-2) narrows this to two ~35km corridors.
+    - If detected: deploy chaff and flares, then go dark and change
+      vector.  Do NOT engage — you are outnumbered 3 to 1.
+    - ANY active sensor ping from your ship will reveal your position.
+
+    Patience and planning.  Move like a ghost.
+
+  objectives:
+    - id: "reach_extraction"
+      type: "reach_position"
+      description: "Reach the extraction waypoint"
+      required: true
+      params:
+        position: {x: 120000, y: 0, z: 0}
+        tolerance: 5000
+        initial_distance: 240000
+
+    - id: "stay_hidden"
+      type: "avoid_detection"
+      description: "Avoid detection throughout the transit"
+      required: true
+      params:
+        time: 600
+        start_time: 0
+        detection_range: 80000
+
+    - id: "survive"
+      type: "avoid_mission_kill"
+      description: "Keep the Shadow operational"
+      required: true
+      params:
+        target: "player"
+
+  time_limit: 600  # 10 minutes
+
+  success_message: |
+    Extraction waypoint reached.  The Shadow slips through the sensor
+    net like a ghost.  The patrols never knew you were there.
+
+    EMCON disengaged.  Full drive power restored.  Heading for open
+    space at maximum burn.
+
+    Textbook stealth infiltration, Commander.
+
+  failure_message: |
+    Detected!
+
+    The enemy sensor net picked up the Shadow and converged.  Three
+    corvettes against one — the odds were never in your favor once
+    stealth was compromised.
+
+    Review your approach:
+    - Did you coast through or burn inside the sensor net?
+    - Did you use EMCON effectively?
+    - Did you avoid the center patrol's coverage?
+
+  hints:
+    - trigger: "start"
+      message: "ECM: EMCON is engaged. Build velocity with a short burn before entering the sensor net."
+    - trigger: "range < 90000"
+      target: "sentry_center"
+      message: "SENSORS: Approaching outer detection envelope. Kill thrust and coast."
+    - trigger: "range < 50000"
+      target: "sentry_center"
+      message: "SENSORS: Deep inside sensor net. Maintain EMCON. No burns. No active sensors."
+    - trigger: "range < 30000"
+      target: "sentry_center"
+      message: "SENSORS: DANGER — very close to center patrol. If detected, deploy countermeasures immediately."

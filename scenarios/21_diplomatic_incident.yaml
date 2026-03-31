@@ -1,0 +1,150 @@
+# Scenario 21: Diplomatic Incident
+# Feature test: comms hail, IFF, transponder spoofing, diplomatic state
+#
+# A freighter with a spoofed transponder and a neutral patrol corvette
+# are in the area.  The player must identify the freighter's true faction
+# via comms/sensors WITHOUT engaging the neutral ship.  Firing on the
+# neutral is an immediate mission failure.
+
+name: "Diplomatic Incident"
+description: "Identify a spoofed contact without causing a diplomatic incident with neutral forces"
+
+difficulty: "medium"
+player_count: "1"
+category: "stealth"
+
+dt: 0.1
+
+ships:
+  # ── Player: UNSA corvette on patrol ────────────────────────────
+  - id: "player"
+    name: "UNS Steadfast"
+    ship_class: "corvette"
+    player_controlled: true
+    faction: "unsa"
+    position: {x: 0, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+    orientation: {pitch: 0, yaw: 0, roll: 0}
+    systems:
+      propulsion:
+        fuel_level: 400.0
+      sensors:
+        passive:
+          range: 300000
+        active:
+          scan_range: 500000
+
+  # ── Suspect freighter: spoofed transponder ─────────────────────
+  - id: "suspect_freighter"
+    name: "MV Honest Trader"
+    ship_class: "freighter"
+    faction: "unknown"         # Transponder says civilian; true faction hidden
+    ai_enabled: true
+    position: {x: 40000, y: 15000, z: 0}    # ~43km
+    velocity: {x: 30, y: 0, z: 0}           # Transiting through area
+    orientation: {pitch: 0, yaw: 0, roll: 0}
+    ai_behavior:
+      role: "patrol"
+      aggression: 0.0
+      engagement_range: 5000
+      flee_threshold: 0.8
+      evade_threshold: 0.5
+
+  # ── Neutral patrol: DO NOT ENGAGE ──────────────────────────────
+  - id: "neutral_patrol"
+    name: "INS Peacekeeper"
+    ship_class: "corvette"
+    faction: "neutral"
+    ai_enabled: true
+    position: {x: 25000, y: -10000, z: 5000}  # ~28km
+    velocity: {x: 0, y: 10, z: 0}
+    orientation: {pitch: 0, yaw: 90, roll: 0}
+    ai_behavior:
+      role: "patrol"
+      aggression: 0.3
+      engagement_range: 20000
+      flee_threshold: 0.3
+      evade_threshold: 0.5
+
+mission:
+  name: "Operation: Diplomat's Edge"
+  description: "Investigate a suspect contact without causing a diplomatic incident"
+
+  briefing: |
+    SITUATION:
+    Intelligence reports a freighter transiting our patrol zone with a
+    spoofed transponder.  The vessel identifies itself as "MV Honest
+    Trader" — a civilian registry — but intercepts suggest it may be
+    carrying contraband or operating under a false flag.
+
+    COMPLICATION:
+    An Interstellar Neutral Services (INS) patrol corvette, "Peacekeeper,"
+    is conducting routine operations in the same area.  The INS has
+    sovereign observer status.  ANY hostile action against the INS vessel
+    will trigger a diplomatic crisis.
+
+    MISSION:
+    1. Approach and scan the suspect freighter
+    2. Attempt to hail and verify identity
+    3. Classify the contact's true faction
+    4. DO NOT fire on or damage the neutral INS vessel
+
+    RULES OF ENGAGEMENT:
+    - Weapons TIGHT on the neutral contact (INS Peacekeeper)
+    - You may scan and hail any contact freely
+    - Use passive sensors first to avoid alerting targets
+    - If the freighter flees, you may pursue but not fire on neutrals
+
+    Diplomacy is as important as firepower, Commander.
+
+  objectives:
+    - id: "scan_freighter"
+      type: "scan_target"
+      description: "Scan the suspect freighter to determine true identity"
+      required: true
+      params:
+        target: "suspect_freighter"
+
+    - id: "close_to_freighter"
+      type: "reach_range"
+      description: "Close to within 10km of the suspect for detailed inspection"
+      required: true
+      params:
+        target: "suspect_freighter"
+        range: 10000
+        initial_range: 43000
+
+    - id: "protect_neutral"
+      type: "protect_ship"
+      description: "Do not damage the INS Peacekeeper"
+      required: true
+      params:
+        target: "neutral_patrol"
+        time: 300
+
+  time_limit: 300  # 5 minutes
+
+  success_message: |
+    Contact identified.  The "MV Honest Trader" has been classified.
+
+    The INS Peacekeeper observed your professional conduct and filed
+    a favorable report.  No diplomatic incident occurred.
+
+    Well handled, Commander.
+
+  failure_message: |
+    Mission failed.
+
+    Either the contact was not identified in time, or hostile action
+    was taken against the neutral INS vessel.  Fleet Command is
+    dealing with the diplomatic fallout.
+
+  hints:
+    - trigger: "start"
+      message: "COMMS: INS Peacekeeper is broadcasting neutral IFF. Do NOT engage."
+    - trigger: "range < 30000"
+      target: "suspect_freighter"
+      message: "SENSORS: Getting clearer readings on the freighter. Continue approach for classification."
+    - trigger: "range < 15000"
+      target: "suspect_freighter"
+      message: "SENSORS: Close enough for detailed scan. Attempt hail or active scan."

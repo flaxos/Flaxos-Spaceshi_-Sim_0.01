@@ -1,0 +1,259 @@
+{
+  "class_id": "battleship",
+  "class_name": "Heavy Line Combatant",
+  "description": "The largest purpose-built warship in any fleet. Massive armor, overwhelming firepower from six railguns and four torpedo tubes, and a wall of PDC coverage. Sluggish to maneuver but nearly impossible to kill in a straight fight. Commands fleet engagements from the center of the formation.",
+  "dimensions": {
+    "length_m": 200.0,
+    "beam_m": 40.0,
+    "draft_m": 30.0
+  },
+  "crew_complement": {
+    "minimum": 80,
+    "standard": 160,
+    "maximum": 250
+  },
+  "mass": {
+    "dry_mass": 25000.0,
+    "max_fuel": 8000.0,
+    "max_hull_integrity": 1200.0
+  },
+  "armor": {
+    "fore": { "thickness_cm": 15.0, "material": "composite_cermet" },
+    "aft": { "thickness_cm": 8.0, "material": "composite_cermet" },
+    "port": { "thickness_cm": 12.0, "material": "composite_cermet" },
+    "starboard": { "thickness_cm": 12.0, "material": "composite_cermet" },
+    "dorsal": { "thickness_cm": 10.0, "material": "composite_cermet" },
+    "ventral": { "thickness_cm": 10.0, "material": "composite_cermet" }
+  },
+  "systems": {
+    "propulsion": {
+      "enabled": true,
+      "power_draw": 250,
+      "max_thrust": 1200.0,
+      "isp": 4200,
+      "max_fuel": 8000.0,
+      "fuel_level": 8000.0,
+      "drive_type": "epstein_heavy",
+      "placement": { "section": "aft", "position": { "x": -98.0, "y": 0.0, "z": 0.0 } }
+    },
+    "rcs": {
+      "enabled": true,
+      "max_torque": 250.0,
+      "attitude_rate": 3.0,
+      "thruster_count": 48,
+      "placement": [
+        { "section": "fore", "position": { "x": 98.0, "y": 0.0, "z": 0.0 } },
+        { "section": "midship_fore", "position": { "x": 30.0, "y": 0.0, "z": 0.0 } },
+        { "section": "midship_aft", "position": { "x": -30.0, "y": 0.0, "z": 0.0 } },
+        { "section": "aft", "position": { "x": -95.0, "y": 0.0, "z": 0.0 } }
+      ]
+    },
+    "sensors": {
+      "enabled": true,
+      "power_draw": 60,
+      "passive": { "range": 600000.0 },
+      "active": { "scan_range": 1200000.0, "cooldown_time": 2.5 },
+      "signature_base": 3.0,
+      "ir_modifier": 2.0,
+      "rcs_modifier": 3.0,
+      "placement": { "section": "fore", "position": { "x": 99.0, "y": 0.0, "z": 8.0 } }
+    },
+    "navigation": {
+      "enabled": true,
+      "power_draw": 20
+    },
+    "targeting": {
+      "enabled": true,
+      "lock_time": 0.8,
+      "lock_range": 700000.0
+    },
+    "combat": {
+      "enabled": true,
+      "railguns": 6,
+      "pdcs": 12,
+      "torpedoes": 4,
+      "torpedo_capacity": 12
+    },
+    "ecm": {
+      "enabled": true,
+      "jammer_power": 150000.0,
+      "chaff_count": 24,
+      "flare_count": 24,
+      "jammer_heat": 40000.0,
+      "chaff_duration": 60.0
+    },
+    "power_management": {
+      "primary": { "output": 500.0 },
+      "secondary": { "output": 250.0 },
+      "tertiary": { "output": 120.0 },
+      "system_map": {
+        "propulsion": "primary",
+        "weapons": "primary",
+        "combat": "primary",
+        "sensors": "secondary",
+        "targeting": "secondary",
+        "rcs": "secondary",
+        "navigation": "tertiary"
+      }
+    },
+    "fleet_coord": {
+      "enabled": true,
+      "command_capable": true,
+      "power_draw": 3.0
+    }
+  },
+  "weapon_mounts": [
+    {
+      "mount_id": "railgun_1",
+      "weapon_type": "railgun",
+      "placement": { "section": "fore_dorsal", "position": { "x": 85.0, "y": 5.0, "z": 12.0 } },
+      "firing_arc": { "azimuth_min": -15, "azimuth_max": 15, "elevation_min": -10, "elevation_max": 20 }
+    },
+    {
+      "mount_id": "railgun_2",
+      "weapon_type": "railgun",
+      "placement": { "section": "fore_ventral", "position": { "x": 85.0, "y": -5.0, "z": -12.0 } },
+      "firing_arc": { "azimuth_min": -15, "azimuth_max": 15, "elevation_min": -20, "elevation_max": 10 }
+    },
+    {
+      "mount_id": "railgun_3",
+      "weapon_type": "railgun",
+      "placement": { "section": "mid_dorsal_port", "position": { "x": 20.0, "y": 15.0, "z": 13.0 } },
+      "firing_arc": { "azimuth_min": -40, "azimuth_max": 20, "elevation_min": -5, "elevation_max": 30 }
+    },
+    {
+      "mount_id": "railgun_4",
+      "weapon_type": "railgun",
+      "placement": { "section": "mid_dorsal_starboard", "position": { "x": 20.0, "y": -15.0, "z": 13.0 } },
+      "firing_arc": { "azimuth_min": -20, "azimuth_max": 40, "elevation_min": -5, "elevation_max": 30 }
+    },
+    {
+      "mount_id": "railgun_5",
+      "weapon_type": "railgun",
+      "placement": { "section": "mid_ventral_port", "position": { "x": 20.0, "y": 15.0, "z": -13.0 } },
+      "firing_arc": { "azimuth_min": -40, "azimuth_max": 20, "elevation_min": -30, "elevation_max": 5 }
+    },
+    {
+      "mount_id": "railgun_6",
+      "weapon_type": "railgun",
+      "placement": { "section": "mid_ventral_starboard", "position": { "x": 20.0, "y": -15.0, "z": -13.0 } },
+      "firing_arc": { "azimuth_min": -20, "azimuth_max": 40, "elevation_min": -30, "elevation_max": 5 }
+    },
+    {
+      "mount_id": "torpedo_1",
+      "weapon_type": "torpedo",
+      "placement": { "section": "fore_port", "position": { "x": 60.0, "y": 18.0, "z": 0.0 } },
+      "firing_arc": { "azimuth_min": -60, "azimuth_max": 60, "elevation_min": -30, "elevation_max": 30 }
+    },
+    {
+      "mount_id": "torpedo_2",
+      "weapon_type": "torpedo",
+      "placement": { "section": "fore_starboard", "position": { "x": 60.0, "y": -18.0, "z": 0.0 } },
+      "firing_arc": { "azimuth_min": -60, "azimuth_max": 60, "elevation_min": -30, "elevation_max": 30 }
+    },
+    {
+      "mount_id": "torpedo_3",
+      "weapon_type": "torpedo",
+      "placement": { "section": "fore_dorsal", "position": { "x": 55.0, "y": 0.0, "z": 14.0 } },
+      "firing_arc": { "azimuth_min": -45, "azimuth_max": 45, "elevation_min": -15, "elevation_max": 40 }
+    },
+    {
+      "mount_id": "torpedo_4",
+      "weapon_type": "torpedo",
+      "placement": { "section": "fore_ventral", "position": { "x": 55.0, "y": 0.0, "z": -14.0 } },
+      "firing_arc": { "azimuth_min": -45, "azimuth_max": 45, "elevation_min": -40, "elevation_max": 15 }
+    },
+    {
+      "mount_id": "pdc_1",
+      "weapon_type": "pdc",
+      "placement": { "section": "fore_dorsal_port", "position": { "x": 70.0, "y": 12.0, "z": 13.0 } },
+      "firing_arc": { "azimuth_min": -90, "azimuth_max": 30, "elevation_min": 0, "elevation_max": 90 },
+      "coverage": "fore_upper_port"
+    },
+    {
+      "mount_id": "pdc_2",
+      "weapon_type": "pdc",
+      "placement": { "section": "fore_dorsal_starboard", "position": { "x": 70.0, "y": -12.0, "z": 13.0 } },
+      "firing_arc": { "azimuth_min": -30, "azimuth_max": 90, "elevation_min": 0, "elevation_max": 90 },
+      "coverage": "fore_upper_starboard"
+    },
+    {
+      "mount_id": "pdc_3",
+      "weapon_type": "pdc",
+      "placement": { "section": "fore_ventral_port", "position": { "x": 70.0, "y": 12.0, "z": -13.0 } },
+      "firing_arc": { "azimuth_min": -90, "azimuth_max": 30, "elevation_min": -90, "elevation_max": 0 },
+      "coverage": "fore_lower_port"
+    },
+    {
+      "mount_id": "pdc_4",
+      "weapon_type": "pdc",
+      "placement": { "section": "fore_ventral_starboard", "position": { "x": 70.0, "y": -12.0, "z": -13.0 } },
+      "firing_arc": { "azimuth_min": -30, "azimuth_max": 90, "elevation_min": -90, "elevation_max": 0 },
+      "coverage": "fore_lower_starboard"
+    },
+    {
+      "mount_id": "pdc_5",
+      "weapon_type": "pdc",
+      "placement": { "section": "mid_dorsal_port", "position": { "x": 0.0, "y": 18.0, "z": 14.0 } },
+      "firing_arc": { "azimuth_min": -150, "azimuth_max": 30, "elevation_min": 0, "elevation_max": 90 },
+      "coverage": "mid_upper_port"
+    },
+    {
+      "mount_id": "pdc_6",
+      "weapon_type": "pdc",
+      "placement": { "section": "mid_dorsal_starboard", "position": { "x": 0.0, "y": -18.0, "z": 14.0 } },
+      "firing_arc": { "azimuth_min": -30, "azimuth_max": 150, "elevation_min": 0, "elevation_max": 90 },
+      "coverage": "mid_upper_starboard"
+    },
+    {
+      "mount_id": "pdc_7",
+      "weapon_type": "pdc",
+      "placement": { "section": "mid_ventral_port", "position": { "x": 0.0, "y": 18.0, "z": -14.0 } },
+      "firing_arc": { "azimuth_min": -150, "azimuth_max": 30, "elevation_min": -90, "elevation_max": 0 },
+      "coverage": "mid_lower_port"
+    },
+    {
+      "mount_id": "pdc_8",
+      "weapon_type": "pdc",
+      "placement": { "section": "mid_ventral_starboard", "position": { "x": 0.0, "y": -18.0, "z": -14.0 } },
+      "firing_arc": { "azimuth_min": -30, "azimuth_max": 150, "elevation_min": -90, "elevation_max": 0 },
+      "coverage": "mid_lower_starboard"
+    },
+    {
+      "mount_id": "pdc_9",
+      "weapon_type": "pdc",
+      "placement": { "section": "aft_dorsal_port", "position": { "x": -60.0, "y": 12.0, "z": 12.0 } },
+      "firing_arc": { "azimuth_min": 90, "azimuth_max": 270, "elevation_min": 0, "elevation_max": 90 },
+      "coverage": "aft_upper_port"
+    },
+    {
+      "mount_id": "pdc_10",
+      "weapon_type": "pdc",
+      "placement": { "section": "aft_dorsal_starboard", "position": { "x": -60.0, "y": -12.0, "z": 12.0 } },
+      "firing_arc": { "azimuth_min": 90, "azimuth_max": 270, "elevation_min": 0, "elevation_max": 90 },
+      "coverage": "aft_upper_starboard"
+    },
+    {
+      "mount_id": "pdc_11",
+      "weapon_type": "pdc",
+      "placement": { "section": "aft_ventral_port", "position": { "x": -60.0, "y": 12.0, "z": -12.0 } },
+      "firing_arc": { "azimuth_min": 90, "azimuth_max": 270, "elevation_min": -90, "elevation_max": 0 },
+      "coverage": "aft_lower_port"
+    },
+    {
+      "mount_id": "pdc_12",
+      "weapon_type": "pdc",
+      "placement": { "section": "aft_ventral_starboard", "position": { "x": -60.0, "y": -12.0, "z": -12.0 } },
+      "firing_arc": { "azimuth_min": 90, "azimuth_max": 270, "elevation_min": -90, "elevation_max": 0 },
+      "coverage": "aft_lower_starboard"
+    }
+  ],
+  "damage_model": {
+    "propulsion": { "max_health": 250.0, "health": 250.0, "criticality": 5.0, "failure_threshold": 0.15 },
+    "rcs": { "max_health": 180.0, "health": 180.0, "criticality": 3.0, "failure_threshold": 0.2 },
+    "weapons": { "max_health": 220.0, "health": 220.0, "criticality": 4.0, "failure_threshold": 0.2 },
+    "sensors": { "max_health": 150.0, "health": 150.0, "criticality": 3.0, "failure_threshold": 0.2 },
+    "reactor": { "max_health": 300.0, "health": 300.0, "criticality": 5.0, "failure_threshold": 0.1 },
+    "life_support": { "max_health": 160.0, "health": 160.0, "criticality": 2.0, "failure_threshold": 0.2 }
+  }
+}

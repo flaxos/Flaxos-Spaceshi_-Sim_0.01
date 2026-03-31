@@ -1,0 +1,181 @@
+# Scenario 22: Damage Control
+# Feature test: pre-damaged subsystems, cascade effects, crew fatigue,
+# damage visualization, survival under degraded conditions
+#
+# Player starts in a damaged destroyer that took hits in a previous
+# engagement.  Two pirate corvettes are closing.  Survive and reach
+# a friendly station for repair/docking.
+
+name: "Damage Control"
+description: "Survive combat in a damaged ship and reach a station for repairs"
+
+difficulty: "medium"
+player_count: "1"
+category: "combat"
+
+dt: 0.1
+
+ships:
+  # ── Player: pre-damaged destroyer ──────────────────────────────
+  - id: "player"
+    name: "UNS Resilient"
+    ship_class: "destroyer"
+    player_controlled: true
+    faction: "unsa"
+    position: {x: 0, y: 0, z: 0}
+    velocity: {x: 50, y: 0, z: 0}      # Already moving toward station
+    orientation: {pitch: 0, yaw: 0, roll: 0}
+    systems:
+      propulsion:
+        fuel_level: 800.0               # 67% fuel remaining
+      sensors:
+        passive:
+          range: 200000                 # Degraded from damage
+    # Pre-damage: simulate previous battle damage
+    damage_model:
+      sensors: {max_health: 100.0, health: 60.0}       # 60% — impaired
+      propulsion: {max_health: 100.0, health: 70.0}     # 70% — sluggish
+      weapons: {max_health: 100.0, health: 80.0}        # 80% — reduced accuracy
+      rcs: {max_health: 100.0, health: 85.0}            # 85% — slightly impaired
+
+  # ── Pirate 1: closing from port ────────────────────────────────
+  - id: "pirate_01"
+    name: "Razor"
+    ship_class: "corvette"
+    faction: "pirate"
+    ai_enabled: true
+    position: {x: -30000, y: 25000, z: 5000}   # ~40km, closing
+    velocity: {x: 80, y: -30, z: 0}
+    orientation: {pitch: 0, yaw: 330, roll: 0}
+    ai_behavior:
+      role: "combat"
+      aggression: 0.8
+      engagement_range: 50000
+      flee_threshold: 0.3
+      evade_threshold: 0.4
+      max_thrust_profile: 0.7
+      weapon_confidence_threshold: 0.2
+
+  # ── Pirate 2: closing from starboard ───────────────────────────
+  - id: "pirate_02"
+    name: "Fang"
+    ship_class: "corvette"
+    faction: "pirate"
+    ai_enabled: true
+    position: {x: -20000, y: -20000, z: -8000}  # ~30km, closing
+    velocity: {x: 90, y: 20, z: 5}
+    orientation: {pitch: 0, yaw: 350, roll: 0}
+    ai_behavior:
+      role: "combat"
+      aggression: 0.9
+      engagement_range: 50000
+      flee_threshold: 0.2
+      evade_threshold: 0.3
+      max_thrust_profile: 0.8
+      weapon_confidence_threshold: 0.15
+
+  # ── Friendly station: repair destination ───────────────────────
+  - id: "repair_station"
+    name: "Ceres Drydock"
+    class: "station"
+    faction: "unsa"
+    position: {x: 100000, y: 0, z: 0}   # 100km ahead
+    velocity: {x: 0, y: 0, z: 0}
+    mass: 150000
+    systems:
+      sensors:
+        passive:
+          range: 200000
+
+mission:
+  name: "Operation: Limp Home"
+  description: "Survive pirate attack and reach Ceres Drydock for emergency repairs"
+
+  briefing: |
+    DAMAGE REPORT:
+    The UNS Resilient took heavy fire in the previous engagement.
+    Current system status:
+      - Sensors: 60% (impaired — reduced detection range)
+      - Propulsion: 70% (reduced thrust capacity)
+      - Weapons: 80% (degraded targeting accuracy)
+      - RCS: 85% (sluggish attitude control)
+
+    TACTICAL SITUATION:
+    Two pirate corvettes — "Razor" and "Fang" — are pursuing.  They
+    smell blood and are closing fast from port and starboard flanks.
+
+    OBJECTIVE:
+    Reach Ceres Drydock (100km ahead) for emergency repairs.  The
+    station has no offensive capability, so you must fight through
+    or outrun the pirates.
+
+    CONSIDERATIONS:
+    - Your damaged propulsion means reduced acceleration
+    - Weapons damage degrades targeting — fire at closer range
+    - Sensor impairment means contacts may appear later than expected
+    - Prioritize survival over kills — destroying pirates is optional
+    - Fuel is limited (67% remaining) — plan burns carefully
+    - Docking with Ceres Drydock completes the mission
+
+    Fight smart.  The Resilient has been through worse.
+
+  objectives:
+    - id: "reach_station"
+      type: "reach_range"
+      description: "Reach Ceres Drydock (within 5km)"
+      required: true
+      params:
+        target: "repair_station"
+        range: 5000
+        initial_range: 100000
+
+    - id: "survive"
+      type: "avoid_mission_kill"
+      description: "Keep the Resilient operational"
+      required: true
+      params:
+        target: "player"
+
+    - id: "kill_pirate_1"
+      type: "mission_kill"
+      description: "Neutralize the Razor (optional)"
+      required: false
+      params:
+        target: "pirate_01"
+
+    - id: "kill_pirate_2"
+      type: "mission_kill"
+      description: "Neutralize the Fang (optional)"
+      required: false
+      params:
+        target: "pirate_02"
+
+  time_limit: 480  # 8 minutes
+
+  success_message: |
+    The Resilient limps into Ceres Drydock's embrace.  Docking clamps
+    engage and the repair crews swarm the hull.
+
+    You held together through damaged systems, crew fatigue, and a
+    two-on-one pirate ambush.  Outstanding damage control.
+
+    The Resilient will fight another day.
+
+  failure_message: |
+    The UNS Resilient has suffered critical system failure.
+
+    With propulsion destroyed and weapons offline, the pirates close
+    for the kill.  Ceres Drydock watches helplessly on sensors as
+    the Resilient goes dark.
+
+  hints:
+    - trigger: "start"
+      message: "DAMAGE CONTROL: Multiple systems impaired. Prioritize reaching Ceres Drydock — 100km ahead."
+    - trigger: "range < 60000"
+      target: "repair_station"
+      message: "OPS: 60km to the drydock. Keep pushing — the pirates are still behind us."
+    - trigger: "range < 20000"
+      target: "repair_station"
+      message: "OPS: Almost there! Begin deceleration for docking approach."
+    - trigger: "time > 300"
+      message: "OPS: Five minutes elapsed. Systems may degrade further under sustained combat stress."

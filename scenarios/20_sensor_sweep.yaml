@@ -1,0 +1,158 @@
+# Scenario 20: Sensor Sweep
+# Feature test: science scans, contact classification, sensor range tiers
+#
+# Three unknown contacts at increasing ranges force the player to use
+# both passive detection and active scanning.  Classifying all three
+# exercises the full sensor pipeline: detect -> track -> scan -> classify.
+
+name: "Sensor Sweep"
+description: "Identify three unknown contacts at varying ranges using passive and active sensors"
+
+difficulty: "easy"
+player_count: "1"
+category: "stealth"
+
+dt: 0.1
+
+ships:
+  # ── Player: corvette with enhanced sensor suite ────────────────
+  - id: "player"
+    name: "UNS Hawkeye"
+    ship_class: "corvette"
+    player_controlled: true
+    faction: "unsa"
+    position: {x: 0, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+    orientation: {pitch: 0, yaw: 0, roll: 0}
+    systems:
+      propulsion:
+        fuel_level: 400.0
+        max_fuel: 400.0
+      sensors:
+        passive:
+          range: 500000       # 500km — enhanced passive array
+        active:
+          scan_range: 600000  # 600km active sweep
+
+  # ── Contact Alpha: close range, easy detection ─────────────────
+  - id: "contact_alpha"
+    name: "Unknown Contact Alpha"
+    ship_class: "freighter"
+    faction: "unknown"
+    ai_enabled: true
+    position: {x: 25000, y: 10000, z: 0}      # ~27km — trivial passive range
+    velocity: {x: 0, y: 0, z: 0}
+    orientation: {pitch: 0, yaw: 90, roll: 0}
+    ai_behavior:
+      role: "patrol"
+      aggression: 0.0
+      engagement_range: 10000
+      flee_threshold: 0.9
+      evade_threshold: 0.5
+
+  # ── Contact Bravo: medium range ────────────────────────────────
+  - id: "contact_bravo"
+    name: "Unknown Contact Bravo"
+    ship_class: "corvette"
+    faction: "unknown"
+    ai_enabled: true
+    position: {x: 60000, y: -40000, z: 10000}  # ~75km
+    velocity: {x: 10, y: 5, z: 0}              # Slow drift
+    orientation: {pitch: 0, yaw: 180, roll: 0}
+    ai_behavior:
+      role: "patrol"
+      aggression: 0.0
+      engagement_range: 10000
+      flee_threshold: 0.9
+      evade_threshold: 0.5
+
+  # ── Contact Charlie: long range, needs active scan ─────────────
+  - id: "contact_charlie"
+    name: "Unknown Contact Charlie"
+    ship_class: "frigate"
+    faction: "unknown"
+    ai_enabled: true
+    position: {x: 120000, y: 50000, z: -30000} # ~140km
+    velocity: {x: -5, y: 0, z: 0}
+    orientation: {pitch: 0, yaw: 270, roll: 0}
+    ai_behavior:
+      role: "patrol"
+      aggression: 0.0
+      engagement_range: 10000
+      flee_threshold: 0.9
+      evade_threshold: 0.5
+
+mission:
+  name: "Operation: Clear Eyes"
+  description: "Identify all unknown contacts in the operational area"
+
+  briefing: |
+    SITUATION:
+    Three unidentified contacts have been detected transiting our
+    operational area.  Fleet Command needs positive identification
+    before we can proceed with patrol operations.
+
+    CONTACTS:
+      - Alpha: bearing 022, range ~27km — should be easy to classify
+      - Bravo: bearing 147, range ~75km — moderate range, passive may work
+      - Charlie: bearing 023, range ~140km — long range, may need active scan
+
+    MISSION:
+    Use your sensor suite to detect, track, and classify all three
+    contacts.  Passive detection works at closer ranges; active
+    scanning provides faster, higher-confidence classification at
+    the cost of revealing your position.
+
+    PROCEDURE:
+    1. Use passive sensors to detect each contact
+    2. Target each contact to begin tracking
+    3. Classify using spectral analysis or active scan
+    4. Close range if passive detection is insufficient
+
+    Your Hawkeye has an enhanced sensor package.  Use it wisely.
+
+  objectives:
+    - id: "scan_alpha"
+      type: "scan_target"
+      description: "Identify Contact Alpha"
+      required: true
+      params:
+        target: "contact_alpha"
+
+    - id: "scan_bravo"
+      type: "scan_target"
+      description: "Identify Contact Bravo"
+      required: true
+      params:
+        target: "contact_bravo"
+
+    - id: "scan_charlie"
+      type: "scan_target"
+      description: "Identify Contact Charlie"
+      required: true
+      params:
+        target: "contact_charlie"
+
+  time_limit: 300  # 5 minutes
+
+  success_message: |
+    All contacts identified.  Sensor sweep complete.
+
+    Fleet Command has been updated with the contact classifications.
+    Your sensor data will be invaluable for tactical planning.
+
+    Well done, Hawkeye.
+
+  failure_message: |
+    Time expired.  Not all contacts were identified.
+
+    Incomplete sensor data leaves the operational area unclear.
+    Fleet Command cannot proceed without full classification.
+
+  hints:
+    - trigger: "start"
+      message: "SENSORS: Begin passive sweep. Contact Alpha is closest — start there."
+    - trigger: "time > 120"
+      message: "OPS: Two minutes elapsed. Use active scans if passive detection is insufficient at range."
+    - trigger: "time > 240"
+      message: "OPS: One minute remaining. Prioritize unclassified contacts."
