@@ -1,0 +1,33 @@
+{
+  "class_id": "racer",
+  "class_name": "Racing Sloop",
+  "description": "Ultralight high-performance vessel stripped to the minimum. No weapons, no armor — pure speed.",
+  "dimensions": {"length_m": 12.0, "beam_m": 3.0, "draft_m": 2.5},
+  "crew_complement": {"minimum": 1, "standard": 1, "maximum": 2},
+  "mass": {"dry_mass": 300.0, "max_fuel": 100.0, "max_hull_integrity": 40.0},
+  "armor": {
+    "fore": {"thickness_cm": 0.2, "material": "composite_cermet"},
+    "aft": {"thickness_cm": 0.2, "material": "composite_cermet"},
+    "port": {"thickness_cm": 0.2, "material": "composite_cermet"},
+    "starboard": {"thickness_cm": 0.2, "material": "composite_cermet"},
+    "dorsal": {"thickness_cm": 0.2, "material": "composite_cermet"},
+    "ventral": {"thickness_cm": 0.2, "material": "composite_cermet"}
+  },
+  "systems": {
+    "propulsion": {"enabled": true, "power_draw": 15, "max_thrust": 50.0, "isp": 5000, "max_fuel": 100.0, "fuel_level": 100.0, "drive_type": "epstein"},
+    "rcs": {"enabled": true, "max_torque": 600, "attitude_rate": 50},
+    "sensors": {"enabled": true, "power_draw": 5, "passive": {"range": 100000}, "active": {"scan_range": 200000, "cooldown_time": 10}},
+    "navigation": {"enabled": true, "power_draw": 2},
+    "targeting": {"enabled": false},
+    "combat": {"enabled": false, "railguns": 0, "pdcs": 0},
+    "power_management": {"primary": {"output": 60}, "system_map": {"propulsion": "primary", "sensors": "primary", "rcs": "primary", "navigation": "primary"}}
+  },
+  "weapon_mounts": [],
+  "damage_model": {
+    "propulsion": {"max_health": 80, "health": 80, "criticality": 5, "failure_threshold": 0.3},
+    "rcs": {"max_health": 60, "health": 60, "criticality": 3, "failure_threshold": 0.2},
+    "sensors": {"max_health": 40, "health": 40, "criticality": 2, "failure_threshold": 0.1},
+    "reactor": {"max_health": 60, "health": 60, "criticality": 5, "failure_threshold": 0.3},
+    "life_support": {"max_health": 40, "health": 40, "criticality": 4, "failure_threshold": 0.2}
+  }
+}

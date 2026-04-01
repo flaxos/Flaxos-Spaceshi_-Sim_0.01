@@ -10,7 +10,7 @@ class Reactor:
                  overheat_output_factor=0.5):
         self.name = name
         self.capacity = capacity
-        self.available = 0.0
+        self.available = capacity  # Start hot — no cold-start propulsion blackout
         self.output_rate = output_rate
         self.thermal_limit = thermal_limit
         self.temperature = 25.0  # ambient start

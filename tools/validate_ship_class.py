@@ -81,8 +81,8 @@ def validate_ship_class(data: dict) -> list[str]:
 
         # ── 8a. Mass plausibility ─────────────────────────────────────────────
         if isinstance(dry_mass, (int, float)) and dry_mass > 0:
-            if dry_mass <= 100:
-                err(errors, f"mass.dry_mass={dry_mass} is implausibly small for a ship (expected > 100 tonnes)")
+            if dry_mass < 10:
+                err(errors, f"mass.dry_mass={dry_mass} is implausibly small (expected >= 10 kg)")
             if isinstance(max_fuel, (int, float)) and max_fuel > dry_mass * 2:
                 err(errors, (
                     f"mass.max_fuel={max_fuel} > dry_mass*2 ({dry_mass * 2:.1f}); "

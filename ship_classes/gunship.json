@@ -29,7 +29,7 @@
     "propulsion": {
       "enabled": true,
       "power_draw": 60,
-      "max_thrust": 35.0,
+      "max_thrust": 180.0,
       "isp": 3200,
       "max_fuel": 500.0,
       "fuel_level": 500.0,
