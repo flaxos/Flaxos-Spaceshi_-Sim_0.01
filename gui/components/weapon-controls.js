@@ -1511,9 +1511,13 @@ class WeaponControls extends HTMLElement {
       const ready = w.solution?.ready_to_fire && ammo > 0 && !w.reloading;
       const disabled = !ready || !hasLock ? "disabled" : "";
       const displayName = mountId.replace(/_/g, " ").toUpperCase();
+      // Surface the firing solution reason as a tooltip so the player
+      // knows WHY the fire button is disabled (arc, range, cycling, etc.)
+      const reason = w.solution?.reason || "";
+      const tooltip = disabled && reason ? ` title="${reason}"` : "";
 
       html += `
-        <button class="fire-btn railgun-btn" data-mount="${mountId}" ${disabled}
+        <button class="fire-btn railgun-btn" data-mount="${mountId}" ${disabled}${tooltip}
                 data-testid="fire-${mountId}">
           ${displayName} (${ammo})
         </button>
@@ -1530,12 +1534,21 @@ class WeaponControls extends HTMLElement {
       });
     });
 
-    // Hint
+    // Hint — show specific reason when solution exists but isn't ready
     if (!hasLock) {
       hintEl.textContent = "Lock target to fire";
     } else {
       const anyReady = railguns.some(([, w]) => w.solution?.ready_to_fire);
-      hintEl.textContent = anyReady ? "" : "Waiting for firing solution";
+      if (anyReady) {
+        hintEl.textContent = "";
+      } else {
+        // Show the most informative reason from any railgun's solution
+        const reasons = railguns
+          .map(([, w]) => w.solution?.reason)
+          .filter(Boolean);
+        const arcReason = reasons.find((r) => r.includes("arc"));
+        hintEl.textContent = arcReason || reasons[0] || "Waiting for firing solution";
+      }
     }
   }
 

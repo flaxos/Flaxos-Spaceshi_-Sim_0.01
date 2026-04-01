@@ -325,6 +325,26 @@ class FiringSolutionDisplay extends HTMLElement {
       </div>
     `;
 
+    // 2b. Firing arc warning — shown when target is outside the weapon's arc
+    if (bestSol.in_arc === false) {
+      const reason = bestSol.reason || "Target outside firing arc";
+      html += `
+        <div data-testid="arc-warning" style="
+          background: rgba(255, 68, 68, 0.1);
+          border: 1px solid var(--status-critical, #ff4444);
+          border-radius: 6px;
+          padding: 8px 12px;
+          margin-bottom: 12px;
+          text-align: center;
+          font-size: 0.75rem;
+          font-weight: 600;
+          color: var(--status-critical, #ff4444);
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        ">${reason}</div>
+      `;
+    }
+
     // 3. Factor breakdown
     const factors = bestSol.confidence_factors;
     if (factors && Object.keys(factors).length > 0) {
