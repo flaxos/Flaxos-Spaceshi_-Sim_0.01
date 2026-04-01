@@ -197,7 +197,13 @@ class Ship:
             "get_subsystem_health": self._cmd_get_subsystem_health,
             "repair_subsystem": self._cmd_repair_subsystem,
         }
-        
+
+        # Economy / station services (Phase 4B) -- adds station_repair,
+        # station_resupply, station_hire_crew, station_upgrade, station_prices
+        # to command_handlers so they route through ship.command().
+        from hybrid.command_handler import register_economy_handlers
+        register_economy_handlers(self)
+
     def _get_vector3_config(self, config, x_key="x", y_key="y", z_key="z"):
         """Extract a vector3 from config with defaults"""
         return {

@@ -153,6 +153,12 @@ DIRECT_DISPATCHER_COMMANDS = frozenset({
     "fleet_status",
     "fleet_tactical",
     "share_contact",
+    # economy_commands.py - registered via ship.command_handlers for OPS/CAPTAIN
+    "station_repair",
+    "station_resupply",
+    "station_hire_crew",
+    "station_upgrade",
+    "station_prices",
 })
 
 # Commands that exist in the CommandSpec dispatcher but use a different

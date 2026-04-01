@@ -93,6 +93,8 @@ import "../components/comms-choice-panel.js";
 import "../components/scenario-editor.js";
 // Boarding Actions (Phase 3B)
 import "../components/boarding-panel.js";
+// Station Services / Economy (Phase 4B)
+import "../components/station-services-panel.js";
 // Multi-target tracking
 import "../components/multi-track-panel.js";
 // Target damage assessment

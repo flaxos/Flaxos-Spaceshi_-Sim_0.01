@@ -46,6 +46,12 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
         commands={
             # Captain can issue ANY command (populated dynamically)
             "all_commands",
+            # Economy / station services (Phase 4B)
+            "station_repair",
+            "station_resupply",
+            "station_hire_crew",
+            "station_upgrade",
+            "station_prices",
         },
         displays={"all_displays"},
         can_override={StationType.HELM, StationType.TACTICAL, StationType.OPS,
@@ -230,6 +236,12 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             "begin_boarding",
             "cancel_boarding",
             "boarding_status",
+            # Economy / station services (Phase 4B)
+            "station_repair",
+            "station_resupply",
+            "station_hire_crew",
+            "station_upgrade",
+            "station_prices",
             # Drone bay commands (Phase 3A)
             "launch_drone",
             "recall_drone",

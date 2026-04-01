@@ -203,6 +203,7 @@ def create_default_dispatcher() -> CommandDispatcher:
     from hybrid.commands import auto_comms_commands
     from hybrid.commands import boarding_commands
     from hybrid.commands import drone_commands
+    from hybrid.commands import economy_commands
 
     # Register all commands from modules
     ship_commands.register_commands(dispatcher)
@@ -230,5 +231,6 @@ def create_default_dispatcher() -> CommandDispatcher:
     auto_comms_commands.register_commands(dispatcher)
     boarding_commands.register_commands(dispatcher)
     drone_commands.register_commands(dispatcher)
+    economy_commands.register_commands(dispatcher)
 
     return dispatcher

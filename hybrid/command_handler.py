@@ -211,6 +211,43 @@ system_commands = {
     "share_contact": ("fleet_coord", "share_contact"),
 }
 
+# Economy / station services commands (Phase 4B)
+# These are ship-level commands -- routed through ship.command_handlers,
+# not through the system_commands dict, because there's no "economy"
+# system on the ship object.  Registered below in register_economy_handlers.
+_ECONOMY_COMMANDS = [
+    "station_repair", "station_resupply", "station_hire_crew",
+    "station_upgrade", "station_prices",
+]
+
+
+def register_economy_handlers(ship) -> None:
+    """Wire economy command handlers into a ship's command_handlers dict.
+
+    Called from Ship.__init__ (via _load_economy_handlers) or from
+    the runner when ships are created.  This lets economy commands
+    flow through the ship.command() fallback path and be routed by
+    the station-aware dispatcher via register_legacy_commands.
+    """
+    from hybrid.commands.economy_commands import (
+        cmd_station_repair,
+        cmd_station_resupply,
+        cmd_station_hire_crew,
+        cmd_station_upgrade,
+        cmd_station_prices,
+    )
+    handlers = {
+        "station_repair": cmd_station_repair,
+        "station_resupply": cmd_station_resupply,
+        "station_hire_crew": cmd_station_hire_crew,
+        "station_upgrade": cmd_station_upgrade,
+        "station_prices": cmd_station_prices,
+    }
+    for name, handler in handlers.items():
+        # Wrap to match ship.command_handlers signature: fn(params) -> dict
+        # The economy handlers take (ship, params), so we partial-bind the ship.
+        ship.command_handlers[name] = lambda params, _h=handler, _s=ship: _h(_s, params)
+
 def parse_command(data):
     """
     Parse a command string or dictionary
