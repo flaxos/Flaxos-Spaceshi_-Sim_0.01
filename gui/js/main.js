@@ -89,6 +89,8 @@ import "../components/station-chat.js";
 import "../components/comms-choice-panel.js";
 // Scenario editor (EDITOR view)
 import "../components/scenario-editor.js";
+// Boarding Actions (Phase 3B)
+import "../components/boarding-panel.js";
 // Multi-target tracking
 import "../components/multi-track-panel.js";
 // Target damage assessment
