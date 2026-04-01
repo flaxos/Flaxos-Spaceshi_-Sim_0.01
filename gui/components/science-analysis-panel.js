@@ -8,6 +8,7 @@
  */
 
 import { stateManager } from "../js/state-manager.js";
+import { wsClient } from "../js/ws-client.js";
 
 class ScienceAnalysisPanel extends HTMLElement {
   constructor() {
@@ -304,6 +305,8 @@ class ScienceAnalysisPanel extends HTMLElement {
     if (contactsEl) {
       contactsEl.textContent = sensors.count ?? sensors.contacts?.length ?? "--";
     }
+
+    this._updateAutoSciPanel();
   }
 
   _updateContactList() {
@@ -496,6 +499,48 @@ ${recs.length > 0 ? '\n<span class="highlight">RECOMMENDATIONS:</span>\n' + recs
   _formatMassKg(kg) {
     if (kg >= 1000) return `${(kg / 1000).toFixed(1)}t`;
     return `${kg.toFixed(0)} kg`;
+  }
+
+  // --- Auto-Science (CPU-ASSIST tier) ---
+  _updateAutoSciPanel() {
+    let panel = this.shadowRoot.getElementById("auto-sci-panel");
+    const tier = window.controlTier || "raw";
+    if (tier !== "cpu-assist") { if (panel) panel.style.display = "none"; return; }
+    if (!panel) {
+      panel = document.createElement("div");
+      panel.id = "auto-sci-panel";
+      panel.style.cssText = "border:1px solid rgba(0,204,170,0.3);border-radius:4px;padding:8px;margin:8px 0;background:rgba(0,204,170,0.05);";
+      panel.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <span style="color:#00ccaa;font-size:0.7rem;font-weight:600;letter-spacing:0.5px;">AUTO SCAN</span>
+        <button id="auto-sci-toggle" style="background:rgba(0,204,170,0.15);color:#00ccaa;border:1px solid rgba(0,204,170,0.3);padding:2px 10px;border-radius:3px;cursor:pointer;font-size:0.65rem;">ENABLE</button>
+      </div><div id="sci-proposals"></div>`;
+      const content = this.shadowRoot.querySelector(".results") || this.shadowRoot.firstElementChild;
+      if (content) content.prepend(panel); else this.shadowRoot.appendChild(panel);
+      panel.querySelector("#auto-sci-toggle").addEventListener("click", () => {
+        const ship = stateManager.getShipState();
+        wsClient.sendShipCommand(ship?.auto_science?.enabled ? "disable_auto_science" : "enable_auto_science", {});
+      });
+      panel.querySelector("#sci-proposals").addEventListener("click", (e) => {
+        const a = e.target.closest("[data-approve]"); const d = e.target.closest("[data-deny]");
+        if (a) wsClient.sendShipCommand("approve_science", { proposal_id: a.dataset.approve });
+        if (d) wsClient.sendShipCommand("deny_science", { proposal_id: d.dataset.deny });
+      });
+    }
+    panel.style.display = "block";
+    const ship = stateManager.getShipState();
+    const st = ship?.auto_science || {};
+    const toggle = panel.querySelector("#auto-sci-toggle");
+    toggle.textContent = st.enabled ? "DISABLE" : "ENABLE";
+    toggle.style.background = st.enabled ? "rgba(0,255,136,0.15)" : "rgba(0,204,170,0.15)";
+    const proposals = st.proposals || [];
+    const pc = panel.querySelector("#sci-proposals");
+    pc.innerHTML = proposals.length === 0
+      ? '<div style="color:var(--text-dim);font-size:0.65rem;">No pending proposals</div>'
+      : proposals.map(p => `<div style="background:var(--bg-input);border:1px solid var(--border-default);border-radius:4px;padding:5px 8px;margin:3px 0;font-size:0.65rem;">
+          <div style="color:var(--text-primary);margin-bottom:3px;">${p.description || p.action}</div>
+          <button data-approve="${p.id}" style="background:rgba(0,255,136,0.15);color:#00ff88;border:1px solid rgba(0,255,136,0.3);padding:1px 8px;border-radius:3px;cursor:pointer;font-size:0.6rem;margin-right:3px;">APPROVE</button>
+          <button data-deny="${p.id}" style="background:rgba(255,68,68,0.15);color:#ff4444;border:1px solid rgba(255,68,68,0.3);padding:1px 8px;border-radius:3px;cursor:pointer;font-size:0.6rem;">DENY</button>
+        </div>`).join('');
   }
 }
 

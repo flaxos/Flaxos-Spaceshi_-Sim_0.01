@@ -48,10 +48,7 @@ class OpsControlPanel extends HTMLElement {
   }
 
   async _sendCommand(cmd, args = {}) {
-    if (window.flaxosApp && window.flaxosApp.sendCommand) {
-      return window.flaxosApp.sendCommand(cmd, args);
-    }
-    return null;
+    return wsClient.sendShipCommand(cmd, args);
   }
 
   render() {
