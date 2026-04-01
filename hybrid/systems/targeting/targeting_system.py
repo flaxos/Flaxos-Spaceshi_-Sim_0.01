@@ -425,11 +425,12 @@ class TargetingSystem(BaseSystem):
         # CONTACT phase has no established track yet — losing the contact
         # during correlation means we go straight back to NONE.
         if self.lock_state == LockState.CONTACT:
-            self.lock_state = LockState.NONE
-            self._correlation_progress = 0.0
             logger.warning(
                 f"Correlation aborted for {self.locked_target}: {reason}"
             )
+            self.lock_state = LockState.NONE
+            self._correlation_progress = 0.0
+            self.locked_target = None
             return
 
         self.lock_quality *= 0.9  # Decay

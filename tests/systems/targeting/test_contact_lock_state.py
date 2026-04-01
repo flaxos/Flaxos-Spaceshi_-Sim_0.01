@@ -381,3 +381,36 @@ class TestUnlockDuringContact:
         assert result["ok"] is True
         assert targeting.lock_state == LockState.NONE
         assert targeting._correlation_progress == 0.0
+
+
+class TestContactStateBugFixes:
+    """Regression tests for QA-discovered bugs."""
+
+    def test_lost_contact_clears_locked_target(self, targeting):
+        """Bug 1: _degrade_lock during CONTACT must clear locked_target."""
+        ship = _make_mock_ship(["C001"], contact_range=50000.0)
+        targeting._ship_ref = ship
+        event_bus = MagicMock()
+
+        targeting.lock_target("C001", sim_time=10.0)
+        assert targeting.lock_state == LockState.CONTACT
+        assert targeting.locked_target == "C001"
+
+        # Remove contact from sensors
+        ship_no_contacts = _make_mock_ship([], contact_range=50000.0)
+        targeting._ship_ref = ship_no_contacts
+        targeting.tick(0.1, ship_no_contacts, event_bus)
+
+        assert targeting.lock_state == LockState.NONE
+        assert targeting.locked_target is None  # Bug 1: was non-None before fix
+        assert targeting._correlation_progress == 0.0
+
+    def test_exact_1km_boundary_enters_contact(self, targeting):
+        """At exactly 1000m, strict < means CONTACT is entered (not skipped)."""
+        ship = _make_mock_ship(["C001"], contact_range=1000.0)
+        targeting._ship_ref = ship
+        event_bus = MagicMock()
+
+        targeting.lock_target("C001", sim_time=10.0)
+        # At exactly 1000m, 1000 < 1000 is False → CONTACT, not skip
+        assert targeting.lock_state == LockState.CONTACT
