@@ -1,11 +1,12 @@
 /**
  * Scenario Loader — Game Menu System
  *
- * Four states:
- *   TITLE         — Title screen with NEW GAME / JOIN GAME
+ * Five states:
+ *   TITLE          — Title screen with NEW GAME / JOIN GAME / QUICK PLAY
  *   MISSION_SELECT — Filterable grid of mission cards
- *   LOBBY         — Fleet lobby: pick a ship + station, captain starts
- *   POST_MISSION  — Results overlay (NEXT / REPLAY / MENU)
+ *   QUICK_PLAY     — Skirmish configurator
+ *   LOBBY          — Fleet lobby: pick a ship + station, captain starts
+ *   POST_MISSION   — Results overlay (NEXT / REPLAY / MENU)
  */
 
 import { wsClient } from "../js/ws-client.js";
@@ -13,9 +14,23 @@ import { wsClient } from "../js/ws-client.js";
 const MENU_STATE = {
   TITLE: "title",
   MISSION_SELECT: "mission_select",
+  QUICK_PLAY: "quick_play",
   LOBBY: "lobby",
   POST_MISSION: "post_mission",
 };
+
+// Ship classes available for skirmish configuration
+const SKIRMISH_SHIP_CLASSES = [
+  "fighter", "corvette", "gunship", "frigate", "destroyer",
+  "cruiser", "battleship", "carrier",
+];
+
+const SKIRMISH_MODES = [
+  { id: "deathmatch", label: "DEATHMATCH", desc: "All vs all, last team standing" },
+  { id: "team", label: "TEAM", desc: "Two teams, destroy all enemies" },
+  { id: "defend", label: "DEFEND", desc: "Protect a station from waves" },
+  { id: "escort", label: "ESCORT", desc: "Escort a freighter to safety" },
+];
 
 // Difficulty ordering for sort
 const DIFFICULTY_ORDER = {
@@ -56,6 +71,12 @@ class ScenarioLoader extends HTMLElement {
     this._menuState = MENU_STATE.TITLE;
     this._categoryFilter = "all";
     this._expandedCard = null; // scenario id with expanded briefing
+    // Skirmish configurator state
+    this._skirmishMode = "deathmatch";
+    this._skirmishPlayerShips = [{ class: "corvette" }];
+    this._skirmishEnemyShips = [{ class: "frigate", count: 1 }];
+    this._skirmishRange = 50;
+    this._skirmishTimeLimit = null;
   }
 
   connectedCallback() {
@@ -102,6 +123,9 @@ class ScenarioLoader extends HTMLElement {
       case MENU_STATE.MISSION_SELECT:
         container.appendChild(this._buildMissionSelect());
         break;
+      case MENU_STATE.QUICK_PLAY:
+        container.appendChild(this._buildQuickPlay());
+        break;
       case MENU_STATE.LOBBY:
         container.appendChild(this._buildLobby());
         break;
@@ -125,6 +149,7 @@ class ScenarioLoader extends HTMLElement {
         <p class="game-subtitle">Hard Sci-Fi Tactical Bridge Simulator</p>
         <div class="title-buttons">
           <button class="btn btn-primary btn-large" id="btn-new-game">NEW GAME</button>
+          <button class="btn btn-accent btn-large" id="btn-quick-play">QUICK PLAY</button>
           <button class="btn btn-secondary btn-large" id="btn-join-game">JOIN GAME</button>
         </div>
         <div class="title-version">v0.01</div>
@@ -134,8 +159,10 @@ class ScenarioLoader extends HTMLElement {
     // Defer event binding until after DOM insertion
     requestAnimationFrame(() => {
       const newBtn = this.shadowRoot.getElementById("btn-new-game");
+      const quickBtn = this.shadowRoot.getElementById("btn-quick-play");
       const joinBtn = this.shadowRoot.getElementById("btn-join-game");
       if (newBtn) newBtn.addEventListener("click", () => this._onNewGame());
+      if (quickBtn) quickBtn.addEventListener("click", () => this._onQuickPlay());
       if (joinBtn) joinBtn.addEventListener("click", () => this._onJoinGame());
     });
 
@@ -153,7 +180,226 @@ class ScenarioLoader extends HTMLElement {
     await this._fetchAndRenderLobby();
   }
 
-  // ─── MISSION SELECT ─────────────────────────────────────────────
+  async _onQuickPlay() {
+    await this._ensureConnected();
+    this._setMenuState(MENU_STATE.QUICK_PLAY);
+  }
+
+  // ─── QUICK PLAY (Skirmish Configurator) ─────────────────────────
+
+  _buildQuickPlay() {
+    const el = document.createElement("div");
+    el.className = "quick-play";
+
+    // Back button
+    const backBtn = document.createElement("button");
+    backBtn.className = "btn btn-ghost btn-back";
+    backBtn.textContent = "< BACK";
+    backBtn.addEventListener("click", () => this._setMenuState(MENU_STATE.TITLE));
+    el.appendChild(backBtn);
+
+    const header = document.createElement("h2");
+    header.className = "section-header";
+    header.textContent = "QUICK PLAY";
+    el.appendChild(header);
+
+    // Mode selector
+    const modeLabel = document.createElement("div");
+    modeLabel.className = "qp-label";
+    modeLabel.textContent = "MODE";
+    el.appendChild(modeLabel);
+
+    const modeBar = document.createElement("div");
+    modeBar.className = "filter-bar";
+    for (const m of SKIRMISH_MODES) {
+      const btn = document.createElement("button");
+      btn.className = `filter-btn ${this._skirmishMode === m.id ? "active" : ""}`;
+      btn.textContent = m.label;
+      btn.title = m.desc;
+      btn.addEventListener("click", () => {
+        this._skirmishMode = m.id;
+        this._render();
+      });
+      modeBar.appendChild(btn);
+    }
+    el.appendChild(modeBar);
+
+    // Player ships
+    el.appendChild(this._buildShipListEditor("PLAYER SHIPS", this._skirmishPlayerShips, "player"));
+
+    // Enemy ships
+    el.appendChild(this._buildShipListEditor("ENEMY SHIPS", this._skirmishEnemyShips, "enemy"));
+
+    // Start range slider
+    const rangeSection = document.createElement("div");
+    rangeSection.className = "qp-section";
+    rangeSection.innerHTML = `
+      <div class="qp-label">START RANGE: <span class="qp-range-val">${this._skirmishRange} km</span></div>
+      <input type="range" class="qp-slider" min="10" max="200" step="5" value="${this._skirmishRange}">
+    `;
+    const slider = rangeSection.querySelector(".qp-slider");
+    slider.addEventListener("input", (e) => {
+      this._skirmishRange = parseInt(e.target.value);
+      rangeSection.querySelector(".qp-range-val").textContent = `${this._skirmishRange} km`;
+    });
+    el.appendChild(rangeSection);
+
+    // Time limit (optional)
+    const timeSection = document.createElement("div");
+    timeSection.className = "qp-section";
+    timeSection.innerHTML = `
+      <div class="qp-label">TIME LIMIT (optional)</div>
+      <div class="qp-row">
+        <input type="number" class="qp-input" min="60" max="3600" step="30"
+               placeholder="seconds" value="${this._skirmishTimeLimit || ""}">
+        <button class="btn btn-ghost btn-small qp-clear-time">CLEAR</button>
+      </div>
+    `;
+    const timeInput = timeSection.querySelector(".qp-input");
+    timeInput.addEventListener("change", (e) => {
+      const val = parseInt(e.target.value);
+      this._skirmishTimeLimit = val > 0 ? val : null;
+    });
+    timeSection.querySelector(".qp-clear-time").addEventListener("click", () => {
+      this._skirmishTimeLimit = null;
+      timeInput.value = "";
+    });
+    el.appendChild(timeSection);
+
+    // Generate & Play button
+    const launchBtn = document.createElement("button");
+    launchBtn.className = "btn btn-primary btn-large qp-launch";
+    launchBtn.textContent = "GENERATE & PLAY";
+    launchBtn.addEventListener("click", () => this._generateAndPlay());
+    el.appendChild(launchBtn);
+
+    return el;
+  }
+
+  _buildShipListEditor(label, shipList, side) {
+    const section = document.createElement("div");
+    section.className = "qp-section";
+
+    const header = document.createElement("div");
+    header.className = "qp-label";
+    header.textContent = label;
+    section.appendChild(header);
+
+    // Current ships list
+    const list = document.createElement("div");
+    list.className = "qp-ship-list";
+
+    for (let i = 0; i < shipList.length; i++) {
+      const entry = shipList[i];
+      const row = document.createElement("div");
+      row.className = "qp-ship-row";
+
+      const classLabel = document.createElement("span");
+      classLabel.className = "qp-ship-class";
+      classLabel.textContent = entry.class.toUpperCase();
+      row.appendChild(classLabel);
+
+      if (side === "enemy" && entry.count > 1) {
+        const countLabel = document.createElement("span");
+        countLabel.className = "qp-ship-count";
+        countLabel.textContent = `x${entry.count}`;
+        row.appendChild(countLabel);
+      }
+
+      const removeBtn = document.createElement("button");
+      removeBtn.className = "btn btn-ghost btn-small";
+      removeBtn.textContent = "X";
+      removeBtn.addEventListener("click", () => {
+        shipList.splice(i, 1);
+        this._render();
+      });
+      row.appendChild(removeBtn);
+
+      list.appendChild(row);
+    }
+    section.appendChild(list);
+
+    // Add ship controls
+    const addRow = document.createElement("div");
+    addRow.className = "qp-add-row";
+
+    const classSelect = document.createElement("select");
+    classSelect.className = "qp-select";
+    for (const cls of SKIRMISH_SHIP_CLASSES) {
+      const opt = document.createElement("option");
+      opt.value = cls;
+      opt.textContent = cls.toUpperCase();
+      classSelect.appendChild(opt);
+    }
+    addRow.appendChild(classSelect);
+
+    if (side === "enemy") {
+      const countInput = document.createElement("input");
+      countInput.type = "number";
+      countInput.className = "qp-input qp-count-input";
+      countInput.min = "1";
+      countInput.max = "10";
+      countInput.value = "1";
+      countInput.placeholder = "#";
+      addRow.appendChild(countInput);
+    }
+
+    const addBtn = document.createElement("button");
+    addBtn.className = "btn btn-secondary btn-small";
+    addBtn.textContent = "ADD";
+    addBtn.addEventListener("click", () => {
+      const cls = classSelect.value;
+      if (side === "enemy") {
+        const countInput = addRow.querySelector(".qp-count-input");
+        const count = Math.max(1, Math.min(10, parseInt(countInput?.value) || 1));
+        shipList.push({ class: cls, count });
+      } else {
+        shipList.push({ class: cls });
+      }
+      this._render();
+    });
+    addRow.appendChild(addBtn);
+
+    section.appendChild(addRow);
+    return section;
+  }
+
+  async _generateAndPlay() {
+    const params = {
+      cmd: "generate_skirmish",
+      mode: this._skirmishMode,
+      player_ships: this._skirmishPlayerShips,
+      enemy_ships: this._skirmishEnemyShips,
+      start_range_km: this._skirmishRange,
+      randomize_positions: true,
+    };
+
+    if (this._skirmishTimeLimit) {
+      params.time_limit_seconds = this._skirmishTimeLimit;
+    }
+
+    try {
+      const response = await wsClient.send("generate_skirmish", params);
+
+      if (response && response.ok === false) {
+        console.error("Generate skirmish failed:", response.error);
+        return;
+      }
+
+      if (response && response.ok !== false) {
+        this._activeScenario = response.scenario_name || "Generated Skirmish";
+        this.dispatchEvent(new CustomEvent("scenario-loaded", {
+          detail: response,
+          bubbles: true,
+        }));
+        await this._fetchAndRenderLobby();
+      }
+    } catch (error) {
+      console.error("Error generating skirmish:", error.message);
+    }
+  }
+
+  // ─── MISSION SELECT ─────────────────────────────���───────────────
 
   _buildMissionSelect() {
     const el = document.createElement("div");
@@ -676,6 +922,16 @@ class ScenarioLoader extends HTMLElement {
         border-color: var(--border-active, #3a3a4a);
       }
 
+      .btn-accent {
+        background: rgba(170, 0, 255, 0.2);
+        border-color: #aa44ff;
+        color: #cc88ff;
+      }
+      .btn-accent:hover {
+        background: rgba(170, 0, 255, 0.35);
+        filter: brightness(1.1);
+      }
+
       .btn-ghost {
         background: transparent;
         border-color: transparent;
@@ -1000,6 +1256,109 @@ class ScenarioLoader extends HTMLElement {
         color: var(--text-dim, #555566);
         font-size: 0.8rem;
         font-style: italic;
+      }
+
+      /* ── Quick Play ──────────────────────────────────────────── */
+
+      .quick-play {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .qp-label {
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-secondary, #888899);
+        margin: 8px 0 4px;
+      }
+
+      .qp-range-val {
+        color: var(--status-info, #00aaff);
+        font-weight: 700;
+      }
+
+      .qp-section {
+        margin-bottom: 8px;
+      }
+
+      .qp-slider {
+        width: 100%;
+        accent-color: var(--status-info, #00aaff);
+      }
+
+      .qp-row {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+
+      .qp-input {
+        background: var(--bg-input, #1a1a24);
+        border: 1px solid var(--border-default, #2a2a3a);
+        border-radius: 4px;
+        color: var(--text-primary, #e0e0e0);
+        padding: 6px 8px;
+        font-size: 0.75rem;
+        font-family: inherit;
+        width: 100px;
+      }
+
+      .qp-count-input {
+        width: 50px;
+      }
+
+      .qp-select {
+        background: var(--bg-input, #1a1a24);
+        border: 1px solid var(--border-default, #2a2a3a);
+        border-radius: 4px;
+        color: var(--text-primary, #e0e0e0);
+        padding: 6px 8px;
+        font-size: 0.75rem;
+        font-family: inherit;
+      }
+
+      .qp-ship-list {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        margin-bottom: 6px;
+      }
+
+      .qp-ship-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 4px 8px;
+        background: var(--bg-input, #1a1a24);
+        border: 1px solid var(--border-default, #2a2a3a);
+        border-radius: 4px;
+      }
+
+      .qp-ship-class {
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: var(--text-primary, #e0e0e0);
+        flex: 1;
+      }
+
+      .qp-ship-count {
+        font-size: 0.7rem;
+        color: var(--status-info, #00aaff);
+        font-weight: 700;
+      }
+
+      .qp-add-row {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+
+      .qp-launch {
+        width: 100%;
+        margin-top: 12px;
       }
 
       /* ── Scrollbar ─────────────────────────────────────────── */
