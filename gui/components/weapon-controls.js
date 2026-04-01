@@ -847,7 +847,194 @@ class WeaponControls extends HTMLElement {
         .missile-options.visible {
           display: block;
         }
+
+        /* === Auto-Tactical Engagement Rules (CPU-ASSIST) === */
+        .engagement-panel {
+          display: none;
+          margin-bottom: 16px;
+          padding: 12px;
+          background: rgba(128, 0, 255, 0.06);
+          border: 1px solid rgba(128, 0, 255, 0.3);
+          border-radius: 8px;
+        }
+
+        .engagement-panel.visible { display: block; }
+
+        .engagement-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 8px;
+        }
+
+        .engagement-title {
+          font-size: 0.7rem;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          color: #bb88ff;
+        }
+
+        .engagement-toggle {
+          padding: 4px 10px;
+          border-radius: 4px;
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+          font-size: 0.65rem;
+          font-weight: 700;
+          cursor: pointer;
+          border: 1px solid rgba(128, 0, 255, 0.4);
+          background: transparent;
+          color: var(--text-dim, #555566);
+          transition: all 0.15s ease;
+        }
+
+        .engagement-toggle.active {
+          border-color: #bb88ff;
+          color: #bb88ff;
+          background: rgba(128, 0, 255, 0.15);
+        }
+
+        .engagement-mode-group {
+          display: flex;
+          gap: 4px;
+          background: var(--bg-input, #1a1a24);
+          border-radius: 8px;
+          padding: 4px;
+          margin-bottom: 8px;
+        }
+
+        .engagement-mode-btn {
+          flex: 1;
+          padding: 8px 4px;
+          border: 1px solid transparent;
+          border-radius: 6px;
+          background: transparent;
+          color: var(--text-dim, #555566);
+          font-family: inherit;
+          font-size: 0.6rem;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.2px;
+          cursor: pointer;
+          transition: all 0.15s ease;
+          min-height: 34px;
+        }
+
+        .engagement-mode-btn:hover {
+          color: var(--text-primary, #e0e0e0);
+          background: rgba(255, 255, 255, 0.05);
+        }
+
+        .engagement-mode-btn.active {
+          color: #bb88ff;
+          border-color: #bb88ff;
+          background: rgba(128, 0, 255, 0.12);
+        }
+
+        .engagement-mode-btn.active.weapons-free {
+          color: var(--status-critical, #ff4444);
+          border-color: var(--status-critical, #ff4444);
+          background: rgba(255, 68, 68, 0.1);
+        }
+
+        .engagement-mode-btn.active.defensive {
+          color: var(--status-nominal, #00ff88);
+          border-color: var(--status-nominal, #00ff88);
+          background: rgba(0, 255, 136, 0.1);
+        }
+
+        /* Proposal overlay */
+        .proposal-card {
+          padding: 10px 12px;
+          background: rgba(255, 170, 0, 0.08);
+          border: 1px solid var(--status-warning, #ffaa00);
+          border-radius: 6px;
+          margin-bottom: 6px;
+        }
+
+        .proposal-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 6px;
+        }
+
+        .proposal-action {
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+          font-size: 0.75rem;
+          font-weight: 700;
+          color: var(--status-warning, #ffaa00);
+          text-transform: uppercase;
+        }
+
+        .proposal-countdown {
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+          font-size: 0.7rem;
+          color: var(--text-dim, #555566);
+        }
+
+        .proposal-reason {
+          font-size: 0.7rem;
+          color: var(--text-secondary, #888899);
+          margin-bottom: 8px;
+        }
+
+        .proposal-actions {
+          display: flex;
+          gap: 6px;
+        }
+
+        .proposal-approve {
+          flex: 1;
+          padding: 6px;
+          border: 1px solid var(--status-nominal, #00ff88);
+          border-radius: 4px;
+          background: rgba(0, 255, 136, 0.1);
+          color: var(--status-nominal, #00ff88);
+          font-family: inherit;
+          font-size: 0.7rem;
+          font-weight: 700;
+          cursor: pointer;
+        }
+
+        .proposal-deny {
+          flex: 1;
+          padding: 6px;
+          border: 1px solid var(--status-critical, #ff4444);
+          border-radius: 4px;
+          background: rgba(255, 68, 68, 0.1);
+          color: var(--status-critical, #ff4444);
+          font-family: inherit;
+          font-size: 0.7rem;
+          font-weight: 700;
+          cursor: pointer;
+        }
+
+        .proposal-approve:hover { background: rgba(0, 255, 136, 0.2); }
+        .proposal-deny:hover { background: rgba(255, 68, 68, 0.2); }
+
+        .no-proposals {
+          font-size: 0.7rem;
+          color: var(--text-dim, #555566);
+          font-style: italic;
+          text-align: center;
+          padding: 4px;
+        }
       </style>
+
+      <!-- Auto-Tactical Engagement Panel (CPU-ASSIST tier) -->
+      <div class="engagement-panel" id="engagement-panel">
+        <div class="engagement-header">
+          <span class="engagement-title">Auto-Tactical</span>
+          <button class="engagement-toggle" id="engagement-toggle">ENABLE</button>
+        </div>
+        <div class="engagement-mode-group" id="engagement-mode-group">
+          <button class="engagement-mode-btn weapons-free" data-mode="weapons_free">WEAPONS FREE</button>
+          <button class="engagement-mode-btn" data-mode="weapons_hold">WEAPONS HOLD</button>
+          <button class="engagement-mode-btn defensive" data-mode="defensive_only">DEFENSIVE</button>
+        </div>
+        <div id="tactical-proposals"></div>
+      </div>
 
       <div class="ammo-heat-hud" id="ammo-heat-hud"></div>
 
@@ -955,6 +1142,30 @@ class WeaponControls extends HTMLElement {
   }
 
   _setupInteraction() {
+    // Auto-tactical engagement toggle
+    this.shadowRoot.getElementById("engagement-toggle").addEventListener("click", () => {
+      this._toggleAutoTactical();
+    });
+
+    // Engagement mode selector
+    this.shadowRoot.getElementById("engagement-mode-group").addEventListener("click", (e) => {
+      const btn = e.target.closest(".engagement-mode-btn");
+      if (btn) {
+        wsClient.sendShipCommand("set_engagement_rules", { mode: btn.dataset.mode });
+      }
+    });
+
+    // Tactical proposal approve/deny (delegated)
+    this.shadowRoot.getElementById("tactical-proposals").addEventListener("click", (e) => {
+      const approveBtn = e.target.closest(".proposal-approve");
+      const denyBtn = e.target.closest(".proposal-deny");
+      if (approveBtn) {
+        wsClient.sendShipCommand("approve_tactical", { proposal_id: approveBtn.dataset.id });
+      } else if (denyBtn) {
+        wsClient.sendShipCommand("deny_tactical", { proposal_id: denyBtn.dataset.id });
+      }
+    });
+
     // Lock/Unlock target
     this.shadowRoot.getElementById("lock-btn").addEventListener("click", () => {
       this._toggleTargetLock();
@@ -1130,6 +1341,9 @@ class WeaponControls extends HTMLElement {
 
     // Render assessment data if available
     this._renderAssessment();
+
+    // Update auto-tactical engagement panel (CPU-ASSIST tier)
+    this._updateEngagementPanel();
   }
 
   /**
@@ -1662,6 +1876,82 @@ class WeaponControls extends HTMLElement {
     } catch (error) {
       console.error("Cease fire failed:", error);
     }
+  }
+
+  // --- Auto-Tactical (CPU-ASSIST tier) ---
+
+  async _toggleAutoTactical() {
+    const ship = stateManager.getShipState();
+    const atState = ship?.auto_tactical;
+    const enabled = atState?.enabled;
+
+    try {
+      if (enabled) {
+        await wsClient.sendShipCommand("disable_auto_tactical", {});
+      } else {
+        await wsClient.sendShipCommand("enable_auto_tactical", {});
+      }
+    } catch (error) {
+      console.error("Toggle auto-tactical failed:", error);
+    }
+  }
+
+  _updateEngagementPanel() {
+    const panel = this.shadowRoot.getElementById("engagement-panel");
+    if (!panel) return;
+
+    // Show only in CPU-ASSIST tier
+    const tier = window.controlTier || "raw";
+    panel.classList.toggle("visible", tier === "cpu-assist");
+
+    if (tier !== "cpu-assist") return;
+
+    const ship = stateManager.getShipState();
+    const atState = ship?.auto_tactical;
+    const enabled = atState?.enabled || false;
+    const mode = atState?.engagement_mode || "weapons_free";
+    const proposals = atState?.proposals || [];
+
+    // Toggle button
+    const toggle = this.shadowRoot.getElementById("engagement-toggle");
+    toggle.textContent = enabled ? "DISABLE" : "ENABLE";
+    toggle.classList.toggle("active", enabled);
+
+    // Mode buttons
+    this.shadowRoot.querySelectorAll(".engagement-mode-btn").forEach((btn) => {
+      const isActive = btn.dataset.mode === mode;
+      btn.classList.toggle("active", isActive);
+      btn.classList.toggle("weapons-free", isActive && btn.dataset.mode === "weapons_free");
+      btn.classList.toggle("defensive", isActive && btn.dataset.mode === "defensive_only");
+    });
+
+    // Proposals
+    const container = this.shadowRoot.getElementById("tactical-proposals");
+    if (!enabled || proposals.length === 0) {
+      container.innerHTML = enabled
+        ? '<div class="no-proposals">Scanning for targets...</div>'
+        : '';
+      return;
+    }
+
+    let html = '';
+    for (const p of proposals) {
+      const remaining = Math.max(0, p.time_remaining || 0);
+      const actionLabel = p.action.replace(/_/g, " ").toUpperCase();
+      html += `
+        <div class="proposal-card">
+          <div class="proposal-header">
+            <span class="proposal-action">${actionLabel} -- ${p.target_id}</span>
+            <span class="proposal-countdown">${remaining.toFixed(1)}s</span>
+          </div>
+          <div class="proposal-reason">${p.reason}</div>
+          <div class="proposal-actions">
+            <button class="proposal-approve" data-id="${p.proposal_id}">APPROVE</button>
+            <button class="proposal-deny" data-id="${p.proposal_id}">DENY</button>
+          </div>
+        </div>`;
+    }
+    container.innerHTML = html;
   }
 }
 
