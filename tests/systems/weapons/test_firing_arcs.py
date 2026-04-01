@@ -230,9 +230,15 @@ class TestFiringArcEnforcement:
             shooter_heading={"pitch": 0, "yaw": 0, "roll": 0},
         )
 
+        # Charge the railgun fully so the charge gate doesn't mask the arc error
+        if hasattr(railgun, '_charge_state'):
+            from hybrid.systems.weapons.truth_weapons import ChargeState
+            railgun._charge_state = ChargeState.READY
+            railgun._charge_progress = 1.0
+
         result = railgun.fire(sim_time=10.0, power_manager=None)
         assert not result.get("ok")
-        # The reason should mention the arc
+        # The reason should mention the arc or not-ready (arc blocks ready_to_fire)
         reason = result.get("reason", "")
         assert "arc" in reason.lower() or "not ready" in reason.lower() or "Target outside" in reason
 
