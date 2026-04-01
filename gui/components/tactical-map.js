@@ -496,6 +496,9 @@ class TacticalMap extends HTMLElement {
     // Draw range rings
     this._drawRangeRings(ctx, centerX, centerY, scale, pixelsPerMeter);
 
+    // Draw environment: asteroid fields, hazard zones (behind everything else)
+    this._drawEnvironment(ctx, playerPos, centerX, centerY, pixelsPerMeter);
+
     // Draw weapon engagement envelopes (before contacts so blips draw on top)
     if (this._showWeaponArcs) {
       this._drawWeaponArcs(ctx, centerX, centerY, scale, pixelsPerMeter);
@@ -577,6 +580,88 @@ class TacticalMap extends HTMLElement {
 
     // Draw compass
     this._drawCompass(ctx, w, h);
+  }
+
+  _drawEnvironment(ctx, playerPos, centerX, centerY, pixelsPerMeter) {
+    // Environment state comes from the top-level telemetry, not from
+    // the ship state.  stateManager._state holds the full snapshot.
+    const state = stateManager.getState();
+    const env = state?.environment;
+    if (!env) return;
+
+    // --- Hazard zones: rendered as translucent circles ---
+    // Draw BEHIND asteroids so asteroids are visible inside zones.
+    const zones = env.hazard_zones || [];
+    for (const zone of zones) {
+      const c = zone.center;
+      if (!c) continue;
+      const sx = centerX + (c.x - playerPos.x) * pixelsPerMeter;
+      const sy = centerY - (c.z - playerPos.z) * pixelsPerMeter;
+      const sr = zone.radius * pixelsPerMeter;
+
+      // Skip zones too small to see (< 2px) or entirely off-screen
+      if (sr < 2) continue;
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+
+      // Color by type: radiation=yellow, debris=orange, nebula=blue
+      const t = zone.hazard_type;
+      if (t === "radiation") {
+        ctx.fillStyle = "rgba(200, 200, 50, 0.10)";
+        ctx.strokeStyle = "rgba(200, 200, 50, 0.35)";
+      } else if (t === "debris") {
+        ctx.fillStyle = "rgba(200, 120, 40, 0.10)";
+        ctx.strokeStyle = "rgba(200, 120, 40, 0.35)";
+      } else if (t === "nebula") {
+        ctx.fillStyle = "rgba(60, 100, 200, 0.12)";
+        ctx.strokeStyle = "rgba(60, 100, 200, 0.30)";
+      } else {
+        ctx.fillStyle = "rgba(150, 150, 150, 0.08)";
+        ctx.strokeStyle = "rgba(150, 150, 150, 0.2)";
+      }
+
+      ctx.fill();
+      ctx.setLineDash([6, 4]);
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Label at top of zone circle
+      ctx.fillStyle = ctx.strokeStyle;
+      ctx.font = "9px monospace";
+      ctx.textAlign = "center";
+      ctx.fillText(t.toUpperCase(), sx, sy - sr - 4);
+
+      ctx.restore();
+    }
+
+    // --- Asteroid fields: each asteroid rendered as a grey dot ---
+    // Only render asteroids that are on-screen to avoid GPU pressure
+    // from hundreds of off-screen draw calls.
+    const fields = env.asteroid_fields || [];
+    const canvasW = ctx.canvas.width;
+    const canvasH = ctx.canvas.height;
+
+    ctx.fillStyle = "rgba(120, 120, 130, 0.6)";
+    for (const field of fields) {
+      const asteroids = field.asteroids || [];
+      for (const ast of asteroids) {
+        const ax = centerX + (ast.position.x - playerPos.x) * pixelsPerMeter;
+        const ay = centerY - (ast.position.z - playerPos.z) * pixelsPerMeter;
+
+        // Cull off-screen asteroids (with generous margin)
+        if (ax < -20 || ax > canvasW + 20 || ay < -20 || ay > canvasH + 20) continue;
+
+        // Size: physical radius scaled to screen, clamped 1-6 px
+        const ar = Math.max(1, Math.min(6, ast.radius * pixelsPerMeter));
+
+        ctx.beginPath();
+        ctx.arc(ax, ay, ar, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
   }
 
   _drawGrid(ctx, w, h, centerX, centerY, scale, pixelsPerMeter) {

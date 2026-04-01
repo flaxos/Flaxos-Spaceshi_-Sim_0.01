@@ -879,6 +879,11 @@ def get_telemetry_snapshot(sim, recent_events_limit: int = 50) -> Dict[str, Any]
     if hasattr(sim, "get_tick_metrics"):
         tick_metrics = sim.get_tick_metrics()
 
+    # Get environment state (asteroid fields, hazard zones) for GUI rendering
+    environment = {}
+    if hasattr(sim, "environment_manager"):
+        environment = sim.environment_manager.get_state()
+
     return {
         "tick": tick,
         "sim_time": sim_time,
@@ -886,6 +891,7 @@ def get_telemetry_snapshot(sim, recent_events_limit: int = 50) -> Dict[str, Any]
         "ships": ships_telemetry,
         "projectiles": projectiles,
         "torpedoes": torpedoes,
+        "environment": environment,
         "events": events,
         "tick_metrics": tick_metrics,
         "timestamp": time.time()

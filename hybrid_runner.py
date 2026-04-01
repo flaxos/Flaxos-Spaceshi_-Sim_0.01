@@ -157,6 +157,7 @@ class HybridRunner:
         self.simulator.time = 0.0
         self.simulator.tick_count = 0
         self.simulator.projectile_manager.clear()
+        self.simulator.environment_manager.clear()
         self.tick_count = 0
         self.state_cache = {}
         self.last_update_time = 0
@@ -215,6 +216,11 @@ class HybridRunner:
             for ship in all_ships:
                 ship._all_ships_ref = all_ships
                 ship._runner_ref = self
+
+            # Load environmental hazards (asteroid fields, radiation, debris, nebulae)
+            env_data = scenario_data.get("environment")
+            if env_data:
+                self.simulator.environment_manager.load_from_scenario(env_data)
 
             fleets = scenario_data.get("config", {}).get("fleets") if isinstance(scenario_data.get("config"), dict) else scenario_data.get("fleets")
             if fleets:
