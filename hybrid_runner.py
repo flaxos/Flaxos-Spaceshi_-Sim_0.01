@@ -7,6 +7,7 @@ from datetime import datetime
 from hybrid.simulator import Simulator
 from hybrid.scenarios.loader import ScenarioLoader
 from hybrid.fleet.fleet_manager import FleetManager
+from hybrid.campaign.scoring import MissionScorer, MissionScore
 
 class HybridRunner:
     def __init__(self, fleet_dir="hybrid_fleet", dt=0.1, time_scale=1.0):
@@ -38,6 +39,13 @@ class HybridRunner:
         self._loading_scenario = False
         self._current_scenario_path = None
         self._current_scenario_name = None
+
+        # Mission scoring: snapshot player ship at mission start, compute
+        # score at mission end. Stored here so get_mission_score works.
+        self._mission_scorer = MissionScorer()
+        self._ship_state_start: dict = {}
+        self._mission_score: MissionScore | None = None
+        self._par_time: float = 300.0
 
         # Create fleet_state directory if it doesn't exist
         os.makedirs(os.path.join(self.root_dir, "fleet_state"), exist_ok=True)
@@ -134,6 +142,110 @@ class HybridRunner:
             return []
         return self.mission.get_hints(clear=clear)
 
+    def get_mission_score(self) -> dict:
+        """Return the after-action score for the completed mission.
+
+        Returns empty dict if no score has been computed yet (mission
+        still in progress or no mission loaded).
+        """
+        if self._mission_score is None:
+            return {}
+        return self._mission_score.to_dict()
+
+    def _snapshot_ship_state(self, ship) -> dict:
+        """Capture ship state for scoring comparison.
+
+        Grabs hull, fuel, ammo, and crew data from the ship and its
+        subsystems into a flat dict that the scorer can compare
+        start vs end.
+        """
+        state = {
+            "hull_integrity": getattr(ship, "hull_integrity", 100.0),
+            "max_hull_integrity": getattr(ship, "max_hull_integrity", 100.0),
+        }
+
+        # Fuel from propulsion system
+        prop = ship.systems.get("propulsion") if hasattr(ship, "systems") else None
+        if prop and hasattr(prop, "fuel_level"):
+            state["fuel_level"] = prop.fuel_level
+            state["max_fuel"] = getattr(prop, "max_fuel", prop.fuel_level)
+        else:
+            state["fuel_level"] = 0
+            state["max_fuel"] = 0
+
+        # Total ammo across all weapons (exclude PDC -- suppression fire)
+        combat = ship.systems.get("combat") if hasattr(ship, "systems") else None
+        total_ammo = 0
+        if combat and hasattr(combat, "weapons"):
+            for weapon in combat.weapons:
+                wname = getattr(weapon, "name", "").lower()
+                if "pdc" in wname or "narwhal" in wname:
+                    continue
+                if hasattr(weapon, "ammo"):
+                    total_ammo += (weapon.ammo or 0)
+        state["total_ammo"] = total_ammo
+
+        # Crew count (if crew system exists)
+        crew_sys = ship.systems.get("crew") if hasattr(ship, "systems") else None
+        if crew_sys and hasattr(crew_sys, "crew_members"):
+            state["crew_count"] = len(crew_sys.crew_members)
+            injured = sum(
+                1 for c in crew_sys.crew_members
+                if getattr(c, "health", 1.0) < 0.5
+            )
+            state["crew_injured"] = injured
+        else:
+            state["crew_count"] = 0
+            state["crew_injured"] = 0
+
+        return state
+
+    def _compute_mission_score(self):
+        """Compute and store the mission score at mission completion.
+
+        Called once when the mission transitions to success/failure.
+        Reads combat log events from the singleton combat log and
+        uses the start/end ship state snapshots.
+        """
+        from hybrid.systems.combat.combat_log import get_combat_log
+
+        player_ship = None
+        if self.player_ship_id:
+            player_ship = self.simulator.ships.get(self.player_ship_id)
+        if not player_ship:
+            return
+
+        ship_state_end = self._snapshot_ship_state(player_ship)
+
+        # Gather combat log events (all of them for this mission)
+        combat_log = get_combat_log()
+        all_events = combat_log.get_entries(limit=500)
+
+        # Elapsed time
+        elapsed = 0.0
+        if self.mission and self.mission.start_time is not None:
+            elapsed = self.simulator.time - self.mission.start_time
+
+        # Objectives status
+        objectives_status = {}
+        if self.mission and self.mission.tracker:
+            objectives_status = {
+                obj_id: obj.to_dict()
+                for obj_id, obj in self.mission.tracker.objectives.items()
+            }
+
+        result = self.mission.tracker.mission_status if self.mission else "failure"
+
+        self._mission_score = self._mission_scorer.score_mission(
+            mission_result=result,
+            combat_log_events=all_events,
+            ship_state_start=self._ship_state_start,
+            ship_state_end=ship_state_end,
+            sim_time_elapsed=elapsed,
+            par_time=self._par_time,
+            objectives_status=objectives_status,
+        )
+
     def _resolve_scenario_path(self, scenario_name):
         if not scenario_name:
             return None
@@ -164,6 +276,8 @@ class HybridRunner:
         self.last_mission_status = None
         self._current_scenario_path = None
         self._current_scenario_name = None
+        self._mission_score = None
+        self._ship_state_start = {}
         self.simulator.fleet_manager = FleetManager(simulator=self.simulator)
 
     def _select_player_ship(self, ships_data):
@@ -242,6 +356,18 @@ class HybridRunner:
             if self.mission:
                 self.mission.start(self.simulator.time)
                 self.last_mission_status = self.mission.tracker.mission_status
+
+            # Scoring: snapshot player ship state at mission start and read
+            # par_time from mission object (loader parses it from YAML)
+            self._mission_score = None
+            self._ship_state_start = {}
+            self._par_time = 300.0
+            if self.player_ship_id:
+                pship = self.simulator.ships.get(self.player_ship_id)
+                if pship:
+                    self._ship_state_start = self._snapshot_ship_state(pship)
+            if self.mission:
+                self._par_time = getattr(self.mission, "par_time", 300.0)
 
             # Store current scenario path/name for deduplication and telemetry
             self._current_scenario_path = scenario_path
@@ -383,6 +509,13 @@ class HybridRunner:
 
             # --- Notify comms of mission-level status changes ---
             if current_status != previous_status:
+                # Compute after-action score when mission ends
+                if current_status in ("success", "failure"):
+                    try:
+                        self._compute_mission_score()
+                    except Exception as exc:
+                        print(f"Error computing mission score: {exc}")
+
                 event_name = "mission_complete" if current_status in ("success", "failure") else "mission_update"
                 payload = {
                     "type": event_name,
@@ -394,6 +527,10 @@ class HybridRunner:
                     "message": self.mission.get_result_message() if current_status in ("success", "failure") else "Mission updated.",
                     "sim_time": self.simulator.time,
                 }
+                # Include score in the completion event payload so the
+                # GUI can display the after-action report immediately
+                if current_status in ("success", "failure") and self._mission_score:
+                    payload["score"] = self._mission_score.to_dict()
                 player_ship.event_bus.publish(event_name, payload)
 
                 # Post mission result to comms channel
