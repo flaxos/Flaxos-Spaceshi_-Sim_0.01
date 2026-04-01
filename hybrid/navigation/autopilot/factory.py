@@ -7,7 +7,8 @@ from hybrid.navigation.autopilot.base import BaseAutopilot
 from hybrid.navigation.autopilot.match_velocity import MatchVelocityAutopilot
 from hybrid.navigation.autopilot.intercept import InterceptAutopilot
 from hybrid.navigation.autopilot.hold import HoldPositionAutopilot, HoldVelocityAutopilot
-from hybrid.navigation.autopilot.formation import FormationAutopilot, EchelonFormationAutopilot
+from hybrid.navigation.autopilot.formation import FormationAutopilot
+from hybrid.navigation.autopilot.formation_echelon import EchelonFormationAutopilot
 from hybrid.navigation.autopilot.goto_position import GoToPositionAutopilot
 from hybrid.navigation.autopilot.orbit import OrbitAutopilot
 from hybrid.navigation.autopilot.evasive import EvasiveAutopilot

@@ -5,7 +5,8 @@ from .base import BaseAutopilot
 from .match_velocity import MatchVelocityAutopilot
 from .intercept import InterceptAutopilot
 from .hold import HoldPositionAutopilot
-from .formation import FormationAutopilot, EchelonFormationAutopilot
+from .formation import FormationAutopilot
+from .formation_echelon import EchelonFormationAutopilot
 from .goto_position import GoToPositionAutopilot
 from .orbit import OrbitAutopilot
 from .evasive import EvasiveAutopilot
