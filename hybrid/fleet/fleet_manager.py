@@ -10,6 +10,7 @@ from enum import Enum
 import numpy as np
 
 from .formation import FleetFormation, FormationType, FormationPosition
+from .ai_doctrine import SalvoCoordinator
 
 
 class FleetStatus(Enum):
@@ -106,6 +107,10 @@ class FleetManager:
         # AI ship control
         self.ai_controlled_ships: Set[str] = set()
 
+        # Salvo coordination -- one coordinator per fleet so AI ships
+        # in the same fleet can synchronize railgun fire timing.
+        self._salvo_coordinators: Dict[str, SalvoCoordinator] = {}
+
     def create_fleet(
         self,
         fleet_id: str,
@@ -150,6 +155,12 @@ class FleetManager:
         for ship_id in fleet.ship_ids:
             self.ship_to_fleet[ship_id] = fleet_id
 
+        # Create a salvo coordinator for this fleet and distribute it
+        # to all AI-enabled ships so they can synchronize fire timing.
+        coordinator = SalvoCoordinator()
+        self._salvo_coordinators[fleet_id] = coordinator
+        self._distribute_salvo_coordinator(fleet_id, coordinator)
+
         return True
 
     def add_ship_to_fleet(self, ship_id: str, fleet_id: str) -> bool:
@@ -169,6 +180,11 @@ class FleetManager:
         # Add to new fleet
         self.fleets[fleet_id].ship_ids.add(ship_id)
         self.ship_to_fleet[ship_id] = fleet_id
+
+        # Attach the fleet's salvo coordinator to the new ship
+        coordinator = self._salvo_coordinators.get(fleet_id)
+        if coordinator:
+            self._attach_coordinator_to_ship(ship_id, coordinator)
 
         return True
 
@@ -687,6 +703,10 @@ class FleetManager:
             if msg.timestamp > cutoff_time
         ]
 
+        # Clean up expired salvo plans
+        for coordinator in self._salvo_coordinators.values():
+            coordinator.cleanup(current_time)
+
         # Update fleet statuses based on formation adherence
         for fleet_id, fleet in self.fleets.items():
             if fleet.formation_id and fleet.status == FleetStatus.FORMING:
@@ -700,3 +720,34 @@ class FleetManager:
         # For now, just return True after a delay
         fleet = self.fleets[fleet_id]
         return fleet.status == FleetStatus.FORMING
+
+    def _distribute_salvo_coordinator(
+        self, fleet_id: str, coordinator: SalvoCoordinator,
+    ) -> None:
+        """Attach a salvo coordinator to all AI ships in a fleet.
+
+        Args:
+            fleet_id: Fleet whose ships receive the coordinator.
+            coordinator: SalvoCoordinator instance.
+        """
+        fleet = self.fleets.get(fleet_id)
+        if not fleet:
+            return
+        for ship_id in fleet.ship_ids:
+            self._attach_coordinator_to_ship(ship_id, coordinator)
+
+    def _attach_coordinator_to_ship(
+        self, ship_id: str, coordinator: SalvoCoordinator,
+    ) -> None:
+        """Attach a salvo coordinator to a single ship's AI controller.
+
+        Args:
+            ship_id: Ship to receive the coordinator.
+            coordinator: SalvoCoordinator instance.
+        """
+        ship = self._get_ship(ship_id)
+        if not ship:
+            return
+        ai = getattr(ship, "ai_controller", None)
+        if ai and hasattr(ai, "set_salvo_coordinator"):
+            ai.set_salvo_coordinator(coordinator)

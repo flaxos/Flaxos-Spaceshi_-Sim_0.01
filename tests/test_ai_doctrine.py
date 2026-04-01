@@ -396,8 +396,8 @@ class TestControllerDoctrine:
         state = ship.ai_controller.get_state()
         assert state["doctrine"]["salvo_coordinated"] is True
 
-    def test_retreat_propulsion_triggers_hold(self):
-        """AI disengages to HOLD when propulsion is badly damaged."""
+    def test_retreat_propulsion_degraded_triggers_flee(self):
+        """AI FLEEs when propulsion is degraded but still functional."""
         from hybrid.ship import Ship
         from hybrid.fleet.ai_controller import AIBehavior
         from hybrid.systems.sensors.contact import ContactData
@@ -422,7 +422,7 @@ class TestControllerDoctrine:
         )
         sensors.contact_tracker.update_contact("enemy", enemy, 0.0)
 
-        # Cripple propulsion
+        # Cripple propulsion to 30% -- degraded but not destroyed
         if hasattr(ship, "damage_model") and "propulsion" in ship.damage_model.subsystems:
             sub = ship.damage_model.subsystems["propulsion"]
             sub.health = sub.max_health * 0.3
@@ -430,6 +430,44 @@ class TestControllerDoctrine:
         ship.ai_controller.set_behavior(AIBehavior.ATTACK)
         ship.ai_controller.update(0.1, 3.0)
 
+        # Propulsion still > 0%, so the ship can flee
+        assert ship.ai_controller.behavior == AIBehavior.FLEE
+
+    def test_retreat_propulsion_destroyed_triggers_hold(self):
+        """AI HOLDs position when propulsion is completely destroyed."""
+        from hybrid.ship import Ship
+        from hybrid.fleet.ai_controller import AIBehavior
+        from hybrid.systems.sensors.contact import ContactData
+
+        ship = Ship("warship", {
+            "mass": 5000,
+            "faction": "hostile",
+            "ai_enabled": True,
+            "max_hull_integrity": 100.0,
+            "hull_integrity": 100.0,
+            "systems": AI_SHIP_SYSTEMS,
+        })
+
+        # Inject a threat
+        sensors = ship.systems.get("sensors")
+        enemy = ContactData(
+            id="enemy",
+            position={"x": 10_000, "y": 0, "z": 0},
+            velocity={"x": 0, "y": 0, "z": 0},
+            confidence=0.9, last_update=0.0,
+            detection_method="ir", faction="unsa",
+        )
+        sensors.contact_tracker.update_contact("enemy", enemy, 0.0)
+
+        # Destroy propulsion completely
+        if hasattr(ship, "damage_model") and "propulsion" in ship.damage_model.subsystems:
+            sub = ship.damage_model.subsystems["propulsion"]
+            sub.health = 0.0
+
+        ship.ai_controller.set_behavior(AIBehavior.ATTACK)
+        ship.ai_controller.update(0.1, 3.0)
+
+        # Propulsion at 0% -- cannot flee, must hold
         assert ship.ai_controller.behavior == AIBehavior.HOLD_POSITION
 
     def test_backward_compat_base_prioritization(self):
@@ -457,3 +495,454 @@ class TestControllerDoctrine:
 
         sorted_contacts = AIThreatAssessment.prioritize_targets(contacts, ship)
         assert sorted_contacts[0][0] == "C001"
+
+
+# ── Phase 2A: Doctrine Wiring Integration Tests ──────────────────
+
+class TestSalvoWiring:
+    """Test that salvo coordination is wired into the AI tick loop."""
+
+    def test_salvo_plan_two_ships_same_target(self):
+        """Two AI ships targeting the same enemy plan a coordinated salvo."""
+        from hybrid.ship import Ship
+        from hybrid.fleet.ai_controller import AIBehavior
+        from hybrid.systems.sensors.contact import ContactData
+
+        # Create two AI ships in the same faction
+        ship_a = Ship("shipA", {
+            "mass": 5000,
+            "faction": "unsa",
+            "ai_enabled": True,
+            "position": {"x": 0, "y": 0, "z": 0},
+            "systems": AI_SHIP_SYSTEMS,
+        })
+        ship_b = Ship("shipB", {
+            "mass": 5000,
+            "faction": "unsa",
+            "ai_enabled": True,
+            "position": {"x": 20_000, "y": 0, "z": 0},
+            "systems": AI_SHIP_SYSTEMS,
+        })
+
+        all_ships = [ship_a, ship_b]
+        ship_a._all_ships_ref = all_ships
+        ship_b._all_ships_ref = all_ships
+
+        # Shared salvo coordinator
+        coord = SalvoCoordinator()
+        ship_a.ai_controller.set_salvo_coordinator(coord)
+        ship_b.ai_controller.set_salvo_coordinator(coord)
+
+        # Inject the same hostile contact into both ships' sensors
+        enemy = ContactData(
+            id="enemy01",
+            position={"x": 100_000, "y": 0, "z": 0},
+            velocity={"x": 0, "y": 0, "z": 0},
+            confidence=0.9, last_update=0.0,
+            detection_method="ir", faction="pirates",
+        )
+        for ship in all_ships:
+            sensors = ship.systems.get("sensors")
+            sensors.contact_tracker.update_contact("enemy01", enemy, 0.0)
+
+        ship_a.ai_controller.set_behavior(AIBehavior.ATTACK)
+        ship_b.ai_controller.set_behavior(AIBehavior.ATTACK)
+
+        # Trigger decision cycles
+        ship_a.ai_controller.update(0.1, 3.0)
+        ship_b.ai_controller.update(0.1, 3.0)
+
+        # Both should have acquired a target
+        assert ship_a.ai_controller.current_target is not None
+        assert ship_b.ai_controller.current_target is not None
+
+        # The salvo coordinator should now have an active plan
+        # (if both target the same contact)
+        target_a = ship_a.ai_controller.current_target[0]
+        target_b = ship_b.ai_controller.current_target[0]
+
+        if target_a == target_b:
+            assert target_a in coord._active
+            plan = coord._active[target_a]
+            assert len(plan.slots) == 2
+            # Arrival spread should be small (within SALVO_ARRIVAL_WINDOW)
+            arrival_times = sorted(
+                s.scheduled_fire_time + s.time_of_flight for s in plan.slots
+            )
+            assert arrival_times[-1] - arrival_times[0] < 2.5
+
+    def test_salvo_hold_fire_before_scheduled(self):
+        """AI ship holds fire when salvo coordinator says wait."""
+        from hybrid.ship import Ship
+
+        ship = Ship("shipA", {
+            "mass": 5000,
+            "faction": "unsa",
+            "ai_enabled": True,
+            "systems": AI_SHIP_SYSTEMS,
+        })
+
+        coord = SalvoCoordinator()
+        ship.ai_controller.set_salvo_coordinator(coord)
+
+        # Plan a salvo: shipA at 100km (5s ToF), shipB at 50km (2.5s ToF)
+        # shipA fires first (longest range), shipB waits 2.5s
+        coord.plan_salvo(
+            "C001",
+            [("shipA", 100_000), ("shipB", 50_000)],
+            sim_time=10.0,
+        )
+
+        # shipA fires immediately (longest ToF)
+        assert coord.should_fire_now("shipA", "C001", 10.0) is True
+        # shipB should hold fire at 11.0 (scheduled at 12.5)
+        assert coord.should_fire_now("shipB", "C001", 11.0) is False
+
+
+class TestRetreatWiring:
+    """Test retreat condition wiring into the AI tick loop."""
+
+    def test_ammo_depleted_triggers_retreat(self):
+        """AI retreats when all ammo is depleted."""
+        from hybrid.ship import Ship
+        from hybrid.fleet.ai_controller import AIBehavior
+        from hybrid.systems.sensors.contact import ContactData
+
+        ship = Ship("warship", {
+            "mass": 5000,
+            "faction": "hostile",
+            "ai_enabled": True,
+            "max_hull_integrity": 100.0,
+            "hull_integrity": 100.0,
+            "systems": AI_SHIP_SYSTEMS,
+        })
+
+        # Inject a threat
+        sensors = ship.systems.get("sensors")
+        enemy = ContactData(
+            id="enemy",
+            position={"x": 10_000, "y": 0, "z": 0},
+            velocity={"x": 0, "y": 0, "z": 0},
+            confidence=0.9, last_update=0.0,
+            detection_method="ir", faction="unsa",
+        )
+        sensors.contact_tracker.update_contact("enemy", enemy, 0.0)
+
+        # Deplete all ammo
+        combat = ship.systems.get("combat")
+        if combat:
+            for weapon in combat.truth_weapons.values():
+                if weapon.ammo is not None:
+                    weapon.ammo = 0
+            combat.torpedoes_loaded = 0
+            combat.missiles_loaded = 0
+
+        ship.ai_controller.set_behavior(AIBehavior.ATTACK)
+        ship.ai_controller.update(0.1, 3.0)
+
+        # Should retreat (FLEE because propulsion still works)
+        assert ship.ai_controller.behavior == AIBehavior.FLEE
+
+
+class TestAmmoConservation:
+    """Test ammo conservation doctrine in AI fire logic."""
+
+    def test_low_railgun_ammo_fraction(self):
+        """_get_railgun_ammo_fraction returns correct fraction."""
+        from hybrid.ship import Ship
+
+        ship = Ship("warship", {
+            "mass": 5000,
+            "faction": "unsa",
+            "ai_enabled": True,
+            "systems": AI_SHIP_SYSTEMS,
+        })
+
+        combat = ship.systems.get("combat")
+        if not combat:
+            pytest.skip("No combat system")
+
+        # Get initial fraction (should be 1.0)
+        frac = ship.ai_controller._get_railgun_ammo_fraction(combat)
+        assert frac == pytest.approx(1.0)
+
+        # Drain railgun ammo to 20%
+        for weapon in combat.truth_weapons.values():
+            if weapon.mount_id.startswith("railgun") and weapon.ammo is not None:
+                weapon.ammo = int(weapon.specs.ammo_capacity * 0.20)
+
+        frac = ship.ai_controller._get_railgun_ammo_fraction(combat)
+        assert frac == pytest.approx(0.20, abs=0.05)
+
+    def test_ammo_conservation_detects_low_railgun(self):
+        """AI detects low railgun ammo and still has guided ordnance."""
+        from hybrid.ship import Ship
+
+        ship = Ship("warship", {
+            "mass": 5000,
+            "faction": "unsa",
+            "ai_enabled": True,
+            "systems": {
+                **AI_SHIP_SYSTEMS,
+                "combat": {"railguns": 1, "pdcs": 1, "torpedoes": 2, "torpedo_capacity": 4},
+            },
+        })
+
+        combat = ship.systems.get("combat")
+        if not combat:
+            pytest.skip("No combat system")
+
+        # Drain railgun ammo to 10%
+        for weapon in combat.truth_weapons.values():
+            if weapon.mount_id.startswith("railgun") and weapon.ammo is not None:
+                weapon.ammo = max(1, int(weapon.specs.ammo_capacity * 0.10))
+
+        frac = ship.ai_controller._get_railgun_ammo_fraction(combat)
+        assert frac < 0.25, f"Expected < 25% railgun ammo, got {frac:.0%}"
+
+        # is_ammo_depleted should be False (still have torpedoes)
+        assert not ship.ai_controller._is_ammo_depleted(combat)
+
+    def test_ammo_fully_depleted_detection(self):
+        """_is_ammo_depleted returns True when everything is at zero."""
+        from hybrid.ship import Ship
+
+        ship = Ship("warship", {
+            "mass": 5000,
+            "faction": "unsa",
+            "ai_enabled": True,
+            "systems": AI_SHIP_SYSTEMS,
+        })
+
+        combat = ship.systems.get("combat")
+        if not combat:
+            pytest.skip("No combat system")
+
+        # Deplete everything
+        for weapon in combat.truth_weapons.values():
+            if weapon.ammo is not None:
+                weapon.ammo = 0
+        combat.torpedoes_loaded = 0
+        combat.missiles_loaded = 0
+
+        assert ship.ai_controller._is_ammo_depleted(combat) is True
+
+
+class TestTargetPrioritizationWiring:
+    """Test tactical scoring bonuses are correctly applied."""
+
+    def test_railgun_target_scores_higher(self):
+        """Ship with active railguns gets +3.0 tactical threat bonus."""
+        from hybrid.ship import Ship
+        from hybrid.systems.sensors.contact import ContactData
+
+        own_ship = Ship("own", {
+            "mass": 5000,
+            "position": {"x": 0, "y": 0, "z": 0},
+            "systems": AI_SHIP_SYSTEMS,
+        })
+
+        # Create armed enemy ship
+        armed_enemy = Ship("armed", {
+            "mass": 5000,
+            "faction": "pirates",
+            "position": {"x": 20_000, "y": 0, "z": 0},
+            "systems": AI_SHIP_SYSTEMS,
+        })
+
+        # Create unarmed enemy ship (same distance)
+        unarmed_enemy = Ship("unarmed", {
+            "mass": 5000,
+            "faction": "pirates",
+            "position": {"x": 20_000, "y": 5_000, "z": 0},
+        })
+
+        own_ship._all_ships_ref = [own_ship, armed_enemy, unarmed_enemy]
+
+        # Create contacts at similar distances
+        armed_contact = ContactData(
+            id="armed",
+            position={"x": 20_000, "y": 0, "z": 0},
+            velocity={"x": 0, "y": 0, "z": 0},
+            confidence=0.9, last_update=0.0,
+            detection_method="ir", faction="pirates",
+        )
+        unarmed_contact = ContactData(
+            id="unarmed",
+            position={"x": 20_000, "y": 5_000, "z": 0},
+            velocity={"x": 0, "y": 0, "z": 0},
+            confidence=0.9, last_update=0.0,
+            detection_method="ir", faction="pirates",
+        )
+
+        score_armed = AIThreatAssessment.assess_threat_tactical(
+            "armed", armed_contact, own_ship,
+        )
+        score_unarmed = AIThreatAssessment.assess_threat_tactical(
+            "unarmed", unarmed_contact, own_ship,
+        )
+
+        # Armed ship should score higher (has railguns = +3.0)
+        assert score_armed > score_unarmed
+
+    def test_impaired_sensors_bonus(self):
+        """Target with damaged sensors gets +1.5 tactical bonus."""
+        from hybrid.ship import Ship
+        from hybrid.systems.sensors.contact import ContactData
+
+        own_ship = Ship("own", {
+            "mass": 5000,
+            "position": {"x": 0, "y": 0, "z": 0},
+            "systems": AI_SHIP_SYSTEMS,
+        })
+
+        enemy = Ship("enemy", {
+            "mass": 5000,
+            "faction": "pirates",
+            "position": {"x": 30_000, "y": 0, "z": 0},
+            "systems": AI_SHIP_SYSTEMS,
+        })
+
+        own_ship._all_ships_ref = [own_ship, enemy]
+
+        contact = ContactData(
+            id="enemy",
+            position={"x": 30_000, "y": 0, "z": 0},
+            velocity={"x": 0, "y": 0, "z": 0},
+            confidence=0.9, last_update=0.0,
+            detection_method="ir", faction="pirates",
+        )
+
+        # Score with healthy sensors
+        score_healthy = AIThreatAssessment.assess_threat_tactical(
+            "enemy", contact, own_ship,
+        )
+
+        # Damage enemy sensors
+        if hasattr(enemy, "damage_model") and "sensors" in enemy.damage_model.subsystems:
+            sub = enemy.damage_model.subsystems["sensors"]
+            sub.health = sub.max_health * 0.3  # 30% = impaired
+
+        score_impaired = AIThreatAssessment.assess_threat_tactical(
+            "enemy", contact, own_ship,
+        )
+
+        # Impaired sensors should score +1.5
+        assert score_impaired > score_healthy
+        assert score_impaired - score_healthy == pytest.approx(1.5, abs=0.1)
+
+    def test_impaired_propulsion_bonus(self):
+        """Target with damaged propulsion gets +1.0 tactical bonus."""
+        from hybrid.ship import Ship
+        from hybrid.systems.sensors.contact import ContactData
+
+        own_ship = Ship("own", {
+            "mass": 5000,
+            "position": {"x": 0, "y": 0, "z": 0},
+            "systems": AI_SHIP_SYSTEMS,
+        })
+
+        enemy = Ship("enemy", {
+            "mass": 5000,
+            "faction": "pirates",
+            "position": {"x": 30_000, "y": 0, "z": 0},
+            "systems": AI_SHIP_SYSTEMS,
+        })
+
+        own_ship._all_ships_ref = [own_ship, enemy]
+
+        contact = ContactData(
+            id="enemy",
+            position={"x": 30_000, "y": 0, "z": 0},
+            velocity={"x": 0, "y": 0, "z": 0},
+            confidence=0.9, last_update=0.0,
+            detection_method="ir", faction="pirates",
+        )
+
+        # Score with healthy propulsion
+        score_healthy = AIThreatAssessment.assess_threat_tactical(
+            "enemy", contact, own_ship,
+        )
+
+        # Damage enemy propulsion
+        if hasattr(enemy, "damage_model") and "propulsion" in enemy.damage_model.subsystems:
+            sub = enemy.damage_model.subsystems["propulsion"]
+            sub.health = sub.max_health * 0.3
+
+        score_impaired = AIThreatAssessment.assess_threat_tactical(
+            "enemy", contact, own_ship,
+        )
+
+        # Impaired propulsion should score +1.0
+        assert score_impaired > score_healthy
+        assert score_impaired - score_healthy == pytest.approx(1.0, abs=0.1)
+
+
+class TestFleetManagerSalvoDistribution:
+    """Test that FleetManager creates and distributes salvo coordinators."""
+
+    def test_create_fleet_attaches_coordinator(self):
+        """Creating a fleet distributes salvo coordinator to AI ships."""
+        from hybrid.ship import Ship
+        from hybrid.fleet.fleet_manager import FleetManager
+
+        class MockSimulator:
+            def __init__(self):
+                self.ships = {}
+
+        sim = MockSimulator()
+        ship_a = Ship("shipA", {
+            "mass": 5000, "faction": "unsa", "ai_enabled": True,
+            "systems": AI_SHIP_SYSTEMS,
+        })
+        ship_b = Ship("shipB", {
+            "mass": 5000, "faction": "unsa", "ai_enabled": True,
+            "systems": AI_SHIP_SYSTEMS,
+        })
+        sim.ships = {"shipA": ship_a, "shipB": ship_b}
+
+        fm = FleetManager(simulator=sim)
+        fm.create_fleet("fleet1", "Alpha Fleet", "shipA", ["shipA", "shipB"])
+
+        # Both ships should have the same salvo coordinator
+        assert ship_a.ai_controller._salvo_coordinator is not None
+        assert ship_b.ai_controller._salvo_coordinator is not None
+        assert (
+            ship_a.ai_controller._salvo_coordinator
+            is ship_b.ai_controller._salvo_coordinator
+        )
+
+    def test_add_ship_to_fleet_attaches_coordinator(self):
+        """Adding a ship to an existing fleet attaches the coordinator."""
+        from hybrid.ship import Ship
+        from hybrid.fleet.fleet_manager import FleetManager
+
+        class MockSimulator:
+            def __init__(self):
+                self.ships = {}
+
+        sim = MockSimulator()
+        ship_a = Ship("shipA", {
+            "mass": 5000, "faction": "unsa", "ai_enabled": True,
+            "systems": AI_SHIP_SYSTEMS,
+        })
+        ship_c = Ship("shipC", {
+            "mass": 5000, "faction": "unsa", "ai_enabled": True,
+            "systems": AI_SHIP_SYSTEMS,
+        })
+        sim.ships = {"shipA": ship_a, "shipC": ship_c}
+
+        fm = FleetManager(simulator=sim)
+        fm.create_fleet("fleet1", "Alpha Fleet", "shipA", ["shipA"])
+
+        # ship_c not in fleet yet
+        assert ship_c.ai_controller._salvo_coordinator is None
+
+        fm.add_ship_to_fleet("shipC", "fleet1")
+
+        # Now ship_c should share the coordinator
+        assert ship_c.ai_controller._salvo_coordinator is not None
+        assert (
+            ship_c.ai_controller._salvo_coordinator
+            is ship_a.ai_controller._salvo_coordinator
+        )

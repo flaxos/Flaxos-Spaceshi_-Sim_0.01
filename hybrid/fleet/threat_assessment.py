@@ -153,10 +153,12 @@ class AIThreatAssessment:
                 if sensor_factor < 0.7:
                     base += 1.5
 
-                # Damaged propulsion: can't evade effectively
+                # Damaged propulsion: can't evade effectively.
+                # +1.0 (not as high as sensors because a crippled
+                # ship is already less of a threat to us).
                 prop_factor = damage_model.get_combined_factor("propulsion")
                 if prop_factor < 0.7:
-                    base += 2.0
+                    base += 1.0
 
         # Spread fire: penalize targets already engaged by friendlies
         # so AI ships distribute damage across multiple enemies.
