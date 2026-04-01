@@ -353,19 +353,47 @@ class AIController:
         tactical retreat decisions (e.g. weapons destroyed, propulsion
         crippled, ammo depleted).
 
+        If propulsion is destroyed (factor == 0), the ship cannot
+        flee and switches to HOLD_POSITION.  Otherwise it FLEEs away
+        from the nearest threat.
+
         Returns:
             True if a retreat condition overrode normal behavior.
         """
         self._retreat = assess_retreat(self.ship)
 
+        # Also check full ammo depletion as a retreat trigger --
+        # assess_retreat only flags conservative_fire at <20% ammo,
+        # but total depletion means there is no point continuing.
+        if not self._retreat.should_retreat:
+            combat = self.ship.systems.get("combat")
+            if combat and self._is_ammo_depleted(combat):
+                self._retreat.should_retreat = True
+                self._retreat.reason = "ammo_depleted"
+
         if self._retreat.should_retreat:
             if self.behavior not in (AIBehavior.FLEE, AIBehavior.HOLD_POSITION):
-                logger.info(
-                    "AI %s: Retreat doctrine — %s, disengaging",
-                    self.ship.id, self._retreat.reason,
-                )
-                self.set_behavior(AIBehavior.HOLD_POSITION)
-                self._ensure_autopilot("hold")
+                # Check if propulsion is destroyed -- if so, we cannot
+                # flee and must hold position instead.
+                damage_model = getattr(self.ship, "damage_model", None)
+                prop_factor = 1.0
+                if damage_model:
+                    prop_factor = damage_model.get_combined_factor("propulsion")
+
+                if prop_factor <= 0.0:
+                    logger.info(
+                        "AI %s: Retreat doctrine — %s, propulsion "
+                        "destroyed, holding position",
+                        self.ship.id, self._retreat.reason,
+                    )
+                    self.set_behavior(AIBehavior.HOLD_POSITION)
+                    self._ensure_autopilot("hold")
+                else:
+                    logger.info(
+                        "AI %s: Retreat doctrine — %s, fleeing",
+                        self.ship.id, self._retreat.reason,
+                    )
+                    self.set_behavior(AIBehavior.FLEE)
             return True
 
         return False
@@ -612,6 +640,12 @@ class AIController:
         # to degrade their firing solution accuracy.
         if distance <= self.engagement_range:
             self._apply_evasion_jink(distance)
+
+        # Doctrine: plan coordinated salvo if 2+ friendlies share
+        # this target.  The plan schedules fire times so rounds from
+        # different ranges arrive within a 2-second window.  Actual
+        # fire hold/release happens inside _engage_target.
+        self._maybe_plan_salvo(contact_id)
 
         # Range-based decision
         if distance > self.engagement_range:
@@ -870,11 +904,17 @@ class AIController:
                 if not has_good_solution:
                     return  # Save ammo for a better shot
 
-        # Step 3: Fire weapons
+        # Step 3: Ammo conservation -- if railgun ammo is low (<25%),
+        # switch to guided ordnance or close to PDC range rather than
+        # wasting the last few railgun rounds at distance.
         combat = self.ship.systems.get("combat")
         if not combat or not hasattr(combat, "fire_all_ready"):
             return
 
+        if self._apply_ammo_conservation(contact_id, contact, combat):
+            return  # Conservation logic handled the engagement
+
+        # Step 4: Fire all ready weapons
         # Resolve the actual Ship object for the target
         target_ship = self._resolve_target_ship(contact_id)
         if target_ship:
@@ -1149,26 +1189,13 @@ class AIController:
     def _resolve_pack_target(
         self, threats: List[Tuple[str, object]],
     ) -> Optional[Tuple[str, object]]:
-        """Resolve the fleet lead's target for pack_targeting (swarm).
-
-        Scans same-faction AI ships for the one with the lowest ship ID
-        (deterministic "fleet lead") and copies its current_target.
-        Falls back to None if no fleet lead has a target yet.
-
-        Args:
-            threats: Available hostile contacts for fallback.
-
-        Returns:
-            (contact_id, ContactData) tuple or None.
-        """
+        """Resolve the fleet lead's target for pack_targeting (swarm)."""
         if not self.profile.pack_targeting:
             return None
 
         all_ships = getattr(self.ship, "_all_ships_ref", None) or []
         from hybrid.fleet.faction_rules import are_allied
 
-        # Find the fleet lead: lowest ship ID among same-faction AI
-        # ships with pack_targeting enabled.  Deterministic pick.
         lead_target = None
         lead_id = None
         for other in all_ships:
@@ -1184,31 +1211,121 @@ class AIController:
             ai = getattr(other, "ai_controller", None)
             if not ai:
                 continue
-            # Must also be a pack_targeting ship
             if not ai.profile.pack_targeting:
                 continue
             if ai.current_target and (lead_id is None or other.id < lead_id):
                 lead_id = other.id
                 lead_target = ai.current_target
 
-        # If we ARE the fleet lead (lowest ID), or no lead has a target
-        # yet, return None so the caller falls through to normal
-        # targeting.
         if lead_target and lead_id is not None and lead_id < self.ship.id:
             return lead_target
         return None
 
     def _navigate_to_spawn(self) -> None:
-        """Navigate back to the ship's initial spawn position.
-
-        Used by defender and hold_position profiles after engagement
-        ends.  If no spawn position was captured, this is a no-op.
-        """
+        """Navigate back to the ship's initial spawn position."""
         if self._spawn_position is None:
             return
-
-        # Use the hold autopilot to station-keep at spawn
         self._ensure_autopilot("hold")
+
+    # ── Phase 2A doctrine helpers ─────────────────────────────────
+
+    def _maybe_plan_salvo(self, contact_id: str) -> None:
+        """Plan a coordinated salvo if 2+ friendly AI ships target the same enemy."""
+        if not self._salvo_coordinator:
+            return
+        if contact_id in self._salvo_coordinator._active:
+            return
+
+        from hybrid.fleet.faction_rules import are_allied
+
+        all_ships = getattr(self.ship, "_all_ships_ref", None) or []
+        participants: List[Tuple[str, float]] = []
+
+        for other in all_ships:
+            if other.id == self.ship.id:
+                distance = self._distance_to_contact(contact_id)
+                if distance is not None:
+                    participants.append((self.ship.id, distance))
+                continue
+            if not getattr(other, "ai_enabled", False):
+                continue
+            if not are_allied(
+                getattr(self.ship, "faction", ""),
+                getattr(other, "faction", ""),
+            ):
+                continue
+            ai = getattr(other, "ai_controller", None)
+            if ai and ai.current_target:
+                if ai.current_target[0] == contact_id:
+                    other_distance = ai._distance_to(ai.current_target[1])
+                    participants.append((other.id, other_distance))
+
+        if len(participants) >= 2:
+            self._salvo_coordinator.plan_salvo(
+                contact_id, participants, self._last_sim_time,
+            )
+
+    def _distance_to_contact(self, contact_id: str) -> Optional[float]:
+        """Get distance to a contact by ID, or None if not found."""
+        sensors = self.ship.systems.get("sensors")
+        if sensors and hasattr(sensors, "contact_tracker"):
+            contact = sensors.contact_tracker.get_contact(contact_id)
+            if contact:
+                return self._distance_to(contact)
+        return None
+
+    def _is_ammo_depleted(self, combat) -> bool:
+        """Check if all ammo is completely exhausted."""
+        for weapon in combat.truth_weapons.values():
+            if weapon.ammo is not None and weapon.ammo > 0:
+                return False
+        if combat.torpedoes_loaded > 0 or combat.missiles_loaded > 0:
+            return False
+        return True
+
+    def _get_railgun_ammo_fraction(self, combat) -> float:
+        """Fraction of railgun ammo remaining (0.0 = empty, 1.0 = full)."""
+        total_ammo = 0
+        total_capacity = 0
+        for weapon in combat.truth_weapons.values():
+            if not weapon.mount_id.startswith("railgun"):
+                continue
+            if weapon.ammo is not None:
+                total_ammo += weapon.ammo
+                total_capacity += (weapon.specs.ammo_capacity or 0)
+        if total_capacity <= 0:
+            return 1.0
+        return total_ammo / total_capacity
+
+    def _apply_ammo_conservation(
+        self, contact_id: str, contact, combat,
+    ) -> bool:
+        """Apply ammo conservation doctrine before firing."""
+        railgun_frac = self._get_railgun_ammo_fraction(combat)
+        if railgun_frac >= 0.25:
+            return False
+        has_guided = (
+            combat.torpedoes_loaded > 0 or combat.missiles_loaded > 0
+        )
+        if has_guided:
+            self._launch_guided_ordnance(contact_id, combat)
+            return True
+        distance = self._distance_to(contact)
+        if distance > self.min_engagement_distance:
+            self._ensure_autopilot("intercept", target_id=contact_id)
+            return True
+        return False
+
+    def _launch_guided_ordnance(self, contact_id: str, combat) -> None:
+        """Launch a torpedo or missile at a target."""
+        all_ships = getattr(self.ship, "_all_ships_ref", None) or []
+        ships_dict = {s.id: s for s in all_ships}
+        if combat.torpedoes_loaded > 0 and combat._torpedo_cooldown <= 0:
+            combat.launch_torpedo(contact_id, "direct", ships_dict)
+            logger.info("AI %s: Ammo conservation — torpedo at %s", self.ship.id, contact_id)
+        elif combat.missiles_loaded > 0 and combat._missile_cooldown <= 0:
+            combat.launch_missile(contact_id, "evasive", ships_dict)
+            logger.info("AI %s: Ammo conservation — missile at %s", self.ship.id, contact_id)
 
     # ── Utility helpers ───────────────────────────────────────────
 
