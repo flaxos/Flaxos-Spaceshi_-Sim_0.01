@@ -13,7 +13,8 @@ class Mission:
     def __init__(self, name: str, description: str, objectives: List[Objective],
                  briefing: str = "", success_message: str = "", failure_message: str = "",
                  hints: List[Dict] = None, time_limit: Optional[float] = None,
-                 next_scenario: Optional[str] = None):
+                 next_scenario: Optional[str] = None,
+                 par_time: Optional[float] = None):
         """Initialize mission.
 
         Args:
@@ -26,6 +27,8 @@ class Mission:
             hints: List of hint dicts with trigger and message
             time_limit: Optional time limit in seconds
             next_scenario: Optional scenario ID to load after success
+            par_time: Target completion time for scoring (seconds).
+                Falls back to time_limit if not set, then 300s default.
         """
         self.name = name
         self.description = description
@@ -35,6 +38,7 @@ class Mission:
         self.hints = hints or []
         self.time_limit = time_limit
         self.next_scenario = next_scenario
+        self.par_time = par_time or time_limit or 300.0
 
         self.tracker = ObjectiveTracker(objectives)
         self.start_time = None

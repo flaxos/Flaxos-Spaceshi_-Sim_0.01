@@ -151,6 +151,7 @@ mission:
         target: "pirate01"
 
   time_limit: 600  # 10 minutes — need time to close 86km + 12 torpedo reloads
+  par_time: 360    # 6 minutes — skilled players close fast and fire accurately
 
   success_message: |
     Target destroyed! Well done.

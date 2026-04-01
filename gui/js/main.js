@@ -97,6 +97,8 @@ import "../components/boarding-panel.js";
 import "../components/multi-track-panel.js";
 // Target damage assessment
 import "../components/target-assessment.js";
+// After-action report (Phase 4C: Mission Scoring)
+import "../components/after-action-report.js";
 // Damage visualization
 import { damageStateManager } from "./damage-state-manager.js";
 // Ship Class Editor
@@ -308,15 +310,22 @@ function setupGlobalEvents() {
     if (eventType === "mission_complete" && (status === "success" || status === "failure")) {
       setGameState("ended");
 
-      // Fetch latest mission status to get next_scenario (event payload may not include it)
-      wsClient.send("get_mission", {}).then((resp) => {
-        if (resp?.ok && resp.mission?.next_scenario) {
-          app.nextScenarioId = resp.mission.next_scenario;
+      // Score may arrive in the event payload (computed server-side)
+      const eventScore = payload.score || null;
+
+      // Fetch latest mission status to get next_scenario and score
+      Promise.all([
+        wsClient.send("get_mission", {}),
+        eventScore ? Promise.resolve({ ok: true, score: eventScore }) : wsClient.send("get_mission_score", {}),
+      ]).then(([missionResp, scoreResp]) => {
+        if (missionResp?.ok && missionResp.mission?.next_scenario) {
+          app.nextScenarioId = missionResp.mission.next_scenario;
         }
-        showMissionCompleteOverlay(status, message, title);
+        const scoreData = scoreResp?.ok ? scoreResp.score : null;
+        showMissionCompleteOverlay(status, message, title, scoreData);
       }).catch(() => {
-        // Fall back to overlay without next mission data
-        showMissionCompleteOverlay(status, message, title);
+        // Fall back to overlay without next mission / score data
+        showMissionCompleteOverlay(status, message, title, null);
       });
     }
   });
@@ -428,12 +437,13 @@ function showSystemMessage(type, message, title = "") {
 }
 
 /**
- * Show full-screen mission completion overlay.
+ * Show full-screen mission completion overlay with after-action report.
  * @param {string} status - "success" or "failure"
  * @param {string} message - Result message from mission YAML
  * @param {string} missionName - Mission name for the header
+ * @param {object|null} scoreData - MissionScore dict from server (may be null)
  */
-function showMissionCompleteOverlay(status, message, missionName) {
+function showMissionCompleteOverlay(status, message, missionName, scoreData) {
   // Remove existing overlay if present (prevent duplicates)
   dismissMissionOverlay();
 
@@ -460,6 +470,7 @@ function showMissionCompleteOverlay(status, message, missionName) {
       <h1 class="mco-heading" style="color: ${accent};">${heading}</h1>
       <p class="mco-mission-name">${missionName || ""}</p>
       <div class="mco-message">${message || ""}</div>
+      <div class="mco-aar-slot"></div>
       <div class="mco-buttons">
         <button class="mco-btn mco-retry" style="border-color: ${accent}; color: ${accent};">RETRY</button>
         ${nextBtnHtml}
@@ -494,7 +505,7 @@ function showMissionCompleteOverlay(status, message, missionName) {
       position: relative;
       text-align: center;
       padding: 48px 56px;
-      max-width: 520px;
+      max-width: 640px;
       width: 90vw;
       background: ${accentDim};
       border: 1px solid ${accent};
@@ -523,7 +534,11 @@ function showMissionCompleteOverlay(status, message, missionName) {
       color: var(--text-primary, #e0e0e0);
       line-height: 1.6;
       white-space: pre-line;
-      margin-bottom: 32px;
+      margin-bottom: 16px;
+    }
+    .mco-aar-slot {
+      margin-bottom: 24px;
+      max-width: 100%;
     }
     .mco-buttons {
       display: flex;
@@ -591,6 +606,16 @@ function showMissionCompleteOverlay(status, message, missionName) {
   });
 
   document.body.appendChild(overlay);
+
+  // Inject after-action report if score data is available
+  if (scoreData && scoreData.grade) {
+    const aarSlot = overlay.querySelector(".mco-aar-slot");
+    if (aarSlot) {
+      const aarEl = document.createElement("after-action-report");
+      aarSlot.appendChild(aarEl);
+      aarEl.show(scoreData);
+    }
+  }
 }
 
 /**

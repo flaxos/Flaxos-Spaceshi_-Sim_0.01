@@ -278,6 +278,9 @@ class UnifiedServer:
             clear = bool(req.get("clear", False))
             return {"ok": True, "hints": self.runner.get_mission_hints(clear=clear)}
 
+        if cmd == "get_mission_score":
+            return {"ok": True, "score": self.runner.get_mission_score()}
+
         if cmd == "get_tick_metrics":
             return {"ok": True, **self.runner.simulator.get_tick_metrics()}
 
@@ -459,6 +462,9 @@ class UnifiedServer:
         if cmd == "get_mission_hints":
             clear = bool(req.get("clear", False))
             return {"ok": True, "hints": self.runner.get_mission_hints(clear=clear)}
+
+        if cmd == "get_mission_score":
+            return {"ok": True, "score": self.runner.get_mission_score()}
 
         if cmd == "get_tick_metrics":
             return {"ok": True, **self.runner.simulator.get_tick_metrics()}
