@@ -1,0 +1,491 @@
+# Multiplayer Mission: Station Siege
+#
+# Asymmetric 2-player defense. Player 1 commands a stationary station
+# with heavy PDCs. Player 2 commands a mobile destroyer. Together they
+# defend against 4 corvettes and 2 frigates attacking from two vectors.
+#
+# Design rationale:
+#   - Asymmetric roles create distinct gameplay: the station player
+#     manages PDC arcs and point defense priorities, while the
+#     destroyer player maneuvers to intercept and engage.
+#   - Two attack vectors (bearing 045 and 225) force the destroyer
+#     to choose which wave to intercept. The station covers the other.
+#   - The station cannot move -- the destroyer must be its shield
+#     against the heavier frigate threats.
+#   - 4 corvettes + 2 frigates is beatable but requires coordination.
+#     If one player fails, both lose.
+
+name: "Station Siege"
+description: "Two players defend a station -- one commanding the station, one a destroyer -- against a coordinated assault"
+
+difficulty: "extreme"
+player_count: "2"
+category: "fleet"
+
+dt: 0.1
+
+# -- Ships ----------------------------------------------------------------
+
+ships:
+  # -- Player 1: station (stationary, heavy PDCs) -------------------------
+  - id: "player"
+    name: "Ceres Station"
+    ship_class: "station"
+    faction: "unsa"
+    player_controlled: true
+    position: {x: 0, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+    orientation: {pitch: 0, yaw: 0, roll: 0}
+    systems:
+      propulsion:
+        fuel_level: 0.0
+        max_fuel: 0.0
+      sensors:
+        passive:
+          range: 200000
+        active:
+          scan_range: 300000
+      targeting:
+        lock_time: 0.8
+        lock_range: 80000
+      combat:
+        enabled: true
+        railguns: 2
+        pdcs: 10
+      navigation: {}
+    damage_model:
+      propulsion: {max_health: 30.0, health: 30.0}
+      rcs: {max_health: 40.0, health: 40.0}
+      weapons: {max_health: 130.0, health: 130.0}
+      sensors: {max_health: 100.0, health: 100.0}
+
+  # -- Player 2: destroyer (mobile) --------------------------------------
+  - id: "player_hammer"
+    name: "UNS Hammer"
+    ship_class: "destroyer"
+    faction: "unsa"
+    player_controlled: true
+    position: {x: 5000, y: 3000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+    orientation: {pitch: 0, yaw: 45, roll: 0}
+    systems:
+      propulsion:
+        fuel_level: 1000.0
+        max_fuel: 1200.0
+      sensors:
+        passive:
+          range: 150000
+        active:
+          scan_range: 250000
+      targeting:
+        lock_time: 1.2
+        lock_range: 100000
+      combat:
+        enabled: true
+        railguns: 3
+        pdcs: 6
+      navigation: {}
+    damage_model:
+      propulsion: {max_health: 120.0, health: 120.0}
+      rcs: {max_health: 100.0, health: 100.0}
+      weapons: {max_health: 110.0, health: 110.0}
+      sensors: {max_health: 80.0, health: 80.0}
+
+  # -- Attack Group Alpha (bearing 045): 2 corvettes + 1 frigate ----------
+
+  - id: "alpha_corvette_1"
+    name: "Raider-1"
+    ship_class: "corvette"
+    faction: "hostile"
+    ai_enabled: true
+    position: {x: 70710, y: 70710, z: 3000}
+    velocity: {x: -160, y: -160, z: 0}
+    orientation: {pitch: 0, yaw: 225, roll: 0}
+    max_hull_integrity: 150.0
+    hull_integrity: 150.0
+    ai_behavior:
+      role: "combat"
+      aggression: 0.9
+      engagement_range: 65000
+      flee_threshold: 0.15
+      evade_threshold: 0.3
+      max_thrust_profile: 0.75
+    systems:
+      propulsion: {fuel_level: 370.0, max_fuel: 400.0}
+      sensors: {passive: {range: 40000}, active: {scan_range: 70000}}
+      targeting: {lock_time: 2.0, lock_range: 60000}
+      combat: {railguns: 1, pdcs: 2}
+      navigation: {}
+    armor:
+      fore: {thickness_cm: 3.0, material: "composite_cermet"}
+      aft: {thickness_cm: 1.5, material: "composite_cermet"}
+      port: {thickness_cm: 2.0, material: "composite_cermet"}
+      starboard: {thickness_cm: 2.0, material: "composite_cermet"}
+      dorsal: {thickness_cm: 2.0, material: "composite_cermet"}
+      ventral: {thickness_cm: 2.0, material: "composite_cermet"}
+    damage_model:
+      propulsion: {max_health: 80.0, health: 80.0}
+      rcs: {max_health: 60.0, health: 60.0}
+      weapons: {max_health: 70.0, health: 70.0}
+      sensors: {max_health: 50.0, health: 50.0}
+
+  - id: "alpha_corvette_2"
+    name: "Raider-2"
+    ship_class: "corvette"
+    faction: "hostile"
+    ai_enabled: true
+    position: {x: 63640, y: 77780, z: -4000}
+    velocity: {x: -150, y: -170, z: 5}
+    orientation: {pitch: 0, yaw: 225, roll: 0}
+    max_hull_integrity: 150.0
+    hull_integrity: 150.0
+    ai_behavior:
+      role: "combat"
+      aggression: 0.85
+      engagement_range: 65000
+      flee_threshold: 0.15
+      evade_threshold: 0.35
+      max_thrust_profile: 0.7
+    systems:
+      propulsion: {fuel_level: 370.0, max_fuel: 400.0}
+      sensors: {passive: {range: 40000}, active: {scan_range: 70000}}
+      targeting: {lock_time: 2.0, lock_range: 60000}
+      combat: {railguns: 1, pdcs: 2}
+      navigation: {}
+    armor:
+      fore: {thickness_cm: 3.0, material: "composite_cermet"}
+      aft: {thickness_cm: 1.5, material: "composite_cermet"}
+      port: {thickness_cm: 2.0, material: "composite_cermet"}
+      starboard: {thickness_cm: 2.0, material: "composite_cermet"}
+      dorsal: {thickness_cm: 2.0, material: "composite_cermet"}
+      ventral: {thickness_cm: 2.0, material: "composite_cermet"}
+    damage_model:
+      propulsion: {max_health: 80.0, health: 80.0}
+      rcs: {max_health: 60.0, health: 60.0}
+      weapons: {max_health: 70.0, health: 70.0}
+      sensors: {max_health: 50.0, health: 50.0}
+
+  - id: "alpha_frigate"
+    name: "Marauder"
+    ship_class: "frigate"
+    faction: "hostile"
+    ai_enabled: true
+    position: {x: 84850, y: 84850, z: 6000}
+    velocity: {x: -120, y: -120, z: -5}
+    orientation: {pitch: 0, yaw: 225, roll: 0}
+    max_hull_integrity: 250.0
+    hull_integrity: 250.0
+    ai_behavior:
+      role: "combat"
+      aggression: 0.8
+      engagement_range: 80000
+      flee_threshold: 0.15
+      evade_threshold: 0.3
+      max_thrust_profile: 0.55
+      weapon_confidence_threshold: 0.2
+    systems:
+      propulsion: {fuel_level: 600.0, max_fuel: 700.0}
+      sensors: {passive: {range: 60000}, active: {scan_range: 120000}}
+      targeting: {lock_time: 1.5, lock_range: 80000}
+      combat: {railguns: 2, pdcs: 4}
+      navigation: {}
+    armor:
+      fore: {thickness_cm: 4.0, material: "composite_cermet"}
+      aft: {thickness_cm: 2.5, material: "composite_cermet"}
+      port: {thickness_cm: 3.0, material: "composite_cermet"}
+      starboard: {thickness_cm: 3.0, material: "composite_cermet"}
+      dorsal: {thickness_cm: 2.5, material: "composite_cermet"}
+      ventral: {thickness_cm: 2.5, material: "composite_cermet"}
+    damage_model:
+      propulsion: {max_health: 100.0, health: 100.0}
+      rcs: {max_health: 80.0, health: 80.0}
+      weapons: {max_health: 90.0, health: 90.0}
+      sensors: {max_health: 70.0, health: 70.0}
+
+  # -- Attack Group Bravo (bearing 225): 2 corvettes + 1 frigate ----------
+
+  - id: "bravo_corvette_1"
+    name: "Raider-3"
+    ship_class: "corvette"
+    faction: "hostile"
+    ai_enabled: true
+    position: {x: -70710, y: -70710, z: -3000}
+    velocity: {x: 160, y: 160, z: 0}
+    orientation: {pitch: 0, yaw: 45, roll: 0}
+    max_hull_integrity: 150.0
+    hull_integrity: 150.0
+    ai_behavior:
+      role: "combat"
+      aggression: 0.9
+      engagement_range: 65000
+      flee_threshold: 0.15
+      evade_threshold: 0.3
+      max_thrust_profile: 0.75
+    systems:
+      propulsion: {fuel_level: 370.0, max_fuel: 400.0}
+      sensors: {passive: {range: 40000}, active: {scan_range: 70000}}
+      targeting: {lock_time: 2.0, lock_range: 60000}
+      combat: {railguns: 1, pdcs: 2}
+      navigation: {}
+    armor:
+      fore: {thickness_cm: 3.0, material: "composite_cermet"}
+      aft: {thickness_cm: 1.5, material: "composite_cermet"}
+      port: {thickness_cm: 2.0, material: "composite_cermet"}
+      starboard: {thickness_cm: 2.0, material: "composite_cermet"}
+      dorsal: {thickness_cm: 2.0, material: "composite_cermet"}
+      ventral: {thickness_cm: 2.0, material: "composite_cermet"}
+    damage_model:
+      propulsion: {max_health: 80.0, health: 80.0}
+      rcs: {max_health: 60.0, health: 60.0}
+      weapons: {max_health: 70.0, health: 70.0}
+      sensors: {max_health: 50.0, health: 50.0}
+
+  - id: "bravo_corvette_2"
+    name: "Raider-4"
+    ship_class: "corvette"
+    faction: "hostile"
+    ai_enabled: true
+    position: {x: -77780, y: -63640, z: 5000}
+    velocity: {x: 170, y: 150, z: -5}
+    orientation: {pitch: 0, yaw: 45, roll: 0}
+    max_hull_integrity: 150.0
+    hull_integrity: 150.0
+    ai_behavior:
+      role: "combat"
+      aggression: 0.85
+      engagement_range: 65000
+      flee_threshold: 0.15
+      evade_threshold: 0.35
+      max_thrust_profile: 0.7
+    systems:
+      propulsion: {fuel_level: 370.0, max_fuel: 400.0}
+      sensors: {passive: {range: 40000}, active: {scan_range: 70000}}
+      targeting: {lock_time: 2.0, lock_range: 60000}
+      combat: {railguns: 1, pdcs: 2}
+      navigation: {}
+    armor:
+      fore: {thickness_cm: 3.0, material: "composite_cermet"}
+      aft: {thickness_cm: 1.5, material: "composite_cermet"}
+      port: {thickness_cm: 2.0, material: "composite_cermet"}
+      starboard: {thickness_cm: 2.0, material: "composite_cermet"}
+      dorsal: {thickness_cm: 2.0, material: "composite_cermet"}
+      ventral: {thickness_cm: 2.0, material: "composite_cermet"}
+    damage_model:
+      propulsion: {max_health: 80.0, health: 80.0}
+      rcs: {max_health: 60.0, health: 60.0}
+      weapons: {max_health: 70.0, health: 70.0}
+      sensors: {max_health: 50.0, health: 50.0}
+
+  - id: "bravo_frigate"
+    name: "Ravager"
+    ship_class: "frigate"
+    faction: "hostile"
+    ai_enabled: true
+    position: {x: -84850, y: -84850, z: -5000}
+    velocity: {x: 120, y: 120, z: 5}
+    orientation: {pitch: 0, yaw: 45, roll: 0}
+    max_hull_integrity: 250.0
+    hull_integrity: 250.0
+    ai_behavior:
+      role: "combat"
+      aggression: 0.8
+      engagement_range: 80000
+      flee_threshold: 0.15
+      evade_threshold: 0.3
+      max_thrust_profile: 0.55
+      weapon_confidence_threshold: 0.2
+    systems:
+      propulsion: {fuel_level: 600.0, max_fuel: 700.0}
+      sensors: {passive: {range: 60000}, active: {scan_range: 120000}}
+      targeting: {lock_time: 1.5, lock_range: 80000}
+      combat: {railguns: 2, pdcs: 4}
+      navigation: {}
+    armor:
+      fore: {thickness_cm: 4.0, material: "composite_cermet"}
+      aft: {thickness_cm: 2.5, material: "composite_cermet"}
+      port: {thickness_cm: 3.0, material: "composite_cermet"}
+      starboard: {thickness_cm: 3.0, material: "composite_cermet"}
+      dorsal: {thickness_cm: 2.5, material: "composite_cermet"}
+      ventral: {thickness_cm: 2.5, material: "composite_cermet"}
+    damage_model:
+      propulsion: {max_health: 100.0, health: 100.0}
+      rcs: {max_health: 80.0, health: 80.0}
+      weapons: {max_health: 90.0, health: 90.0}
+      sensors: {max_health: 70.0, health: 70.0}
+
+# -- Fleets ---------------------------------------------------------------
+
+fleets:
+  - fleet_id: "defense_group"
+    name: "Ceres Defense"
+    faction: "unsa"
+    flagship: "player"
+    ships: ["player", "player_hammer"]
+
+  - fleet_id: "attack_alpha"
+    name: "Attack Group Alpha"
+    faction: "hostile"
+    ships: ["alpha_corvette_1", "alpha_corvette_2", "alpha_frigate"]
+
+  - fleet_id: "attack_bravo"
+    name: "Attack Group Bravo"
+    faction: "hostile"
+    ships: ["bravo_corvette_1", "bravo_corvette_2", "bravo_frigate"]
+
+# -- Mission --------------------------------------------------------------
+
+mission:
+  name: "Station Siege"
+  description: "Two-player asymmetric defense -- station and destroyer vs coordinated assault"
+
+  briefing: |
+    MISSION BRIEFING: STATION SIEGE
+
+    Ceres Station is under attack from two hostile groups converging
+    from opposite directions. Player 1 commands the station's
+    formidable defensive grid. Player 2 commands the mobile destroyer
+    UNS Hammer.
+
+    FORCES:
+      Player 1 -- Ceres Station (stationary):
+        - 2 railguns, 10 PDCs
+        - Heavy armor, massive weapons health
+        - Cannot move. Total dependence on Player 2 for mobile defense.
+
+      Player 2 -- UNS Hammer (destroyer):
+        - 3 railguns, 6 PDCs
+        - Full mobility. Must intercept threats before they reach
+          the station's vulnerable arcs.
+
+    ENEMY FORCES:
+      Attack Group Alpha (bearing 045):
+        - "Raider-1" (corvette) -- fast, aggressive
+        - "Raider-2" (corvette) -- fast, aggressive
+        - "Marauder" (frigate) -- the real threat, railguns
+
+      Attack Group Bravo (bearing 225):
+        - "Raider-3" (corvette) -- fast, aggressive
+        - "Raider-4" (corvette) -- fast, aggressive
+        - "Ravager" (frigate) -- railguns, heavy hitter
+
+    TACTICS:
+      - The Hammer cannot be in two places at once. Choose which
+        attack group to intercept. The station handles the other.
+      - Station: prioritize PDC coverage against the vector the
+        Hammer is NOT covering. Save railgun shots for frigates.
+      - Hammer: engage the frigates first. Corvettes are dangerous
+        but the frigate railguns will shred the station.
+      - Communicate: call which bearing you are covering.
+
+    VICTORY: Station survives. All attackers destroyed. Both players
+    remain combat-capable.
+
+    Coordinate or die.
+
+  time_limit: 900  # 15 minutes
+
+  objectives:
+    # Primary: station survives
+    - id: "protect_station"
+      type: "protect_ship"
+      description: "Ceres Station must survive the assault"
+      required: true
+      params:
+        target: "player"
+        time: 900
+        start_time: 0
+
+    # Primary: destroyer survives
+    - id: "hammer_survives"
+      type: "avoid_mission_kill"
+      description: "Keep UNS Hammer operational"
+      required: true
+      params:
+        target: "player_hammer"
+
+    # Primary: destroy all attackers
+    - id: "kill_raider_1"
+      type: "mission_kill"
+      description: "Destroy Raider-1"
+      required: true
+      params:
+        target: "alpha_corvette_1"
+
+    - id: "kill_raider_2"
+      type: "mission_kill"
+      description: "Destroy Raider-2"
+      required: true
+      params:
+        target: "alpha_corvette_2"
+
+    - id: "kill_marauder"
+      type: "mission_kill"
+      description: "Destroy frigate Marauder"
+      required: true
+      params:
+        target: "alpha_frigate"
+
+    - id: "kill_raider_3"
+      type: "mission_kill"
+      description: "Destroy Raider-3"
+      required: true
+      params:
+        target: "bravo_corvette_1"
+
+    - id: "kill_raider_4"
+      type: "mission_kill"
+      description: "Destroy Raider-4"
+      required: true
+      params:
+        target: "bravo_corvette_2"
+
+    - id: "kill_ravager"
+      type: "mission_kill"
+      description: "Destroy frigate Ravager"
+      required: true
+      params:
+        target: "bravo_frigate"
+
+  success_message: |
+    STATION SIEGE -- COMPLETE
+
+    All hostiles neutralized. Ceres Station stands.
+
+    The asymmetric defense held -- the station's PDC grid and the
+    Hammer's mobile firepower created overlapping kill zones that
+    the attackers could not penetrate.
+
+    Outstanding coordination, Commanders.
+
+  failure_message: |
+    STATION SIEGE -- FAILED
+
+    The defense has collapsed. Either Ceres Station has been critically
+    damaged, the Hammer was destroyed, or hostile ships remain.
+
+    Review your coordination:
+    - Did you divide coverage between attack vectors?
+    - Did the Hammer prioritize the frigates?
+    - Did the station manage PDC arcs against the uncovered vector?
+    - Did you communicate target priorities?
+
+  hints:
+    - trigger: "start"
+      message: "SENSORS: Two attack groups detected! Bearing 045 and bearing 225. Coordinate coverage now."
+
+    - trigger: "range < 80000"
+      target: "alpha_corvette_1"
+      message: "TACTICAL: Group Alpha entering engagement range from bearing 045."
+
+    - trigger: "range < 80000"
+      target: "bravo_corvette_1"
+      message: "TACTICAL: Group Bravo entering engagement range from bearing 225."
+
+    - trigger: "time > 180"
+      message: "OPS: Three minutes. If any frigates are still at range, they are lining up railgun shots. Intercept."
+
+    - trigger: "time > 450"
+      message: "OPS: Halfway. Check station armor integrity and Hammer ammunition."
+
+    - trigger: "time > 700"
+      message: "OPS: Final push. Destroy remaining hostiles before they regroup."

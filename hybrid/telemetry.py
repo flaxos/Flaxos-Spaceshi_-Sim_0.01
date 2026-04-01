@@ -196,9 +196,12 @@ def get_ship_telemetry(ship, sim_time: float = None) -> Dict[str, Any]:
     # Get crew fatigue system state
     crew_fatigue_state = _get_crew_fatigue_state(ship)
 
-    # Get auto-tactical and auto-ops state (CPU-ASSIST tier)
+    # Get auto-system states (CPU-ASSIST tier)
     auto_tactical_state = _get_auto_system_state(ship, "auto_tactical")
     auto_ops_state = _get_auto_system_state(ship, "auto_ops")
+    auto_engineering_state = _get_auto_system_state(ship, "auto_engineering")
+    auto_science_state = _get_auto_system_state(ship, "auto_science")
+    auto_comms_state = _get_auto_system_state(ship, "auto_comms")
 
     # Drift state: moving with no thrust applied
     is_drifting = acceleration_magnitude < 0.001 and velocity_magnitude > 0.01
@@ -273,6 +276,9 @@ def get_ship_telemetry(ship, sim_time: float = None) -> Dict[str, Any]:
         "crew_fatigue": crew_fatigue_state,
         "auto_tactical": auto_tactical_state,
         "auto_ops": auto_ops_state,
+        "auto_engineering": auto_engineering_state,
+        "auto_science": auto_science_state,
+        "auto_comms": auto_comms_state,
         "hull_integrity": getattr(ship, "hull_integrity", 0.0),
         "max_hull_integrity": getattr(ship, "max_hull_integrity", 0.0),
         "hull_percent": (

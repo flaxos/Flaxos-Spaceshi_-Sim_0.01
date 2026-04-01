@@ -270,6 +270,12 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             "crew_rest",
             "cancel_rest",
             "crew_fatigue_status",
+            # Auto-engineering commands (CPU-ASSIST tier)
+            "enable_auto_engineering",
+            "disable_auto_engineering",
+            "set_engineering_mode",
+            "approve_engineering",
+            "deny_engineering",
             # Inter-station comms
             "station_message",
         },
@@ -278,6 +284,7 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             "propulsion_status", "heat_status", "thermal_status",
             "damage_report", "hull_integrity", "engineering_status",
             "crew_fatigue_status", "subsystem_health",
+            "auto_engineering_status",
         },
         required_systems={"power", "propulsion", "engineering"},
     ),
@@ -301,6 +308,12 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             "comms_respond",
             "get_comms_choices",
             "get_branch_status",
+            # Auto-comms commands (CPU-ASSIST tier)
+            "enable_auto_comms",
+            "disable_auto_comms",
+            "set_comms_policy",
+            "approve_comms",
+            "deny_comms",
             # Inter-station comms
             "station_message",
         },
@@ -309,6 +322,7 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             "message_queue", "encryption_status",
             "iff_contacts", "jamming_status",
             "comms_status",
+            "auto_comms_status",
         },
         required_systems={"comms"},
     ),
@@ -330,6 +344,12 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             # ECCM analysis (science officer can analyze jamming)
             "analyze_jamming",
             "eccm_status",
+            # Auto-science commands (CPU-ASSIST tier)
+            "enable_auto_science",
+            "disable_auto_science",
+            "set_science_mode",
+            "approve_science",
+            "deny_science",
             # Inter-station comms
             "station_message",
         },
@@ -337,6 +357,7 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             "contacts", "sensor_status", "contact_details",
             "signature_analysis", "sensor_coverage",
             "detection_log", "science_status",
+            "auto_science_status",
         },
         required_systems={"sensors"},
     ),

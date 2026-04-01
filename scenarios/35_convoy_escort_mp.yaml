@@ -1,0 +1,396 @@
+# Multiplayer Mission: Convoy Escort
+#
+# 2-4 player cooperative escort. Two player corvettes protect a
+# civilian freighter against staggered pirate attacks from three
+# directions.
+#
+# Design rationale:
+#   - Staggered attacks (30km front, 60km flank, 40km rear) force
+#     players to split responsibilities and communicate.
+#   - The freighter follows a fixed course along +X. Players must
+#     match its pace while engaging threats.
+#   - Three attack vectors prevent both players from stacking on
+#     one side. One must peel off for the flanking attack.
+#   - The freighter's destination is 120km out -- far enough that
+#     fuel and ammunition matter across all three engagements.
+
+name: "Convoy Escort"
+description: "Two player corvettes escort a civilian freighter through hostile space against staggered pirate attacks"
+
+difficulty: "hard"
+player_count: "2-4"
+category: "fleet"
+
+dt: 0.1
+
+# -- Ships ----------------------------------------------------------------
+
+ships:
+  # -- Player 1: escort corvette -----------------------------------------
+  - id: "player"
+    name: "UNS Shield"
+    ship_class: "corvette"
+    faction: "unsa"
+    player_controlled: true
+    position: {x: -2000, y: 3000, z: 0}
+    velocity: {x: 60, y: 0, z: 0}
+    orientation: {pitch: 0, yaw: 0, roll: 0}
+    systems:
+      propulsion:
+        fuel_level: 380.0
+        max_fuel: 400.0
+      sensors:
+        passive:
+          range: 60000
+        active:
+          scan_range: 100000
+      targeting:
+        lock_time: 1.5
+        lock_range: 70000
+      combat:
+        enabled: true
+        railguns: 1
+        pdcs: 3
+      navigation: {}
+    damage_model:
+      propulsion: {max_health: 80.0, health: 80.0}
+      rcs: {max_health: 60.0, health: 60.0}
+      weapons: {max_health: 70.0, health: 70.0}
+      sensors: {max_health: 50.0, health: 50.0}
+
+  # -- Player 2: escort corvette -----------------------------------------
+  - id: "player_sword"
+    name: "UNS Sword"
+    ship_class: "corvette"
+    faction: "unsa"
+    player_controlled: true
+    position: {x: -2000, y: -3000, z: 0}
+    velocity: {x: 60, y: 0, z: 0}
+    orientation: {pitch: 0, yaw: 0, roll: 0}
+    systems:
+      propulsion:
+        fuel_level: 380.0
+        max_fuel: 400.0
+      sensors:
+        passive:
+          range: 60000
+        active:
+          scan_range: 100000
+      targeting:
+        lock_time: 1.5
+        lock_range: 70000
+      combat:
+        enabled: true
+        railguns: 1
+        pdcs: 3
+      navigation: {}
+    damage_model:
+      propulsion: {max_health: 80.0, health: 80.0}
+      rcs: {max_health: 60.0, health: 60.0}
+      weapons: {max_health: 70.0, health: 70.0}
+      sensors: {max_health: 50.0, health: 50.0}
+
+  # -- Civilian freighter (protect target) --------------------------------
+  - id: "stellarwind"
+    name: "MV Stellarwind"
+    ship_class: "freighter"
+    faction: "civilian"
+    ai_enabled: true
+    position: {x: 0, y: 0, z: 0}
+    velocity: {x: 60, y: 0, z: 0}
+    orientation: {pitch: 0, yaw: 0, roll: 0}
+    max_hull_integrity: 400.0
+    hull_integrity: 400.0
+    ai_behavior:
+      role: "freighter"
+      flee_threshold: 0.9
+      max_thrust_profile: 0.2
+    systems:
+      propulsion:
+        fuel_level: 1200.0
+        max_fuel: 1500.0
+      sensors:
+        passive:
+          range: 25000
+      navigation: {}
+    armor:
+      fore: {thickness_cm: 5.0, material: "steel_composite"}
+      aft: {thickness_cm: 3.0, material: "steel_composite"}
+      port: {thickness_cm: 4.0, material: "steel_composite"}
+      starboard: {thickness_cm: 4.0, material: "steel_composite"}
+      dorsal: {thickness_cm: 3.0, material: "steel_composite"}
+      ventral: {thickness_cm: 3.0, material: "steel_composite"}
+    damage_model:
+      propulsion: {max_health: 100.0, health: 100.0}
+      rcs: {max_health: 60.0, health: 60.0}
+      weapons: {max_health: 20.0, health: 20.0}
+      sensors: {max_health: 40.0, health: 40.0}
+
+  # -- Pirate 1: frontal attack at 30km ----------------------------------
+  - id: "pirate_front"
+    name: "Fang"
+    ship_class: "corvette"
+    faction: "pirates"
+    ai_enabled: true
+    position: {x: 30000, y: 5000, z: 2000}
+    velocity: {x: -100, y: -20, z: 0}
+    orientation: {pitch: 0, yaw: 190, roll: 0}
+    max_hull_integrity: 150.0
+    hull_integrity: 150.0
+    ai_behavior:
+      role: "combat"
+      aggression: 0.85
+      engagement_range: 60000
+      flee_threshold: 0.2
+      evade_threshold: 0.3
+      max_thrust_profile: 0.7
+    systems:
+      propulsion: {fuel_level: 350.0, max_fuel: 400.0}
+      sensors: {passive: {range: 40000}, active: {scan_range: 70000}}
+      targeting: {lock_time: 2.0, lock_range: 60000}
+      combat: {railguns: 1, pdcs: 2}
+      navigation: {}
+    armor:
+      fore: {thickness_cm: 3.0, material: "composite_cermet"}
+      aft: {thickness_cm: 1.5, material: "composite_cermet"}
+      port: {thickness_cm: 2.0, material: "composite_cermet"}
+      starboard: {thickness_cm: 2.0, material: "composite_cermet"}
+      dorsal: {thickness_cm: 2.0, material: "composite_cermet"}
+      ventral: {thickness_cm: 2.0, material: "composite_cermet"}
+    damage_model:
+      propulsion: {max_health: 80.0, health: 80.0}
+      rcs: {max_health: 60.0, health: 60.0}
+      weapons: {max_health: 70.0, health: 70.0}
+      sensors: {max_health: 50.0, health: 50.0}
+
+  # -- Pirate 2: flanking at 60km ----------------------------------------
+  - id: "pirate_flank"
+    name: "Mauler"
+    ship_class: "corvette"
+    faction: "pirates"
+    ai_enabled: true
+    position: {x: 20000, y: 60000, z: -3000}
+    velocity: {x: 0, y: -120, z: 5}
+    orientation: {pitch: 0, yaw: 270, roll: 0}
+    max_hull_integrity: 150.0
+    hull_integrity: 150.0
+    ai_behavior:
+      role: "combat"
+      aggression: 0.8
+      engagement_range: 65000
+      flee_threshold: 0.2
+      evade_threshold: 0.35
+      max_thrust_profile: 0.7
+    systems:
+      propulsion: {fuel_level: 350.0, max_fuel: 400.0}
+      sensors: {passive: {range: 40000}, active: {scan_range: 70000}}
+      targeting: {lock_time: 2.0, lock_range: 60000}
+      combat: {railguns: 1, pdcs: 2}
+      navigation: {}
+    armor:
+      fore: {thickness_cm: 3.0, material: "composite_cermet"}
+      aft: {thickness_cm: 1.5, material: "composite_cermet"}
+      port: {thickness_cm: 2.0, material: "composite_cermet"}
+      starboard: {thickness_cm: 2.0, material: "composite_cermet"}
+      dorsal: {thickness_cm: 2.0, material: "composite_cermet"}
+      ventral: {thickness_cm: 2.0, material: "composite_cermet"}
+    damage_model:
+      propulsion: {max_health: 80.0, health: 80.0}
+      rcs: {max_health: 60.0, health: 60.0}
+      weapons: {max_health: 70.0, health: 70.0}
+      sensors: {max_health: 50.0, health: 50.0}
+
+  # -- Pirate 3: rear attack at 40km -------------------------------------
+  - id: "pirate_rear"
+    name: "Stalker"
+    ship_class: "corvette"
+    faction: "pirates"
+    ai_enabled: true
+    position: {x: -40000, y: -10000, z: 4000}
+    velocity: {x: 150, y: 20, z: -5}
+    orientation: {pitch: 0, yaw: 10, roll: 0}
+    max_hull_integrity: 150.0
+    hull_integrity: 150.0
+    ai_behavior:
+      role: "combat"
+      aggression: 0.9
+      engagement_range: 60000
+      flee_threshold: 0.2
+      evade_threshold: 0.3
+      max_thrust_profile: 0.75
+    systems:
+      propulsion: {fuel_level: 350.0, max_fuel: 400.0}
+      sensors: {passive: {range: 40000}, active: {scan_range: 70000}}
+      targeting: {lock_time: 2.0, lock_range: 60000}
+      combat: {railguns: 1, pdcs: 2}
+      navigation: {}
+    armor:
+      fore: {thickness_cm: 3.0, material: "composite_cermet"}
+      aft: {thickness_cm: 1.5, material: "composite_cermet"}
+      port: {thickness_cm: 2.0, material: "composite_cermet"}
+      starboard: {thickness_cm: 2.0, material: "composite_cermet"}
+      dorsal: {thickness_cm: 2.0, material: "composite_cermet"}
+      ventral: {thickness_cm: 2.0, material: "composite_cermet"}
+    damage_model:
+      propulsion: {max_health: 80.0, health: 80.0}
+      rcs: {max_health: 60.0, health: 60.0}
+      weapons: {max_health: 70.0, health: 70.0}
+      sensors: {max_health: 50.0, health: 50.0}
+
+# -- Fleets ---------------------------------------------------------------
+
+fleets:
+  - fleet_id: "escort_group"
+    name: "Escort Group"
+    faction: "unsa"
+    flagship: "player"
+    ships: ["player", "player_sword"]
+
+  - fleet_id: "pirate_raiders"
+    name: "Pirate Raiders"
+    faction: "pirates"
+    ships: ["pirate_front", "pirate_flank", "pirate_rear"]
+
+# -- Mission --------------------------------------------------------------
+
+mission:
+  name: "Convoy Escort"
+  description: "Escort a civilian freighter through hostile space with coordinated defense"
+
+  briefing: |
+    MISSION BRIEFING: CONVOY ESCORT
+
+    The civilian freighter MV Stellarwind is transporting critical
+    cargo along the Ceres-Tycho corridor. Intelligence confirms at
+    least three pirate corvettes staging attacks along the route.
+
+    FORCES:
+      - UNS Shield (corvette, Player 1) -- 1 railgun, 3 PDCs
+      - UNS Sword (corvette, Player 2) -- 1 railgun, 3 PDCs
+      - MV Stellarwind (freighter, AI) -- no weapons, moderate armor
+
+    THREAT VECTORS:
+      - Frontal: Pirate corvette "Fang" at ~30km ahead
+        First contact. Will try to force the convoy to slow down.
+      - Flank: Pirate corvette "Mauler" at ~60km to starboard
+        Will attack while you are engaged with the frontal threat.
+      - Rear: Pirate corvette "Stalker" at ~40km behind
+        Trailing the convoy. Will close once the escorts are committed.
+
+    TACTICS:
+      - Split coverage: one escort forward, one watching flanks/rear.
+      - The Stellarwind cruises at 60 m/s along +X. Match its speed.
+      - Do not chase pirates too far -- the unprotected freighter is
+        the pirates' real target.
+      - Coordinate kills: call targets, avoid doubling up.
+
+    OBJECTIVES:
+      - Protect MV Stellarwind until it reaches destination (120km +X)
+      - Both escort ships must survive
+      - Destroy all pirate attackers
+
+    Fly together, fight together.
+
+  time_limit: 1200  # 20 minutes
+
+  objectives:
+    # Primary: protect freighter
+    - id: "protect_stellarwind"
+      type: "protect_ship"
+      description: "Protect MV Stellarwind from destruction"
+      required: true
+      params:
+        target: "stellarwind"
+        time: 1200
+        start_time: 0
+
+    # Primary: freighter reaches destination
+    - id: "reach_destination"
+      type: "reach_position"
+      description: "Escort Stellarwind to destination"
+      required: true
+      params:
+        position: {x: 120000, y: 0, z: 0}
+        tolerance: 5000
+        initial_distance: 120000
+
+    # Primary: both escorts survive
+    - id: "shield_survives"
+      type: "avoid_mission_kill"
+      description: "Keep UNS Shield operational"
+      required: true
+      params:
+        target: "player"
+
+    - id: "sword_survives"
+      type: "avoid_mission_kill"
+      description: "Keep UNS Sword operational"
+      required: true
+      params:
+        target: "player_sword"
+
+    # Primary: destroy all pirates
+    - id: "kill_fang"
+      type: "mission_kill"
+      description: "Neutralize pirate Fang"
+      required: true
+      params:
+        target: "pirate_front"
+
+    - id: "kill_mauler"
+      type: "mission_kill"
+      description: "Neutralize pirate Mauler"
+      required: true
+      params:
+        target: "pirate_flank"
+
+    - id: "kill_stalker"
+      type: "mission_kill"
+      description: "Neutralize pirate Stalker"
+      required: true
+      params:
+        target: "pirate_rear"
+
+  success_message: |
+    CONVOY ESCORT -- COMPLETE
+
+    All three pirate corvettes neutralized. MV Stellarwind has reached
+    its destination with cargo intact.
+
+    Both escort ships are operational. Outstanding teamwork. The
+    pirates picked the wrong convoy to hit.
+
+    Cargo delivered. Mission complete.
+
+  failure_message: |
+    CONVOY ESCORT -- FAILED
+
+    The convoy escort has failed. Either the Stellarwind was destroyed,
+    an escort ship was lost, or the pirates could not be neutralized.
+
+    Review your coordination:
+    - Did you split coverage across threat vectors?
+    - Did you stay close enough to the freighter?
+    - Did you call targets and avoid doubling up?
+
+  hints:
+    - trigger: "start"
+      message: "COMMS: Shield and Sword, form up on the Stellarwind. Maintain 60 m/s along +X. Eyes open."
+
+    - trigger: "range < 40000"
+      target: "pirate_front"
+      message: "SENSORS: Hostile contact ahead! Corvette-class, closing fast. Fang is making its move."
+
+    - trigger: "range < 50000"
+      target: "pirate_flank"
+      message: "SENSORS: Flanking contact from starboard! Second pirate inbound. One escort needs to intercept."
+
+    - trigger: "range < 45000"
+      target: "pirate_rear"
+      message: "SENSORS: Contact from astern! Third pirate closing on our six. Watch the Stellarwind's rear."
+
+    - trigger: "time > 300"
+      message: "OPS: Five minutes in. If threats remain, tighten formation around the freighter."
+
+    - trigger: "time > 600"
+      message: "OPS: Halfway. Check ammunition and hull status on both escorts."

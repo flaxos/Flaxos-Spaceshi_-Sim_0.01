@@ -1,0 +1,305 @@
+# Campaign Mission: Belter Uprising
+#
+# Rules-of-engagement scenario. The player must identify a spoofed
+# transponder among civilian traffic, protect an innocent transport,
+# and neutralize a pirate corvette hiding at range.
+#
+# Design rationale:
+#   - This is a judgment mission, not a pure combat mission. The
+#     player must scan before shooting -- destroying the wrong ship
+#     fails the mission.
+#   - The pirate freighter "Roci's Hope" looks civilian but has a
+#     spoofed transponder. Scanning it reveals the deception.
+#   - The real civilian "MV Stellaris" must be protected. Friendly
+#     fire is an instant fail condition.
+#   - The pirate corvette "Razorback" lurks at 80km, waiting to
+#     ambush once the player is distracted by the freighter scan.
+#   - Sensor gameplay is the core loop: scan, identify, then engage
+#     the correct target.
+
+name: "Belter Uprising"
+description: "Identify a smuggler with a spoofed transponder among civilian traffic and neutralize the pirate threat"
+
+difficulty: "hard"
+player_count: "1"
+category: "campaign"
+
+dt: 0.1
+
+# -- Ships ----------------------------------------------------------------
+
+ships:
+  # -- Player corvette ----------------------------------------------------
+  - id: "player"
+    name: "UNS Enforcer"
+    ship_class: "corvette"
+    faction: "unsa"
+    player_controlled: true
+    position: {x: 0, y: 0, z: 0}
+    velocity: {x: 30, y: 0, z: 0}
+    orientation: {pitch: 0, yaw: 0, roll: 0}
+    systems:
+      propulsion:
+        fuel_level: 350.0
+        max_fuel: 400.0
+      sensors:
+        passive:
+          range: 80000
+        active:
+          scan_range: 120000
+      targeting:
+        lock_time: 1.5
+        lock_range: 70000
+      combat:
+        enabled: true
+        railguns: 1
+        pdcs: 3
+      navigation: {}
+    damage_model:
+      propulsion: {max_health: 80.0, health: 80.0}
+      rcs: {max_health: 60.0, health: 60.0}
+      weapons: {max_health: 70.0, health: 70.0}
+      sensors: {max_health: 50.0, health: 50.0}
+
+  # -- Suspicious freighter (spoofed transponder -- actually pirates) -----
+  - id: "rocis_hope"
+    name: "Roci's Hope"
+    ship_class: "freighter"
+    faction: "civilian"
+    ai_enabled: true
+    position: {x: 25000, y: 10000, z: 0}
+    velocity: {x: 40, y: 5, z: 0}
+    orientation: {pitch: 0, yaw: 10, roll: 0}
+    max_hull_integrity: 300.0
+    hull_integrity: 300.0
+    ai_behavior:
+      role: "freighter"
+      flee_threshold: 0.7
+      max_thrust_profile: 0.3
+    systems:
+      propulsion:
+        fuel_level: 800.0
+        max_fuel: 1000.0
+      sensors:
+        passive:
+          range: 30000
+      navigation: {}
+    armor:
+      fore: {thickness_cm: 4.0, material: "steel_composite"}
+      aft: {thickness_cm: 3.0, material: "steel_composite"}
+      port: {thickness_cm: 3.0, material: "steel_composite"}
+      starboard: {thickness_cm: 3.0, material: "steel_composite"}
+      dorsal: {thickness_cm: 2.0, material: "steel_composite"}
+      ventral: {thickness_cm: 2.0, material: "steel_composite"}
+    damage_model:
+      propulsion: {max_health: 100.0, health: 100.0}
+      rcs: {max_health: 60.0, health: 60.0}
+      weapons: {max_health: 30.0, health: 30.0}
+      sensors: {max_health: 40.0, health: 40.0}
+
+  # -- Genuine civilian transport (must protect) --------------------------
+  - id: "mv_stellaris"
+    name: "MV Stellaris"
+    ship_class: "freighter"
+    faction: "civilian"
+    ai_enabled: true
+    position: {x: 15000, y: -8000, z: 2000}
+    velocity: {x: 35, y: 0, z: 0}
+    orientation: {pitch: 0, yaw: 0, roll: 0}
+    max_hull_integrity: 250.0
+    hull_integrity: 250.0
+    ai_behavior:
+      role: "freighter"
+      flee_threshold: 0.8
+      max_thrust_profile: 0.2
+    systems:
+      propulsion:
+        fuel_level: 600.0
+        max_fuel: 800.0
+      sensors:
+        passive:
+          range: 20000
+      navigation: {}
+    armor:
+      fore: {thickness_cm: 3.0, material: "steel_composite"}
+      aft: {thickness_cm: 2.0, material: "steel_composite"}
+      port: {thickness_cm: 2.5, material: "steel_composite"}
+      starboard: {thickness_cm: 2.5, material: "steel_composite"}
+      dorsal: {thickness_cm: 2.0, material: "steel_composite"}
+      ventral: {thickness_cm: 2.0, material: "steel_composite"}
+    damage_model:
+      propulsion: {max_health: 80.0, health: 80.0}
+      rcs: {max_health: 50.0, health: 50.0}
+      weapons: {max_health: 20.0, health: 20.0}
+      sensors: {max_health: 30.0, health: 30.0}
+
+  # -- Pirate corvette (hiding at 80km, ambush role) ----------------------
+  - id: "razorback"
+    name: "Razorback"
+    ship_class: "corvette"
+    faction: "pirates"
+    ai_enabled: true
+    position: {x: 75000, y: 30000, z: -5000}
+    velocity: {x: -20, y: -10, z: 0}
+    orientation: {pitch: 0, yaw: 200, roll: 0}
+    max_hull_integrity: 150.0
+    hull_integrity: 150.0
+    ai_behavior:
+      role: "combat"
+      aggression: 0.85
+      engagement_range: 60000
+      flee_threshold: 0.2
+      evade_threshold: 0.35
+      max_thrust_profile: 0.75
+    systems:
+      propulsion:
+        fuel_level: 380.0
+        max_fuel: 400.0
+      sensors:
+        passive:
+          range: 50000
+        active:
+          scan_range: 80000
+      targeting:
+        lock_time: 1.8
+        lock_range: 65000
+      combat:
+        enabled: true
+        railguns: 1
+        pdcs: 3
+      navigation: {}
+    armor:
+      fore: {thickness_cm: 3.5, material: "composite_cermet"}
+      aft: {thickness_cm: 1.5, material: "composite_cermet"}
+      port: {thickness_cm: 2.5, material: "composite_cermet"}
+      starboard: {thickness_cm: 2.5, material: "composite_cermet"}
+      dorsal: {thickness_cm: 2.0, material: "composite_cermet"}
+      ventral: {thickness_cm: 2.0, material: "composite_cermet"}
+    damage_model:
+      propulsion: {max_health: 85.0, health: 85.0}
+      rcs: {max_health: 65.0, health: 65.0}
+      weapons: {max_health: 75.0, health: 75.0}
+      sensors: {max_health: 55.0, health: 55.0}
+
+# -- Mission --------------------------------------------------------------
+
+mission:
+  name: "Belter Uprising"
+  description: "Identify a spoofed transponder among civilian traffic and neutralize the pirate threat"
+
+  briefing: |
+    MISSION BRIEFING: BELTER UPRISING
+
+    Intelligence reports pirate activity in this shipping corridor.
+    A vessel with a spoofed civilian transponder is believed to be
+    operating among legitimate traffic, coordinating with a pirate
+    combat ship hidden at long range.
+
+    FORCES:
+      - UNS Enforcer (corvette, your ship) -- 1 railgun, 3 PDCs
+
+    CONTACTS IN AREA:
+      - "Roci's Hope" (freighter, civilian transponder)
+        Intelligence suspects this vessel's transponder is spoofed.
+        Do NOT engage until you have scanned and confirmed.
+      - "MV Stellaris" (transport, civilian transponder)
+        Confirmed legitimate civilian vessel. PROTECT at all costs.
+      - Unknown contact at ~80km
+        Suspected pirate corvette. Low emission profile. Will likely
+        attack once you begin scanning operations.
+
+    RULES OF ENGAGEMENT:
+      - SCAN first, SHOOT second. You must positively identify the
+        spoofed transponder before engaging any civilian-tagged vessel.
+      - Destroying the MV Stellaris (confirmed civilian) is an
+        AUTOMATIC MISSION FAILURE. Collateral damage is unacceptable.
+      - The pirate corvette "Razorback" is a confirmed hostile.
+        Weapons free once you have a lock.
+
+    OBJECTIVES:
+      1. Scan "Roci's Hope" to detect spoofed transponder
+      2. Neutralize pirate corvette "Razorback"
+      3. Protect "MV Stellaris" from all threats
+
+    This is a rules-of-engagement mission, Commander. Discipline
+    matters as much as firepower.
+
+  time_limit: 600  # 10 minutes
+
+  objectives:
+    # Primary: scan the suspicious freighter
+    - id: "scan_rocis_hope"
+      type: "scan_target"
+      description: "Scan Roci's Hope to detect spoofed transponder"
+      required: true
+      params:
+        target: "rocis_hope"
+
+    # Primary: neutralize pirate corvette
+    - id: "kill_razorback"
+      type: "mission_kill"
+      description: "Neutralize pirate corvette Razorback"
+      required: true
+      params:
+        target: "razorback"
+
+    # Primary: protect the civilian transport
+    - id: "protect_stellaris"
+      type: "protect_ship"
+      description: "Protect MV Stellaris from destruction"
+      required: true
+      params:
+        target: "mv_stellaris"
+        time: 600
+        start_time: 0
+
+    # Primary: player survives
+    - id: "player_survives"
+      type: "avoid_mission_kill"
+      description: "Keep the UNS Enforcer operational"
+      required: true
+      params:
+        target: "player"
+
+  next_scenario: "34_ring_gate"
+
+  success_message: |
+    BELTER UPRISING -- COMPLETE
+
+    Spoofed transponder on "Roci's Hope" confirmed. Pirate corvette
+    "Razorback" neutralized. Civilian transport "MV Stellaris" is
+    safe and continuing on course.
+
+    Intelligence has flagged the Roci's Hope for boarding operations.
+    The pirate network in this corridor is exposed.
+
+    Clean work, Commander. Rules of engagement followed to the letter.
+
+  failure_message: |
+    BELTER UPRISING -- FAILED
+
+    Mission failure. Either the civilian transport was damaged, the
+    pirate threat was not neutralized, or the Enforcer was lost.
+
+    Review your approach:
+    - Did you scan before engaging?
+    - Did you keep the MV Stellaris out of crossfire?
+    - Did you detect the Razorback before it ambushed you?
+
+  hints:
+    - trigger: "start"
+      message: "OPS: Two civilian transponders on scope, plus a faint contact at 80km. Begin scanning operations."
+
+    - trigger: "range < 30000"
+      target: "rocis_hope"
+      message: "SENSORS: Closing on Roci's Hope. Initiate active scan to verify transponder authenticity."
+
+    - trigger: "range < 60000"
+      target: "razorback"
+      message: "SENSORS: Faint contact resolving at 60km. Corvette profile. Possible hostile."
+
+    - trigger: "time > 120"
+      message: "OPS: Two minutes elapsed. Prioritize the scan -- the pirate will not wait forever."
+
+    - trigger: "time > 300"
+      message: "OPS: Five minutes. If the Razorback hasn't been engaged yet, expect it to make its move."

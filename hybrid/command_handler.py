@@ -170,6 +170,24 @@ system_commands = {
     "set_ops_mode": ("auto_ops", "set_mode"),
     "approve_ops": ("auto_ops", "approve"),
     "deny_ops": ("auto_ops", "deny"),
+    # Auto-engineering commands (CPU-ASSIST tier)
+    "enable_auto_engineering": ("auto_engineering", "enable"),
+    "disable_auto_engineering": ("auto_engineering", "disable"),
+    "set_engineering_mode": ("auto_engineering", "set_mode"),
+    "approve_engineering": ("auto_engineering", "approve"),
+    "deny_engineering": ("auto_engineering", "deny"),
+    # Auto-science commands (CPU-ASSIST tier)
+    "enable_auto_science": ("auto_science", "enable"),
+    "disable_auto_science": ("auto_science", "disable"),
+    "set_science_mode": ("auto_science", "set_mode"),
+    "approve_science": ("auto_science", "approve"),
+    "deny_science": ("auto_science", "deny"),
+    # Auto-comms commands (CPU-ASSIST tier)
+    "enable_auto_comms": ("auto_comms", "enable"),
+    "disable_auto_comms": ("auto_comms", "disable"),
+    "set_comms_policy": ("auto_comms", "set_policy"),
+    "approve_comms": ("auto_comms", "approve"),
+    "deny_comms": ("auto_comms", "deny"),
     # Fleet coordination commands
     "fleet_create": ("fleet_coord", "fleet_create"),
     "fleet_add_ship": ("fleet_coord", "fleet_add_ship"),

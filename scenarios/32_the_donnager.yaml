@@ -1,0 +1,547 @@
+# Campaign Mission: The Donnager
+#
+# Last-stand survival scenario. The player commands a battleship
+# against overwhelming numbers -- 6 corvettes and 2 frigates.
+# The goal is to survive 10 minutes while data transmits, not to
+# win outright (though destroying 3+ enemies is a bonus objective).
+#
+# Design rationale:
+#   - The battleship has massive firepower but cannot kill everything
+#     fast enough. The player must triage -- which threats to engage
+#     first, which arcs to expose.
+#   - 8 hostiles from multiple bearings prevent "point nose at
+#     everything" cheese. The player must rotate and manage PDC arcs.
+#   - 600s timer creates tension: every second of survival matters,
+#     but aggressive play risks exposing weaknesses.
+#   - The optional "kill 3+" objective rewards skilled play without
+#     punishing defensive strategy.
+
+name: "The Donnager"
+description: "Command a battleship in a last stand against overwhelming hostile forces while critical data transmits"
+
+difficulty: "extreme"
+player_count: "1"
+category: "campaign"
+
+dt: 0.1
+
+# -- Ships ----------------------------------------------------------------
+
+ships:
+  # -- Player battleship --------------------------------------------------
+  - id: "player"
+    name: "MCRN Donnager"
+    ship_class: "battleship"
+    faction: "mcrn"
+    player_controlled: true
+    position: {x: 0, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+    orientation: {pitch: 0, yaw: 0, roll: 0}
+    systems:
+      propulsion:
+        fuel_level: 1500.0
+        max_fuel: 2000.0
+      sensors:
+        passive:
+          range: 200000
+        active:
+          scan_range: 350000
+      targeting:
+        lock_time: 1.0
+        lock_range: 120000
+      combat:
+        enabled: true
+        railguns: 4
+        pdcs: 10
+      navigation: {}
+    damage_model:
+      propulsion: {max_health: 150.0, health: 150.0}
+      rcs: {max_health: 120.0, health: 120.0}
+      weapons: {max_health: 140.0, health: 140.0}
+      sensors: {max_health: 100.0, health: 100.0}
+
+  # -- Hostile corvettes (6 total, from multiple bearings) ----------------
+
+  - id: "hostile_corvette_1"
+    name: "Phantom-1"
+    ship_class: "corvette"
+    faction: "hostile"
+    ai_enabled: true
+    position: {x: 80000, y: 40000, z: 5000}
+    velocity: {x: -200, y: -100, z: 0}
+    orientation: {pitch: 0, yaw: 210, roll: 0}
+    max_hull_integrity: 150.0
+    hull_integrity: 150.0
+    ai_behavior:
+      role: "combat"
+      aggression: 0.95
+      engagement_range: 70000
+      flee_threshold: 0.1
+      evade_threshold: 0.3
+      max_thrust_profile: 0.8
+    systems:
+      propulsion: {fuel_level: 400.0, max_fuel: 400.0}
+      sensors: {passive: {range: 40000}, active: {scan_range: 70000}}
+      targeting: {lock_time: 2.0, lock_range: 60000}
+      combat: {railguns: 1, pdcs: 2}
+      navigation: {}
+    armor:
+      fore: {thickness_cm: 3.0, material: "composite_cermet"}
+      aft: {thickness_cm: 1.5, material: "composite_cermet"}
+      port: {thickness_cm: 2.0, material: "composite_cermet"}
+      starboard: {thickness_cm: 2.0, material: "composite_cermet"}
+      dorsal: {thickness_cm: 2.0, material: "composite_cermet"}
+      ventral: {thickness_cm: 2.0, material: "composite_cermet"}
+    damage_model:
+      propulsion: {max_health: 80.0, health: 80.0}
+      rcs: {max_health: 60.0, health: 60.0}
+      weapons: {max_health: 70.0, health: 70.0}
+      sensors: {max_health: 50.0, health: 50.0}
+
+  - id: "hostile_corvette_2"
+    name: "Phantom-2"
+    ship_class: "corvette"
+    faction: "hostile"
+    ai_enabled: true
+    position: {x: 75000, y: 50000, z: -3000}
+    velocity: {x: -190, y: -120, z: 5}
+    orientation: {pitch: 0, yaw: 215, roll: 0}
+    max_hull_integrity: 150.0
+    hull_integrity: 150.0
+    ai_behavior:
+      role: "combat"
+      aggression: 0.9
+      engagement_range: 65000
+      flee_threshold: 0.1
+      evade_threshold: 0.35
+      max_thrust_profile: 0.75
+    systems:
+      propulsion: {fuel_level: 400.0, max_fuel: 400.0}
+      sensors: {passive: {range: 40000}, active: {scan_range: 70000}}
+      targeting: {lock_time: 2.0, lock_range: 60000}
+      combat: {railguns: 1, pdcs: 2}
+      navigation: {}
+    armor:
+      fore: {thickness_cm: 3.0, material: "composite_cermet"}
+      aft: {thickness_cm: 1.5, material: "composite_cermet"}
+      port: {thickness_cm: 2.0, material: "composite_cermet"}
+      starboard: {thickness_cm: 2.0, material: "composite_cermet"}
+      dorsal: {thickness_cm: 2.0, material: "composite_cermet"}
+      ventral: {thickness_cm: 2.0, material: "composite_cermet"}
+    damage_model:
+      propulsion: {max_health: 80.0, health: 80.0}
+      rcs: {max_health: 60.0, health: 60.0}
+      weapons: {max_health: 70.0, health: 70.0}
+      sensors: {max_health: 50.0, health: 50.0}
+
+  - id: "hostile_corvette_3"
+    name: "Phantom-3"
+    ship_class: "corvette"
+    faction: "hostile"
+    ai_enabled: true
+    position: {x: -60000, y: 70000, z: 8000}
+    velocity: {x: 100, y: -180, z: -10}
+    orientation: {pitch: 0, yaw: 300, roll: 0}
+    max_hull_integrity: 150.0
+    hull_integrity: 150.0
+    ai_behavior:
+      role: "combat"
+      aggression: 0.9
+      engagement_range: 65000
+      flee_threshold: 0.1
+      evade_threshold: 0.3
+      max_thrust_profile: 0.8
+    systems:
+      propulsion: {fuel_level: 400.0, max_fuel: 400.0}
+      sensors: {passive: {range: 40000}, active: {scan_range: 70000}}
+      targeting: {lock_time: 2.0, lock_range: 60000}
+      combat: {railguns: 1, pdcs: 2}
+      navigation: {}
+    armor:
+      fore: {thickness_cm: 3.0, material: "composite_cermet"}
+      aft: {thickness_cm: 1.5, material: "composite_cermet"}
+      port: {thickness_cm: 2.0, material: "composite_cermet"}
+      starboard: {thickness_cm: 2.0, material: "composite_cermet"}
+      dorsal: {thickness_cm: 2.0, material: "composite_cermet"}
+      ventral: {thickness_cm: 2.0, material: "composite_cermet"}
+    damage_model:
+      propulsion: {max_health: 80.0, health: 80.0}
+      rcs: {max_health: 60.0, health: 60.0}
+      weapons: {max_health: 70.0, health: 70.0}
+      sensors: {max_health: 50.0, health: 50.0}
+
+  - id: "hostile_corvette_4"
+    name: "Phantom-4"
+    ship_class: "corvette"
+    faction: "hostile"
+    ai_enabled: true
+    position: {x: -80000, y: -30000, z: -5000}
+    velocity: {x: 180, y: 80, z: 10}
+    orientation: {pitch: 0, yaw: 25, roll: 0}
+    max_hull_integrity: 150.0
+    hull_integrity: 150.0
+    ai_behavior:
+      role: "combat"
+      aggression: 0.9
+      engagement_range: 65000
+      flee_threshold: 0.1
+      evade_threshold: 0.3
+      max_thrust_profile: 0.8
+    systems:
+      propulsion: {fuel_level: 400.0, max_fuel: 400.0}
+      sensors: {passive: {range: 40000}, active: {scan_range: 70000}}
+      targeting: {lock_time: 2.0, lock_range: 60000}
+      combat: {railguns: 1, pdcs: 2}
+      navigation: {}
+    armor:
+      fore: {thickness_cm: 3.0, material: "composite_cermet"}
+      aft: {thickness_cm: 1.5, material: "composite_cermet"}
+      port: {thickness_cm: 2.0, material: "composite_cermet"}
+      starboard: {thickness_cm: 2.0, material: "composite_cermet"}
+      dorsal: {thickness_cm: 2.0, material: "composite_cermet"}
+      ventral: {thickness_cm: 2.0, material: "composite_cermet"}
+    damage_model:
+      propulsion: {max_health: 80.0, health: 80.0}
+      rcs: {max_health: 60.0, health: 60.0}
+      weapons: {max_health: 70.0, health: 70.0}
+      sensors: {max_health: 50.0, health: 50.0}
+
+  - id: "hostile_corvette_5"
+    name: "Phantom-5"
+    ship_class: "corvette"
+    faction: "hostile"
+    ai_enabled: true
+    position: {x: 20000, y: -90000, z: 4000}
+    velocity: {x: -30, y: 200, z: -5}
+    orientation: {pitch: 0, yaw: 95, roll: 0}
+    max_hull_integrity: 150.0
+    hull_integrity: 150.0
+    ai_behavior:
+      role: "combat"
+      aggression: 0.9
+      engagement_range: 65000
+      flee_threshold: 0.1
+      evade_threshold: 0.3
+      max_thrust_profile: 0.8
+    systems:
+      propulsion: {fuel_level: 400.0, max_fuel: 400.0}
+      sensors: {passive: {range: 40000}, active: {scan_range: 70000}}
+      targeting: {lock_time: 2.0, lock_range: 60000}
+      combat: {railguns: 1, pdcs: 2}
+      navigation: {}
+    armor:
+      fore: {thickness_cm: 3.0, material: "composite_cermet"}
+      aft: {thickness_cm: 1.5, material: "composite_cermet"}
+      port: {thickness_cm: 2.0, material: "composite_cermet"}
+      starboard: {thickness_cm: 2.0, material: "composite_cermet"}
+      dorsal: {thickness_cm: 2.0, material: "composite_cermet"}
+      ventral: {thickness_cm: 2.0, material: "composite_cermet"}
+    damage_model:
+      propulsion: {max_health: 80.0, health: 80.0}
+      rcs: {max_health: 60.0, health: 60.0}
+      weapons: {max_health: 70.0, health: 70.0}
+      sensors: {max_health: 50.0, health: 50.0}
+
+  - id: "hostile_corvette_6"
+    name: "Phantom-6"
+    ship_class: "corvette"
+    faction: "hostile"
+    ai_enabled: true
+    position: {x: -40000, y: -80000, z: -6000}
+    velocity: {x: 100, y: 170, z: 8}
+    orientation: {pitch: 0, yaw: 60, roll: 0}
+    max_hull_integrity: 150.0
+    hull_integrity: 150.0
+    ai_behavior:
+      role: "combat"
+      aggression: 0.9
+      engagement_range: 65000
+      flee_threshold: 0.1
+      evade_threshold: 0.3
+      max_thrust_profile: 0.8
+    systems:
+      propulsion: {fuel_level: 400.0, max_fuel: 400.0}
+      sensors: {passive: {range: 40000}, active: {scan_range: 70000}}
+      targeting: {lock_time: 2.0, lock_range: 60000}
+      combat: {railguns: 1, pdcs: 2}
+      navigation: {}
+    armor:
+      fore: {thickness_cm: 3.0, material: "composite_cermet"}
+      aft: {thickness_cm: 1.5, material: "composite_cermet"}
+      port: {thickness_cm: 2.0, material: "composite_cermet"}
+      starboard: {thickness_cm: 2.0, material: "composite_cermet"}
+      dorsal: {thickness_cm: 2.0, material: "composite_cermet"}
+      ventral: {thickness_cm: 2.0, material: "composite_cermet"}
+    damage_model:
+      propulsion: {max_health: 80.0, health: 80.0}
+      rcs: {max_health: 60.0, health: 60.0}
+      weapons: {max_health: 70.0, health: 70.0}
+      sensors: {max_health: 50.0, health: 50.0}
+
+  # -- Hostile frigates (2, flanking) -------------------------------------
+
+  - id: "hostile_frigate_1"
+    name: "Scimitar"
+    ship_class: "frigate"
+    faction: "hostile"
+    ai_enabled: true
+    position: {x: 90000, y: -50000, z: 10000}
+    velocity: {x: -150, y: 80, z: -15}
+    orientation: {pitch: 0, yaw: 155, roll: 0}
+    max_hull_integrity: 250.0
+    hull_integrity: 250.0
+    ai_behavior:
+      role: "combat"
+      aggression: 0.8
+      engagement_range: 80000
+      flee_threshold: 0.12
+      evade_threshold: 0.3
+      max_thrust_profile: 0.55
+      weapon_confidence_threshold: 0.2
+    systems:
+      propulsion: {fuel_level: 600.0, max_fuel: 700.0}
+      sensors: {passive: {range: 60000}, active: {scan_range: 120000}}
+      targeting: {lock_time: 1.5, lock_range: 80000}
+      combat: {railguns: 2, pdcs: 4}
+      navigation: {}
+    armor:
+      fore: {thickness_cm: 4.0, material: "composite_cermet"}
+      aft: {thickness_cm: 2.5, material: "composite_cermet"}
+      port: {thickness_cm: 3.0, material: "composite_cermet"}
+      starboard: {thickness_cm: 3.0, material: "composite_cermet"}
+      dorsal: {thickness_cm: 2.5, material: "composite_cermet"}
+      ventral: {thickness_cm: 2.5, material: "composite_cermet"}
+    damage_model:
+      propulsion: {max_health: 100.0, health: 100.0}
+      rcs: {max_health: 80.0, health: 80.0}
+      weapons: {max_health: 90.0, health: 90.0}
+      sensors: {max_health: 70.0, health: 70.0}
+
+  - id: "hostile_frigate_2"
+    name: "Claymore"
+    ship_class: "frigate"
+    faction: "hostile"
+    ai_enabled: true
+    position: {x: -70000, y: 60000, z: -8000}
+    velocity: {x: 120, y: -100, z: 10}
+    orientation: {pitch: 0, yaw: 320, roll: 0}
+    max_hull_integrity: 250.0
+    hull_integrity: 250.0
+    ai_behavior:
+      role: "combat"
+      aggression: 0.8
+      engagement_range: 80000
+      flee_threshold: 0.12
+      evade_threshold: 0.3
+      max_thrust_profile: 0.55
+      weapon_confidence_threshold: 0.2
+    systems:
+      propulsion: {fuel_level: 600.0, max_fuel: 700.0}
+      sensors: {passive: {range: 60000}, active: {scan_range: 120000}}
+      targeting: {lock_time: 1.5, lock_range: 80000}
+      combat: {railguns: 2, pdcs: 4}
+      navigation: {}
+    armor:
+      fore: {thickness_cm: 4.0, material: "composite_cermet"}
+      aft: {thickness_cm: 2.5, material: "composite_cermet"}
+      port: {thickness_cm: 3.0, material: "composite_cermet"}
+      starboard: {thickness_cm: 3.0, material: "composite_cermet"}
+      dorsal: {thickness_cm: 2.5, material: "composite_cermet"}
+      ventral: {thickness_cm: 2.5, material: "composite_cermet"}
+    damage_model:
+      propulsion: {max_health: 100.0, health: 100.0}
+      rcs: {max_health: 80.0, health: 80.0}
+      weapons: {max_health: 90.0, health: 90.0}
+      sensors: {max_health: 70.0, health: 70.0}
+
+# -- Fleets ---------------------------------------------------------------
+
+fleets:
+  - fleet_id: "donnager_group"
+    name: "MCRN Donnager"
+    faction: "mcrn"
+    flagship: "player"
+    ships: ["player"]
+
+  - fleet_id: "hostile_fleet"
+    name: "Unknown Hostile Fleet"
+    faction: "hostile"
+    ships:
+      - "hostile_corvette_1"
+      - "hostile_corvette_2"
+      - "hostile_corvette_3"
+      - "hostile_corvette_4"
+      - "hostile_corvette_5"
+      - "hostile_corvette_6"
+      - "hostile_frigate_1"
+      - "hostile_frigate_2"
+
+# -- Mission --------------------------------------------------------------
+
+mission:
+  name: "The Donnager"
+  description: "Hold the line in a battleship against overwhelming hostile forces while critical data transmits"
+
+  briefing: |
+    MISSION BRIEFING: THE DONNAGER
+
+    This is a last stand.
+
+    The MCRN Donnager has been ambushed by an unknown hostile fleet
+    while transmitting classified intelligence data. The data transfer
+    requires 10 minutes to complete. You must survive until
+    transmission is finished.
+
+    FORCES:
+      - MCRN Donnager (battleship, your ship) -- 4 railguns, 10 PDCs
+        The most powerful warship in the system. But even a battleship
+        has limits.
+
+    ENEMY:
+      - 6 hostile corvettes converging from all quadrants
+      - 2 hostile frigates flanking from high and low
+      - Unknown faction. Stealth-coated. Well-coordinated.
+      - They are not here to negotiate.
+
+    TACTICAL ASSESSMENT:
+      - You are outnumbered 8 to 1. You cannot kill them all quickly.
+      - Corvettes will try to swarm and overwhelm your PDC coverage.
+      - Frigates carry railguns -- they will try to stay at range and
+        punch through your armor while corvettes distract.
+      - Prioritize the frigates. Their railguns are the real threat
+        to your hull integrity.
+      - Rotate your facing to spread incoming fire across armor sections.
+      - Do NOT chase individual corvettes. Hold position and let them
+        come to you where your PDC grid is strongest.
+
+    VICTORY: Survive for 600 seconds (10 minutes).
+    BONUS: Destroy 3 or more hostile ships.
+    DEFEAT: Donnager suffers mission kill before transmission completes.
+
+    Hold the line, Captain. The data must get through.
+
+  time_limit: 900  # 15 min hard cap, but survive_time objective is 600s
+
+  objectives:
+    # Primary: survive 10 minutes
+    - id: "survive_transmission"
+      type: "survive_time"
+      description: "Survive until data transmission completes (600 seconds)"
+      required: true
+      params:
+        time: 600
+        start_time: 0
+
+    # Primary: player must not be mission-killed
+    - id: "player_survives"
+      type: "avoid_mission_kill"
+      description: "Keep the Donnager combat-capable"
+      required: true
+      params:
+        target: "player"
+
+    # Optional: destroy 3+ enemies (any combination)
+    - id: "kill_phantom_1"
+      type: "mission_kill"
+      description: "Destroy Phantom-1"
+      required: false
+      params:
+        target: "hostile_corvette_1"
+
+    - id: "kill_phantom_2"
+      type: "mission_kill"
+      description: "Destroy Phantom-2"
+      required: false
+      params:
+        target: "hostile_corvette_2"
+
+    - id: "kill_phantom_3"
+      type: "mission_kill"
+      description: "Destroy Phantom-3"
+      required: false
+      params:
+        target: "hostile_corvette_3"
+
+    - id: "kill_phantom_4"
+      type: "mission_kill"
+      description: "Destroy Phantom-4"
+      required: false
+      params:
+        target: "hostile_corvette_4"
+
+    - id: "kill_phantom_5"
+      type: "mission_kill"
+      description: "Destroy Phantom-5"
+      required: false
+      params:
+        target: "hostile_corvette_5"
+
+    - id: "kill_phantom_6"
+      type: "mission_kill"
+      description: "Destroy Phantom-6"
+      required: false
+      params:
+        target: "hostile_corvette_6"
+
+    - id: "kill_scimitar"
+      type: "mission_kill"
+      description: "Destroy frigate Scimitar"
+      required: false
+      params:
+        target: "hostile_frigate_1"
+
+    - id: "kill_claymore"
+      type: "mission_kill"
+      description: "Destroy frigate Claymore"
+      required: false
+      params:
+        target: "hostile_frigate_2"
+
+  next_scenario: "33_belter_uprising"
+
+  success_message: |
+    THE DONNAGER -- TRANSMISSION COMPLETE
+
+    Data transfer confirmed. The intelligence package has been received
+    by MCRN Command. Whatever these hostiles were trying to suppress,
+    it is now in friendly hands.
+
+    The Donnager took heavy damage but held the line. Damage control
+    teams are working to restore critical systems.
+
+    The unknown hostiles are breaking off -- they failed their objective.
+
+    Well fought, Captain.
+
+  failure_message: |
+    THE DONNAGER -- LOST
+
+    The Donnager has suffered catastrophic systems failure. Propulsion
+    destroyed, weapons offline. The data transmission was interrupted
+    at the worst possible moment.
+
+    The intelligence package is lost. MCRN Command is blind.
+
+    Review your tactics:
+    - Did you rotate armor facings to spread damage?
+    - Did you prioritize the frigates and their railguns?
+    - Did you let the PDC grid handle corvettes at close range?
+
+  hints:
+    - trigger: "start"
+      message: "COMMS: All hands, battle stations. Eight hostile contacts converging. Data transmission in progress -- 600 seconds to completion."
+
+    - trigger: "time > 60"
+      message: "TACTICAL: Corvettes closing fast. Let PDCs handle the small fish -- save railgun rounds for the frigates."
+
+    - trigger: "time > 180"
+      message: "OPS: Three minutes down, seven to go. Monitor armor integrity across all sections."
+
+    - trigger: "time > 300"
+      message: "OPS: Halfway. Transmission at 50%. Hold the line, Captain."
+
+    - trigger: "time > 450"
+      message: "OPS: 150 seconds remaining. Almost there."
+
+    - trigger: "time > 540"
+      message: "COMMS: One minute to transmission complete. Hold on!"
