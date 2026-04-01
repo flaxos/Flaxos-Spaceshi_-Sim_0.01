@@ -38,6 +38,7 @@ from hybrid.core.event_bus import EventBus
 from hybrid.utils.math_utils import (
     magnitude, subtract_vectors, calculate_distance,
     dot_product, normalize_vector, add_vectors, scale_vector,
+    cross_product,
 )
 from hybrid.systems.combat.hit_location import compute_hit_location
 
@@ -260,6 +261,12 @@ class Torpedo:
     # Launch profile — missiles support: direct, evasive, terminal_pop, bracket
     profile: str = "direct"
 
+    # Per-missile profile state initialised at spawn time.
+    # evasive: {"period": float}  — weave period (randomised 2-4s)
+    # terminal_pop: {"offset_dir": {x,y,z}, "offset_mag": float, "popped": bool}
+    # bracket: {"quadrant_angle": float}  — radians around approach axis
+    profile_data: Dict[str, object] = field(default_factory=dict)
+
     # Warhead and guidance configuration
     warhead_type: str = WarheadType.FRAGMENTATION.value
     guidance_mode: str = GuidanceMode.GUIDED.value
@@ -378,6 +385,14 @@ class TorpedoManager:
             max_hull_health=hull_hp,
             delta_v_budget=dv_budget,
         )
+        # Initialise per-missile profile state with randomised parameters.
+        # Each profile needs different data seeded at launch so that
+        # missiles in the same salvo behave distinctly.
+        if munition_type == MunitionType.MISSILE:
+            torpedo.profile_data = self._init_profile_data(
+                profile, torpedo.id, target_pos, position,
+            )
+
         self._next_id += 1
         self._torpedoes.append(torpedo)
 
@@ -746,18 +761,27 @@ class TorpedoManager:
             if dir_mag > 0.01:
                 aim_dir = normalize_vector(blended)
 
-        # Missile flight profile modifiers — applied during MIDCOURSE only
-        if is_missile and torpedo.state == TorpedoState.MIDCOURSE:
+        # Missile flight profile modifiers.
+        # Most profiles apply during MIDCOURSE only, but terminal_pop
+        # must also steer during BOOST so the missile builds lateral
+        # velocity toward the offset line before it starts coasting.
+        if is_missile and torpedo.state in (TorpedoState.MIDCOURSE, TorpedoState.BOOST):
             aim_dir = self._apply_missile_profile(torpedo, aim_dir, dt, sim_time, dist)
 
         # Determine thrust fraction based on flight phase
         if torpedo.state == TorpedoState.TERMINAL:
             thrust_fraction = 1.0
         elif torpedo.state == TorpedoState.MIDCOURSE:
-            # Missiles with terminal_pop profile coast cold during midcourse
-            # to reduce IR signature until terminal phase
+            # Missiles with terminal_pop profile coast cold during the
+            # offset approach (far from target) to minimise IR signature.
+            # Once inside 2x terminal range they re-engage thrust to
+            # execute the pop-up climb maneuver before terminal dive.
             if is_missile and torpedo.profile == "terminal_pop":
-                thrust_fraction = 0.0
+                pop_range = 2.0 * MISSILE_TERMINAL_RANGE
+                if dist > pop_range:
+                    thrust_fraction = 0.0
+                else:
+                    thrust_fraction = 1.0  # Full thrust for pop maneuver
             else:
                 vel_dir = normalize_vector(torpedo.velocity) if magnitude(torpedo.velocity) > 1.0 else aim_dir
                 cos_angle = dot_product(vel_dir, aim_dir)
@@ -867,18 +891,99 @@ class TorpedoManager:
         torpedo.mass -= fuel_consumed
         torpedo.delta_v_used += accel_mag * dt
 
+    @staticmethod
+    def _init_profile_data(
+        profile: str, missile_id: str,
+        target_pos: Dict[str, float], launch_pos: Dict[str, float],
+    ) -> Dict[str, object]:
+        """Build per-missile profile state at spawn time.
+
+        Each profile needs stable random parameters so that missiles
+        in the same salvo diverge deterministically:
+        - evasive:  weave period (2-4s), randomised per missile
+        - terminal_pop:  offset direction perpendicular to approach,
+                         magnitude 500-1000m
+        - bracket:  quadrant angle around approach axis (assigned later
+                    when sibling count is known; seed stored here)
+
+        Args:
+            profile: Flight profile name
+            missile_id: Unique missile ID (used as RNG seed)
+            target_pos: Target position at launch
+            launch_pos: Missile launch position
+
+        Returns:
+            Dict of profile-specific state
+        """
+        if profile == "direct":
+            return {}
+
+        # Deterministic RNG per missile so salvos diverge repeatably
+        rng = random.Random(hash(missile_id))
+
+        if profile == "evasive":
+            return {"period": rng.uniform(2.0, 4.0)}
+
+        if profile == "terminal_pop":
+            # Compute a stable perpendicular to the approach vector.
+            # The missile will fly offset below/beside the direct line,
+            # then "pop" up into a terminal dive at close range.
+            approach = subtract_vectors(target_pos, launch_pos)
+            a_mag = magnitude(approach)
+            if a_mag < 1.0:
+                approach = {"x": 1, "y": 0, "z": 0}
+            else:
+                approach = normalize_vector(approach)
+
+            # Pick an arbitrary non-parallel reference to cross with approach
+            ref = {"x": 0, "y": 1, "z": 0}
+            if abs(dot_product(approach, ref)) > 0.95:
+                ref = {"x": 0, "y": 0, "z": 1}
+
+            perp = cross_product(approach, ref)
+            pmag = magnitude(perp)
+            if pmag > 0.01:
+                perp = normalize_vector(perp)
+            else:
+                perp = {"x": 0, "y": 1, "z": 0}
+
+            offset_mag = rng.uniform(500.0, 1000.0)
+            return {
+                "offset_dir": perp,
+                "offset_mag": offset_mag,
+                "popped": False,
+            }
+
+        if profile == "bracket":
+            # Store a seed angle; actual quadrant is assigned during
+            # _apply_missile_profile once we know how many siblings
+            # share the same target, so we can space them evenly.
+            return {"seed_angle": rng.uniform(0, 2 * math.pi)}
+
+        return {}
+
     def _apply_missile_profile(
         self, missile: Torpedo, aim_dir: Dict[str, float],
         dt: float, sim_time: float, dist: float,
     ) -> Dict[str, float]:
         """Apply missile flight profile modifiers during midcourse.
 
-        Profiles:
-        - direct: no modification (pure PN)
-        - evasive: random lateral jink each second to defeat PDC tracking
-        - terminal_pop: coast cold (handled in thrust_fraction), no aim change
-        - bracket: offset aim to approach from an oblique angle, converging
-                   in terminal phase (makes PDC engagement harder)
+        Each profile physically alters the thrust vector to create
+        distinct approach geometries that complicate PDC intercept:
+
+        - direct: Pure PN, no modification.
+        - evasive: Sinusoidal lateral weave perpendicular to approach.
+          Amplitude scales with closing velocity so faster missiles
+          weave harder.  Period is randomised per missile (2-4s) to
+          prevent PDCs from predicting the pattern.
+        - terminal_pop: Fly offset from the direct line (below/beside
+          the target plane) during midcourse, coasting cold to reduce
+          IR signature.  At 2x terminal_range, "pop" perpendicular
+          to approach then dive onto target in TERMINAL.
+        - bracket: When 2+ missiles target the same ship, space them
+          evenly around the approach axis (quadrant offsets).  Forces
+          PDCs to slew between widely separated threats.  Single
+          missiles default to direct behaviour.
 
         Args:
             missile: The missile munition
@@ -891,55 +996,156 @@ class TorpedoManager:
             Modified aim direction
         """
         profile = missile.profile
+        pd = missile.profile_data
 
-        if profile == "direct" or profile == "terminal_pop":
+        if profile == "direct":
             return aim_dir
 
+        # --- EVASIVE: sinusoidal lateral weave ---
+        # Physics: add oscillating acceleration perpendicular to the
+        # approach vector.  This makes the missile's trajectory a helix
+        # around the PN line, defeating PDC linear-extrapolation aim.
+        # The weave amplitude is proportional to closing speed because
+        # faster missiles need larger displacement to force the same
+        # angular tracking error on the defender's fire-control.
         if profile == "evasive":
-            # Jink: add a random perpendicular offset that changes every ~1s.
-            # The jink magnitude is 30% of max accel — enough to throw off
-            # PDC lead prediction without wasting too much delta-v.
-            jink_period = 1.0
-            jink_phase = int(sim_time / jink_period)
-            rng = random.Random(hash((missile.id, jink_phase)))
-            # Generate perpendicular offset using velocity cross product
-            jink_x = rng.uniform(-0.3, 0.3)
-            jink_y = rng.uniform(-0.3, 0.3)
-            jink_z = rng.uniform(-0.3, 0.3)
-            jink_vec = {"x": aim_dir["x"] + jink_x,
-                        "y": aim_dir["y"] + jink_y,
-                        "z": aim_dir["z"] + jink_z}
-            mag = magnitude(jink_vec)
-            if mag > 0.01:
-                return normalize_vector(jink_vec)
+            period = pd.get("period", 3.0)
+            # Build a perpendicular frame from aim_dir
+            ref = {"x": 0, "y": 1, "z": 0}
+            if abs(dot_product(aim_dir, ref)) > 0.95:
+                ref = {"x": 0, "y": 0, "z": 1}
+            perp1 = cross_product(aim_dir, ref)
+            p1_mag = magnitude(perp1)
+            if p1_mag < 0.01:
+                return aim_dir
+            perp1 = normalize_vector(perp1)
+
+            # Sinusoidal weave: the perpendicular offset oscillates
+            # with sim_time.  Amplitude is 40% of max accel -- enough
+            # to force PDC re-acquisition each half-cycle without
+            # spending excessive delta-v on lateral burns.
+            phase = 2.0 * math.pi * sim_time / period
+            weave_strength = 0.40 * math.sin(phase)
+            result = add_vectors(
+                scale_vector(aim_dir, 1.0 - abs(weave_strength)),
+                scale_vector(perp1, weave_strength),
+            )
+            rmag = magnitude(result)
+            if rmag > 0.01:
+                return normalize_vector(result)
             return aim_dir
 
-        if profile == "bracket":
-            # Offset approach angle by ~15 degrees perpendicular to LOS.
-            # This forces the target's PDCs to track a crossing target
-            # rather than a head-on one.  The offset decays as the missile
-            # approaches terminal range, converging to direct attack.
-            offset_strength = min(1.0, dist / max(1.0, MISSILE_TERMINAL_RANGE))
-            # Use a stable perpendicular direction based on missile ID hash
-            rng = random.Random(hash(missile.id))
-            perp = {"x": rng.uniform(-1, 1),
-                    "y": rng.uniform(-1, 1),
-                    "z": rng.uniform(-1, 1)}
-            # Remove component along aim_dir to get true perpendicular
-            dot = dot_product(perp, aim_dir)
-            perp = subtract_vectors(perp, scale_vector(aim_dir, dot))
-            pmag = magnitude(perp)
-            if pmag > 0.01:
-                perp = normalize_vector(perp)
-                # Blend: 26% perpendicular at max range, 0% at terminal
-                bracket_factor = 0.26 * offset_strength
+        # --- TERMINAL POP: offset approach then rapid climb + dive ---
+        # Physics: during midcourse, the missile flies parallel to the
+        # direct line but displaced by 500-1000m in a perpendicular
+        # direction (typically "below").  This keeps it outside the
+        # defender's most likely PDC scan cone.  At 2x terminal_range
+        # it executes a rapid climb perpendicular to approach, then
+        # the TERMINAL phase dives onto the target from the offset
+        # direction -- a harder intercept geometry for PDCs because
+        # the angular rate spikes during the pop maneuver.
+        if profile == "terminal_pop":
+            offset_dir = pd.get("offset_dir", {"x": 0, "y": 1, "z": 0})
+            offset_mag = pd.get("offset_mag", 750.0)
+            pop_range = 2.0 * MISSILE_TERMINAL_RANGE  # Pop at 6 km
+
+            if dist > pop_range:
+                # Midcourse: steer toward offset line (parallel to
+                # direct approach but displaced by offset_mag).
+                # Blend a lateral component into aim_dir to maintain
+                # the offset without diverging from the intercept course.
+                offset_blend = min(0.35, offset_mag / max(1.0, dist))
                 result = add_vectors(
-                    scale_vector(aim_dir, 1.0 - bracket_factor),
-                    scale_vector(perp, bracket_factor),
+                    scale_vector(aim_dir, 1.0 - offset_blend),
+                    scale_vector(offset_dir, offset_blend),
                 )
                 rmag = magnitude(result)
                 if rmag > 0.01:
                     return normalize_vector(result)
+            else:
+                # Pop maneuver: inside 2x terminal range, steer
+                # sharply opposite to the offset (climb away from
+                # the offset plane) to create a crossing trajectory.
+                # The TERMINAL phase guidance will then pull back
+                # toward the target for the final dive.
+                if not pd.get("popped", False):
+                    pd["popped"] = True
+                    logger.info(
+                        "Missile %s executing terminal pop at %.0f m",
+                        missile.id, dist,
+                    )
+                anti_offset = scale_vector(offset_dir, -1.0)
+                pop_blend = 0.5
+                result = add_vectors(
+                    scale_vector(aim_dir, 1.0 - pop_blend),
+                    scale_vector(anti_offset, pop_blend),
+                )
+                rmag = magnitude(result)
+                if rmag > 0.01:
+                    return normalize_vector(result)
+            return aim_dir
+
+        # --- BRACKET: quadrant-spread for multi-missile salvos ---
+        # Physics: if N missiles target the same ship, they space
+        # evenly around the approach axis so the defender's PDCs must
+        # slew across 360 degrees instead of tracking a single bearing.
+        # Each missile maintains a fixed angular offset in the plane
+        # perpendicular to the line-of-sight, decaying to zero as it
+        # enters terminal range (all converge for simultaneous impact).
+        if profile == "bracket":
+            # Find sibling bracket missiles targeting the same ship
+            siblings = [
+                t for t in self._torpedoes
+                if t.alive
+                and t.target_id == missile.target_id
+                and t.profile == "bracket"
+                and t.munition_type == MunitionType.MISSILE
+            ]
+            if len(siblings) < 2:
+                # Solo bracket missile -- no spread benefit, fly direct
+                return aim_dir
+
+            # Assign evenly-spaced quadrant angles.  Sort siblings by
+            # ID for deterministic ordering across ticks.
+            siblings.sort(key=lambda t: t.id)
+            idx = next(
+                (i for i, t in enumerate(siblings) if t.id == missile.id), 0
+            )
+            quadrant_angle = (2.0 * math.pi * idx) / len(siblings)
+
+            # Build two perpendicular axes in the plane normal to aim_dir
+            ref = {"x": 0, "y": 1, "z": 0}
+            if abs(dot_product(aim_dir, ref)) > 0.95:
+                ref = {"x": 0, "y": 0, "z": 1}
+
+            perp1 = cross_product(aim_dir, ref)
+            p1_mag = magnitude(perp1)
+            if p1_mag < 0.01:
+                return aim_dir
+            perp1 = normalize_vector(perp1)
+
+            perp2 = cross_product(aim_dir, perp1)
+            p2_mag = magnitude(perp2)
+            if p2_mag < 0.01:
+                return aim_dir
+            perp2 = normalize_vector(perp2)
+
+            # Offset decays linearly as missile approaches terminal range
+            # so all missiles converge for simultaneous impact
+            offset_strength = min(1.0, dist / max(1.0, MISSILE_TERMINAL_RANGE))
+            bracket_factor = 0.30 * offset_strength
+
+            offset_dir = add_vectors(
+                scale_vector(perp1, math.cos(quadrant_angle)),
+                scale_vector(perp2, math.sin(quadrant_angle)),
+            )
+            result = add_vectors(
+                scale_vector(aim_dir, 1.0 - bracket_factor),
+                scale_vector(offset_dir, bracket_factor),
+            )
+            rmag = magnitude(result)
+            if rmag > 0.01:
+                return normalize_vector(result)
             return aim_dir
 
         return aim_dir

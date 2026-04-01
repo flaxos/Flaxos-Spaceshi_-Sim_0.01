@@ -172,6 +172,23 @@ def dot_product(v1, v2, keys=None):
 
     return sum(v1.get(key, 0) * v2.get(key, 0) for key in keys)
 
+def cross_product(v1, v2):
+    """Compute cross product of two 3D vectors.
+
+    Args:
+        v1 (dict): First vector {x, y, z}
+        v2 (dict): Second vector {x, y, z}
+
+    Returns:
+        dict: Cross product vector {x, y, z}
+    """
+    return {
+        "x": v1.get("y", 0) * v2.get("z", 0) - v1.get("z", 0) * v2.get("y", 0),
+        "y": v1.get("z", 0) * v2.get("x", 0) - v1.get("x", 0) * v2.get("z", 0),
+        "z": v1.get("x", 0) * v2.get("y", 0) - v1.get("y", 0) * v2.get("x", 0),
+    }
+
+
 def clamp_vector(vector, max_magnitude, keys=None):
     """Clamp a vector to a maximum magnitude.
 
