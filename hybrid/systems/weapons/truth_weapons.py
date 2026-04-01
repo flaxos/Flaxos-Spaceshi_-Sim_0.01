@@ -305,6 +305,7 @@ class TruthWeapon:
         # PDCs have charge_time=0 so these fields are inert for them.
         self._charge_state: ChargeState = ChargeState.IDLE
         self._charge_progress: float = 0.0
+        self._charge_target_id: Optional[str] = None  # target the charge is coupled to
 
         # Reload state (magazine-based for PDCs, per-round for railguns)
         self.reloading = False
@@ -389,17 +390,29 @@ class TruthWeapon:
             if self._charge_state != ChargeState.IDLE:
                 self._charge_state = ChargeState.IDLE
                 self._charge_progress = 0.0
+                self._charge_target_id = None
             return
 
+        current_target = self.current_solution.target_id
+
+        # Target changed mid-charge — capacitor is coupled to the old
+        # firing solution geometry, so dump and restart.
+        if self._charge_target_id is not None and current_target != self._charge_target_id:
+            self._charge_state = ChargeState.IDLE
+            self._charge_progress = 0.0
+            self._charge_target_id = None
+
         if self._charge_state == ChargeState.IDLE:
-            # Begin charging
+            # Begin charging for this target
             self._charge_state = ChargeState.CHARGING
             self._charge_progress = 0.0
+            self._charge_target_id = current_target
 
         if self._charge_state == ChargeState.CHARGING:
-            self._charge_progress += dt / self.specs.charge_time
+            self._charge_progress = min(
+                1.0, self._charge_progress + dt / self.specs.charge_time
+            )
             if self._charge_progress >= 1.0:
-                self._charge_progress = 1.0
                 self._charge_state = ChargeState.READY
 
         # READY state holds until fire() consumes it or lock is lost

@@ -286,3 +286,42 @@ class TestRailgunChargeState:
 
         assert rg._charge_state == ChargeState.READY
         assert rg.can_fire(sim_time) is True
+
+    def test_target_switch_resets_charge(self):
+        """Switching targets mid-charge dumps the capacitor."""
+        rg = create_railgun("test_rg")
+        sim_time = 10.0
+        _give_valid_solution(rg, sim_time=sim_time)
+        _tick_weapon(rg, dt=1.0, sim_time=sim_time + 1.0)
+
+        # Mid-charge — should be ~50%
+        assert rg._charge_state == ChargeState.CHARGING
+        assert rg._charge_progress > 0.4
+
+        # Switch to a different target
+        rg.calculate_solution(
+            shooter_pos={"x": 0, "y": 0, "z": 0},
+            shooter_vel={"x": 0, "y": 0, "z": 0},
+            target_pos={"x": 20_000, "y": 0, "z": 0},
+            target_vel={"x": 0, "y": 0, "z": 0},
+            target_id="target_2",
+            sim_time=sim_time + 1.0,
+        )
+        _tick_weapon(rg, dt=0.1, sim_time=sim_time + 1.1)
+
+        # Charge should have reset for the new target
+        assert rg._charge_target_id == "target_2"
+        assert rg._charge_progress < 0.2  # Starting over
+
+    def test_large_dt_clamps_progress(self):
+        """A very large dt must not push charge_progress above 1.0."""
+        rg = create_railgun("test_rg")
+        sim_time = 10.0
+        _give_valid_solution(rg, sim_time=sim_time)
+        _tick_weapon(rg, dt=10.0, sim_time=sim_time + 10.0)
+
+        assert rg._charge_progress == 1.0
+        assert rg._charge_state == ChargeState.READY
+        # Telemetry must also be clamped
+        state = rg.get_state()
+        assert state.get("charge_progress", 0) <= 1.0
