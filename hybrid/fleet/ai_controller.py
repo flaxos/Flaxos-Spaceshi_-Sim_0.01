@@ -116,6 +116,23 @@ class AIController:
         # Cached retreat assessment -- refreshed each decision cycle
         self._retreat: RetreatAssessment = RetreatAssessment()
 
+        # ── Phase 2B: advanced role state ─────────────────────────
+        # Spawn position -- captured once at init for hold_position
+        # and defender return-to-home behavior.
+        self._spawn_position: Optional[np.ndarray] = None
+        pos = getattr(ship, "position", None)
+        if pos:
+            if isinstance(pos, dict):
+                self._spawn_position = np.array([
+                    pos.get("x", 0), pos.get("y", 0), pos.get("z", 0),
+                ])
+            else:
+                self._spawn_position = np.array([0.0, 0.0, 0.0])
+
+        # Raider disengage timer: sim_time when the AI should stop
+        # evading and re-approach after a salvo.  None = not evading.
+        self._disengage_until: Optional[float] = None
+
         logger.info(
             "AI Controller initialized for %s (role=%s)",
             ship.id, self.profile.role,
@@ -358,9 +375,9 @@ class AIController:
     def _behavior_idle(self):
         """Idle behavior -- check for threats and react based on role.
 
-        Combat/escort ships switch to ATTACK.  Freighters switch to
-        FLEE.  Patrol ships switch to ATTACK only within engagement
-        range.
+        Combat/escort/raider/sniper/swarm switch to ATTACK.
+        Freighters switch to FLEE.
+        Patrol/defender ships switch to ATTACK only within engagement_range.
         """
         threats = self._get_hostile_contacts()
         if not threats:
@@ -375,12 +392,13 @@ class AIController:
             self._emit_distress()
             return
 
-        if role == "patrol":
-            # Patrol only engages threats within engagement_range
+        if role in ("patrol", "defender"):
+            # Patrol and defender only engage threats within engagement_range.
+            # Defenders hold position and wait for threats to come to them.
             contact_id, contact = threats[0]
             distance = self._distance_to(contact)
             if distance <= self.engagement_range:
-                logger.info("AI %s: Threat in range, attacking (patrol)", self.ship.id)
+                logger.info("AI %s: Threat in range, attacking (%s)", self.ship.id, role)
                 self.current_target = threats[0]
                 self.set_behavior(AIBehavior.ATTACK)
             return
@@ -399,8 +417,20 @@ class AIController:
             self.set_behavior(AIBehavior.ATTACK)
             return
 
-        # Default (combat): engage immediately
-        logger.info("AI %s: Threats detected, switching to attack", self.ship.id)
+        if role == "swarm":
+            # Swarm doctrine: converge on fleet lead's target if
+            # pack_targeting is enabled, otherwise use normal targeting.
+            target = self._resolve_pack_target(threats)
+            if target:
+                self.current_target = target
+            else:
+                self.current_target = threats[0]
+            logger.info("AI %s: Threats detected, swarming", self.ship.id)
+            self.set_behavior(AIBehavior.ATTACK)
+            return
+
+        # Default (combat, raider, sniper): engage immediately
+        logger.info("AI %s: Threats detected, switching to attack (%s)", self.ship.id, role)
         self.current_target = threats[0]
         self.set_behavior(AIBehavior.ATTACK)
 
@@ -507,19 +537,39 @@ class AIController:
         """Attack hostile targets -- the core combat loop.
 
         Priority:
-          1. Acquire target if none (with tactical prioritization)
-          2. Close to engagement range
-          3. Evasion jinking while in weapon range
-          4. Lock and fire (with salvo coordination + ammo conservation)
+          1. Check raider disengage timer (hit-and-run cooldown)
+          2. Acquire target if none (with tactical/pack prioritization)
+          3. Enforce min_engagement_range (sniper standoff)
+          4. Close to engagement range
+          5. Evasion jinking while in weapon range
+          6. Lock and fire (with salvo coordination + ammo conservation)
         """
-        # Acquire target using tactical prioritization when possible
-        if not self.current_target:
-            threats = self._get_hostile_contacts_tactical()
-            if not threats:
-                logger.info("AI %s: No threats, returning to idle", self.ship.id)
-                self._return_to_role_behavior()
+        # Raider disengage cooldown: after firing a salvo the AI
+        # evades for disengage_cooldown seconds before re-engaging.
+        if self._disengage_until is not None:
+            if self._last_sim_time < self._disengage_until:
+                self._ensure_autopilot("evasive")
                 return
-            self.current_target = threats[0]
+            # Cooldown expired -- re-engage
+            logger.info("AI %s: Disengage cooldown expired, re-engaging", self.ship.id)
+            self._disengage_until = None
+            self._autopilot_set_for_target = None
+
+        # Acquire target using tactical prioritization when possible.
+        # Swarm ships override with pack_targeting (fleet lead's target).
+        if not self.current_target:
+            if self.profile.pack_targeting:
+                threats = self._get_hostile_contacts()
+                pack_target = self._resolve_pack_target(threats)
+                if pack_target:
+                    self.current_target = pack_target
+            if not self.current_target:
+                threats = self._get_hostile_contacts_tactical()
+                if not threats:
+                    logger.info("AI %s: No threats, returning to idle", self.ship.id)
+                    self._return_to_role_behavior()
+                    return
+                self.current_target = threats[0]
 
         contact_id, contact = self.current_target
 
@@ -540,6 +590,22 @@ class AIController:
 
         # Get distance to target
         distance = self._distance_to(contact)
+
+        # Sniper standoff: if closer than min_engagement_range,
+        # reposition AWAY from the target to maintain distance.
+        # This is the core sniper mechanic -- they never close.
+        min_range = self.profile.min_engagement_range
+        if min_range > 0 and distance < min_range:
+            logger.debug(
+                "AI %s: Too close (%.0fm < %.0fm min), repositioning away",
+                self.ship.id, distance, min_range,
+            )
+            self._ensure_autopilot("evasive")
+            # Still lock and fire while repositioning -- snipers
+            # can shoot while backing off.
+            self._lock_target(contact_id)
+            self._engage_target(contact_id, contact)
+            return
 
         # Doctrine: evasion jinking when in weapon range.
         # Change heading at intervals tuned to enemy railgun ToF
@@ -653,6 +719,7 @@ class AIController:
 
         Called when threats disappear so the AI goes back to its
         role-appropriate default instead of always reverting to IDLE.
+        Defender and hold_position profiles navigate back to spawn.
         """
         role = self.profile.role
 
@@ -662,8 +729,12 @@ class AIController:
             self.set_behavior(AIBehavior.ESCORT, {
                 "escort_target": self.profile.protect_target,
             })
+        elif role == "defender" or self.profile.hold_position:
+            # Return to spawn position after engagement ends.
+            self.set_behavior(AIBehavior.HOLD_POSITION)
+            self._navigate_to_spawn()
         else:
-            # combat and freighter both rest at IDLE
+            # combat, freighter, raider, sniper, swarm rest at IDLE
             self.set_behavior(AIBehavior.IDLE)
 
     # ── System interaction helpers ────────────────────────────────
@@ -723,12 +794,15 @@ class AIController:
 
         Respects profile.weapon_confidence_threshold -- if set to 1.0
         (freighter), this method effectively never fires because the
-        confidence check can never pass.
+        confidence check can never pass.  Sniper profiles (0.7) only
+        fire when firing solution confidence exceeds the threshold.
 
         Doctrine integrations:
           - Salvo coordination: delays fire if coordinator says wait
           - Conservative fire: only fires high-confidence solutions
             when ammo is low
+          - Disengage after salvo: raider evades after firing ordnance
+          - Preferred weapon: raider/sniper hints at which weapons to use
 
         Args:
             contact_id: Stable contact ID.
@@ -754,6 +828,24 @@ class AIController:
         if lock_val != "locked":
             return  # Not locked yet, wait for targeting pipeline
 
+        # Confidence gate: profiles like sniper (0.7) only fire when
+        # the best available firing solution exceeds their threshold.
+        # This prevents wasting ammo on low-probability shots.
+        conf_threshold = self.profile.weapon_confidence_threshold
+        if conf_threshold > 0:
+            combat_check = self.ship.systems.get("combat")
+            if combat_check and hasattr(combat_check, "truth_weapons"):
+                best_confidence = 0.0
+                for weapon in combat_check.truth_weapons.values():
+                    sol = getattr(weapon, "current_solution", None)
+                    if sol:
+                        best_confidence = max(
+                            best_confidence,
+                            getattr(sol, "confidence", 0.0),
+                        )
+                if best_confidence < conf_threshold:
+                    return  # Solution below confidence threshold
+
         # Doctrine: salvo coordination -- wait if coordinator says
         # it's not our turn yet.
         if self._salvo_coordinator:
@@ -778,7 +870,7 @@ class AIController:
                 if not has_good_solution:
                     return  # Save ammo for a better shot
 
-        # Step 3: Fire all ready weapons
+        # Step 3: Fire weapons
         combat = self.ship.systems.get("combat")
         if not combat or not hasattr(combat, "fire_all_ready"):
             return
@@ -787,11 +879,23 @@ class AIController:
         target_ship = self._resolve_target_ship(contact_id)
         if target_ship:
             result = combat.fire_all_ready(target_ship)
-            if result.get("weapons_fired", 0) > 0:
+            fired = result.get("weapons_fired", 0)
+            if fired > 0:
                 logger.info(
                     "AI %s: Fired %d weapons at %s",
-                    self.ship.id, result["weapons_fired"], contact_id,
+                    self.ship.id, fired, contact_id,
                 )
+                # Raider doctrine: after firing a salvo, disengage
+                # for cooldown seconds to re-approach from a new angle.
+                if self.profile.disengage_after_salvo:
+                    self._disengage_until = (
+                        self._last_sim_time + self.profile.disengage_cooldown
+                    )
+                    self._autopilot_set_for_target = None
+                    logger.info(
+                        "AI %s: Salvo fired, disengaging for %.0fs",
+                        self.ship.id, self.profile.disengage_cooldown,
+                    )
 
     def _emit_distress(self):
         """Publish a distress_signal event so escort AI can react.
@@ -1039,6 +1143,72 @@ class AIController:
             coordinator: Shared SalvoCoordinator instance.
         """
         self._salvo_coordinator = coordinator
+
+    # ── Phase 2B helpers ──────────────────────────────────────────
+
+    def _resolve_pack_target(
+        self, threats: List[Tuple[str, object]],
+    ) -> Optional[Tuple[str, object]]:
+        """Resolve the fleet lead's target for pack_targeting (swarm).
+
+        Scans same-faction AI ships for the one with the lowest ship ID
+        (deterministic "fleet lead") and copies its current_target.
+        Falls back to None if no fleet lead has a target yet.
+
+        Args:
+            threats: Available hostile contacts for fallback.
+
+        Returns:
+            (contact_id, ContactData) tuple or None.
+        """
+        if not self.profile.pack_targeting:
+            return None
+
+        all_ships = getattr(self.ship, "_all_ships_ref", None) or []
+        from hybrid.fleet.faction_rules import are_allied
+
+        # Find the fleet lead: lowest ship ID among same-faction AI
+        # ships with pack_targeting enabled.  Deterministic pick.
+        lead_target = None
+        lead_id = None
+        for other in all_ships:
+            if other.id == self.ship.id:
+                continue
+            if not getattr(other, "ai_enabled", False):
+                continue
+            if not are_allied(
+                getattr(self.ship, "faction", ""),
+                getattr(other, "faction", ""),
+            ):
+                continue
+            ai = getattr(other, "ai_controller", None)
+            if not ai:
+                continue
+            # Must also be a pack_targeting ship
+            if not ai.profile.pack_targeting:
+                continue
+            if ai.current_target and (lead_id is None or other.id < lead_id):
+                lead_id = other.id
+                lead_target = ai.current_target
+
+        # If we ARE the fleet lead (lowest ID), or no lead has a target
+        # yet, return None so the caller falls through to normal
+        # targeting.
+        if lead_target and lead_id is not None and lead_id < self.ship.id:
+            return lead_target
+        return None
+
+    def _navigate_to_spawn(self) -> None:
+        """Navigate back to the ship's initial spawn position.
+
+        Used by defender and hold_position profiles after engagement
+        ends.  If no spawn position was captured, this is a no-op.
+        """
+        if self._spawn_position is None:
+            return
+
+        # Use the hold autopilot to station-keep at spawn
+        self._ensure_autopilot("hold")
 
     # ── Utility helpers ───────────────────────────────────────────
 
