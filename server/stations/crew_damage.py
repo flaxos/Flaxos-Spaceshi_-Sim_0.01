@@ -2,8 +2,17 @@
 Crew injury from subsystem damage.
 
 When a ship subsystem takes damage, crew at the corresponding station
-may be injured or killed. Killed crew leave the station unmanned,
-falling back to AI backup at reduced capability.
+may be injured or killed. The injury state escalates through a defined
+ladder: HEALTHY -> WOUNDED -> CRITICAL -> DEAD.
+
+Injury escalation probabilities:
+- HEALTHY -> WOUNDED: damage_fraction * 0.3
+- WOUNDED -> CRITICAL: 50% if hit again while wounded
+- CRITICAL -> DEAD: 30% if hit again while critical
+
+Recovery:
+- WOUNDED -> HEALTHY: automatic after mission ends
+- CRITICAL -> WOUNDED: requires station dock + medical bay (campaign)
 
 Separated from crew_binding.py to keep modules under 300 lines.
 """
@@ -19,6 +28,7 @@ if TYPE_CHECKING:
     from .crew_binding import CrewStationBinder
 
 from .station_types import StationType
+from .crew_system import InjuryState
 
 logger = logging.getLogger(__name__)
 
@@ -47,8 +57,9 @@ def apply_damage_to_crew(
     """
     Apply potential injury to the crew member at a station.
 
-    Injury chance scales with severity: light hits (0.1) rarely injure,
-    catastrophic hits (1.0) almost always do.
+    Uses the InjuryState escalation ladder rather than raw health
+    reduction. Each hit while already injured has a chance to push the
+    crew member to the next injury state.
 
     Args:
         binder: The crew-station binder (to access slots)
@@ -69,38 +80,72 @@ def apply_damage_to_crew(
         return None
 
     crew = crew_manager.get_crew_member(ship_id, slot.crew_id)
-    if crew is None or crew.health <= 0.0:
+    if crew is None or crew.injury_state == InjuryState.DEAD:
         return None
 
-    # Injury chance: severity * 0.8 means light hits rarely hurt,
-    # heavy hits almost always do
-    injury_chance = severity * 0.8
-    if random.random() > injury_chance:
-        return {"crew_name": crew.name, "injured": False, "severity": severity}
+    # Determine injury outcome based on current state
+    old_state = crew.injury_state
+    new_state = old_state
+    injured = False
 
-    # Health reduction proportional to severity with some randomness
-    health_loss = severity * (0.3 + random.random() * 0.4)
-    crew.health = max(0.0, crew.health - health_loss)
+    if old_state == InjuryState.HEALTHY:
+        # Injury chance scales with severity: light hits rarely hurt,
+        # catastrophic hits almost always do
+        injury_chance = severity * 0.3
+        if random.random() < injury_chance:
+            new_state = InjuryState.WOUNDED
+            injured = True
 
-    # Stress spike from being hit
+    elif old_state == InjuryState.WOUNDED:
+        # Already hurt -- 50% chance of escalating to CRITICAL
+        if random.random() < 0.5:
+            new_state = InjuryState.CRITICAL
+            injured = True
+
+    elif old_state == InjuryState.CRITICAL:
+        # Already critical -- 30% chance of death
+        if random.random() < 0.3:
+            new_state = InjuryState.DEAD
+            injured = True
+
+    # Apply state change
+    crew.injury_state = new_state
+
+    # Apply health reduction proportional to severity (cosmetic tracking)
+    health_loss = 0.0
+    if injured:
+        health_loss = severity * (0.3 + random.random() * 0.4)
+        crew.health = max(0.0, crew.health - health_loss)
+
+    # Stress spike from being hit (even if not injured)
     crew.stress = min(1.0, crew.stress + severity * 0.5)
 
-    killed = crew.health <= 0.0
+    killed = new_state == InjuryState.DEAD
     if killed:
+        crew.health = 0.0
         # Dead crew: station falls back to AI
         slot.crew_id = None
         slot.is_ai_backup = True
         logger.warning(f"{crew.name} killed at {station.value} on {ship_id}")
-    else:
+    elif new_state == InjuryState.CRITICAL:
+        # Critical crew cannot work -- remove from station
+        slot.crew_id = None
+        slot.is_ai_backup = True
+        logger.warning(
+            f"{crew.name} critically injured at {station.value} on {ship_id}"
+        )
+    elif injured:
         logger.info(
-            f"{crew.name} injured at {station.value} on {ship_id} "
+            f"{crew.name} wounded at {station.value} on {ship_id} "
             f"(health: {crew.health:.0%})"
         )
 
     return {
         "crew_name": crew.name,
-        "injured": True,
+        "injured": injured,
         "killed": killed,
+        "old_state": old_state,
+        "new_state": new_state,
         "health_remaining": round(crew.health, 2),
         "health_lost": round(health_loss, 2),
         "severity": severity,

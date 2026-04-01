@@ -55,6 +55,7 @@ import "../components/combat-log.js";
 import "../components/power-profile-selector.js";
 import "../components/power-draw-display.js";
 import "../components/crew-panel.js";
+import "../components/crew-roster-panel.js";
 import "../components/subsystem-status.js";
 // Thermal Management
 import "../components/thermal-display.js";
