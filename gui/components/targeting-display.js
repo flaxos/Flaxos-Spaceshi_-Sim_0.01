@@ -93,6 +93,10 @@ class TargetingDisplay extends HTMLElement {
           border-radius: 8px;
           margin-bottom: 12px;
         }
+        .target-header.contact {
+          background: rgba(180, 130, 255, 0.08);
+          border: 1px solid var(--tier-purple, #b482ff);
+        }
         .target-header.tracking {
           background: rgba(255, 170, 0, 0.08);
           border: 1px solid var(--status-warning, #ffaa00);
@@ -115,6 +119,10 @@ class TargetingDisplay extends HTMLElement {
           height: 12px;
           border-radius: 50%;
           flex-shrink: 0;
+        }
+        .lock-indicator.contact {
+          background: var(--tier-purple, #b482ff);
+          animation: pulse 0.5s ease-in-out infinite;
         }
         .lock-indicator.tracking {
           background: var(--status-warning, #ffaa00);
@@ -144,6 +152,7 @@ class TargetingDisplay extends HTMLElement {
           font-size: 0.75rem;
           text-transform: uppercase;
         }
+        .lock-text.contact { color: var(--tier-purple, #b482ff); }
         .lock-text.tracking { color: var(--status-warning, #ffaa00); }
         .lock-text.acquiring { color: var(--status-info, #00aaff); }
         .lock-text.locked { color: var(--status-nominal, #00ff88); }
@@ -267,6 +276,7 @@ class TargetingDisplay extends HTMLElement {
         .bar-fill.green { background: var(--status-nominal, #00ff88); }
         .bar-fill.blue { background: var(--status-info, #00aaff); }
         .bar-fill.red { background: var(--status-critical, #ff4444); }
+        .bar-fill.purple { background: var(--tier-purple, #b482ff); }
 
         .bar-pct-overlay {
           position: absolute;
@@ -507,16 +517,27 @@ class TargetingDisplay extends HTMLElement {
    */
   _renderPipelineBars(lockState, trackQuality, lockProgress, lockQuality) {
     const isLost = lockState === "lost";
+    const isContact = lockState === "contact";
 
-    // SENSOR step: driven by track quality (0-1)
+    // During CONTACT phase, use correlation_progress from targeting state
+    // to show the sensor correlation bar filling up.
+    const targeting = stateManager.getTargeting();
+    const correlationPct = isContact
+      ? Math.round((targeting?.correlation_progress ?? 0) * 100)
+      : 100;
+
+    // SENSOR step: during CONTACT phase shows correlation progress,
+    // otherwise shows track quality (0-1).
     // Green when track is good enough for lock (>= 0.3 threshold implied by server)
-    const sensorPct = Math.round(trackQuality * 100);
-    const sensorComplete = trackQuality >= 0.3 && !isLost;
+    const sensorPct = isContact ? correlationPct : Math.round(trackQuality * 100);
+    const sensorComplete = !isContact && trackQuality >= 0.3 && !isLost;
     const sensorActive = !sensorComplete && !isLost;
-    const sensorBarColor = isLost ? "red" : sensorComplete ? "green" : "amber";
+    const sensorBarColor = isLost ? "red" : isContact ? "purple" : sensorComplete ? "green" : "amber";
     const sensorLabelClass = isLost ? "lost" : sensorComplete ? "complete" : "active";
+    const sensorSub = isContact ? "CORRELATING" : "";
 
     // WEAPONS step: shows different sub-states
+    //   CONTACT: idle (waiting for correlation)
     //   TRACKING: track quality bar (same data, but weapons context)
     //   ACQUIRING: lock progress bar
     //   LOCKED: lock quality bar (solid green)
@@ -526,7 +547,12 @@ class TargetingDisplay extends HTMLElement {
     let weaponsLabelClass = "";
     let weaponsComplete = false;
 
-    if (isLost) {
+    if (isContact) {
+      weaponsPct = 0;
+      weaponsBarColor = "amber";
+      weaponsSub = "AWAITING CORRELATION";
+      weaponsLabelClass = "";
+    } else if (isLost) {
       weaponsPct = 0;
       weaponsBarColor = "red";
       weaponsSub = "LOCK LOST";
@@ -556,9 +582,10 @@ class TargetingDisplay extends HTMLElement {
             <span class="step-label ${sensorLabelClass}">SENSOR</span>
             <span class="step-pct ${sensorComplete ? 'complete' : 'active'}">${sensorPct}%</span>
           </div>
+          ${sensorSub ? `<div class="step-sub">${sensorSub}</div>` : ''}
           <div class="bar-track">
             <div class="bar-fill ${sensorBarColor}" style="width: ${sensorPct}%"></div>
-            <span class="bar-pct-overlay">${this._trackQualityBrief(trackQuality)}</span>
+            <span class="bar-pct-overlay">${isContact ? 'CORRELATING' : this._trackQualityBrief(trackQuality)}</span>
           </div>
         </div>
 
@@ -620,6 +647,7 @@ class TargetingDisplay extends HTMLElement {
 
   _renderTargetHeader(lockState, targetId) {
     const stateLabels = {
+      contact: "CORRELATING:",
       tracking: "TRACKING:",
       acquiring: "ACQUIRING LOCK:",
       locked: "TARGET LOCKED:",

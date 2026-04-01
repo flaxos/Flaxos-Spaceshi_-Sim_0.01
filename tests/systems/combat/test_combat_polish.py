@@ -164,10 +164,14 @@ class TestFiringSolutionConfidence:
 # ---------------------------------------------------------------------------
 
 class TestTargetingPipeline:
-    """Verify the targeting pipeline: TRACKING -> ACQUIRING -> LOCKED."""
+    """Verify the targeting pipeline: CONTACT -> TRACKING -> ACQUIRING -> LOCKED."""
 
-    def test_lock_starts_at_tracking(self):
-        """Lock initiation sets state to TRACKING (not ACQUIRING)."""
+    def test_lock_starts_at_contact(self):
+        """Lock initiation enters CONTACT state (sensor correlation phase).
+
+        Without a ship reference to check range, there is no close-range
+        skip, so the system always enters CONTACT first.
+        """
         from hybrid.systems.targeting.targeting_system import (
             TargetingSystem, LockState,
         )
@@ -176,7 +180,7 @@ class TestTargetingPipeline:
         result = ts.lock_target("t1", sim_time=0.0)
 
         assert result["ok"]
-        assert ts.lock_state == LockState.TRACKING
+        assert ts.lock_state == LockState.CONTACT
 
     def test_tracking_state_enum_exists(self):
         """LockState enum contains TRACKING."""
@@ -186,7 +190,7 @@ class TestTargetingPipeline:
         assert LockState.TRACKING.value == "tracking"
 
     def test_contact_state_enum_exists(self):
-        """LockState enum contains CONTACT (even if unused)."""
+        """LockState enum contains CONTACT (used as initial designation state)."""
         from hybrid.systems.targeting.targeting_system import LockState
 
         assert hasattr(LockState, "CONTACT")
