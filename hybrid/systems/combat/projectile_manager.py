@@ -301,12 +301,31 @@ class ProjectileManager:
                 }
                 dist = calculate_distance(closest, ship.position)
 
-            if dist <= proj.hit_radius and dist < best_dist:
+            ship_radius = self._get_ship_hit_radius(ship)
+            effective_radius = max(proj.hit_radius, ship_radius)
+            if dist <= effective_radius and dist < best_dist:
                 best_dist = dist
                 best_ship = ship
                 best_closest = closest
 
         return best_ship, best_closest
+
+    def _get_ship_hit_radius(self, ship) -> float:
+        """Calculate hit radius from ship dimensions.
+
+        Bigger ships are easier to hit. Uses the largest dimension / 2
+        as the hit sphere radius, with a floor of 15m for tiny objects.
+        Falls back to DEFAULT_HIT_RADIUS when no dimensions exist.
+        """
+        dims = getattr(ship, 'dimensions', None)
+        if dims and isinstance(dims, dict):
+            length = dims.get('length_m', 0)
+            beam = dims.get('beam_m', 0)
+            draft = dims.get('draft_m', 0)
+            max_dim = max(length, beam, draft)
+            if max_dim > 0:
+                return max(max_dim / 2.0, 15.0)
+        return DEFAULT_HIT_RADIUS
 
     def _apply_hit(
         self, proj: Projectile, target_ship, sim_time: float,
