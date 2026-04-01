@@ -278,6 +278,10 @@ class UnifiedServer:
             clear = bool(req.get("clear", False))
             return {"ok": True, "hints": self.runner.get_mission_hints(clear=clear)}
 
+        # Campaign management commands (meta-level, runner-scoped)
+        if cmd in ("campaign_new", "campaign_save", "campaign_load", "campaign_status"):
+            return self._handle_campaign_command(cmd, req)
+
         if cmd == "get_tick_metrics":
             return {"ok": True, **self.runner.simulator.get_tick_metrics()}
 
@@ -459,6 +463,19 @@ class UnifiedServer:
         if cmd == "get_mission_hints":
             clear = bool(req.get("clear", False))
             return {"ok": True, "hints": self.runner.get_mission_hints(clear=clear)}
+
+        # Campaign commands -- captain-only for new/save/load, status is open
+        if cmd in ("campaign_new", "campaign_save", "campaign_load", "campaign_status"):
+            # campaign_status is read-only, allow from any station
+            if cmd != "campaign_status":
+                is_captain = session and session.station and session.station.value == "captain"
+                is_only_client = len(self.station_manager.sessions) <= 1
+                if not is_captain and not is_only_client:
+                    return Response.error(
+                        "Only captain can manage campaign state",
+                        ErrorCode.PERMISSION_DENIED,
+                    ).to_dict()
+            return self._handle_campaign_command(cmd, req)
 
         if cmd == "get_tick_metrics":
             return {"ok": True, **self.runner.simulator.get_tick_metrics()}
@@ -998,6 +1015,34 @@ class UnifiedServer:
             "mission": self.runner.get_mission_status(),
         }
 
+    def _handle_campaign_command(self, cmd: str, req: dict) -> dict:
+        """Route campaign management commands to their handlers.
+
+        Campaign commands are runner-scoped (not ship-scoped) because
+        campaign state lives on the runner, not on any individual ship.
+        """
+        from hybrid.commands.campaign_commands import (
+            cmd_campaign_new,
+            cmd_campaign_save,
+            cmd_campaign_load,
+            cmd_campaign_status,
+        )
+
+        handlers = {
+            "campaign_new": cmd_campaign_new,
+            "campaign_save": cmd_campaign_save,
+            "campaign_load": cmd_campaign_load,
+            "campaign_status": cmd_campaign_status,
+        }
+        handler = handlers.get(cmd)
+        if not handler:
+            return Response.error(f"Unknown campaign command: {cmd}", ErrorCode.INVALID_PARAM).to_dict()
+        try:
+            return handler(self.runner, req)
+        except Exception as exc:
+            logger.error("Campaign command %s failed: %s", cmd, exc, exc_info=True)
+            return Response.error(str(exc), ErrorCode.INTERNAL_ERROR).to_dict()
+
     @staticmethod
     def _format_ship_state(state: dict) -> dict:
         """Format ship state for API response."""
@@ -1238,6 +1283,10 @@ Examples:
     ap.add_argument("--fleet-dir", default=DEFAULT_FLEET_DIR, help="Fleet directory")
     ap.add_argument("--lan", action="store_true", help="Enable LAN mode (bind to 0.0.0.0)")
     ap.add_argument("--log-file", default=None, help="Log file path")
+    ap.add_argument(
+        "--campaign", default=None, metavar="SAVE.json",
+        help="Load a campaign save file at startup (enables campaign mode)",
+    )
     return ap
 
 
@@ -1265,6 +1314,25 @@ def main() -> None:
 
     # Start server
     server = UnifiedServer(config)
+
+    # Load campaign save if specified on the command line
+    if args.campaign:
+        from hybrid.campaign.campaign_state import CampaignState
+        import os
+        campaign_path = args.campaign
+        if not os.path.isabs(campaign_path):
+            campaign_path = os.path.join(ROOT_DIR, campaign_path)
+        try:
+            state = CampaignState.load(campaign_path)
+            server.runner._campaign_state = state
+            logger.info("Campaign loaded from CLI: %s", campaign_path)
+        except FileNotFoundError:
+            logger.error("Campaign file not found: %s", campaign_path)
+            sys.exit(1)
+        except Exception as exc:
+            logger.error("Failed to load campaign: %s", exc)
+            sys.exit(1)
+
     server.start()
 
 
