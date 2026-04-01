@@ -10,6 +10,7 @@ from hybrid.fleet.fleet_manager import FleetManager
 from hybrid.core.event_bus import EventBus
 from hybrid.systems.combat.projectile_manager import ProjectileManager
 from hybrid.systems.combat.torpedo_manager import TorpedoManager
+from hybrid.environment.environment_manager import EnvironmentManager
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +75,9 @@ class Simulator:
 
         # Torpedo simulation
         self.torpedo_manager = TorpedoManager()
+
+        # Environmental hazards (asteroid fields, radiation, debris, nebulae)
+        self.environment_manager = EnvironmentManager()
 
         # Initialize fleet manager
         self.fleet_manager = FleetManager(simulator=self)
@@ -210,11 +214,12 @@ class Simulator:
         Tick order:
         1. Ship systems update (propulsion sets acceleration, RCS sets angular vel)
         2. Auto-repair tick (gradual passive repair)
-        3. Sensor interactions (cross-ship detection)
-        4. Projectile advancement and intercept checks
-        5. Remove destroyed ships
-        6. Fleet manager update
-        7. Advance simulation time
+        3. Environment tick (asteroid drift, ship-asteroid collisions)
+        4. Sensor interactions (cross-ship detection)
+        5. Projectile advancement and intercept checks
+        6. Remove destroyed ships
+        7. Fleet manager update
+        8. Advance simulation time
 
         Returns:
             float: Time elapsed in simulation
@@ -233,6 +238,7 @@ class Simulator:
         for ship in all_ships:
             try:
                 ship._all_ships_ref = all_ships
+                ship._environment_manager_ref = self.environment_manager
                 # Inject projectile_manager and torpedo_manager into combat system
                 combat = ship.systems.get("combat")
                 if combat and hasattr(combat, "_projectile_manager"):
@@ -254,15 +260,27 @@ class Simulator:
             except Exception as e:
                 logger.error(f"Error in auto-repair for {ship.id}: {e}")
 
+        # Environment: advance asteroid drift, check ship-asteroid collisions
+        self.environment_manager.tick(self.dt)
+        self.environment_manager.check_ship_collisions(
+            all_ships, self.dt, self._event_bus,
+        )
+
         # Process sensor interactions
         self._process_sensor_interactions(all_ships)
 
-        # Advance projectiles and check for intercepts
-        # Always tick — projectiles may have been spawned during ship ticks above
-        self.projectile_manager.tick(self.dt, self.time, self.ships)
+        # Advance projectiles and check for intercepts.
+        # Pass environment_manager so slugs that hit asteroids are absorbed.
+        self.projectile_manager.tick(
+            self.dt, self.time, self.ships, self.environment_manager,
+        )
 
-        # Advance torpedoes (guided munitions with their own drive)
-        self.torpedo_manager.tick(self.dt, self.time, self.ships)
+        # Advance torpedoes (guided munitions with their own drive).
+        # Pass environment_manager so debris degrades guidance and
+        # nebulae sever datalink.
+        self.torpedo_manager.tick(
+            self.dt, self.time, self.ships, self.environment_manager,
+        )
 
         # PDC auto-interception of incoming torpedoes
         self._process_pdc_torpedo_intercept(all_ships)
@@ -307,6 +325,8 @@ class Simulator:
             "avg_tick_ms": avg_tick * 1000,
             "active_projectiles": self.projectile_manager.active_count,
             "active_torpedoes": self.torpedo_manager.active_count,
+            "asteroid_fields": len(self.environment_manager.asteroid_fields),
+            "hazard_zones": len(self.environment_manager.hazard_zones),
         }
 
     def _record_event(self, event_name, payload, ship_id=None):

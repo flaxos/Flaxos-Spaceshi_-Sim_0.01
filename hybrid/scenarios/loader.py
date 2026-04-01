@@ -45,6 +45,7 @@ class ScenarioLoader:
             "mission": ScenarioLoader._parse_mission(data.get("mission", {})),
             "config": data.get("config", {}),
             "fleets": data.get("fleets", []),
+            "environment": data.get("environment", {}),
         }
 
         return scenario

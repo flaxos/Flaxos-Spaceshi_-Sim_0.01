@@ -1,0 +1,169 @@
+# Scenario 46: Asteroid Gauntlet
+# Navigate an asteroid field while under pursuit by a hostile corvette.
+# The asteroid field provides cover but also collision hazard.
+# A radiation zone near the center degrades sensors; a debris field
+# on the far side damages guided munitions.
+#
+# Player goal: reach the waypoint on the far side of the belt.
+# Pursuer AI will attempt to intercept with missiles and railgun.
+# Tactical choice: cut through the field (collision risk, sensor cover)
+# or go around (longer path, exposed to fire).
+
+name: "Asteroid Gauntlet"
+description: "Navigate an asteroid field under hostile pursuit"
+difficulty: hard
+player_count: 1
+category: combat
+
+dt: 0.1
+
+environment:
+  asteroid_fields:
+    - id: "main_belt"
+      center: {x: 50000, y: 0, z: 0}
+      radius: 30000
+      count: 120
+      seed: 46
+
+  hazard_zones:
+    - id: "rad_core"
+      center: {x: 55000, y: 0, z: 5000}
+      radius: 8000
+      type: "radiation"
+      intensity: 0.9
+
+    - id: "debris_exit"
+      center: {x: 80000, y: 0, z: -5000}
+      radius: 6000
+      type: "debris"
+      intensity: 0.7
+
+    - id: "nebula_pocket"
+      center: {x: 40000, y: 0, z: -10000}
+      radius: 5000
+      type: "nebula"
+      intensity: 1.0
+
+ships:
+  - id: "player"
+    name: "Rocinante"
+    class: "corvette"
+    player_controlled: true
+    position: {x: 0, y: 0, z: 0}
+    velocity: {x: 200, y: 0, z: 0}
+    mass: 5000
+    systems:
+      propulsion:
+        max_thrust: 50000
+        fuel_level: 10000
+        max_fuel: 10000
+      sensors:
+        passive:
+          range: 200000
+        active:
+          scan_range: 500000
+      navigation: {}
+      targeting:
+        lock_range: 500000.0
+      weapons:
+        weapons:
+          - name: "railgun"
+            power_cost: 15
+            max_heat: 80
+            ammo: 20
+          - name: "pdc"
+            power_cost: 5
+            max_heat: 50
+            ammo: 1000
+        hardpoints:
+          - id: "hp_fwd_1"
+            weapon: "railgun"
+            position: "fore"
+          - id: "hp_pdc_1"
+            weapon: "pdc"
+            position: "dorsal"
+
+  - id: "pursuer"
+    name: "Hammurabi"
+    class: "corvette"
+    faction: "hostile"
+    position: {x: -20000, y: 0, z: 0}
+    velocity: {x: 300, y: 0, z: 0}
+    mass: 6000
+    ai:
+      type: "intercept"
+      target: "player"
+      behavior: "aggressive"
+    systems:
+      propulsion:
+        max_thrust: 60000
+        fuel_level: 12000
+        max_fuel: 12000
+      sensors:
+        passive:
+          range: 200000
+        active:
+          scan_range: 500000
+      navigation: {}
+      targeting:
+        lock_range: 500000.0
+      weapons:
+        weapons:
+          - name: "railgun"
+            power_cost: 15
+            max_heat: 80
+            ammo: 15
+          - name: "missile"
+            power_cost: 8
+            max_heat: 60
+            ammo: 6
+          - name: "pdc"
+            power_cost: 5
+            max_heat: 50
+            ammo: 800
+        hardpoints:
+          - id: "hp_fwd_1"
+            weapon: "railgun"
+            position: "fore"
+          - id: "hp_fwd_2"
+            weapon: "missile"
+            position: "fore"
+          - id: "hp_pdc_1"
+            weapon: "pdc"
+            position: "dorsal"
+
+mission:
+  name: "Asteroid Gauntlet"
+  description: "Navigate through the asteroid field to the waypoint"
+  briefing: >
+    An enemy corvette is on intercept course. The asteroid field ahead
+    provides cover from railgun fire but you risk collision damage.
+    A radiation zone near the center will degrade your sensors.
+    Reach the waypoint beyond the belt to complete the mission.
+  objectives:
+    - id: "reach_waypoint"
+      type: "reach_position"
+      description: "Reach the waypoint beyond the asteroid field"
+      required: true
+      params:
+        position: {x: 100000, y: 0, z: 0}
+        range: 5000
+    - id: "survive"
+      type: "avoid_mission_kill"
+      description: "Keep your drive operational"
+      required: true
+      params:
+        ship_id: "player"
+        subsystem: "propulsion"
+  success_message: "You navigated the gauntlet. The pursuer has broken off."
+  failure_message: "Your ship was disabled in the asteroid field."
+  hints:
+    - trigger: "start"
+      message: "The asteroid field blocks railgun fire -- use it as cover"
+    - trigger: "start"
+      message: "The radiation zone near the center will blind your sensors"
+    - trigger: "start"
+      message: "Guided missiles lose datalink in the nebula pocket to the south"
+
+config:
+  player_ship_id: "player"

@@ -411,13 +411,18 @@ class TorpedoManager:
 
         return torpedo
 
-    def tick(self, dt: float, sim_time: float, ships: dict) -> List[dict]:
+    def tick(
+        self, dt: float, sim_time: float, ships: dict,
+        environment_manager=None,
+    ) -> List[dict]:
         """Advance all torpedoes and check for detonation/interception.
 
         Args:
             dt: Time step in seconds
             sim_time: Current simulation time
             ships: Dict of ship_id -> Ship objects
+            environment_manager: Optional EnvironmentManager for debris
+                damage and nebula datalink loss
 
         Returns:
             List of detonation/interception event dicts
@@ -453,6 +458,34 @@ class TorpedoManager:
                     "flight_time": age,
                 })
                 continue
+
+            # Environment: debris degrades hull, nebula severs datalink.
+            # Applied BEFORE guidance update so datalink loss takes effect
+            # on the same tick the munition enters the nebula.
+            if environment_manager is not None:
+                env_damage, datalink_blocked = (
+                    environment_manager.check_torpedo_degradation(
+                        torpedo.position, dt,
+                    )
+                )
+                if env_damage > 0:
+                    torpedo.hull_health -= env_damage
+                    if torpedo.hull_health <= 0:
+                        torpedo.alive = False
+                        torpedo.state = TorpedoState.INTERCEPTED
+                        label = torpedo.munition_type.value.capitalize()
+                        logger.info(
+                            "%s %s destroyed by debris field", label, torpedo.id,
+                        )
+                        self._event_bus.publish("torpedo_debris_destroyed", {
+                            "torpedo_id": torpedo.id,
+                            "munition_type": torpedo.munition_type.value,
+                            "shooter": torpedo.shooter_id,
+                            "target": torpedo.target_id,
+                        })
+                        continue
+                if datalink_blocked:
+                    torpedo.datalink_active = False
 
             # Update datalink — get fresh target data from launching ship
             self._update_datalink(torpedo, ships)

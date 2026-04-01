@@ -174,7 +174,10 @@ class ProjectileManager:
 
         return proj
 
-    def tick(self, dt: float, sim_time: float, ships: dict) -> List[dict]:
+    def tick(
+        self, dt: float, sim_time: float, ships: dict,
+        environment_manager=None,
+    ) -> List[dict]:
         """Advance all projectiles and check for intercepts.
 
         Uses closest-approach-during-tick to detect hits even when
@@ -184,6 +187,9 @@ class ProjectileManager:
             dt: Time step in seconds
             sim_time: Current simulation time
             ships: Dict of ship_id -> Ship objects
+            environment_manager: Optional EnvironmentManager for asteroid
+                obstruction checks.  A railgun slug that hits an asteroid
+                is absorbed -- the rock is opaque to kinetic impactors.
 
         Returns:
             List of intercept event dicts
@@ -220,6 +226,28 @@ class ProjectileManager:
             proj.position["x"] += proj.velocity["x"] * dt
             proj.position["y"] += proj.velocity["y"] * dt
             proj.position["z"] += proj.velocity["z"] * dt
+
+            # Check asteroid obstruction before ship intercepts.
+            # A slug that hits a rock never reaches the target.
+            if environment_manager is not None:
+                hit_asteroid = environment_manager.check_projectile_obstruction(
+                    old_pos, proj.position,
+                )
+                if hit_asteroid is not None:
+                    proj.alive = False
+                    self._event_bus.publish("projectile_asteroid_impact", {
+                        "projectile_id": proj.id,
+                        "weapon": proj.weapon_name,
+                        "shooter": proj.shooter_id,
+                        "target": proj.target_id,
+                        "asteroid_id": hit_asteroid.id,
+                        "flight_time": age,
+                        "feedback": (
+                            f"Slug absorbed by asteroid {hit_asteroid.id} "
+                            f"after {age:.1f}s flight"
+                        ),
+                    })
+                    continue
 
             # Check for intercepts against all ships (except shooter)
             hit_ship, closest_point = self._check_intercepts(proj, old_pos, dt, ships)

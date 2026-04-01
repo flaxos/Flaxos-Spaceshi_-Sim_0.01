@@ -69,13 +69,21 @@ class PassiveSensor:
         self.range = max(0.0, self.base_range * max(0.0, multiplier))
 
     def update(self, current_tick: int, dt: float, observer_ship,
-               all_ships: List, sim_time: float, eccm=None):
+               all_ships: List, sim_time: float, eccm=None,
+               environment_manager=None):
         """Update passive sensor contacts.
 
         Detection is emission-based: for each potential target, calculate
         its IR signature, determine the range at which that signature is
         detectable by this sensor, and check if the target is within that
         range. Resolution degrades with distance.
+
+        Environmental modifiers:
+        - Radiation zones reduce effective detection range (IR noise floor
+          is raised by ambient radiation, drowning out weaker signatures).
+        - Nebulae block LOS entirely: if the line between observer and
+          target passes through a nebula, detection fails regardless of
+          signal strength.
 
         Args:
             current_tick: Current simulation tick
@@ -84,6 +92,8 @@ class PassiveSensor:
             all_ships: List of all ships in simulation
             sim_time: Current simulation time
             eccm: Optional ECCMState for multi-spectral flare filtering
+            environment_manager: Optional EnvironmentManager for sensor
+                range modifiers and LOS blocking
         """
         # Only update at specified interval
         if current_tick - self.last_update_tick < self.update_interval:
@@ -128,6 +138,22 @@ class PassiveSensor:
             # Effective detection range: minimum of emission-based range and
             # sensor hardware limit (processing/saturation cap)
             effective_range = min(ir_range, self.range)
+
+            # Environment: radiation zones raise the IR noise floor,
+            # reducing effective detection range.  Apply modifier for
+            # the observer's position (the sensor is in the noisy zone).
+            if environment_manager is not None:
+                env_mod = environment_manager.get_sensor_modifier(
+                    observer_ship.position,
+                )
+                effective_range *= env_mod
+
+                # Nebula LOS block: if a nebula sits between observer
+                # and target, the signal is fully absorbed.
+                if environment_manager.check_los_blocked(
+                    observer_ship.position, target_ship.position,
+                ):
+                    continue
 
             # Check if target is within detection range
             if distance > effective_range:

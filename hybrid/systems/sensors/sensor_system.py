@@ -104,7 +104,9 @@ class SensorSystem(BaseSystem):
         if hasattr(ship, "_all_ships_ref"):
             self.all_ships = ship._all_ships_ref
 
-        # Update passive sensor (pass ECCM for multi-spectral flare filtering)
+        # Update passive sensor (pass ECCM for multi-spectral flare filtering,
+        # and environment manager for radiation/nebula effects)
+        env_mgr = getattr(ship, "_environment_manager_ref", None)
         self.passive.update(
             self.current_tick,
             dt,
@@ -112,6 +114,7 @@ class SensorSystem(BaseSystem):
             self.all_ships,
             self.sim_time,
             eccm=self.eccm,
+            environment_manager=env_mgr,
         )
 
         # Merge passive contacts into contact tracker
