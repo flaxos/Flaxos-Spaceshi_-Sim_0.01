@@ -489,6 +489,11 @@ class Simulator:
                     assignments[mount_id] = target
 
             # ---- Fire each PDC at its assigned target ----
+            # Each PDC fires a full burst (burst_count rounds). Every
+            # round gets its own hit roll, consumes 1 ammo, and generates
+            # heat. The torpedo is destroyed if ANY round in the burst
+            # connects. This models realistic CIWS suppression fire rather
+            # than the old single-roll binary outcome.
             for mount_id, weapon, mode in pdc_mounts:
                 target = assignments.get(mount_id)
                 if target is None:
@@ -511,31 +516,62 @@ class Simulator:
                     }
                 combat.pdc_stats[mount_id]["engagements"] += 1
 
-                hit = random.random() < hit_chance
-                if hit:
-                    pdc_damage = weapon.specs.base_damage * weapon.specs.burst_count
-                    result = self.torpedo_manager.apply_pdc_damage(
-                        target.id, pdc_damage,
-                        source=f"{ship.id}:{mount_id}",
-                    )
-                    destroyed = result.get("destroyed", False)
-                    combat.pdc_stats[mount_id]["intercepts"] += 1
+                # -- Per-round burst loop --
+                # burst_count rounds, each with independent hit roll,
+                # ammo consumption, and heat generation.
+                rounds_fired = 0
+                burst_hits = 0
+                destroyed = False
 
-                    if destroyed:
-                        # Start re-acquisition delay before engaging next threat
-                        combat._pdc_reacquire_timers[mount_id] = combat._pdc_reacquire_delay
-                        # Free network engagement slot so another PDC can assist
-                        if mount_id in combat._pdc_engagements:
-                            del combat._pdc_engagements[mount_id]
+                for _round_i in range(weapon.specs.burst_count):
+                    # Stop if out of ammo
+                    if weapon.ammo is not None and weapon.ammo <= 0:
+                        break
+
+                    rounds_fired += 1
+
+                    # Consume 1 round of ammo
+                    if weapon.ammo is not None:
+                        weapon.ammo -= 1
+
+                    # Per-round heat: PDC turret generates modest heat per
+                    # round. 10 rounds * 1.0 heat = 10 heat per burst, which
+                    # is sustainable (max_heat=100, dissipation=5/s) but
+                    # continuous defensive fire will accumulate.
+                    weapon.heat += 1.0
+
+                    # Independent hit roll for this round
+                    if not destroyed and random.random() < hit_chance:
+                        burst_hits += 1
+                        # Apply single-round damage to the torpedo
+                        result = self.torpedo_manager.apply_pdc_damage(
+                            target.id, weapon.specs.base_damage,
+                            source=f"{ship.id}:{mount_id}",
+                        )
+                        if result.get("destroyed", False):
+                            destroyed = True
+                            # Remaining rounds in the burst still fire into
+                            # debris (ammo/heat consumed) but cannot hit again.
+
+                    # Stop burst if weapon overheats mid-burst
+                    if weapon.heat >= weapon.max_heat * 0.95:
+                        break
+
+                # Record cooldown — weapon has fired its burst
+                weapon.last_fired = sim_time
+
+                # Update stats
+                if burst_hits > 0:
+                    combat.pdc_stats[mount_id]["intercepts"] += 1
                 else:
-                    destroyed = False
                     combat.pdc_stats[mount_id]["misses"] += 1
 
-                # Consume ammo and apply heat regardless of hit/miss
-                if weapon.ammo is not None:
-                    weapon.ammo = max(0, weapon.ammo - weapon.specs.burst_count)
-                weapon.last_fired = sim_time
-                weapon.heat += 10.0
+                if destroyed:
+                    # Start re-acquisition delay before engaging next threat
+                    combat._pdc_reacquire_timers[mount_id] = combat._pdc_reacquire_delay
+                    # Free network engagement slot so another PDC can assist
+                    if mount_id in combat._pdc_engagements:
+                        del combat._pdc_engagements[mount_id]
 
                 # Publish engagement event — the combat log subscribes to
                 # pdc_torpedo_engage via EventBus and builds narrative entries
@@ -545,8 +581,10 @@ class Simulator:
                     "pdc_mount": mount_id,
                     "torpedo_id": target.id,
                     "distance": dist,
-                    "hit": hit,
+                    "hit": burst_hits > 0,
                     "destroyed": destroyed,
+                    "rounds_fired": rounds_fired,
+                    "burst_hits": burst_hits,
                     "mode": mode,
                 })
 
