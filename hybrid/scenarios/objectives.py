@@ -25,6 +25,7 @@ class ObjectiveType(Enum):
     COLLECT_ITEM = "collect_item"
     ESCAPE_RANGE = "escape_range"
     AMMO_DEPLETED = "ammo_depleted"
+    BOARD_AND_CAPTURE = "board_and_capture"
 
 class ObjectiveStatus(Enum):
     """Status of an objective."""
@@ -99,6 +100,8 @@ class Objective:
             return self._check_escape_range(sim, player_ship, tracker)
         elif self.type == ObjectiveType.AMMO_DEPLETED:
             return self._check_ammo_depleted(sim, player_ship, tracker)
+        elif self.type == ObjectiveType.BOARD_AND_CAPTURE:
+            return self._check_board_and_capture(sim, player_ship)
 
         return False
 
@@ -531,6 +534,44 @@ class Objective:
                 self.progress = 1.0
                 logger.info(f"Objective {self.id} completed: ammo conserved")
                 return True
+
+        return False
+
+    def _check_board_and_capture(self, sim, player_ship) -> bool:
+        """Check if target ship's faction changed to player's faction.
+
+        A boarding action succeeds when the boarding system on the player
+        ship drives progress to 1.0 and flips the target's faction.
+        This objective simply reads the result of that faction change.
+
+        The boarding system on the player's ship also exposes progress
+        that we mirror into objective progress for the HUD.
+        """
+        target_id = self.params.get("target")
+
+        target_ship = sim.ships.get(target_id)
+        if not target_ship:
+            self.status = ObjectiveStatus.FAILED
+            self.failure_reason = f"Target {target_id} not found"
+            return False
+
+        # Mirror boarding progress from the player's boarding system (if active)
+        boarding = player_ship.systems.get("boarding")
+        if boarding and hasattr(boarding, "progress"):
+            self.progress = boarding.progress
+
+        # Capture complete when target faction matches player faction
+        player_faction = getattr(player_ship, "faction", None)
+        target_faction = getattr(target_ship, "faction", None)
+        if player_faction and target_faction == player_faction:
+            self.status = ObjectiveStatus.COMPLETED
+            self.completion_time = sim.time
+            self.progress = 1.0
+            logger.info(
+                "Objective %s completed: %s captured (faction=%s)",
+                self.id, target_id, target_faction,
+            )
+            return True
 
         return False
 

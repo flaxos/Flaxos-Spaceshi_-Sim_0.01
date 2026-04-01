@@ -188,6 +188,10 @@ system_commands = {
     "set_comms_policy": ("auto_comms", "set_policy"),
     "approve_comms": ("auto_comms", "approve"),
     "deny_comms": ("auto_comms", "deny"),
+    # Boarding commands (Phase 3B — capture mission-killed ships)
+    "begin_boarding": ("boarding", "begin_boarding"),
+    "cancel_boarding": ("boarding", "cancel_boarding"),
+    "boarding_status": ("boarding", "status"),
     # Fleet coordination commands
     "fleet_create": ("fleet_coord", "fleet_create"),
     "fleet_add_ship": ("fleet_coord", "fleet_add_ship"),

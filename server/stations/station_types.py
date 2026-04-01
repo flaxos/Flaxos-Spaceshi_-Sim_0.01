@@ -226,6 +226,10 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             "set_ops_mode",
             "approve_ops",
             "deny_ops",
+            # Boarding commands (Phase 3B)
+            "begin_boarding",
+            "cancel_boarding",
+            "boarding_status",
             # Inter-station comms
             "station_message",
         },
@@ -235,7 +239,7 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             "compartment_status", "heat_status", "thermal_status",
             "power_management_status", "ops_status", "ecm_status",
             "crew_fatigue_status", "crew_station_status",
-            "subsystem_health",
+            "subsystem_health", "boarding_status",
             "auto_ops_status",
         },
         required_systems={"power", "power_management"},
