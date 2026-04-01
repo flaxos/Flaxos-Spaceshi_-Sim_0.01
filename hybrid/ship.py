@@ -270,6 +270,9 @@ class Ship:
             "crew_binding": {},  # Crew-station assignment and performance multipliers
             "auto_tactical": {},  # CPU-ASSIST automated targeting and fire proposals
             "auto_ops": {},       # CPU-ASSIST automated ops management proposals
+            "auto_engineering": {},  # CPU-ASSIST automated engineering management
+            "auto_science": {},      # CPU-ASSIST automated science analysis
+            "auto_comms": {},        # CPU-ASSIST automated communications management
         }
 
         # Merge config with defaults (config takes precedence)

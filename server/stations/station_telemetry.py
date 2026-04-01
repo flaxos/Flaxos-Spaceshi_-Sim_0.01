@@ -88,6 +88,9 @@ class StationTelemetryFilter:
             # Auto-system displays (CPU-ASSIST tier)
             "auto_tactical_status": ["auto_tactical"],
             "auto_ops_status": ["auto_ops"],
+            "auto_engineering_status": ["auto_engineering"],
+            "auto_science_status": ["auto_science"],
+            "auto_comms_status": ["auto_comms"],
 
             # Emissions / signature displays
             "emissions_status": ["emissions"],

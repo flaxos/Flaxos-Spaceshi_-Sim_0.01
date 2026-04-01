@@ -1,0 +1,311 @@
+# Campaign Mission: Ring Gate Approach
+#
+# Deep space research mission with fuel tension. The player must scan
+# 4 beacons at increasing distances and return to start on limited fuel.
+#
+# Design rationale:
+#   - This is a planning mission, not a combat mission. The challenge
+#     is fuel management and route optimization.
+#   - Beacons at 50/100/200/400km force increasingly costly burns.
+#     With only 60% fuel, the player cannot brute-force every leg --
+#     they must coast between burns and plan deceleration carefully.
+#   - The science vessel is fragile and slow. No combat systems.
+#     If something goes wrong, there is no fighting your way out.
+#   - The return-to-start objective means the player must budget
+#     fuel for the entire round trip, not just the outbound leg.
+#   - Beacons are stationary freighter-class objects (no weapons,
+#     no AI) -- they exist only as scan targets.
+
+name: "Ring Gate Approach"
+description: "Navigate a fuel-limited science vessel to scan 4 deep space beacons and return safely"
+
+difficulty: "hard"
+player_count: "1"
+category: "campaign"
+
+dt: 0.1
+
+# -- Ships ----------------------------------------------------------------
+
+ships:
+  # -- Player science vessel (low fuel) -----------------------------------
+  - id: "player"
+    name: "UNSV Kepler"
+    ship_class: "science_vessel"
+    faction: "unsa"
+    player_controlled: true
+    position: {x: 0, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+    orientation: {pitch: 0, yaw: 0, roll: 0}
+    systems:
+      propulsion:
+        fuel_level: 300.0
+        max_fuel: 500.0
+      sensors:
+        passive:
+          range: 100000
+        active:
+          scan_range: 200000
+      targeting:
+        lock_time: 2.0
+        lock_range: 50000
+      combat:
+        enabled: false
+        railguns: 0
+        pdcs: 1
+      navigation: {}
+    damage_model:
+      propulsion: {max_health: 60.0, health: 60.0}
+      rcs: {max_health: 50.0, health: 50.0}
+      weapons: {max_health: 20.0, health: 20.0}
+      sensors: {max_health: 80.0, health: 80.0}
+
+  # -- Beacon 1 (50km) ---------------------------------------------------
+  - id: "beacon_1"
+    name: "Beacon Alpha"
+    ship_class: "freighter"
+    faction: "neutral"
+    ai_enabled: true
+    position: {x: 50000, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+    orientation: {pitch: 0, yaw: 0, roll: 0}
+    max_hull_integrity: 100.0
+    hull_integrity: 100.0
+    ai_behavior:
+      role: "freighter"
+      flee_threshold: 0.0
+      max_thrust_profile: 0.0
+    systems:
+      propulsion:
+        fuel_level: 0.0
+        max_fuel: 0.0
+      sensors:
+        passive:
+          range: 5000
+      navigation: {}
+    damage_model:
+      propulsion: {max_health: 10.0, health: 10.0}
+      rcs: {max_health: 10.0, health: 10.0}
+      weapons: {max_health: 10.0, health: 10.0}
+      sensors: {max_health: 10.0, health: 10.0}
+
+  # -- Beacon 2 (100km) --------------------------------------------------
+  - id: "beacon_2"
+    name: "Beacon Beta"
+    ship_class: "freighter"
+    faction: "neutral"
+    ai_enabled: true
+    position: {x: 100000, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+    orientation: {pitch: 0, yaw: 0, roll: 0}
+    max_hull_integrity: 100.0
+    hull_integrity: 100.0
+    ai_behavior:
+      role: "freighter"
+      flee_threshold: 0.0
+      max_thrust_profile: 0.0
+    systems:
+      propulsion:
+        fuel_level: 0.0
+        max_fuel: 0.0
+      sensors:
+        passive:
+          range: 5000
+      navigation: {}
+    damage_model:
+      propulsion: {max_health: 10.0, health: 10.0}
+      rcs: {max_health: 10.0, health: 10.0}
+      weapons: {max_health: 10.0, health: 10.0}
+      sensors: {max_health: 10.0, health: 10.0}
+
+  # -- Beacon 3 (200km) --------------------------------------------------
+  - id: "beacon_3"
+    name: "Beacon Gamma"
+    ship_class: "freighter"
+    faction: "neutral"
+    ai_enabled: true
+    position: {x: 200000, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+    orientation: {pitch: 0, yaw: 0, roll: 0}
+    max_hull_integrity: 100.0
+    hull_integrity: 100.0
+    ai_behavior:
+      role: "freighter"
+      flee_threshold: 0.0
+      max_thrust_profile: 0.0
+    systems:
+      propulsion:
+        fuel_level: 0.0
+        max_fuel: 0.0
+      sensors:
+        passive:
+          range: 5000
+      navigation: {}
+    damage_model:
+      propulsion: {max_health: 10.0, health: 10.0}
+      rcs: {max_health: 10.0, health: 10.0}
+      weapons: {max_health: 10.0, health: 10.0}
+      sensors: {max_health: 10.0, health: 10.0}
+
+  # -- Beacon 4 (400km) --------------------------------------------------
+  - id: "beacon_4"
+    name: "Beacon Delta"
+    ship_class: "freighter"
+    faction: "neutral"
+    ai_enabled: true
+    position: {x: 400000, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+    orientation: {pitch: 0, yaw: 0, roll: 0}
+    max_hull_integrity: 100.0
+    hull_integrity: 100.0
+    ai_behavior:
+      role: "freighter"
+      flee_threshold: 0.0
+      max_thrust_profile: 0.0
+    systems:
+      propulsion:
+        fuel_level: 0.0
+        max_fuel: 0.0
+      sensors:
+        passive:
+          range: 5000
+      navigation: {}
+    damage_model:
+      propulsion: {max_health: 10.0, health: 10.0}
+      rcs: {max_health: 10.0, health: 10.0}
+      weapons: {max_health: 10.0, health: 10.0}
+      sensors: {max_health: 10.0, health: 10.0}
+
+# -- Mission --------------------------------------------------------------
+
+mission:
+  name: "Ring Gate Approach"
+  description: "Scan four deep space beacons and return to origin on limited fuel"
+
+  briefing: |
+    MISSION BRIEFING: RING GATE APPROACH
+
+    The UNSV Kepler has been tasked with surveying a chain of anomalous
+    signal beacons detected along the approach vector to the Ring Gate.
+    Each beacon must be scanned at close range to characterize the
+    signal source.
+
+    FORCES:
+      - UNSV Kepler (science vessel, your ship) -- 0 railguns, 1 PDC
+        Equipped for survey, not combat. Handle with care.
+
+    BEACON POSITIONS (along +X axis from origin):
+      - Beacon Alpha:  50 km
+      - Beacon Beta:  100 km
+      - Beacon Gamma: 200 km
+      - Beacon Delta: 400 km
+
+    CRITICAL CONSTRAINT: FUEL
+      Your tanks are at 60% capacity (300 of 500 units). This is
+      NOT enough for reckless flying. You must:
+      - Plan efficient burn-coast-brake profiles
+      - Minimize unnecessary thrust corrections
+      - Budget fuel for the RETURN trip to origin
+
+    MISSION PROFILE:
+      1. Scan all four beacons (close approach required for each)
+      2. Return to origin point (within 5km)
+      3. Do not run out of fuel in deep space
+
+    The beacons are passive -- no threat expected. But fuel exhaustion
+    400km from anywhere is its own kind of emergency.
+
+    Fly smart, Commander. Every kilogram of propellant counts.
+
+  time_limit: 2400  # 40 minutes -- long mission, lots of coasting
+
+  objectives:
+    # Primary: scan all 4 beacons
+    - id: "scan_beacon_1"
+      type: "scan_target"
+      description: "Scan Beacon Alpha (50km)"
+      required: true
+      params:
+        target: "beacon_1"
+
+    - id: "scan_beacon_2"
+      type: "scan_target"
+      description: "Scan Beacon Beta (100km)"
+      required: true
+      params:
+        target: "beacon_2"
+
+    - id: "scan_beacon_3"
+      type: "scan_target"
+      description: "Scan Beacon Gamma (200km)"
+      required: true
+      params:
+        target: "beacon_3"
+
+    - id: "scan_beacon_4"
+      type: "scan_target"
+      description: "Scan Beacon Delta (400km)"
+      required: true
+      params:
+        target: "beacon_4"
+
+    # Primary: return to origin
+    - id: "return_to_origin"
+      type: "reach_position"
+      description: "Return to origin point after scanning all beacons"
+      required: true
+      params:
+        position: {x: 0, y: 0, z: 0}
+        tolerance: 5000
+        initial_distance: 400000
+
+    # Primary: player survives
+    - id: "player_survives"
+      type: "avoid_mission_kill"
+      description: "Keep the UNSV Kepler operational"
+      required: true
+      params:
+        target: "player"
+
+  success_message: |
+    RING GATE APPROACH -- COMPLETE
+
+    All four beacons scanned successfully. Data packages compiled
+    and ready for transmission to UNS Science Command.
+
+    Beacon signals show consistent anomalous patterns that correlate
+    with Ring Gate approach vectors. This data will reshape our
+    understanding of the gate's navigation characteristics.
+
+    The Kepler has returned safely with fuel to spare. Textbook
+    deep space survey operation.
+
+    Well navigated, Commander.
+
+  failure_message: |
+    RING GATE APPROACH -- FAILED
+
+    The survey mission could not be completed. Either the Kepler
+    ran out of fuel in deep space, critical systems failed, or
+    the return leg was not completed.
+
+    Review your approach:
+    - Did you plan burn-coast-brake profiles for each leg?
+    - Did you budget fuel for the return trip?
+    - Did you minimize unnecessary course corrections?
+
+  hints:
+    - trigger: "start"
+      message: "SCIENCE: Four beacons on long-range sensors. Plan your fuel budget -- 300 units for an 800km round trip."
+
+    - trigger: "time > 300"
+      message: "OPS: Five minutes in. Check fuel consumption against your plan."
+
+    - trigger: "time > 900"
+      message: "OPS: Fifteen minutes. How far along the beacon chain are you?"
+
+    - trigger: "time > 1500"
+      message: "OPS: Twenty-five minutes. If you haven't started the return leg, fuel will be critical."
+
+    - trigger: "time > 2100"
+      message: "OPS: Thirty-five minutes. Five minutes remaining. You should be approaching origin."

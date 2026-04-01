@@ -1,0 +1,445 @@
+# Multiplayer Mission: Fleet Action
+#
+# 3-4 player combined arms attack on a defended station. The player
+# fleet (destroyer + 2 corvettes) must destroy a hostile station
+# defended by 2 frigates and a destroyer.
+#
+# Design rationale:
+#   - Combined arms: the destroyer provides heavy firepower while
+#     corvettes screen and flank. Players must use their ships'
+#     strengths -- the destroyer absorbs fire, corvettes are fast.
+#   - The station is stationary but well-armed. Players must
+#     suppress its defenders before closing for the kill.
+#   - The enemy destroyer is the main threat -- it can trade blows
+#     with the player destroyer. Corvettes should flank it.
+#   - Wedge formation start gives structure but players should
+#     break formation once combat begins.
+
+name: "Fleet Action"
+description: "A 3-player fleet assaults a defended station with combined arms tactics"
+
+difficulty: "extreme"
+player_count: "3-4"
+category: "fleet"
+
+dt: 0.1
+
+# -- Ships ----------------------------------------------------------------
+
+ships:
+  # -- Player 1: destroyer (flagship) ------------------------------------
+  - id: "player"
+    name: "UNS Hammerstrike"
+    ship_class: "destroyer"
+    faction: "unsa"
+    player_controlled: true
+    position: {x: -100000, y: 0, z: 0}
+    velocity: {x: 80, y: 0, z: 0}
+    orientation: {pitch: 0, yaw: 0, roll: 0}
+    systems:
+      propulsion:
+        fuel_level: 1000.0
+        max_fuel: 1200.0
+      sensors:
+        passive:
+          range: 150000
+        active:
+          scan_range: 250000
+      targeting:
+        lock_time: 1.2
+        lock_range: 100000
+      combat:
+        enabled: true
+        railguns: 3
+        pdcs: 6
+      navigation: {}
+    damage_model:
+      propulsion: {max_health: 120.0, health: 120.0}
+      rcs: {max_health: 100.0, health: 100.0}
+      weapons: {max_health: 110.0, health: 110.0}
+      sensors: {max_health: 80.0, health: 80.0}
+
+  # -- Player 2: corvette ------------------------------------------------
+  - id: "player_dagger"
+    name: "UNS Dagger"
+    ship_class: "corvette"
+    faction: "unsa"
+    player_controlled: true
+    position: {x: -105000, y: 15000, z: 3000}
+    velocity: {x: 80, y: 0, z: 0}
+    orientation: {pitch: 0, yaw: 0, roll: 0}
+    systems:
+      propulsion:
+        fuel_level: 380.0
+        max_fuel: 400.0
+      sensors:
+        passive:
+          range: 60000
+        active:
+          scan_range: 100000
+      targeting:
+        lock_time: 1.5
+        lock_range: 70000
+      combat:
+        enabled: true
+        railguns: 1
+        pdcs: 3
+      navigation: {}
+    damage_model:
+      propulsion: {max_health: 80.0, health: 80.0}
+      rcs: {max_health: 60.0, health: 60.0}
+      weapons: {max_health: 70.0, health: 70.0}
+      sensors: {max_health: 50.0, health: 50.0}
+
+  # -- Player 3: corvette ------------------------------------------------
+  - id: "player_wolf"
+    name: "UNS Wolf"
+    ship_class: "corvette"
+    faction: "unsa"
+    player_controlled: true
+    position: {x: -105000, y: -15000, z: -3000}
+    velocity: {x: 80, y: 0, z: 0}
+    orientation: {pitch: 0, yaw: 0, roll: 0}
+    systems:
+      propulsion:
+        fuel_level: 380.0
+        max_fuel: 400.0
+      sensors:
+        passive:
+          range: 60000
+        active:
+          scan_range: 100000
+      targeting:
+        lock_time: 1.5
+        lock_range: 70000
+      combat:
+        enabled: true
+        railguns: 1
+        pdcs: 3
+      navigation: {}
+    damage_model:
+      propulsion: {max_health: 80.0, health: 80.0}
+      rcs: {max_health: 60.0, health: 60.0}
+      weapons: {max_health: 70.0, health: 70.0}
+      sensors: {max_health: 50.0, health: 50.0}
+
+  # -- Enemy frigate 1 ---------------------------------------------------
+  - id: "enemy_frigate_1"
+    name: "Sentinel"
+    ship_class: "frigate"
+    faction: "hostile"
+    ai_enabled: true
+    position: {x: -20000, y: 25000, z: 5000}
+    velocity: {x: -30, y: -20, z: 0}
+    orientation: {pitch: 0, yaw: 210, roll: 0}
+    max_hull_integrity: 250.0
+    hull_integrity: 250.0
+    ai_behavior:
+      role: "combat"
+      aggression: 0.8
+      engagement_range: 80000
+      flee_threshold: 0.15
+      evade_threshold: 0.3
+      max_thrust_profile: 0.55
+      weapon_confidence_threshold: 0.2
+    systems:
+      propulsion: {fuel_level: 600.0, max_fuel: 700.0}
+      sensors: {passive: {range: 60000}, active: {scan_range: 120000}}
+      targeting: {lock_time: 1.5, lock_range: 80000}
+      combat: {railguns: 2, pdcs: 4}
+      navigation: {}
+    armor:
+      fore: {thickness_cm: 4.0, material: "composite_cermet"}
+      aft: {thickness_cm: 2.5, material: "composite_cermet"}
+      port: {thickness_cm: 3.0, material: "composite_cermet"}
+      starboard: {thickness_cm: 3.0, material: "composite_cermet"}
+      dorsal: {thickness_cm: 2.5, material: "composite_cermet"}
+      ventral: {thickness_cm: 2.5, material: "composite_cermet"}
+    damage_model:
+      propulsion: {max_health: 100.0, health: 100.0}
+      rcs: {max_health: 80.0, health: 80.0}
+      weapons: {max_health: 90.0, health: 90.0}
+      sensors: {max_health: 70.0, health: 70.0}
+
+  # -- Enemy frigate 2 ---------------------------------------------------
+  - id: "enemy_frigate_2"
+    name: "Warden"
+    ship_class: "frigate"
+    faction: "hostile"
+    ai_enabled: true
+    position: {x: -15000, y: -30000, z: -4000}
+    velocity: {x: -20, y: 25, z: 0}
+    orientation: {pitch: 0, yaw: 140, roll: 0}
+    max_hull_integrity: 250.0
+    hull_integrity: 250.0
+    ai_behavior:
+      role: "combat"
+      aggression: 0.8
+      engagement_range: 80000
+      flee_threshold: 0.15
+      evade_threshold: 0.3
+      max_thrust_profile: 0.55
+      weapon_confidence_threshold: 0.2
+    systems:
+      propulsion: {fuel_level: 600.0, max_fuel: 700.0}
+      sensors: {passive: {range: 60000}, active: {scan_range: 120000}}
+      targeting: {lock_time: 1.5, lock_range: 80000}
+      combat: {railguns: 2, pdcs: 4}
+      navigation: {}
+    armor:
+      fore: {thickness_cm: 4.0, material: "composite_cermet"}
+      aft: {thickness_cm: 2.5, material: "composite_cermet"}
+      port: {thickness_cm: 3.0, material: "composite_cermet"}
+      starboard: {thickness_cm: 3.0, material: "composite_cermet"}
+      dorsal: {thickness_cm: 2.5, material: "composite_cermet"}
+      ventral: {thickness_cm: 2.5, material: "composite_cermet"}
+    damage_model:
+      propulsion: {max_health: 100.0, health: 100.0}
+      rcs: {max_health: 80.0, health: 80.0}
+      weapons: {max_health: 90.0, health: 90.0}
+      sensors: {max_health: 70.0, health: 70.0}
+
+  # -- Enemy destroyer ---------------------------------------------------
+  - id: "enemy_destroyer"
+    name: "Bulwark"
+    ship_class: "destroyer"
+    faction: "hostile"
+    ai_enabled: true
+    position: {x: -5000, y: 0, z: 0}
+    velocity: {x: -20, y: 0, z: 0}
+    orientation: {pitch: 0, yaw: 180, roll: 0}
+    max_hull_integrity: 400.0
+    hull_integrity: 400.0
+    ai_behavior:
+      role: "combat"
+      aggression: 0.75
+      engagement_range: 100000
+      flee_threshold: 0.1
+      evade_threshold: 0.25
+      max_thrust_profile: 0.5
+      weapon_confidence_threshold: 0.2
+    systems:
+      propulsion: {fuel_level: 900.0, max_fuel: 1000.0}
+      sensors: {passive: {range: 80000}, active: {scan_range: 150000}}
+      targeting: {lock_time: 1.2, lock_range: 100000}
+      combat: {railguns: 3, pdcs: 6}
+      navigation: {}
+    armor:
+      fore: {thickness_cm: 6.0, material: "composite_cermet"}
+      aft: {thickness_cm: 4.0, material: "composite_cermet"}
+      port: {thickness_cm: 5.0, material: "composite_cermet"}
+      starboard: {thickness_cm: 5.0, material: "composite_cermet"}
+      dorsal: {thickness_cm: 4.0, material: "composite_cermet"}
+      ventral: {thickness_cm: 4.0, material: "composite_cermet"}
+    damage_model:
+      propulsion: {max_health: 120.0, health: 120.0}
+      rcs: {max_health: 100.0, health: 100.0}
+      weapons: {max_health: 110.0, health: 110.0}
+      sensors: {max_health: 80.0, health: 80.0}
+
+  # -- Hostile station (primary target) -----------------------------------
+  - id: "deimos_relay"
+    name: "Deimos Relay"
+    ship_class: "station"
+    faction: "hostile"
+    ai_enabled: true
+    position: {x: 0, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+    orientation: {pitch: 0, yaw: 0, roll: 0}
+    max_hull_integrity: 600.0
+    hull_integrity: 600.0
+    ai_behavior:
+      role: "station_defense"
+      engagement_range: 5000
+      flee_threshold: 0.0
+    systems:
+      propulsion:
+        fuel_level: 0.0
+        max_fuel: 0.0
+      sensors:
+        passive:
+          range: 200000
+        active:
+          scan_range: 300000
+      targeting:
+        lock_time: 1.0
+        lock_range: 80000
+      combat:
+        enabled: true
+        railguns: 1
+        pdcs: 6
+      navigation: {}
+    armor:
+      fore: {thickness_cm: 7.0, material: "composite_cermet"}
+      aft: {thickness_cm: 7.0, material: "composite_cermet"}
+      port: {thickness_cm: 7.0, material: "composite_cermet"}
+      starboard: {thickness_cm: 7.0, material: "composite_cermet"}
+      dorsal: {thickness_cm: 7.0, material: "composite_cermet"}
+      ventral: {thickness_cm: 7.0, material: "composite_cermet"}
+    damage_model:
+      propulsion: {max_health: 30.0, health: 30.0}
+      rcs: {max_health: 30.0, health: 30.0}
+      weapons: {max_health: 100.0, health: 100.0}
+      sensors: {max_health: 80.0, health: 80.0}
+
+# -- Fleets ---------------------------------------------------------------
+
+fleets:
+  - fleet_id: "attack_fleet"
+    name: "Task Force Hammer"
+    faction: "unsa"
+    flagship: "player"
+    ships: ["player", "player_dagger", "player_wolf"]
+
+  - fleet_id: "defense_fleet"
+    name: "Deimos Defense Force"
+    faction: "hostile"
+    ships: ["enemy_frigate_1", "enemy_frigate_2", "enemy_destroyer", "deimos_relay"]
+
+# -- Mission --------------------------------------------------------------
+
+mission:
+  name: "Fleet Action"
+  description: "Three-player fleet assault on a defended hostile station"
+
+  briefing: |
+    MISSION BRIEFING: FLEET ACTION
+
+    Task Force Hammer has been ordered to destroy Deimos Relay, a
+    hostile communications station controlling enemy fleet coordination
+    in this sector. The station is defended by a significant escort
+    force.
+
+    FORCES:
+      - UNS Hammerstrike (destroyer, Player 1) -- 3 railguns, 6 PDCs
+        Flagship. Heavy armor, heavy guns. Lead the assault.
+      - UNS Dagger (corvette, Player 2) -- 1 railgun, 3 PDCs
+        Fast flanker. Screen and harass.
+      - UNS Wolf (corvette, Player 3) -- 1 railgun, 3 PDCs
+        Fast flanker. Screen and harass.
+
+    ENEMY FORCES:
+      - Deimos Relay (station) -- 1 railgun, 6 PDCs, heavy armor
+        Stationary but dangerous. Do not approach without suppressing
+        its escort first.
+      - "Bulwark" (destroyer) -- 3 railguns, 6 PDCs
+        The main threat. Positioned between you and the station.
+      - "Sentinel" (frigate) -- 2 railguns, 4 PDCs
+        Screening the station's port flank.
+      - "Warden" (frigate) -- 2 railguns, 4 PDCs
+        Screening the station's starboard flank.
+
+    APPROACH:
+      Starting in wedge formation, 100km from target. Break formation
+      once engagement begins.
+
+    TACTICS:
+      - Hammerstrike engages the Bulwark head-on. Match its firepower.
+      - Dagger and Wolf split to flank -- one takes each frigate.
+      - Once escorts are suppressed, all ships converge on the station.
+      - The station cannot move but its railgun hits hard. Approach
+        from multiple vectors to split its fire.
+      - Corvettes: do NOT trade broadsides with the destroyer. Use
+        speed to stay in its blind spots.
+
+    VICTORY: Destroy Deimos Relay. All player ships survive.
+    BONUS: Destroy all enemy escort ships.
+
+    Hit hard, hit fast, and watch each other's backs.
+
+  time_limit: 900  # 15 minutes
+
+  objectives:
+    # Primary: destroy the station
+    - id: "destroy_station"
+      type: "mission_kill"
+      description: "Destroy Deimos Relay"
+      required: true
+      params:
+        target: "deimos_relay"
+
+    # Primary: all player ships survive
+    - id: "hammerstrike_survives"
+      type: "avoid_mission_kill"
+      description: "Keep UNS Hammerstrike operational"
+      required: true
+      params:
+        target: "player"
+
+    - id: "dagger_survives"
+      type: "avoid_mission_kill"
+      description: "Keep UNS Dagger operational"
+      required: true
+      params:
+        target: "player_dagger"
+
+    - id: "wolf_survives"
+      type: "avoid_mission_kill"
+      description: "Keep UNS Wolf operational"
+      required: true
+      params:
+        target: "player_wolf"
+
+    # Optional: destroy all escorts
+    - id: "kill_sentinel"
+      type: "mission_kill"
+      description: "Destroy frigate Sentinel"
+      required: false
+      params:
+        target: "enemy_frigate_1"
+
+    - id: "kill_warden"
+      type: "mission_kill"
+      description: "Destroy frigate Warden"
+      required: false
+      params:
+        target: "enemy_frigate_2"
+
+    - id: "kill_bulwark"
+      type: "mission_kill"
+      description: "Destroy destroyer Bulwark"
+      required: false
+      params:
+        target: "enemy_destroyer"
+
+  success_message: |
+    FLEET ACTION -- COMPLETE
+
+    Deimos Relay has been destroyed. Hostile communications in this
+    sector are severed. Enemy fleet coordination will be degraded
+    for weeks.
+
+    Task Force Hammer executed a textbook combined arms assault.
+    All three ships operational.
+
+    Outstanding work, Commanders.
+
+  failure_message: |
+    FLEET ACTION -- FAILED
+
+    Task Force Hammer could not complete the assault. Either a ship
+    was lost, or the station's defenses held.
+
+    Review your coordination:
+    - Did the Hammerstrike engage the Bulwark to draw fire?
+    - Did the corvettes flank the frigates?
+    - Did you suppress escorts before closing on the station?
+    - Did the corvettes avoid the destroyer's broadside?
+
+  hints:
+    - trigger: "start"
+      message: "COMMS: Task Force Hammer, wedge formation. Hammerstrike on point. Dagger high, Wolf low. Advance."
+
+    - trigger: "range < 80000"
+      target: "enemy_destroyer"
+      message: "TACTICAL: Hostile destroyer Bulwark at 80km. Hammerstrike, engage. Corvettes, break and flank."
+
+    - trigger: "range < 60000"
+      target: "deimos_relay"
+      message: "TACTICAL: Station in weapons range. Suppress the escorts before closing."
+
+    - trigger: "time > 300"
+      message: "OPS: Five minutes. If escorts are still up, focus fire. The station can wait."
+
+    - trigger: "time > 600"
+      message: "OPS: Ten minutes. If the station is still standing, all ships converge now."
