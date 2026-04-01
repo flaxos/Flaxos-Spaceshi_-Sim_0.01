@@ -67,6 +67,8 @@ import "../components/shared-contacts.js";
 import "../components/fleet-tactical-display.js";
 // Ops Station Controls
 import "../components/ops-control-panel.js";
+// Drone Bay Control
+import "../components/drone-control-panel.js";
 // ECM Electronic Warfare
 import "../components/ecm-control-panel.js";
 // ECCM Counter-Jamming
