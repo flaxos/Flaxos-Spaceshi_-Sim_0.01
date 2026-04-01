@@ -107,37 +107,49 @@
       "mount_id": "railgun_1",
       "weapon_type": "railgun",
       "placement": { "section": "fore_dorsal", "position": { "x": 85.0, "y": 5.0, "z": 12.0 } },
-      "firing_arc": { "azimuth_min": -15, "azimuth_max": 15, "elevation_min": -10, "elevation_max": 20 }
+      "firing_arc": { "azimuth_min": -15, "azimuth_max": 15, "elevation_min": -10, "elevation_max": 20 },
+      "gimbal": true,
+      "max_rotation_rate": 15
     },
     {
       "mount_id": "railgun_2",
       "weapon_type": "railgun",
       "placement": { "section": "fore_ventral", "position": { "x": 85.0, "y": -5.0, "z": -12.0 } },
-      "firing_arc": { "azimuth_min": -15, "azimuth_max": 15, "elevation_min": -20, "elevation_max": 10 }
+      "firing_arc": { "azimuth_min": -15, "azimuth_max": 15, "elevation_min": -20, "elevation_max": 10 },
+      "gimbal": true,
+      "max_rotation_rate": 15
     },
     {
       "mount_id": "railgun_3",
       "weapon_type": "railgun",
       "placement": { "section": "mid_dorsal_port", "position": { "x": 20.0, "y": 15.0, "z": 13.0 } },
-      "firing_arc": { "azimuth_min": -40, "azimuth_max": 20, "elevation_min": -5, "elevation_max": 30 }
+      "firing_arc": { "azimuth_min": -40, "azimuth_max": 20, "elevation_min": -5, "elevation_max": 30 },
+      "gimbal": true,
+      "max_rotation_rate": 15
     },
     {
       "mount_id": "railgun_4",
       "weapon_type": "railgun",
       "placement": { "section": "mid_dorsal_starboard", "position": { "x": 20.0, "y": -15.0, "z": 13.0 } },
-      "firing_arc": { "azimuth_min": -20, "azimuth_max": 40, "elevation_min": -5, "elevation_max": 30 }
+      "firing_arc": { "azimuth_min": -20, "azimuth_max": 40, "elevation_min": -5, "elevation_max": 30 },
+      "gimbal": true,
+      "max_rotation_rate": 15
     },
     {
       "mount_id": "railgun_5",
       "weapon_type": "railgun",
       "placement": { "section": "mid_ventral_port", "position": { "x": 20.0, "y": 15.0, "z": -13.0 } },
-      "firing_arc": { "azimuth_min": -40, "azimuth_max": 20, "elevation_min": -30, "elevation_max": 5 }
+      "firing_arc": { "azimuth_min": -40, "azimuth_max": 20, "elevation_min": -30, "elevation_max": 5 },
+      "gimbal": true,
+      "max_rotation_rate": 15
     },
     {
       "mount_id": "railgun_6",
       "weapon_type": "railgun",
       "placement": { "section": "mid_ventral_starboard", "position": { "x": 20.0, "y": -15.0, "z": -13.0 } },
-      "firing_arc": { "azimuth_min": -20, "azimuth_max": 40, "elevation_min": -30, "elevation_max": 5 }
+      "firing_arc": { "azimuth_min": -20, "azimuth_max": 40, "elevation_min": -30, "elevation_max": 5 },
+      "gimbal": true,
+      "max_rotation_rate": 15
     },
     {
       "mount_id": "torpedo_1",
@@ -168,84 +180,108 @@
       "weapon_type": "pdc",
       "placement": { "section": "fore_dorsal_port", "position": { "x": 70.0, "y": 12.0, "z": 13.0 } },
       "firing_arc": { "azimuth_min": -90, "azimuth_max": 30, "elevation_min": 0, "elevation_max": 90 },
-      "coverage": "fore_upper_port"
+      "coverage": "fore_upper_port",
+      "gimbal": true,
+      "max_rotation_rate": 180
     },
     {
       "mount_id": "pdc_2",
       "weapon_type": "pdc",
       "placement": { "section": "fore_dorsal_starboard", "position": { "x": 70.0, "y": -12.0, "z": 13.0 } },
       "firing_arc": { "azimuth_min": -30, "azimuth_max": 90, "elevation_min": 0, "elevation_max": 90 },
-      "coverage": "fore_upper_starboard"
+      "coverage": "fore_upper_starboard",
+      "gimbal": true,
+      "max_rotation_rate": 180
     },
     {
       "mount_id": "pdc_3",
       "weapon_type": "pdc",
       "placement": { "section": "fore_ventral_port", "position": { "x": 70.0, "y": 12.0, "z": -13.0 } },
       "firing_arc": { "azimuth_min": -90, "azimuth_max": 30, "elevation_min": -90, "elevation_max": 0 },
-      "coverage": "fore_lower_port"
+      "coverage": "fore_lower_port",
+      "gimbal": true,
+      "max_rotation_rate": 180
     },
     {
       "mount_id": "pdc_4",
       "weapon_type": "pdc",
       "placement": { "section": "fore_ventral_starboard", "position": { "x": 70.0, "y": -12.0, "z": -13.0 } },
       "firing_arc": { "azimuth_min": -30, "azimuth_max": 90, "elevation_min": -90, "elevation_max": 0 },
-      "coverage": "fore_lower_starboard"
+      "coverage": "fore_lower_starboard",
+      "gimbal": true,
+      "max_rotation_rate": 180
     },
     {
       "mount_id": "pdc_5",
       "weapon_type": "pdc",
       "placement": { "section": "mid_dorsal_port", "position": { "x": 0.0, "y": 18.0, "z": 14.0 } },
       "firing_arc": { "azimuth_min": -150, "azimuth_max": 30, "elevation_min": 0, "elevation_max": 90 },
-      "coverage": "mid_upper_port"
+      "coverage": "mid_upper_port",
+      "gimbal": true,
+      "max_rotation_rate": 180
     },
     {
       "mount_id": "pdc_6",
       "weapon_type": "pdc",
       "placement": { "section": "mid_dorsal_starboard", "position": { "x": 0.0, "y": -18.0, "z": 14.0 } },
       "firing_arc": { "azimuth_min": -30, "azimuth_max": 150, "elevation_min": 0, "elevation_max": 90 },
-      "coverage": "mid_upper_starboard"
+      "coverage": "mid_upper_starboard",
+      "gimbal": true,
+      "max_rotation_rate": 180
     },
     {
       "mount_id": "pdc_7",
       "weapon_type": "pdc",
       "placement": { "section": "mid_ventral_port", "position": { "x": 0.0, "y": 18.0, "z": -14.0 } },
       "firing_arc": { "azimuth_min": -150, "azimuth_max": 30, "elevation_min": -90, "elevation_max": 0 },
-      "coverage": "mid_lower_port"
+      "coverage": "mid_lower_port",
+      "gimbal": true,
+      "max_rotation_rate": 180
     },
     {
       "mount_id": "pdc_8",
       "weapon_type": "pdc",
       "placement": { "section": "mid_ventral_starboard", "position": { "x": 0.0, "y": -18.0, "z": -14.0 } },
       "firing_arc": { "azimuth_min": -30, "azimuth_max": 150, "elevation_min": -90, "elevation_max": 0 },
-      "coverage": "mid_lower_starboard"
+      "coverage": "mid_lower_starboard",
+      "gimbal": true,
+      "max_rotation_rate": 180
     },
     {
       "mount_id": "pdc_9",
       "weapon_type": "pdc",
       "placement": { "section": "aft_dorsal_port", "position": { "x": -60.0, "y": 12.0, "z": 12.0 } },
       "firing_arc": { "azimuth_min": 90, "azimuth_max": 270, "elevation_min": 0, "elevation_max": 90 },
-      "coverage": "aft_upper_port"
+      "coverage": "aft_upper_port",
+      "gimbal": true,
+      "max_rotation_rate": 180
     },
     {
       "mount_id": "pdc_10",
       "weapon_type": "pdc",
       "placement": { "section": "aft_dorsal_starboard", "position": { "x": -60.0, "y": -12.0, "z": 12.0 } },
       "firing_arc": { "azimuth_min": 90, "azimuth_max": 270, "elevation_min": 0, "elevation_max": 90 },
-      "coverage": "aft_upper_starboard"
+      "coverage": "aft_upper_starboard",
+      "gimbal": true,
+      "max_rotation_rate": 180
     },
     {
       "mount_id": "pdc_11",
       "weapon_type": "pdc",
       "placement": { "section": "aft_ventral_port", "position": { "x": -60.0, "y": 12.0, "z": -12.0 } },
       "firing_arc": { "azimuth_min": 90, "azimuth_max": 270, "elevation_min": -90, "elevation_max": 0 },
-      "coverage": "aft_lower_port"
+      "coverage": "aft_lower_port",
+      "gimbal": true,
+      "max_rotation_rate": 180
     },
     {
       "mount_id": "pdc_12",
       "weapon_type": "pdc",
       "placement": { "section": "aft_ventral_starboard", "position": { "x": -60.0, "y": -12.0, "z": -12.0 } },
       "firing_arc": { "azimuth_min": 90, "azimuth_max": 270, "elevation_min": -90, "elevation_max": 0 },
-      "coverage": "aft_lower_starboard"
+      "coverage": "aft_lower_starboard",
+      "gimbal": true,
+      "max_rotation_rate": 180
     }
   ],
   "damage_model": {

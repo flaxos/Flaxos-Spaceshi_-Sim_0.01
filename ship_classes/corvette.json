@@ -104,14 +104,18 @@
       "weapon_type": "pdc",
       "placement": { "section": "dorsal", "position": { "x": 5.0, "y": 0.0, "z": 3.5 } },
       "firing_arc": { "azimuth_min": -120, "azimuth_max": 120, "elevation_min": 0, "elevation_max": 90 },
-      "coverage": "upper_hemisphere"
+      "coverage": "upper_hemisphere",
+      "gimbal": true,
+      "max_rotation_rate": 180
     },
     {
       "mount_id": "pdc_2",
       "weapon_type": "pdc",
       "placement": { "section": "ventral", "position": { "x": -3.0, "y": 0.0, "z": -3.5 } },
       "firing_arc": { "azimuth_min": -120, "azimuth_max": 120, "elevation_min": -90, "elevation_max": 0 },
-      "coverage": "lower_hemisphere"
+      "coverage": "lower_hemisphere",
+      "gimbal": true,
+      "max_rotation_rate": 180
     }
   ],
   "damage_model": {
