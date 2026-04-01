@@ -1516,10 +1516,19 @@ class WeaponControls extends HTMLElement {
       const reason = w.solution?.reason || "";
       const tooltip = disabled && reason ? ` title="${reason}"` : "";
 
+      // Charge state indicator for railgun capacitor
+      const chargeTime = w.charge_time ?? 0;
+      const chargeState = w.charge_state ?? "idle";
+      const chargePct = Math.round((w.charge_progress ?? 0) * 100);
+      let chargeLabel = "";
+      if (chargeTime > 0 && chargeState === "charging") {
+        chargeLabel = ` [${chargePct}%]`;
+      }
+
       html += `
         <button class="fire-btn railgun-btn" data-mount="${mountId}" ${disabled}${tooltip}
                 data-testid="fire-${mountId}">
-          ${displayName} (${ammo})
+          ${displayName} (${ammo})${chargeLabel}
         </button>
       `;
     }
@@ -1539,8 +1548,13 @@ class WeaponControls extends HTMLElement {
       hintEl.textContent = "Lock target to fire";
     } else {
       const anyReady = railguns.some(([, w]) => w.solution?.ready_to_fire);
+      const anyCharging = railguns.some(
+        ([, w]) => (w.charge_time ?? 0) > 0 && w.charge_state === "charging"
+      );
       if (anyReady) {
         hintEl.textContent = "";
+      } else if (anyCharging) {
+        hintEl.textContent = "Capacitor charging...";
       } else {
         // Show the most informative reason from any railgun's solution
         const reasons = railguns
