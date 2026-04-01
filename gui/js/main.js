@@ -87,12 +87,16 @@ import "../components/tutorial-overlay.js";
 import "../components/station-chat.js";
 // Mission comms choices (branching dialogue)
 import "../components/comms-choice-panel.js";
+// Scenario editor (EDITOR view)
+import "../components/scenario-editor.js";
 // Multi-target tracking
 import "../components/multi-track-panel.js";
 // Target damage assessment
 import "../components/target-assessment.js";
 // Damage visualization
 import { damageStateManager } from "./damage-state-manager.js";
+// Ship Class Editor
+import "../components/ship-editor.js";
 // Keyboard flight controls (MANUAL tier)
 import * as keyboardFlight from "./keyboard-flight.js";
 // Phase 6: Mobile optimization

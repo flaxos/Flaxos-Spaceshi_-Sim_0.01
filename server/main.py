@@ -202,7 +202,7 @@ class UnifiedServer:
             return {"ok": True}
 
         # Rate limiting (skip for state polling and discovery)
-        if cmd not in ("get_state", "get_events", "get_combat_log", "_discover", "_ping", "_resume_session", "list_ship_classes"):
+        if cmd not in ("get_state", "get_events", "get_combat_log", "_discover", "_ping", "_resume_session", "list_ship_classes", "get_ship_classes_full"):
             if not self.rate_limiter.allow(client_id):
                 return Response.error(
                     "Rate limited: too many commands", ErrorCode.BAD_REQUEST
@@ -253,8 +253,23 @@ class UnifiedServer:
         if cmd == "list_ship_classes":
             return self._handle_list_ship_classes()
 
+        if cmd == "get_ship_classes_full":
+            return self._handle_get_ship_classes_full()
+
+        if cmd == "save_ship_class":
+            return self._handle_save_ship_class(req)
+
+        if cmd == "save_scenario":
+            return self._handle_save_scenario(req)
+
+        if cmd == "get_scenario_yaml":
+            return self._handle_get_scenario_yaml(req)
+
         if cmd == "load_scenario":
             return self._handle_load_scenario(req)
+
+        if cmd == "generate_skirmish":
+            return self._handle_generate_skirmish(req)
 
         if cmd == "get_mission":
             return {"ok": True, "mission": self.runner.get_mission_status()}
@@ -332,6 +347,18 @@ class UnifiedServer:
         if cmd == "list_ship_classes":
             return self._handle_list_ship_classes()
 
+        if cmd == "get_ship_classes_full":
+            return self._handle_get_ship_classes_full()
+
+        if cmd == "save_ship_class":
+            return self._handle_save_ship_class(req)
+
+        if cmd == "save_scenario":
+            return self._handle_save_scenario(req)
+
+        if cmd == "get_scenario_yaml":
+            return self._handle_get_scenario_yaml(req)
+
         if cmd == "load_scenario":
             from server.stations.station_types import StationType
 
@@ -379,6 +406,47 @@ class UnifiedServer:
                 self._auto_reassign_orphaned_clients(result["player_ship_id"])
 
             # Register AI crew for all ships in the scenario
+            if result.get("ok") and self.ai_crew_manager:
+                for sid in self.runner.simulator.ships:
+                    self.ai_crew_manager.register_ship(sid)
+
+            return result
+
+        if cmd == "generate_skirmish":
+            from server.stations.station_types import StationType
+
+            has_active_ships = len(self.runner.simulator.ships) > 0
+            is_captain = (
+                session
+                and session.station == StationType.CAPTAIN
+            )
+            is_only_client = len(self.station_manager.sessions) <= 1
+
+            if has_active_ships and not is_captain and not is_only_client:
+                return Response.error(
+                    "Mission already in progress — only the captain can generate a skirmish",
+                    ErrorCode.PERMISSION_DENIED,
+                ).to_dict()
+
+            result = self._handle_generate_skirmish(req)
+
+            if result.get("ok") and self.station_manager:
+                active_ids = set(self.runner.simulator.ships.keys())
+                self.station_manager.purge_claims_for_missing_ships(active_ids)
+
+            if result.get("ok") and result.get("player_ship_id"):
+                player_ship_id = result["player_ship_id"]
+                self.station_manager.assign_to_ship(client_id, player_ship_id)
+                self.station_manager.claim_station(
+                    client_id, player_ship_id, StationType.CAPTAIN,
+                )
+                result["auto_assigned"] = True
+                result["assigned_ship"] = player_ship_id
+                result["station"] = "captain"
+
+            if result.get("ok") and result.get("player_ship_id"):
+                self._auto_reassign_orphaned_clients(result["player_ship_id"])
+
             if result.get("ok") and self.ai_crew_manager:
                 for sid in self.runner.simulator.ships:
                     self.ai_crew_manager.register_ship(sid)
@@ -790,6 +858,89 @@ class UnifiedServer:
         registry = get_registry()
         return {"ok": True, "ship_classes": registry.list_classes()}
 
+    def _handle_get_ship_classes_full(self) -> dict:
+        """Handle get_ship_classes_full command — returns full configs for editor."""
+        from hybrid.commands.editor_commands import get_ship_classes_full
+        return get_ship_classes_full()
+
+    def _handle_save_ship_class(self, req: dict) -> dict:
+        """Handle save_ship_class command — persist a ship class JSON to disk."""
+        from hybrid.commands.editor_commands import save_ship_class
+        from hybrid.ship_class_registry import get_registry
+
+        config = req.get("config")
+        if not config:
+            return {"ok": False, "error": "Missing 'config' parameter"}
+
+        result = save_ship_class(config)
+        # Reload the registry so the new class is immediately available
+        if result.get("ok"):
+            registry = get_registry()
+            registry._load_all()
+        return result
+
+    def _handle_save_scenario(self, req: dict) -> dict:
+        """Handle save_scenario command -- write YAML content to scenarios/ directory."""
+        import re
+
+        filename = req.get("filename", "").strip()
+        yaml_content = req.get("yaml_content", "")
+
+        if not filename:
+            return {"ok": False, "error": "Missing 'filename' parameter"}
+        if not yaml_content:
+            return {"ok": False, "error": "Missing 'yaml_content' parameter"}
+
+        # Sanitize filename: only allow alphanumeric, underscores, hyphens, dots
+        if not re.match(r'^[\w\-]+\.ya?ml$', filename):
+            return {"ok": False, "error": f"Invalid filename: {filename}"}
+
+        scenarios_dir = self.runner.scenarios_dir
+        filepath = os.path.join(scenarios_dir, filename)
+
+        try:
+            os.makedirs(scenarios_dir, exist_ok=True)
+            with open(filepath, "w") as f:
+                f.write(yaml_content)
+            logger.info(f"Scenario saved: {filepath}")
+            return {"ok": True, "filepath": filepath}
+        except Exception as e:
+            logger.error(f"Failed to save scenario: {e}")
+            return {"ok": False, "error": str(e)}
+
+    def _handle_get_scenario_yaml(self, req: dict) -> dict:
+        """Handle get_scenario_yaml command -- read and parse a scenario file for editor."""
+        import yaml as _yaml
+
+        scenario_id = req.get("scenario", "").strip()
+        if not scenario_id:
+            return {"ok": False, "error": "Missing 'scenario' parameter"}
+
+        scenarios_dir = self.runner.scenarios_dir
+        # Try with and without .yaml extension
+        candidates = [
+            os.path.join(scenarios_dir, scenario_id + ".yaml"),
+            os.path.join(scenarios_dir, scenario_id + ".yml"),
+            os.path.join(scenarios_dir, scenario_id),
+        ]
+
+        filepath = None
+        for c in candidates:
+            if os.path.isfile(c):
+                filepath = c
+                break
+
+        if not filepath:
+            return {"ok": False, "error": f"Scenario not found: {scenario_id}"}
+
+        try:
+            with open(filepath, "r") as f:
+                data = _yaml.safe_load(f)
+            return {"ok": True, "data": data}
+        except Exception as e:
+            logger.error(f"Failed to read scenario {filepath}: {e}")
+            return {"ok": False, "error": str(e)}
+
     def _handle_load_scenario(self, req: dict) -> dict:
         """Handle load_scenario command."""
         scenario_name = req.get("scenario") or req.get("name") or req.get("file")
@@ -807,6 +958,41 @@ class UnifiedServer:
             "ok": True,
             "scenario": scenario_name,
             "scenario_name": self.runner._current_scenario_name or scenario_name,
+            "ships_loaded": loaded,
+            "player_ship_id": self.runner.player_ship_id,
+            "mission": self.runner.get_mission_status(),
+        }
+
+    def _handle_generate_skirmish(self, req: dict) -> dict:
+        """Handle generate_skirmish command.
+
+        Generates a scenario from parameters and loads it directly
+        into the runner without writing to disk.
+        """
+        from hybrid.scenarios.skirmish_generator import generate_skirmish
+
+        try:
+            scenario_data = generate_skirmish(req)
+        except (ValueError, TypeError) as e:
+            return Response.error(str(e), ErrorCode.INVALID_PARAM).to_dict()
+        except Exception as e:
+            logger.error(f"Skirmish generation failed: {e}", exc_info=True)
+            return Response.error(
+                f"Failed to generate skirmish: {e}",
+                ErrorCode.INTERNAL_ERROR,
+            ).to_dict()
+
+        loaded = self.runner.load_scenario_dict(scenario_data)
+        if loaded <= 0:
+            return Response.error(
+                "Generated scenario produced no ships",
+                ErrorCode.INTERNAL_ERROR,
+            ).to_dict()
+
+        return {
+            "ok": True,
+            "scenario": "generated_skirmish",
+            "scenario_name": scenario_data.get("name", "Generated Skirmish"),
             "ships_loaded": loaded,
             "player_ship_id": self.runner.player_ship_id,
             "mission": self.runner.get_mission_status(),
