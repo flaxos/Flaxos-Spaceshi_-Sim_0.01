@@ -232,7 +232,12 @@ class TestTargetingSystem:
     """Tests for targeting system lock state progression."""
 
     def test_lock_state_progression(self):
-        """Test that lock progresses through states."""
+        """Test that lock progresses through states.
+
+        Pipeline now starts at CONTACT (sensor correlation phase) before
+        advancing to TRACKING. Without a ship reference for range check,
+        the close-range skip cannot trigger, so CONTACT is always entered.
+        """
         from hybrid.systems.targeting.targeting_system import (
             TargetingSystem, LockState
         )
@@ -241,11 +246,11 @@ class TestTargetingSystem:
 
         assert targeting.lock_state == LockState.NONE
 
-        # Initiate lock
+        # Initiate lock — enters CONTACT (sensor correlation phase)
         result = targeting.lock_target("target_1", sim_time=0.0)
 
         assert result["ok"]
-        assert targeting.lock_state == LockState.TRACKING  # Pipeline starts at tracking
+        assert targeting.lock_state == LockState.CONTACT
         assert targeting.locked_target == "target_1"
 
     def test_unlock_target(self):

@@ -72,6 +72,18 @@ class TargetingSystem(BaseSystem):
         self.is_firing: bool = False  # Firing state
         self.target_subsystem: Optional[str] = None  # Selected subsystem to target
 
+        # CONTACT phase: 1-2 second sensor correlation delay between
+        # "player designates target" and "system starts building a track".
+        # Represents the sensor computer correlating radar returns, IR
+        # signatures, and passive emissions into a coherent target track.
+        # Without this delay the pipeline feels instantaneous at close range.
+        self._correlation_time: float = config.get("correlation_time", 1.0)
+        self._correlation_progress: float = 0.0
+        # Range below which correlation is instant (sensor return overwhelming)
+        self._correlation_skip_range: float = config.get(
+            "correlation_skip_range", 1000.0
+        )
+
         # Track quality (design spec: degrades with range and target acceleration)
         self.track_quality: float = 0.0  # 0-1 quality of the track
         self.track_time: float = 0.0  # Time spent tracking this target
@@ -255,7 +267,28 @@ class TargetingSystem(BaseSystem):
         self.target_data["track_quality"] = self.track_quality
 
         # Update lock state
-        if self.lock_state == LockState.TRACKING:
+        if self.lock_state == LockState.CONTACT:
+            # CONTACT phase: sensor computer is correlating returns into a
+            # coherent target track. No firing solution is possible yet and
+            # track_quality stays at zero. Sensor health slows correlation
+            # (damaged sensors need longer to correlate noisy data).
+            effective_time = self._correlation_time / max(self._sensor_factor, 0.1)
+            self._correlation_progress += dt / effective_time
+            if self._correlation_progress >= 1.0:
+                self.lock_state = LockState.TRACKING
+                self._correlation_progress = 1.0
+                logger.info(
+                    f"Sensor correlation complete for {self.locked_target}, "
+                    f"entering TRACKING"
+                )
+                event_bus.publish("target_correlated", {
+                    "ship_id": ship.id,
+                    "target_id": self.locked_target,
+                })
+            # During CONTACT phase: track_quality stays at 0, no solution
+            return
+
+        elif self.lock_state == LockState.TRACKING:
             # Build track quality; promote to ACQUIRING once sufficient
             if self.track_quality >= self.track_min_quality_for_lock:
                 self.lock_state = LockState.ACQUIRING
@@ -389,6 +422,17 @@ class TargetingSystem(BaseSystem):
 
     def _degrade_lock(self, dt: float, reason: str):
         """Degrade lock when contact is lost or out of range."""
+        # CONTACT phase has no established track yet — losing the contact
+        # during correlation means we go straight back to NONE.
+        if self.lock_state == LockState.CONTACT:
+            logger.warning(
+                f"Correlation aborted for {self.locked_target}: {reason}"
+            )
+            self.lock_state = LockState.NONE
+            self._correlation_progress = 0.0
+            self.locked_target = None
+            return
+
         self.lock_quality *= 0.9  # Decay
         self.lock_progress *= 0.95
 
@@ -506,18 +550,59 @@ class TargetingSystem(BaseSystem):
 
         # Begin targeting pipeline: contact -> track -> lock -> solution -> fire
         previous_target = self.locked_target
+
+        # Re-designating the same target that is already past CONTACT should
+        # NOT reset correlation progress. Only start fresh for new targets.
+        if contact_id == previous_target and self.lock_state not in (
+            LockState.NONE, LockState.LOST
+        ):
+            # Same target, already correlated — allow subsystem change only
+            if target_subsystem is not None:
+                self.target_subsystem = target_subsystem
+            logger.info(f"Re-designated same target {contact_id}, keeping state")
+            return success_dict(
+                f"Target already designated: {contact_id}",
+                target=contact_id,
+                lock_state=self.lock_state.value,
+                track_quality=self.track_quality,
+                lock_progress=self.lock_progress,
+            )
+
         self.locked_target = contact_id
         self.lock_time = sim_time or self._sim_time
-        self.lock_state = LockState.TRACKING  # Start at tracking stage
         self.lock_progress = 0.0
         self.lock_quality = 0.0
         self.track_quality = 0.0
         self.track_time = 0.0
         self.firing_solutions = {}
+        self._correlation_progress = 0.0
         if target_subsystem is not None:
             self.target_subsystem = target_subsystem
         elif previous_target != contact_id:
             self.target_subsystem = None
+
+        # Determine whether to skip correlation: at very close range (<1km
+        # default) the sensor return is so strong that correlation is
+        # essentially instantaneous — the contact is overwhelmingly obvious.
+        skip_correlation = False
+        if self._ship_ref:
+            sensors = self._ship_ref.systems.get("sensors")
+            if sensors:
+                contact = sensors.get_contact(contact_id)
+                if contact:
+                    rel = calculate_relative_motion(self._ship_ref, contact)
+                    if rel["range"] < self._correlation_skip_range:
+                        skip_correlation = True
+
+        if skip_correlation:
+            self.lock_state = LockState.TRACKING
+            self._correlation_progress = 1.0
+            logger.info(
+                f"Close-range designation — skipping correlation for {contact_id}"
+            )
+        else:
+            self.lock_state = LockState.CONTACT
+            logger.info(f"Correlating target: {contact_id}")
 
         # Auto-add to multi-track list if not already present.
         # The primary lock target should always be in the track list.
@@ -525,14 +610,13 @@ class TargetingSystem(BaseSystem):
         if contact_id not in tracked_ids:
             self.multi_track.add_track(contact_id, self._sensor_factor)
 
-        logger.info(f"Tracking target: {contact_id}")
-
         return success_dict(
-            f"Tracking target: {contact_id}",
+            f"Designating target: {contact_id} ({self.lock_state.value})",
             target=contact_id,
             lock_state=self.lock_state.value,
             track_quality=self.track_quality,
-            lock_progress=self.lock_progress
+            lock_progress=self.lock_progress,
+            correlation_progress=self._correlation_progress
         )
 
     def unlock_target(self) -> dict:
@@ -554,6 +638,7 @@ class TargetingSystem(BaseSystem):
         self.lock_progress = 0.0
         self.track_quality = 0.0
         self.track_time = 0.0
+        self._correlation_progress = 0.0
         self.target_data = {}
         self.firing_solutions = {}
         self.target_subsystem = None
@@ -972,6 +1057,7 @@ class TargetingSystem(BaseSystem):
         state.update({
             "locked_target": self.locked_target,
             "lock_state": self.lock_state.value,
+            "correlation_progress": self._correlation_progress,
             "track_quality": self.track_quality,
             "lock_progress": self.lock_progress,
             "lock_quality": self.lock_quality,
