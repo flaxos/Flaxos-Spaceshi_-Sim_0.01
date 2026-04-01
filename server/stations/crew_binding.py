@@ -11,7 +11,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import Dict, Optional, List, Any, Tuple
 
-from .crew_system import CrewMember, CrewSkills, CrewManager, StationSkill, SkillLevel
+from .crew_system import CrewMember, CrewSkills, CrewManager, StationSkill, SkillLevel, InjuryState
 from .station_types import StationType
 from .crew_damage import (
     apply_damage_to_crew,
@@ -83,6 +83,10 @@ class CrewStationBinder:
         if crew is None:
             return False, f"Crew member {crew_id} not found on ship {ship_id}"
         if crew.health <= 0.0:
+            return False, f"{crew.name} is dead and cannot be assigned"
+        if crew.injury_state == InjuryState.CRITICAL:
+            return False, f"{crew.name} is critically injured and cannot be assigned"
+        if crew.injury_state == InjuryState.DEAD:
             return False, f"{crew.name} is dead and cannot be assigned"
 
         current = self._find_assignment(ship_id, crew_id)
