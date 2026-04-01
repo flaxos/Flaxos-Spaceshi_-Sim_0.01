@@ -1,0 +1,529 @@
+# Campaign Mission: The Canterbury Run
+#
+# Player escorts the freighter "Canterbury" along a 3-waypoint route
+# through contested space. Two pirate ambushes test escort discipline:
+#   - Waypoint 2: 2 corvettes hit the convoy
+#   - Waypoint 3: 1 frigate + 1 corvette for a heavier second wave
+#
+# The Canterbury has limited fuel and slow acceleration -- the escort
+# must not outrun it. Branch point at waypoint 2 lets the player
+# choose to stand and fight or burn past.
+#
+# Design rationale:
+#   - Escort gameplay forces the player to match freighter speed, not
+#     just fly as fast as possible. Discipline > aggression.
+#   - Waypoints are 50km apart -- far enough to require real burns,
+#     close enough to keep the scenario under 30 minutes.
+#   - Branching at waypoint 2 tests player judgment: engaging burns
+#     fuel and risks damage, but clearing the threat protects the
+#     Canterbury for the final leg. Burning past saves fuel but
+#     leaves enemies on your tail.
+
+name: "The Canterbury Run"
+description: "Escort a civilian freighter through pirate-infested space along a 3-waypoint route"
+
+difficulty: "hard"
+player_count: "1-2"
+category: "campaign"
+
+dt: 0.1
+
+# ── Ships ────────────────────────────────────────────────────────
+
+ships:
+  # ── Player escort frigate ─────────────────────────────────────
+  - id: "player"
+    name: "UNS Rocinante"
+    ship_class: "frigate"
+    faction: "unsa"
+    player_controlled: true
+    position: {x: 0, y: 0, z: 0}
+    velocity: {x: 80, y: 0, z: 0}
+    orientation: {pitch: 0, yaw: 0, roll: 0}
+    systems:
+      propulsion:
+        fuel_level: 800.0
+        max_fuel: 1000.0
+      sensors:
+        passive:
+          range: 120000
+        active:
+          scan_range: 200000
+      targeting:
+        lock_time: 1.5
+        lock_range: 80000
+      combat:
+        enabled: true
+        railguns: 2
+        pdcs: 4
+      navigation: {}
+    damage_model:
+      propulsion: {max_health: 100.0, health: 100.0}
+      rcs: {max_health: 80.0, health: 80.0}
+      weapons: {max_health: 90.0, health: 90.0}
+      sensors: {max_health: 70.0, health: 70.0}
+
+  # ── Canterbury (AI freighter to protect) ──────────────────────
+  - id: "canterbury"
+    name: "Canterbury"
+    ship_class: "freighter"
+    faction: "civilian"
+    ai_enabled: true
+    position: {x: 2000, y: 500, z: 0}
+    velocity: {x: 80, y: 0, z: 0}
+    orientation: {pitch: 0, yaw: 0, roll: 0}
+    max_hull_integrity: 500.0
+    hull_integrity: 500.0
+    ai_behavior:
+      role: "freighter"
+      flee_threshold: 0.9
+      max_thrust_profile: 0.25
+    systems:
+      propulsion:
+        fuel_level: 1500.0
+        max_fuel: 2000.0
+      sensors:
+        passive:
+          range: 30000
+      navigation: {}
+    armor:
+      fore: {thickness_cm: 5.0, material: "steel_composite"}
+      aft: {thickness_cm: 3.0, material: "steel_composite"}
+      port: {thickness_cm: 4.0, material: "steel_composite"}
+      starboard: {thickness_cm: 4.0, material: "steel_composite"}
+      dorsal: {thickness_cm: 3.0, material: "steel_composite"}
+      ventral: {thickness_cm: 3.0, material: "steel_composite"}
+    damage_model:
+      propulsion: {max_health: 120.0, health: 120.0}
+      rcs: {max_health: 60.0, health: 60.0}
+      weapons: {max_health: 30.0, health: 30.0}
+      sensors: {max_health: 40.0, health: 40.0}
+
+  # ── Waypoint 2 ambush: 2 pirate corvettes ────────────────────
+  - id: "pirate_corvette_1"
+    name: "Viper"
+    ship_class: "corvette"
+    faction: "pirates"
+    ai_enabled: true
+    position: {x: 48000, y: 15000, z: 5000}
+    velocity: {x: -200, y: -100, z: 0}
+    orientation: {pitch: 0, yaw: 210, roll: 0}
+    max_hull_integrity: 150.0
+    hull_integrity: 150.0
+    ai_behavior:
+      role: "combat"
+      aggression: 0.85
+      engagement_range: 70000
+      flee_threshold: 0.2
+      evade_threshold: 0.3
+      max_thrust_profile: 0.7
+    systems:
+      propulsion:
+        fuel_level: 350.0
+        max_fuel: 400.0
+      sensors:
+        passive:
+          range: 40000
+        active:
+          scan_range: 70000
+      targeting:
+        lock_time: 2.0
+        lock_range: 60000
+      combat:
+        railguns: 1
+        pdcs: 2
+      navigation: {}
+    armor:
+      fore: {thickness_cm: 3.0, material: "composite_cermet"}
+      aft: {thickness_cm: 1.5, material: "composite_cermet"}
+      port: {thickness_cm: 2.0, material: "composite_cermet"}
+      starboard: {thickness_cm: 2.0, material: "composite_cermet"}
+      dorsal: {thickness_cm: 2.0, material: "composite_cermet"}
+      ventral: {thickness_cm: 2.0, material: "composite_cermet"}
+    damage_model:
+      propulsion: {max_health: 80.0, health: 80.0}
+      rcs: {max_health: 60.0, health: 60.0}
+      weapons: {max_health: 70.0, health: 70.0}
+      sensors: {max_health: 50.0, health: 50.0}
+
+  - id: "pirate_corvette_2"
+    name: "Scorpion"
+    ship_class: "corvette"
+    faction: "pirates"
+    ai_enabled: true
+    position: {x: 52000, y: -12000, z: -3000}
+    velocity: {x: -180, y: 80, z: 20}
+    orientation: {pitch: 0, yaw: 200, roll: 0}
+    max_hull_integrity: 150.0
+    hull_integrity: 150.0
+    ai_behavior:
+      role: "combat"
+      aggression: 0.8
+      engagement_range: 65000
+      flee_threshold: 0.2
+      evade_threshold: 0.35
+      max_thrust_profile: 0.65
+    systems:
+      propulsion:
+        fuel_level: 350.0
+        max_fuel: 400.0
+      sensors:
+        passive:
+          range: 40000
+        active:
+          scan_range: 70000
+      targeting:
+        lock_time: 2.0
+        lock_range: 60000
+      combat:
+        railguns: 1
+        pdcs: 2
+      navigation: {}
+    armor:
+      fore: {thickness_cm: 3.0, material: "composite_cermet"}
+      aft: {thickness_cm: 1.5, material: "composite_cermet"}
+      port: {thickness_cm: 2.0, material: "composite_cermet"}
+      starboard: {thickness_cm: 2.0, material: "composite_cermet"}
+      dorsal: {thickness_cm: 2.0, material: "composite_cermet"}
+      ventral: {thickness_cm: 2.0, material: "composite_cermet"}
+    damage_model:
+      propulsion: {max_health: 80.0, health: 80.0}
+      rcs: {max_health: 60.0, health: 60.0}
+      weapons: {max_health: 70.0, health: 70.0}
+      sensors: {max_health: 50.0, health: 50.0}
+
+  # ── Waypoint 3 ambush: frigate + corvette ─────────────────────
+  - id: "pirate_frigate"
+    name: "Blackjack"
+    ship_class: "frigate"
+    faction: "pirates"
+    ai_enabled: true
+    position: {x: 105000, y: 20000, z: -8000}
+    velocity: {x: -150, y: -50, z: 20}
+    orientation: {pitch: 0, yaw: 195, roll: 0}
+    max_hull_integrity: 250.0
+    hull_integrity: 250.0
+    ai_behavior:
+      role: "combat"
+      aggression: 0.75
+      engagement_range: 80000
+      flee_threshold: 0.15
+      evade_threshold: 0.3
+      max_thrust_profile: 0.5
+      weapon_confidence_threshold: 0.2
+    systems:
+      propulsion:
+        fuel_level: 600.0
+        max_fuel: 700.0
+      sensors:
+        passive:
+          range: 60000
+        active:
+          scan_range: 120000
+      targeting:
+        lock_time: 1.5
+        lock_range: 80000
+      combat:
+        railguns: 2
+        pdcs: 4
+      navigation: {}
+    armor:
+      fore: {thickness_cm: 4.0, material: "composite_cermet"}
+      aft: {thickness_cm: 2.5, material: "composite_cermet"}
+      port: {thickness_cm: 3.0, material: "composite_cermet"}
+      starboard: {thickness_cm: 3.0, material: "composite_cermet"}
+      dorsal: {thickness_cm: 2.5, material: "composite_cermet"}
+      ventral: {thickness_cm: 2.5, material: "composite_cermet"}
+    damage_model:
+      propulsion: {max_health: 100.0, health: 100.0}
+      rcs: {max_health: 80.0, health: 80.0}
+      weapons: {max_health: 90.0, health: 90.0}
+      sensors: {max_health: 70.0, health: 70.0}
+
+  - id: "pirate_corvette_3"
+    name: "Rattlesnake"
+    ship_class: "corvette"
+    faction: "pirates"
+    ai_enabled: true
+    position: {x: 98000, y: -18000, z: 6000}
+    velocity: {x: -160, y: 60, z: -15}
+    orientation: {pitch: 0, yaw: 205, roll: 0}
+    max_hull_integrity: 150.0
+    hull_integrity: 150.0
+    ai_behavior:
+      role: "combat"
+      aggression: 0.85
+      engagement_range: 60000
+      flee_threshold: 0.2
+      evade_threshold: 0.3
+      max_thrust_profile: 0.7
+    systems:
+      propulsion:
+        fuel_level: 350.0
+        max_fuel: 400.0
+      sensors:
+        passive:
+          range: 40000
+        active:
+          scan_range: 70000
+      targeting:
+        lock_time: 2.0
+        lock_range: 60000
+      combat:
+        railguns: 1
+        pdcs: 2
+      navigation: {}
+    armor:
+      fore: {thickness_cm: 3.0, material: "composite_cermet"}
+      aft: {thickness_cm: 1.5, material: "composite_cermet"}
+      port: {thickness_cm: 2.0, material: "composite_cermet"}
+      starboard: {thickness_cm: 2.0, material: "composite_cermet"}
+      dorsal: {thickness_cm: 2.0, material: "composite_cermet"}
+      ventral: {thickness_cm: 2.0, material: "composite_cermet"}
+    damage_model:
+      propulsion: {max_health: 80.0, health: 80.0}
+      rcs: {max_health: 60.0, health: 60.0}
+      weapons: {max_health: 70.0, health: 70.0}
+      sensors: {max_health: 50.0, health: 50.0}
+
+# ── Fleet definitions ────────────────────────────────────────────
+
+fleets:
+  - fleet_id: "escort_group"
+    name: "Escort Group"
+    faction: "unsa"
+    flagship: "player"
+    ships: ["player"]
+
+  - fleet_id: "pirate_ambush_1"
+    name: "Pirate Ambush Alpha"
+    faction: "pirates"
+    ships: ["pirate_corvette_1", "pirate_corvette_2"]
+
+  - fleet_id: "pirate_ambush_2"
+    name: "Pirate Ambush Bravo"
+    faction: "pirates"
+    ships: ["pirate_frigate", "pirate_corvette_3"]
+
+# ── Mission ──────────────────────────────────────────────────────
+
+mission:
+  name: "The Canterbury Run"
+  description: "Escort the Canterbury along a 3-waypoint route through pirate territory"
+
+  briefing: |
+    MISSION BRIEFING: THE CANTERBURY RUN
+
+    The civilian freighter Canterbury is transporting critical medical
+    supplies from Ceres to Tycho Station. Intelligence reports pirate
+    activity along the transit corridor. You have been assigned as
+    sole escort.
+
+    ROUTE:
+      Waypoint 1: {50km, 0, 0}  -- clear space, sensor calibration
+      Waypoint 2: {100km, 0, 0} -- suspected pirate staging area
+      Waypoint 3: {150km, 0, 0} -- final approach, destination
+
+    FORCES:
+      - UNS Rocinante (frigate, your ship) -- 2 railguns, 4 PDCs
+      - Canterbury (civilian freighter) -- no weapons, light armor
+
+    THREATS:
+      - 2 pirate corvettes operating near waypoint 2
+      - Heavier pirate force (frigate + corvette) near waypoint 3
+
+    CRITICAL CONSTRAINTS:
+      - The Canterbury has LIMITED FUEL. Do not force high-speed burns.
+        Match the freighter's pace -- 80 m/s cruise speed.
+      - The Canterbury must reach waypoint 3 alive. This is your
+        primary objective.
+      - You start with 80% fuel. Budget carefully across 150km.
+
+    TACTICAL NOTES:
+      - At waypoint 2, you may choose to engage the pirates or burn
+        past them. Engaging costs fuel and risks damage, but clears
+        the threat. Burning past leaves enemies on your tail.
+      - The waypoint 3 ambush is heavier -- a pirate frigate with
+        escort. If you took damage at waypoint 2, engineering is
+        critical.
+      - Stay close to the Canterbury. If you chase too far, the
+        other pirates may circle back.
+
+    Protect the Canterbury at all costs, Commander.
+
+  time_limit: 1800  # 30 minutes
+
+  objectives:
+    # Primary: Canterbury must survive
+    - id: "protect_canterbury"
+      type: "protect_ship"
+      description: "Protect the Canterbury until it reaches destination"
+      required: true
+      params:
+        target: "canterbury"
+        time: 1800
+        start_time: 0
+
+    # Primary: player must survive
+    - id: "player_survives"
+      type: "avoid_mission_kill"
+      description: "Keep your ship operational"
+      required: true
+      params:
+        target: "player"
+
+    # Primary: reach waypoint 3 (destination)
+    - id: "reach_destination"
+      type: "reach_position"
+      description: "Escort Canterbury to destination (waypoint 3)"
+      required: true
+      params:
+        position: {x: 150000, y: 0, z: 0}
+        tolerance: 5000
+        initial_distance: 150000
+
+    # Secondary: neutralize waypoint 2 ambush
+    - id: "kill_viper"
+      type: "mission_kill"
+      description: "Neutralize pirate corvette Viper"
+      required: false
+      params:
+        target: "pirate_corvette_1"
+
+    - id: "kill_scorpion"
+      type: "mission_kill"
+      description: "Neutralize pirate corvette Scorpion"
+      required: false
+      params:
+        target: "pirate_corvette_2"
+
+    # Secondary: neutralize waypoint 3 ambush
+    - id: "kill_blackjack"
+      type: "mission_kill"
+      description: "Neutralize pirate frigate Blackjack"
+      required: false
+      params:
+        target: "pirate_frigate"
+
+    - id: "kill_rattlesnake"
+      type: "mission_kill"
+      description: "Neutralize pirate corvette Rattlesnake"
+      required: false
+      params:
+        target: "pirate_corvette_3"
+
+  # ── Branch points ────────────────────────────────────────────
+
+  branch_points:
+    # Branch: player engages at waypoint 2 (closes to weapons range)
+    - id: "engage_at_wp2"
+      priority: 10
+      logic: "and"
+      conditions:
+        - type: "contact_range"
+          params:
+            target: "pirate_corvette_1"
+            comparison: "lt"
+            range: 50000
+        - type: "time_elapsed"
+          params:
+            threshold: 180
+            comparison: "gt"
+      branch:
+        id: "engage_ambush"
+        description: "Engaging pirate ambush at waypoint 2. Clear the threat."
+        add_objectives:
+          - id: "clear_wp2"
+            type: "mission_kill"
+            description: "Neutralize both waypoint 2 pirates"
+            required: false
+            params:
+              target: "pirate_corvette_1"
+        success_message: |
+          Waypoint 2 cleared. Pirates neutralized. Proceeding to waypoint 3.
+
+    # Branch: low fuel emergency
+    - id: "fuel_critical"
+      priority: 20
+      logic: "and"
+      conditions:
+        - type: "fuel_level"
+          params:
+            target: "player"
+            comparison: "lt"
+            threshold: 0.15
+      branch:
+        id: "fuel_emergency"
+        description: "Fuel critical. Canterbury must reach destination on remaining reserves."
+        failure_message: |
+          Fuel reserves critical. You burned too hard, too fast.
+          The Canterbury is on its own now.
+
+  # ── Comms choices ──────────────────────────────────────────────
+
+  comms_choices:
+    - choice_id: "wp2_decision"
+      contact_id: "canterbury"
+      prompt: |
+        Captain, we're detecting two hostile contacts near waypoint 2.
+        Do we engage or try to burn past them?
+      timeout: 60
+      default_option: "engage"
+      options:
+        - option_id: "engage"
+          label: "Engage pirates"
+          description: "We clear the threat. Hold course, Canterbury -- I'll handle this."
+        - option_id: "burn_past"
+          label: "Burn past them"
+          description: "All ahead full. We run the gauntlet and save fuel for waypoint 3."
+
+  next_scenario: "31_ganymede_station"
+
+  success_message: |
+    THE CANTERBURY RUN -- COMPLETE
+
+    The Canterbury has reached its destination safely. Medical supplies
+    will reach Tycho Station on schedule.
+
+    Mission assessment:
+    - Canterbury: intact
+    - Escort performance: evaluated on fuel remaining and threats neutralized
+    - Pirates neutralized: check tactical log for final count
+
+    Well done, Commander. The next assignment awaits.
+
+  failure_message: |
+    THE CANTERBURY RUN -- FAILED
+
+    The Canterbury has been destroyed or you were unable to complete
+    the escort. Those medical supplies will never reach Tycho.
+
+    Review your approach:
+    - Did you stay close enough to the Canterbury?
+    - Did you manage fuel across all three waypoints?
+    - Did you prioritize protection over kills?
+
+  hints:
+    - trigger: "start"
+      message: "Match velocity with the Canterbury: 80 m/s along +X. Stay within 5km."
+
+    - trigger: "range < 80000"
+      target: "pirate_corvette_1"
+      message: "SENSORS: Two hostile contacts detected near waypoint 2! Corvette-class, closing fast."
+
+    - trigger: "range < 50000"
+      target: "pirate_corvette_1"
+      message: "TACTICAL: Pirates in engagement range. Decision time -- engage or burn past?"
+
+    - trigger: "range < 80000"
+      target: "pirate_frigate"
+      message: "SENSORS: Heavy contact at waypoint 3! Frigate-class with escort. This is the big one."
+
+    - trigger: "time > 300"
+      message: "OPS: Five minutes in. Check fuel status and Canterbury hull integrity."
+
+    - trigger: "time > 900"
+      message: "OPS: Halfway through the run. Stay focused."
+
+    - trigger: "time > 1500"
+      message: "OPS: Five minutes remaining. Push for the destination."

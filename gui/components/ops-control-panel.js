@@ -9,6 +9,7 @@
  */
 
 import { stateManager } from "../js/state-manager.js";
+import { wsClient } from "../js/ws-client.js";
 
 const SUBSYSTEM_LABELS = {
   reactor: "Reactor",
@@ -31,6 +32,7 @@ class OpsControlPanel extends HTMLElement {
   connectedCallback() {
     this.render();
     this._subscribe();
+    this._setupAutoOps();
   }
 
   disconnectedCallback() {
@@ -342,7 +344,174 @@ class OpsControlPanel extends HTMLElement {
           padding: 16px;
           font-style: italic;
         }
+
+        /* === Auto-Ops Panel (CPU-ASSIST) === */
+        .auto-ops-panel {
+          display: none;
+          margin-bottom: 16px;
+          padding: 12px;
+          background: rgba(128, 0, 255, 0.06);
+          border: 1px solid rgba(128, 0, 255, 0.3);
+          border-radius: 8px;
+        }
+
+        .auto-ops-panel.visible { display: block; }
+
+        .auto-ops-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 8px;
+        }
+
+        .auto-ops-title {
+          font-size: 0.7rem;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          color: #bb88ff;
+        }
+
+        .auto-ops-toggle {
+          padding: 4px 10px;
+          border-radius: 4px;
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+          font-size: 0.65rem;
+          font-weight: 700;
+          cursor: pointer;
+          border: 1px solid rgba(128, 0, 255, 0.4);
+          background: transparent;
+          color: var(--text-dim, #555566);
+          transition: all 0.15s ease;
+        }
+
+        .auto-ops-toggle.active {
+          border-color: #bb88ff;
+          color: #bb88ff;
+          background: rgba(128, 0, 255, 0.15);
+        }
+
+        .auto-ops-mode-row {
+          display: flex;
+          gap: 6px;
+          margin-bottom: 8px;
+        }
+
+        .auto-ops-mode-btn {
+          flex: 1;
+          padding: 6px;
+          border: 1px solid transparent;
+          border-radius: 4px;
+          background: var(--bg-input, #1a1a24);
+          color: var(--text-dim, #555566);
+          font-family: inherit;
+          font-size: 0.65rem;
+          font-weight: 600;
+          text-transform: uppercase;
+          cursor: pointer;
+          transition: all 0.15s ease;
+        }
+
+        .auto-ops-mode-btn:hover {
+          color: var(--text-primary, #e0e0e0);
+        }
+
+        .auto-ops-mode-btn.active {
+          color: #bb88ff;
+          border-color: #bb88ff;
+          background: rgba(128, 0, 255, 0.12);
+        }
+
+        .ops-proposal-card {
+          padding: 10px 12px;
+          background: rgba(255, 170, 0, 0.08);
+          border: 1px solid var(--status-warning, #ffaa00);
+          border-radius: 6px;
+          margin-bottom: 6px;
+        }
+
+        .ops-proposal-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 6px;
+        }
+
+        .ops-proposal-action {
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+          font-size: 0.75rem;
+          font-weight: 700;
+          color: var(--status-warning, #ffaa00);
+          text-transform: uppercase;
+        }
+
+        .ops-proposal-countdown {
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+          font-size: 0.7rem;
+          color: var(--text-dim, #555566);
+        }
+
+        .ops-proposal-reason {
+          font-size: 0.7rem;
+          color: var(--text-secondary, #888899);
+          margin-bottom: 8px;
+        }
+
+        .ops-proposal-actions {
+          display: flex;
+          gap: 6px;
+        }
+
+        .ops-approve {
+          flex: 1;
+          padding: 6px;
+          border: 1px solid var(--status-nominal, #00ff88);
+          border-radius: 4px;
+          background: rgba(0, 255, 136, 0.1);
+          color: var(--status-nominal, #00ff88);
+          font-family: inherit;
+          font-size: 0.7rem;
+          font-weight: 700;
+          cursor: pointer;
+        }
+
+        .ops-deny {
+          flex: 1;
+          padding: 6px;
+          border: 1px solid var(--status-critical, #ff4444);
+          border-radius: 4px;
+          background: rgba(255, 68, 68, 0.1);
+          color: var(--status-critical, #ff4444);
+          font-family: inherit;
+          font-size: 0.7rem;
+          font-weight: 700;
+          cursor: pointer;
+        }
+
+        .ops-approve:hover { background: rgba(0, 255, 136, 0.2); }
+        .ops-deny:hover { background: rgba(255, 68, 68, 0.2); }
+
+        .ops-no-proposals {
+          font-size: 0.7rem;
+          color: var(--text-dim, #555566);
+          font-style: italic;
+          text-align: center;
+          padding: 4px;
+        }
       </style>
+
+      <!-- Auto-Ops Panel (CPU-ASSIST tier) -->
+      <div class="auto-ops-panel" id="auto-ops-panel">
+        <div class="auto-ops-header">
+          <span class="auto-ops-title">Auto-Ops Manager</span>
+          <button class="auto-ops-toggle" id="auto-ops-toggle">ENABLE</button>
+        </div>
+        <div class="auto-ops-mode-row">
+          <button class="auto-ops-mode-btn" id="ops-mode-auto" data-mode="auto">AUTO</button>
+          <button class="auto-ops-mode-btn" id="ops-mode-manual" data-mode="manual">MANUAL</button>
+        </div>
+        <div id="ops-proposals"></div>
+      </div>
 
       <div id="content">
         <div class="empty-state">Waiting for OPS data...</div>
@@ -514,6 +683,9 @@ class OpsControlPanel extends HTMLElement {
 
     // Attach event listeners
     this._attachListeners();
+
+    // Update auto-ops panel (CPU-ASSIST tier)
+    this._updateAutoOpsPanel();
   }
 
   _attachListeners() {
@@ -540,6 +712,95 @@ class OpsControlPanel extends HTMLElement {
         this._sendCommand("restart_system", { subsystem });
       });
     });
+  }
+
+  // --- Auto-Ops (CPU-ASSIST tier) ---
+
+  _setupAutoOps() {
+    // Toggle enable/disable
+    this.shadowRoot.getElementById("auto-ops-toggle").addEventListener("click", () => {
+      const ship = stateManager.getShipState();
+      const enabled = ship?.auto_ops?.enabled;
+      if (enabled) {
+        wsClient.sendShipCommand("disable_auto_ops", {});
+      } else {
+        wsClient.sendShipCommand("enable_auto_ops", {});
+      }
+    });
+
+    // Mode toggle buttons
+    this.shadowRoot.querySelectorAll(".auto-ops-mode-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        wsClient.sendShipCommand("set_ops_mode", { mode: btn.dataset.mode });
+      });
+    });
+
+    // Proposal approve/deny (delegated)
+    this.shadowRoot.getElementById("ops-proposals").addEventListener("click", (e) => {
+      const approveBtn = e.target.closest(".ops-approve");
+      const denyBtn = e.target.closest(".ops-deny");
+      if (approveBtn) {
+        wsClient.sendShipCommand("approve_ops", { proposal_id: approveBtn.dataset.id });
+      } else if (denyBtn) {
+        wsClient.sendShipCommand("deny_ops", { proposal_id: denyBtn.dataset.id });
+      }
+    });
+  }
+
+  _updateAutoOpsPanel() {
+    const panel = this.shadowRoot.getElementById("auto-ops-panel");
+    if (!panel) return;
+
+    // Show only in CPU-ASSIST tier
+    const tier = window.controlTier || "raw";
+    panel.classList.toggle("visible", tier === "cpu-assist");
+
+    if (tier !== "cpu-assist") return;
+
+    const ship = stateManager.getShipState();
+    const aoState = ship?.auto_ops;
+    const enabled = aoState?.enabled || false;
+    const mode = aoState?.mode || "auto";
+    const proposals = aoState?.proposals || [];
+
+    // Toggle button
+    const toggle = this.shadowRoot.getElementById("auto-ops-toggle");
+    toggle.textContent = enabled ? "DISABLE" : "ENABLE";
+    toggle.classList.toggle("active", enabled);
+
+    // Mode buttons
+    this.shadowRoot.querySelectorAll(".auto-ops-mode-btn").forEach(btn => {
+      btn.classList.toggle("active", btn.dataset.mode === mode);
+    });
+
+    // Proposals
+    const container = this.shadowRoot.getElementById("ops-proposals");
+    if (!enabled || proposals.length === 0) {
+      container.innerHTML = enabled
+        ? '<div class="ops-no-proposals">Monitoring subsystems...</div>'
+        : '';
+      return;
+    }
+
+    let html = '';
+    for (const p of proposals) {
+      const remaining = Math.max(0, p.time_remaining || 0);
+      const actionLabel = p.action.replace(/_/g, " ").toUpperCase();
+      const targetLabel = (p.target || "").toUpperCase();
+      html += `
+        <div class="ops-proposal-card">
+          <div class="ops-proposal-header">
+            <span class="ops-proposal-action">${actionLabel}: ${targetLabel}</span>
+            <span class="ops-proposal-countdown">${remaining.toFixed(1)}s</span>
+          </div>
+          <div class="ops-proposal-reason">${p.reason}</div>
+          <div class="ops-proposal-actions">
+            <button class="ops-approve" data-id="${p.proposal_id}">APPROVE</button>
+            <button class="ops-deny" data-id="${p.proposal_id}">DENY</button>
+          </div>
+        </div>`;
+    }
+    container.innerHTML = html;
   }
 }
 
