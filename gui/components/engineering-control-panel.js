@@ -827,6 +827,8 @@ class EngineeringControlPanel extends HTMLElement {
         this._updateDisplay();
       });
     }
+
+    this._updateAutoEngPanel();
   }
 
   /**
@@ -864,6 +866,58 @@ class EngineeringControlPanel extends HTMLElement {
     if (abs >= 1e6) return `${sign}${(abs / 1e6).toFixed(2)} MW`;
     if (abs >= 1e3) return `${sign}${(abs / 1e3).toFixed(1)} kW`;
     return `${sign}${abs.toFixed(0)} W`;
+  }
+
+  // --- Auto-Engineering (CPU-ASSIST tier) ---
+  _updateAutoEngPanel() {
+    let panel = this.shadowRoot.getElementById("auto-eng-panel");
+    const tier = window.controlTier || "raw";
+    if (tier !== "cpu-assist") {
+      if (panel) panel.style.display = "none";
+      return;
+    }
+    if (!panel) {
+      // Create the panel on first cpu-assist render
+      panel = document.createElement("div");
+      panel.id = "auto-eng-panel";
+      panel.style.cssText = "border:1px solid rgba(192,160,255,0.3);border-radius:4px;padding:8px;margin:8px 0;background:rgba(192,160,255,0.05);";
+      panel.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <span style="color:#c0a0ff;font-size:0.7rem;font-weight:600;letter-spacing:0.5px;">AUTO ENGINEERING</span>
+          <button id="auto-eng-toggle" style="background:rgba(192,160,255,0.15);color:#c0a0ff;border:1px solid rgba(192,160,255,0.3);padding:2px 10px;border-radius:3px;cursor:pointer;font-size:0.65rem;">ENABLE</button>
+        </div>
+        <div id="eng-proposals"></div>`;
+      const content = this.shadowRoot.getElementById("eng-content");
+      if (content) content.prepend(panel);
+      panel.querySelector("#auto-eng-toggle").addEventListener("click", () => {
+        const ship = stateManager.getShipState();
+        const cmd = ship?.auto_engineering?.enabled ? "disable_auto_engineering" : "enable_auto_engineering";
+        wsClient.sendShipCommand(cmd, {});
+      });
+      panel.querySelector("#eng-proposals").addEventListener("click", (e) => {
+        const a = e.target.closest("[data-approve]");
+        const d = e.target.closest("[data-deny]");
+        if (a) wsClient.sendShipCommand("approve_engineering", { proposal_id: a.dataset.approve });
+        if (d) wsClient.sendShipCommand("deny_engineering", { proposal_id: d.dataset.deny });
+      });
+    }
+    panel.style.display = "block";
+    const ship = stateManager.getShipState();
+    const st = ship?.auto_engineering || {};
+    const toggle = panel.querySelector("#auto-eng-toggle");
+    toggle.textContent = st.enabled ? "DISABLE" : "ENABLE";
+    toggle.style.background = st.enabled ? "rgba(0,255,136,0.15)" : "rgba(192,160,255,0.15)";
+    const proposals = st.proposals || [];
+    const pc = panel.querySelector("#eng-proposals");
+    if (proposals.length === 0) {
+      pc.innerHTML = '<div style="color:var(--text-dim);font-size:0.65rem;">No pending proposals</div>';
+    } else {
+      pc.innerHTML = proposals.map(p => `<div style="background:var(--bg-input);border:1px solid var(--border-default);border-radius:4px;padding:5px 8px;margin:3px 0;font-size:0.65rem;">
+        <div style="color:var(--text-primary);margin-bottom:3px;">${p.description || p.action}</div>
+        <button data-approve="${p.id}" style="background:rgba(0,255,136,0.15);color:#00ff88;border:1px solid rgba(0,255,136,0.3);padding:1px 8px;border-radius:3px;cursor:pointer;font-size:0.6rem;margin-right:3px;">APPROVE</button>
+        <button data-deny="${p.id}" style="background:rgba(255,68,68,0.15);color:#ff4444;border:1px solid rgba(255,68,68,0.3);padding:1px 8px;border-radius:3px;cursor:pointer;font-size:0.6rem;">DENY</button>
+      </div>`).join('');
+    }
   }
 }
 
