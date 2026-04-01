@@ -396,6 +396,9 @@ class WeaponsStatus extends HTMLElement {
     } else if (!w.enabled) {
       statusClass = "offline";
       statusText = "OFFLINE";
+    } else if (w.charge_state === "charging") {
+      statusClass = "reloading";
+      statusText = "CHARGING";
     } else if (w.solution?.ready_to_fire) {
       statusClass = "firing";
       statusText = "SOLUTION";
@@ -453,6 +456,31 @@ class WeaponsStatus extends HTMLElement {
       `;
     }
 
+    // Charge progress bar — only for weapons with charge_time > 0 (railguns)
+    let chargeHtml = "";
+    const chargeTime = w.charge_time ?? 0;
+    if (chargeTime > 0) {
+      const chargeState = w.charge_state ?? "idle";
+      const chargePct = (w.charge_progress ?? 0) * 100;
+      const chargeColor = chargeState === "ready" ? "nominal" : "warning";
+      const chargeLabel = chargeState === "ready"
+        ? "CHARGED"
+        : chargeState === "charging"
+          ? `${chargePct.toFixed(0)}%`
+          : "IDLE";
+      chargeHtml = `
+        <div class="reload-bar">
+          <div class="ammo-header">
+            <span class="ammo-label">Charge</span>
+            <span class="ammo-count ${chargeColor}">${chargeLabel}</span>
+          </div>
+          <div class="bar">
+            <div class="bar-fill ${chargeColor}" style="width: ${chargePct}%"></div>
+          </div>
+        </div>
+      `;
+    }
+
     return `
       <div class="weapon-section">
         <div class="weapon-header">
@@ -468,6 +496,7 @@ class WeaponsStatus extends HTMLElement {
             <div class="bar-fill ${barClass}" style="width: ${percent}%"></div>
           </div>
         </div>
+        ${chargeHtml}
         ${reloadHtml}
         ${detailsHtml}
       </div>

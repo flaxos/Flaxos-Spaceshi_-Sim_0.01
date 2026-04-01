@@ -68,6 +68,21 @@ SLUG_TYPE_MODIFIERS: Dict[str, Dict[str, float]] = {
 }
 
 
+class ChargeState(Enum):
+    """Railgun capacitor charge state.
+
+    IDLE: capacitor discharged, weapon cold. Transitions to CHARGING
+          when a valid firing solution exists and target is locked.
+    CHARGING: capacitor energising toward full charge. Progress tracked
+              as 0.0 -> 1.0 over specs.charge_time seconds.
+    READY: capacitor at full charge, weapon may fire. Holds until
+           fire command or lock is lost (resets to IDLE).
+    """
+    IDLE = "idle"
+    CHARGING = "charging"
+    READY = "ready"
+
+
 @dataclass
 class WeaponSpecs:
     """Physical specifications for a weapon."""
@@ -284,8 +299,13 @@ class TruthWeapon:
 
         # Timing
         self.last_fired = -specs.cycle_time  # Ready to fire immediately
-        self.charge_start = None
-        self.charging = False
+
+        # Charge state machine — only active when specs.charge_time > 0
+        # (railgun capacitor bank needs time to energise before firing).
+        # PDCs have charge_time=0 so these fields are inert for them.
+        self._charge_state: ChargeState = ChargeState.IDLE
+        self._charge_progress: float = 0.0
+        self._charge_target_id: Optional[str] = None  # target the charge is coupled to
 
         # Reload state (magazine-based for PDCs, per-round for railguns)
         self.reloading = False
@@ -338,6 +358,65 @@ class TruthWeapon:
         # Turret tracking
         if self.current_solution and self.current_solution.valid:
             self._update_turret_tracking(dt)
+
+        # Charge state machine — advances capacitor toward READY when a
+        # valid solution exists on a locked target. Resets to IDLE if
+        # the lock is lost or the solution drops. PDCs (charge_time=0)
+        # skip this entirely.
+        self._update_charge_state(dt)
+
+    def _update_charge_state(self, dt: float) -> None:
+        """Advance the capacitor charge state machine.
+
+        Weapons with charge_time <= 0 (e.g. PDCs) are always implicitly
+        READY and this method is a no-op for them.
+
+        Charging begins when a valid firing solution exists (target is
+        locked and in range). If the solution is lost mid-charge the
+        capacitor dumps and progress resets to zero — the weapon must
+        start charging from scratch once a new lock is established.
+        """
+        if self.specs.charge_time <= 0:
+            return  # No charge required (PDC, etc.)
+
+        has_valid_solution = (
+            self.current_solution is not None
+            and self.current_solution.valid
+            and self.current_solution.target_id is not None
+        )
+
+        if not has_valid_solution:
+            # Lock lost or solution dropped — dump capacitor
+            if self._charge_state != ChargeState.IDLE:
+                self._charge_state = ChargeState.IDLE
+                self._charge_progress = 0.0
+                self._charge_target_id = None
+            return
+
+        current_target = self.current_solution.target_id
+
+        # Target changed mid-charge — capacitor is coupled to the old
+        # firing solution geometry, so dump and restart.
+        if self._charge_target_id is not None and current_target != self._charge_target_id:
+            self._charge_state = ChargeState.IDLE
+            self._charge_progress = 0.0
+            self._charge_target_id = None
+
+        if self._charge_state == ChargeState.IDLE:
+            # Begin charging for this target
+            self._charge_state = ChargeState.CHARGING
+            self._charge_progress = 0.0
+            self._charge_target_id = current_target
+
+        if self._charge_state == ChargeState.CHARGING:
+            self._charge_progress = min(
+                1.0, self._charge_progress + dt / self.specs.charge_time
+            )
+            if self._charge_progress >= 1.0:
+                self._charge_state = ChargeState.READY
+
+        # READY state holds until fire() consumes it or lock is lost
+        # (handled by the has_valid_solution check above).
 
     def _update_turret_tracking(self, dt: float):
         """Update turret position to track target."""
@@ -649,6 +728,12 @@ class TruthWeapon:
         cooldown_ready = time_since_fired >= self.specs.cycle_time
         ammo_ok = self.ammo is None or self.ammo > 0
         heat_ok = self.heat < self.max_heat * 0.9
+        # Charge gate: weapons with charge_time>0 must be fully charged.
+        # PDCs (charge_time=0) are always considered charged.
+        charge_ready = (
+            self.specs.charge_time <= 0
+            or self._charge_state == ChargeState.READY
+        )
 
         solution.ready_to_fire = (
             self.enabled and
@@ -658,7 +743,8 @@ class TruthWeapon:
             solution.tracking and
             cooldown_ready and
             ammo_ok and
-            heat_ok
+            heat_ok and
+            charge_ready
         )
 
         if not solution.ready_to_fire:
@@ -678,6 +764,9 @@ class TruthWeapon:
             elif not cooldown_ready:
                 remaining = self.specs.cycle_time - time_since_fired
                 solution.reason = f"Cycling ({remaining:.1f}s remaining)"
+            elif not charge_ready:
+                pct = self._charge_progress * 100
+                solution.reason = f"Charging ({pct:.0f}%)"
             elif not ammo_ok:
                 solution.reason = "No ammunition"
             elif not heat_ok:
@@ -757,6 +846,16 @@ class TruthWeapon:
         if self.heat >= self.max_heat * 0.95:
             return {"ok": False, "reason": "overheated"}
 
+        # Charge gate — railgun capacitor must be fully charged before
+        # the weapon can fire. PDCs (charge_time=0) skip this.
+        if self.specs.charge_time > 0 and self._charge_state != ChargeState.READY:
+            return {
+                "ok": False,
+                "reason": "charging",
+                "charge_state": self._charge_state.value,
+                "charge_progress": round(self._charge_progress, 3),
+            }
+
         # Check power
         if power_manager and not power_manager.request_power(
             self.specs.power_per_shot, "weapon"
@@ -769,6 +868,14 @@ class TruthWeapon:
 
         if not self.current_solution.ready_to_fire:
             return {"ok": False, "reason": self.current_solution.reason}
+
+        # Discharge capacitor — fire() has passed the charge gate so the
+        # weapon is committed to firing. Reset so the next shot requires
+        # a full charge cycle. tick() will begin charging again if a
+        # valid solution persists.
+        if self.specs.charge_time > 0:
+            self._charge_state = ChargeState.IDLE
+            self._charge_progress = 0.0
 
         # Railgun ballistic path: spawn projectile instead of instant hit
         is_railgun = self.specs.damage_type == DamageType.KINETIC_PENETRATOR
@@ -1275,6 +1382,8 @@ class TruthWeapon:
             return False
         if self.heat >= self.max_heat * 0.95:
             return False
+        if self.specs.charge_time > 0 and self._charge_state != ChargeState.READY:
+            return False
         return True
 
     def get_state(self) -> Dict:
@@ -1294,6 +1403,9 @@ class TruthWeapon:
             "heat": self.heat,
             "max_heat": self.max_heat,
             "cycle_time": self.specs.cycle_time,
+            "charge_time": self.specs.charge_time,
+            "charge_state": self._charge_state.value,
+            "charge_progress": round(self._charge_progress, 3),
             "effective_range": self.specs.effective_range,
             "turret_bearing": self.turret_bearing,
             "pdc_mode": self.pdc_mode,

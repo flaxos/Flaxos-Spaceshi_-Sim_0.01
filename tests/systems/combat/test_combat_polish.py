@@ -512,11 +512,15 @@ class TestWeaponFiring:
 
     def test_can_fire_check(self):
         """TruthWeapon.can_fire() returns correct readiness."""
-        from hybrid.systems.weapons.truth_weapons import create_railgun
+        from hybrid.systems.weapons.truth_weapons import create_railgun, ChargeState
 
         railgun = create_railgun("test")
 
-        # Fresh weapon should be able to fire
+        # Fresh railgun cannot fire — capacitor must charge first
+        assert not railgun.can_fire(sim_time=100.0)
+
+        # Manually set charge to READY so we can test the other gates
+        railgun._charge_state = ChargeState.READY
         assert railgun.can_fire(sim_time=100.0)
 
         # Empty weapon cannot
