@@ -1,0 +1,155 @@
+name: "Shooting Arena"
+description: "Weapons testing range with stationary targets at various distances. Test railguns, PDCs, torpedoes, and missiles."
+difficulty: tutorial
+player_count: "1"
+category: tutorial
+dt: 0.1
+
+briefing: |
+  WEAPONS TESTING RANGE
+  
+  Stationary targets at marked distances. Test all weapon systems.
+  
+  PDC Target:       1 km    (point defense range)
+  Close Railgun:   10 km    (easy shot)
+  Medium Railgun:  50 km    (standard engagement)
+  Long Railgun:   200 km    (difficult shot)
+  Extreme Range:  400 km    (edge of effective range)
+  Torpedo Target:  30 km    (guided munition test)
+  Missile Target:  60 km    (missile flight profile test)
+  
+  Targets will not return fire. Take your time, observe firing
+  solutions, and learn how each weapon behaves at different ranges.
+
+ships:
+  - id: "player"
+    name: "UNS Marksman"
+    ship_class: "corvette"
+    faction: "unsa"
+    player_controlled: true
+    ai_enabled: false
+    position: {x: 0, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+
+  - id: "pdc_target"
+    name: "PDC Target"
+    ship_class: "corvette"
+    faction: "hostile"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 1000, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+
+  - id: "close_railgun"
+    name: "Close Railgun Target"
+    ship_class: "frigate"
+    faction: "hostile"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 10000, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+
+  - id: "medium_railgun"
+    name: "Medium Railgun Target"
+    ship_class: "destroyer"
+    faction: "hostile"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 50000, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+
+  - id: "long_railgun"
+    name: "Long Railgun Target"
+    ship_class: "destroyer"
+    faction: "hostile"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 200000, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+
+  - id: "extreme_railgun"
+    name: "Extreme Range Target"
+    ship_class: "battleship"
+    faction: "hostile"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 400000, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+
+  - id: "torpedo_target"
+    name: "Torpedo Target"
+    ship_class: "freighter"
+    faction: "hostile"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 30000, y: 5000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+
+  - id: "missile_target"
+    name: "Missile Target"
+    ship_class: "corvette"
+    faction: "hostile"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 60000, y: -5000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+
+mission:
+  name: "Shooting Arena"
+  description: "Destroy targets at various ranges to test weapon systems."
+  
+  objectives:
+    - id: "destroy_pdc"
+      type: "destroy_target"
+      description: "Destroy PDC Target (1km)"
+      required: true
+      params:
+        target: "pdc_target"
+
+    - id: "destroy_close"
+      type: "destroy_target"
+      description: "Destroy Close Railgun Target (10km)"
+      required: true
+      params:
+        target: "close_railgun"
+
+    - id: "destroy_medium"
+      type: "destroy_target"
+      description: "Destroy Medium Railgun Target (50km)"
+      required: true
+      params:
+        target: "medium_railgun"
+
+    - id: "destroy_long"
+      type: "destroy_target"
+      description: "Destroy Long Railgun Target (200km)"
+      required: false
+      params:
+        target: "long_railgun"
+
+    - id: "destroy_extreme"
+      type: "destroy_target"
+      description: "Destroy Extreme Range Target (400km)"
+      required: false
+      params:
+        target: "extreme_railgun"
+
+    - id: "destroy_torpedo"
+      type: "destroy_target"
+      description: "Destroy Torpedo Target (30km)"
+      required: false
+      params:
+        target: "torpedo_target"
+
+    - id: "destroy_missile"
+      type: "destroy_target"
+      description: "Destroy Missile Target (60km)"
+      required: false
+      params:
+        target: "missile_target"
+
+  success_message: |
+    All required targets destroyed. Weapons systems verified.
+  
+  failure_message: |
+    Ammunition depleted before completing required objectives.
