@@ -89,6 +89,8 @@ import "../components/tutorial-overlay.js";
 import "../components/station-chat.js";
 // Mission comms choices (branching dialogue)
 import "../components/comms-choice-panel.js";
+// Campaign hub (persistent campaign state between missions)
+import "../components/campaign-hub.js";
 // Scenario editor (EDITOR view)
 import "../components/scenario-editor.js";
 // Boarding Actions (Phase 3B)

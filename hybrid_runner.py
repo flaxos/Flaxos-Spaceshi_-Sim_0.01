@@ -39,6 +39,11 @@ class HybridRunner:
         self._current_scenario_path = None
         self._current_scenario_name = None
 
+        # Campaign persistence -- set externally via campaign commands or
+        # the --campaign CLI flag.  When non-None, scenario loads overlay
+        # campaign ship state and mission completions auto-save progress.
+        self._campaign_state = None  # Optional[CampaignState]
+
         # Create fleet_state directory if it doesn't exist
         os.makedirs(os.path.join(self.root_dir, "fleet_state"), exist_ok=True)
 
@@ -190,6 +195,13 @@ class HybridRunner:
                 self.stop()
 
             scenario_data = ScenarioLoader.load(scenario_path)
+
+            # Campaign overlay: if a campaign is active, inject persistent
+            # ship state (hull damage, ammo, fuel, crew) into the scenario
+            # before instantiating ships.  This is how damage carries forward.
+            if self._campaign_state is not None:
+                scenario_data = self._campaign_state.inject_into_scenario(scenario_data)
+
             ships_data = scenario_data.get("ships", [])
             if not ships_data:
                 print(f"Scenario has no ships: {scenario_path}")
@@ -404,8 +416,99 @@ class HybridRunner:
                         time=self.simulator.time,
                     )
 
+                # Campaign integration: on mission end, update persistent
+                # state and auto-save so progress is never lost.
+                if current_status in ("success", "failure") and self._campaign_state is not None:
+                    self._apply_campaign_mission_result(
+                        player_ship, current_status,
+                    )
+
             self.last_mission_status = current_status
     
+    def _apply_campaign_mission_result(self, player_ship, outcome: str) -> None:
+        """Build a mission result dict from the current sim state and apply it.
+
+        Extracts ship hull/ammo/fuel/subsystem health, builds a mission_result
+        dict, and passes it to the campaign state for persistence.  Then auto-
+        saves so progress is never lost even if the server crashes.
+
+        Args:
+            player_ship: The player's Ship object (post-mission state).
+            outcome: "success" or "failure".
+        """
+        if self._campaign_state is None:
+            return
+
+        # Build ship snapshot from live ship state
+        ship_snapshot = {
+            "hull_percent": 100.0,
+            "subsystems": {},
+            "ammo": {},
+            "fuel": 0,
+        }
+
+        # Hull integrity as percentage
+        max_hull = getattr(player_ship, "max_hull_integrity", 1.0)
+        current_hull = getattr(player_ship, "hull_integrity", max_hull)
+        if max_hull > 0:
+            ship_snapshot["hull_percent"] = round((current_hull / max_hull) * 100.0, 1)
+
+        # Subsystem health from ship systems
+        for sys_name in ("propulsion", "sensors", "weapons", "reactor", "rcs", "radiators"):
+            sys_obj = player_ship.systems.get(sys_name)
+            if sys_obj and hasattr(sys_obj, "health"):
+                ship_snapshot["subsystems"][sys_name] = round(sys_obj.health * 100.0, 1)
+            else:
+                # Default to whatever the campaign already had
+                ship_snapshot["subsystems"][sys_name] = (
+                    self._campaign_state.ship_state.get("subsystems", {}).get(sys_name, 100.0)
+                )
+
+        # Ammo from combat system
+        combat = player_ship.systems.get("combat")
+        if combat and hasattr(combat, "weapons"):
+            for weapon in combat.weapons:
+                wtype = getattr(weapon, "weapon_type", "unknown")
+                ammo = getattr(weapon, "ammo_remaining", 0)
+                ship_snapshot["ammo"][wtype] = ship_snapshot["ammo"].get(wtype, 0) + ammo
+
+        # Fuel from propulsion system
+        prop = player_ship.systems.get("propulsion")
+        if prop and hasattr(prop, "fuel_level"):
+            ship_snapshot["fuel"] = prop.fuel_level
+
+        # Score: simple heuristic based on hull remaining and objective completion
+        hull_score = ship_snapshot["hull_percent"]
+        score = int(hull_score) if outcome == "success" else int(hull_score * 0.5)
+
+        # Next scenarios from mission definition
+        next_scenarios = []
+        if self.mission and getattr(self.mission, "next_scenario", None):
+            next_scenarios = [self.mission.next_scenario]
+
+        scenario_id = self._current_scenario_name or "unknown"
+
+        mission_result = {
+            "outcome": outcome,
+            "scenario_id": scenario_id,
+            "score": score,
+            "ship_snapshot": ship_snapshot,
+            "crew_snapshot": [],
+            "choices": [],
+            "next_scenarios": next_scenarios,
+            "reputation_changes": {},
+        }
+
+        self._campaign_state.apply_mission_result(mission_result)
+
+        # Auto-save after each mission
+        save_dir = os.path.join(self.root_dir, "campaign_saves")
+        save_path = os.path.join(save_dir, "campaign.json")
+        try:
+            self._campaign_state.save(save_path)
+        except Exception as exc:
+            print(f"Warning: campaign auto-save failed: {exc}")
+
     def _update_state_cache(self):
         """Update the internal state cache"""
         self.state_cache = {}
