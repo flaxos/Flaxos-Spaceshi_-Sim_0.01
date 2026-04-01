@@ -54,12 +54,22 @@ class CombatSystem(BaseSystem):
         # Initialize truth weapons
         self.truth_weapons: Dict[str, TruthWeapon] = {}
 
-        # Build firing arc lookup from weapon_mounts config
+        # Build firing arc and gimbal lookup from weapon_mounts config.
+        # Each weapon mount entry may specify:
+        #   firing_arc: azimuth/elevation limits for arc-of-fire checks
+        #   gimbal: true/false — independent turret tracking
+        #   max_rotation_rate: turret slew rate in deg/s (used by gimbal)
         arc_lookup: Dict[str, dict] = {}
+        gimbal_lookup: Dict[str, dict] = {}
         for mount in config.get("weapon_mounts", []):
             mid = mount.get("mount_id", "")
             if "firing_arc" in mount:
                 arc_lookup[mid] = mount["firing_arc"]
+            if mount.get("gimbal"):
+                gimbal_lookup[mid] = {
+                    "gimbal": True,
+                    "max_rotation_rate": mount.get("max_rotation_rate", 30.0),
+                }
 
         # Create railguns
         num_railguns = config.get("railguns", config.get("railgun_mounts", 1))
@@ -67,6 +77,7 @@ class CombatSystem(BaseSystem):
             mount_id = f"railgun_{i+1}"
             weapon = create_railgun(mount_id)
             weapon.firing_arc = arc_lookup.get(mount_id)
+            self._apply_gimbal_config(weapon, mount_id, gimbal_lookup)
             self.truth_weapons[mount_id] = weapon
 
         # Create PDCs
@@ -75,6 +86,7 @@ class CombatSystem(BaseSystem):
             mount_id = f"pdc_{i+1}"
             weapon = create_pdc(mount_id)
             weapon.firing_arc = arc_lookup.get(mount_id)
+            self._apply_gimbal_config(weapon, mount_id, gimbal_lookup)
             self.truth_weapons[mount_id] = weapon
 
         # Torpedo tubes — heavy guided munitions for slow/large targets
@@ -139,6 +151,38 @@ class CombatSystem(BaseSystem):
                     "misses": 0,
                     "engagements": 0,
                 }
+
+    @staticmethod
+    def _apply_gimbal_config(
+        weapon: TruthWeapon, mount_id: str, gimbal_lookup: Dict[str, dict],
+    ) -> None:
+        """Copy gimbal settings from weapon_mounts config to a TruthWeapon.
+
+        Gimbal-enabled weapons slew their turret independently within the
+        firing arc, so targets can be tracked without rotating the ship.
+        The arc limits from firing_arc are reused as gimbal clamp limits.
+
+        Args:
+            weapon: TruthWeapon instance to configure.
+            mount_id: Mount identifier for lookup.
+            gimbal_lookup: Dict mapping mount_id to gimbal config.
+        """
+        gcfg = gimbal_lookup.get(mount_id)
+        if not gcfg:
+            return
+        weapon.gimbal_enabled = True
+        weapon._gimbal_max_rate = gcfg.get("max_rotation_rate", 30.0)
+        # Copy arc limits from the weapon's firing_arc config so the
+        # gimbal clamps to the same physical arc as the mount.
+        if weapon.firing_arc:
+            weapon._gimbal_az_limits = (
+                weapon.firing_arc.get("azimuth_min", -180.0),
+                weapon.firing_arc.get("azimuth_max", 180.0),
+            )
+            weapon._gimbal_el_limits = (
+                weapon.firing_arc.get("elevation_min", -90.0),
+                weapon.firing_arc.get("elevation_max", 90.0),
+            )
 
     def tick(self, dt: float, ship, event_bus):
         """Update combat system each tick.

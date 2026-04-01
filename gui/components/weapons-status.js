@@ -105,6 +105,13 @@ class WeaponsStatus extends HTMLElement {
           border: 1px solid rgba(0, 170, 255, 0.3);
         }
 
+        .weapon-status.slewing {
+          background: rgba(255, 170, 0, 0.12);
+          color: var(--status-warning, #ffaa00);
+          border: 1px solid rgba(255, 170, 0, 0.25);
+          animation: pulse 1.2s ease-in-out infinite;
+        }
+
         .weapon-status.offline {
           background: rgba(85, 85, 102, 0.2);
           color: var(--text-dim, #555566);
@@ -402,6 +409,11 @@ class WeaponsStatus extends HTMLElement {
     } else if (w.solution?.ready_to_fire) {
       statusClass = "firing";
       statusText = "SOLUTION";
+    } else if (w.gimbal_enabled && w.solution?.valid && !w.solution?.tracking) {
+      // Gimballed weapon has a valid solution but the turret is still
+      // slewing toward the lead angle -- not yet within threshold.
+      statusClass = "slewing";
+      statusText = "SLEWING";
     } else if (w.solution?.tracking) {
       statusClass = "tracking";
       statusText = "TRACKING";
@@ -433,6 +445,18 @@ class WeaponsStatus extends HTMLElement {
         <div class="detail-row">
           <span class="detail-label">Hit Prob</span>
           <span class="detail-value">${(w.solution.hit_probability * 100).toFixed(0)}%</span>
+        </div>
+      `;
+    }
+
+    // Gimbal tracking info -- only shown for gimballed weapons
+    if (w.gimbal_enabled) {
+      const errDeg = w.gimbal_error ?? 0;
+      const errClass = errDeg < 2 ? "" : errDeg < 10 ? "warning" : "critical";
+      detailsHtml += `
+        <div class="detail-row">
+          <span class="detail-label">Gimbal Err</span>
+          <span class="detail-value ${errClass}">${errDeg.toFixed(1)} deg</span>
         </div>
       `;
     }

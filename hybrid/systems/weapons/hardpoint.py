@@ -25,6 +25,8 @@ class Hardpoint:
         max_rotation_rate: Maximum turret slew rate in degrees/second.
         azimuth_limits: (min, max) azimuth arc in degrees.
         elevation_limits: (min, max) elevation arc in degrees.
+        gimbal: Whether this mount has an independent gimbal that tracks
+            targets without requiring the ship to rotate.
     """
 
     id: str
@@ -42,6 +44,11 @@ class Hardpoint:
     max_rotation_rate: float = 0.0  # deg/s
     azimuth_limits: Optional[tuple] = None
     elevation_limits: Optional[tuple] = None
+
+    # Gimbal: independent turret tracking within arc limits.
+    # When True, the weapon slews toward the target at max_rotation_rate
+    # and can fire without the ship re-orienting.
+    gimbal: bool = False
 
     def __post_init__(self) -> None:
         """Initialize default values for optional fields."""

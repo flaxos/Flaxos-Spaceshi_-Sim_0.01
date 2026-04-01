@@ -326,6 +326,20 @@ class TruthWeapon:
         self.turret_bearing = {"pitch": 0.0, "yaw": 0.0}
         self.target_bearing = {"pitch": 0.0, "yaw": 0.0}
 
+        # Gimbal state: independent turret tracking within arc limits.
+        # When gimbal_enabled is True, the weapon slews its own azimuth
+        # and elevation toward the desired lead angle at max_rotation_rate,
+        # clamped to the hardpoint's arc limits. The weapon only reports
+        # "tracking" when gimbal error drops below a weapon-specific
+        # threshold (tight for railguns, loose for PDCs).
+        self.gimbal_enabled: bool = False
+        self.current_azimuth: float = 0.0   # Current gimbal azimuth (deg, ship-relative)
+        self.current_elevation: float = 0.0  # Current gimbal elevation (deg, ship-relative)
+        self._gimbal_az_limits: tuple = (-180.0, 180.0)
+        self._gimbal_el_limits: tuple = (-90.0, 90.0)
+        self._gimbal_max_rate: float = 0.0  # deg/s, copied from hardpoint config
+        self._gimbal_error: float = 0.0     # RSS error to desired angles (deg)
+
         # Events
         self.event_bus = EventBus.get_instance()
 
@@ -355,9 +369,15 @@ class TruthWeapon:
             else:
                 self.reload_progress = 1.0 - (self._reload_timer / self.specs.reload_time)
 
-        # Turret tracking
+        # Turret tracking (legacy bearing-based)
         if self.current_solution and self.current_solution.valid:
             self._update_turret_tracking(dt)
+
+        # Gimbal tracking — independent turret slew toward lead angle.
+        # Runs every tick regardless of solution validity so the gimbal
+        # holds its last commanded position when the solution drops.
+        if self.gimbal_enabled:
+            self._update_gimbal(dt)
 
         # Charge state machine — advances capacitor toward READY when a
         # valid solution exists on a locked target. Resets to IDLE if
@@ -436,6 +456,93 @@ class TruthWeapon:
                 self.turret_bearing[axis] = target[axis]
             else:
                 self.turret_bearing[axis] += max_move if diff > 0 else -max_move
+
+    def _update_gimbal(self, dt: float) -> None:
+        """Slew gimbal azimuth/elevation toward the desired lead angle.
+
+        The gimbal tracks the firing solution's lead angle in the ship-
+        relative frame. It slews at _gimbal_max_rate deg/s and clamps to
+        the hardpoint's arc limits. When no valid solution exists the
+        gimbal holds its current position (does not snap to boresight).
+
+        Gimbal error is the RSS of azimuth and elevation deltas. The
+        weapon reports ``tracking = True`` only when error falls below a
+        threshold that depends on weapon type:
+          - Railgun: 1 deg (tight, needs precise aim for a single slug)
+          - PDC: 5 deg (loose, sustained burst covers the spread)
+        """
+        if self._gimbal_max_rate <= 0.0:
+            return
+
+        # Determine desired angles from the firing solution.
+        # If no valid solution, hold position (gimbal error stays stale).
+        if self.current_solution and self.current_solution.valid:
+            desired_az = self.current_solution.lead_angle.get("yaw", 0.0)
+            desired_el = self.current_solution.lead_angle.get("pitch", 0.0)
+        else:
+            # No solution -- hold current position, report large error
+            self._gimbal_error = 999.0
+            return
+
+        max_move = self._gimbal_max_rate * dt
+
+        # Slew azimuth
+        az_diff = desired_az - self.current_azimuth
+        # Normalise to [-180, 180]
+        while az_diff > 180.0:
+            az_diff -= 360.0
+        while az_diff < -180.0:
+            az_diff += 360.0
+        if abs(az_diff) <= max_move:
+            new_az = desired_az
+        else:
+            new_az = self.current_azimuth + (max_move if az_diff > 0 else -max_move)
+
+        # Slew elevation
+        el_diff = desired_el - self.current_elevation
+        while el_diff > 180.0:
+            el_diff -= 360.0
+        while el_diff < -180.0:
+            el_diff += 360.0
+        if abs(el_diff) <= max_move:
+            new_el = desired_el
+        else:
+            new_el = self.current_elevation + (max_move if el_diff > 0 else -max_move)
+
+        # Clamp to arc limits.
+        # Azimuth limits may wrap (e.g. aft-facing: 90..270). Clamping
+        # in that case is non-trivial, so for simplicity we clamp to
+        # the nearest limit if the new value falls outside the arc.
+        az_lo, az_hi = self._gimbal_az_limits
+        if az_lo <= az_hi:
+            new_az = max(az_lo, min(az_hi, new_az))
+        else:
+            # Wrapping arc: valid if new_az >= az_lo OR new_az <= az_hi.
+            # If outside, snap to whichever limit is closer.
+            norm_az = new_az
+            while norm_az > 180.0:
+                norm_az -= 360.0
+            while norm_az < -180.0:
+                norm_az += 360.0
+            if not (norm_az >= az_lo or norm_az <= az_hi):
+                dist_lo = abs(norm_az - az_lo)
+                dist_hi = abs(norm_az - az_hi)
+                new_az = az_lo if dist_lo < dist_hi else az_hi
+
+        el_lo, el_hi = self._gimbal_el_limits
+        new_el = max(el_lo, min(el_hi, new_el))
+
+        self.current_azimuth = new_az
+        self.current_elevation = new_el
+
+        # Compute residual error (how far gimbal is from desired aim)
+        final_az_diff = desired_az - self.current_azimuth
+        while final_az_diff > 180.0:
+            final_az_diff -= 360.0
+        while final_az_diff < -180.0:
+            final_az_diff += 360.0
+        final_el_diff = desired_el - self.current_elevation
+        self._gimbal_error = math.sqrt(final_az_diff ** 2 + final_el_diff ** 2)
 
     def calculate_solution(
         self,
@@ -672,12 +779,25 @@ class TruthWeapon:
             solution.range_to_target * math.tan(effective_spread), 1
         )
 
-        # Check turret tracking
-        turret_error = math.sqrt(
-            (self.turret_bearing["pitch"] - solution.lead_angle["pitch"])**2 +
-            (self.turret_bearing["yaw"] - solution.lead_angle["yaw"])**2
-        )
-        solution.tracking = turret_error < 5.0  # Within 5 degrees
+        # Check turret tracking.
+        # Gimballed weapons use their own slewed azimuth/elevation error
+        # against weapon-specific thresholds:
+        #   Railgun: 1 deg — tight, single slug needs precise aim
+        #   PDC: 5 deg — loose, sustained burst covers the cone
+        # Non-gimballed weapons use the legacy turret bearing check.
+        if self.gimbal_enabled:
+            turret_error = self._gimbal_error
+            if self.specs.damage_type == DamageType.KINETIC_PENETRATOR:
+                tracking_threshold = 1.0  # Railgun: precise
+            else:
+                tracking_threshold = 5.0  # PDC: permissive burst cone
+        else:
+            turret_error = math.sqrt(
+                (self.turret_bearing["pitch"] - solution.lead_angle["pitch"])**2 +
+                (self.turret_bearing["yaw"] - solution.lead_angle["yaw"])**2
+            )
+            tracking_threshold = 5.0
+        solution.tracking = turret_error < tracking_threshold
 
         # Check firing arc constraints from weapon mount config.
         # Arcs are defined in ship-relative coordinates (0 azimuth = nose),
@@ -1409,6 +1529,11 @@ class TruthWeapon:
             "effective_range": self.specs.effective_range,
             "turret_bearing": self.turret_bearing,
             "pdc_mode": self.pdc_mode,
+            # Gimbal state — independent turret tracking
+            "gimbal_enabled": self.gimbal_enabled,
+            "gimbal_azimuth": round(self.current_azimuth, 2),
+            "gimbal_elevation": round(self.current_elevation, 2),
+            "gimbal_error": round(self._gimbal_error, 2),
             "solution": {
                 "valid": self.current_solution.valid if self.current_solution else False,
                 "target_id": self.current_solution.target_id if self.current_solution else None,
