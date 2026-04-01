@@ -205,6 +205,8 @@ class TestPdcTorpedoEngage:
             "distance": 1500.0,
             "hit": True,
             "destroyed": True,
+            "rounds_fired": 10,
+            "burst_hits": 3,
         })
 
         entry = combat_log.get_entries()[0]
@@ -213,6 +215,8 @@ class TestPdcTorpedoEngage:
         assert entry["weapon"] == "Narwhal-III PDC"
         assert "destroyed" in entry["summary"].lower()
         assert entry["details"]["destroyed"] is True
+        assert entry["details"]["rounds_fired"] == 10
+        assert entry["details"]["burst_hits"] == 3
 
     def test_pdc_hit_but_not_destroyed(self, combat_log, bus):
         bus.publish("pdc_torpedo_engage", {
@@ -222,6 +226,8 @@ class TestPdcTorpedoEngage:
             "distance": 3000.0,
             "hit": True,
             "destroyed": False,
+            "rounds_fired": 10,
+            "burst_hits": 2,
         })
 
         entry = combat_log.get_entries()[0]
@@ -236,11 +242,13 @@ class TestPdcTorpedoEngage:
             "distance": 4500.0,
             "hit": False,
             "destroyed": False,
+            "rounds_fired": 10,
+            "burst_hits": 0,
         })
 
         entry = combat_log.get_entries()[0]
         assert entry["severity"] == "miss"
-        assert "missed" in entry["summary"].lower()
+        assert "survived" in entry["summary"].lower()
 
     def test_pdc_range_formatting(self, combat_log, bus):
         """Range should be formatted in human-readable units."""
@@ -251,10 +259,12 @@ class TestPdcTorpedoEngage:
             "distance": 2500.0,
             "hit": True,
             "destroyed": True,
+            "rounds_fired": 10,
+            "burst_hits": 5,
         })
 
         entry = combat_log.get_entries()[0]
-        # 2500m should be formatted as "2.5km"
+        # 2500m should be formatted as "2.5km" in the summary
         assert "2.5km" in entry["summary"]
 
 

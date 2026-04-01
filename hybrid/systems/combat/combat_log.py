@@ -892,9 +892,10 @@ class CombatLog:
     def _on_pdc_torpedo_engage(self, payload: dict):
         """Handle PDC auto-engagement of incoming torpedoes.
 
-        The simulator fires PDCs at torpedoes in auto mode. This logs
-        whether the burst connected and whether the torpedo was destroyed.
-        Gives the player feedback on their point-defense effectiveness.
+        Each PDC fires a burst of rounds (burst_count per trigger pull).
+        The payload includes per-burst stats: rounds_fired, burst_hits,
+        and whether the torpedo was destroyed. This gives the player
+        detailed feedback on point-defense effectiveness.
         """
         ship_id = payload.get("ship_id", "unknown")
         pdc_mount = payload.get("pdc_mount", "unknown")
@@ -902,23 +903,36 @@ class CombatLog:
         distance = payload.get("distance", 0.0)
         hit = payload.get("hit", False)
         destroyed = payload.get("destroyed", False)
+        rounds_fired = payload.get("rounds_fired", 0)
+        burst_hits = payload.get("burst_hits", 0)
         range_str = _format_range(distance)
 
+        # Build a summary that shows burst-level detail and range:
+        # "PDC (pdc_1): burst 10 rounds at torpedo T001 at 1.5km, 3 hits -- torpedo destroyed"
         if destroyed:
-            summary = f"PDC ({pdc_mount}) destroyed torpedo {torpedo_id} at {range_str}"
+            summary = (
+                f"PDC ({pdc_mount}): burst {rounds_fired} rounds at {torpedo_id} "
+                f"at {range_str}, {burst_hits} hits -- torpedo destroyed"
+            )
             severity = "hit"
         elif hit:
-            summary = f"PDC ({pdc_mount}) hit torpedo {torpedo_id} at {range_str} -- torpedo damaged"
+            summary = (
+                f"PDC ({pdc_mount}): burst {rounds_fired} rounds at {torpedo_id} "
+                f"at {range_str}, {burst_hits} hits -- torpedo damaged"
+            )
             severity = "hit"
         else:
-            summary = f"PDC ({pdc_mount}) engaged torpedo {torpedo_id} at {range_str} -- missed"
+            summary = (
+                f"PDC ({pdc_mount}): burst {rounds_fired} rounds at {torpedo_id} "
+                f"at {range_str}, 0 hits -- torpedo survived"
+            )
             severity = "miss"
 
         chain = [
             f"PDC mount: {pdc_mount}",
-            f"Target torpedo: {torpedo_id}",
+            f"Target: {torpedo_id}",
             f"Engagement range: {range_str}",
-            f"Burst connected: {'yes' if hit else 'no'}",
+            f"Burst: {rounds_fired} rounds fired, {burst_hits} hits",
         ]
         if destroyed:
             chain.append("Torpedo DESTROYED -- threat neutralized")
@@ -940,6 +954,8 @@ class CombatLog:
                 "distance": distance,
                 "hit": hit,
                 "destroyed": destroyed,
+                "rounds_fired": rounds_fired,
+                "burst_hits": burst_hits,
             },
             weapon="Narwhal-III PDC",
             severity=severity,
