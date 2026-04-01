@@ -1,0 +1,29 @@
+{
+  "class_id": "beacon",
+  "class_name": "Navigation Beacon",
+  "description": "Stationary navigation marker. No propulsion, no weapons — a transponder in space.",
+  "dimensions": {"length_m": 3.0, "beam_m": 1.0, "draft_m": 1.0},
+  "crew_complement": {"minimum": 0, "standard": 0, "maximum": 0},
+  "mass": {"dry_mass": 100.0, "max_fuel": 0.0, "max_hull_integrity": 50.0},
+  "armor": {
+    "fore": {"thickness_cm": 0.1, "material": "steel_composite"},
+    "aft": {"thickness_cm": 0.1, "material": "steel_composite"},
+    "port": {"thickness_cm": 0.1, "material": "steel_composite"},
+    "starboard": {"thickness_cm": 0.1, "material": "steel_composite"},
+    "dorsal": {"thickness_cm": 0.1, "material": "steel_composite"},
+    "ventral": {"thickness_cm": 0.1, "material": "steel_composite"}
+  },
+  "systems": {
+    "propulsion": {"enabled": false, "power_draw": 0, "max_thrust": 0, "isp": 0, "max_fuel": 0, "fuel_level": 0},
+    "rcs": {"enabled": false, "max_torque": 0, "attitude_rate": 0},
+    "sensors": {"enabled": true, "power_draw": 2, "passive": {"range": 10000}, "active": {"scan_range": 0, "cooldown_time": 999}},
+    "navigation": {"enabled": true, "power_draw": 1},
+    "combat": {"enabled": false, "railguns": 0, "pdcs": 0},
+    "power_management": {"primary": {"output": 10}, "system_map": {"sensors": "primary", "navigation": "primary"}}
+  },
+  "weapon_mounts": [],
+  "damage_model": {
+    "sensors": {"max_health": 30, "health": 30, "criticality": 3, "failure_threshold": 0.2},
+    "reactor": {"max_health": 20, "health": 20, "criticality": 5, "failure_threshold": 0.3}
+  }
+}

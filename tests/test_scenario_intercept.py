@@ -369,20 +369,6 @@ def test_basic_nav_commands_execute_cleanly():
 # Test 4: Rendezvous autopilot converges — PRIMARY REGRESSION GUARD
 # ---------------------------------------------------------------------------
 
-@pytest.mark.xfail(
-    reason=(
-        "KNOWN ISSUE: RCS PD controller instability causes heading oscillation "
-        "during BRAKE and APPROACH phases.  The alignment guard blocks thrust "
-        "during oscillation, reducing effective deceleration and creating lateral "
-        "drift that the radial-only P-controller can't correct.  The approach "
-        "controller gets within 5 km but can't trigger the 5 km/60 m/s "
-        "stationkeep handoff.  Fix requires RCS PD controller tuning or "
-        "damping, which is a separate issue from the APPROACH oscillation "
-        "bug fixed in this PR.  The oscillation fix is verified by "
-        "test_autopilot_phase_ordering_no_excessive_cycling (0 burn re-entries)."
-    ),
-    strict=False,
-)
 def test_rendezvous_autopilot_converges():
     """Rendezvous AP closes to stationkeep range within 60 sim-minutes.
 

@@ -1,0 +1,37 @@
+{
+  "class_id": "scout",
+  "class_name": "Scout",
+  "description": "Small, stealthy reconnaissance vessel with enhanced passive sensors and low signature. Minimal armament — designed to observe, not engage.",
+  "dimensions": {"length_m": 18.0, "beam_m": 5.0, "draft_m": 4.0},
+  "crew_complement": {"minimum": 1, "standard": 3, "maximum": 4},
+  "mass": {"dry_mass": 600.0, "max_fuel": 200.0, "max_hull_integrity": 80.0},
+  "armor": {
+    "fore": {"thickness_cm": 1.0, "material": "composite_cermet"},
+    "aft": {"thickness_cm": 0.5, "material": "composite_cermet"},
+    "port": {"thickness_cm": 0.8, "material": "composite_cermet"},
+    "starboard": {"thickness_cm": 0.8, "material": "composite_cermet"},
+    "dorsal": {"thickness_cm": 0.8, "material": "composite_cermet"},
+    "ventral": {"thickness_cm": 0.8, "material": "composite_cermet"}
+  },
+  "systems": {
+    "propulsion": {"enabled": true, "power_draw": 20, "max_thrust": 30.0, "isp": 4500, "max_fuel": 200.0, "fuel_level": 200.0, "drive_type": "epstein"},
+    "rcs": {"enabled": true, "max_torque": 800, "attitude_rate": 40},
+    "sensors": {"enabled": true, "power_draw": 15, "passive": {"range": 600000}, "active": {"scan_range": 800000, "cooldown_time": 8}, "signature_base": 5.0, "ir_modifier": 0.5, "rcs_modifier": 0.6},
+    "navigation": {"enabled": true, "power_draw": 3},
+    "targeting": {"enabled": true, "lock_time": 1.5, "lock_range": 300000},
+    "combat": {"enabled": true, "railguns": 0, "pdcs": 1},
+    "ecm": {"enabled": true, "jammer_power": 30, "chaff_count": 6, "flare_count": 6, "jammer_heat": 0.02},
+    "power_management": {"primary": {"output": 80}, "secondary": {"output": 30}, "system_map": {"propulsion": "primary", "sensors": "primary", "rcs": "secondary", "navigation": "secondary", "targeting": "secondary", "combat": "secondary", "ecm": "secondary"}}
+  },
+  "weapon_mounts": [
+    {"mount_id": "pdc_1", "weapon_type": "pdc", "placement": {"section": "dorsal", "position": {"x": 5, "y": 0, "z": 2}}, "firing_arc": {"azimuth_min": -180, "azimuth_max": 180, "elevation_min": 0, "elevation_max": 90}}
+  ],
+  "damage_model": {
+    "propulsion": {"max_health": 100, "health": 100, "criticality": 3, "failure_threshold": 0.2},
+    "rcs": {"max_health": 80, "health": 80, "criticality": 2, "failure_threshold": 0.15},
+    "weapons": {"max_health": 60, "health": 60, "criticality": 1, "failure_threshold": 0.1},
+    "sensors": {"max_health": 120, "health": 120, "criticality": 5, "failure_threshold": 0.25},
+    "reactor": {"max_health": 100, "health": 100, "criticality": 5, "failure_threshold": 0.3},
+    "life_support": {"max_health": 80, "health": 80, "criticality": 4, "failure_threshold": 0.2}
+  }
+}
