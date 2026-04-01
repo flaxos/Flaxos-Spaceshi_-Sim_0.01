@@ -192,6 +192,11 @@ system_commands = {
     "begin_boarding": ("boarding", "begin_boarding"),
     "cancel_boarding": ("boarding", "cancel_boarding"),
     "boarding_status": ("boarding", "status"),
+    # Drone bay commands
+    "launch_drone": ("drone_bay", "launch_drone"),
+    "recall_drone": ("drone_bay", "recall_drone"),
+    "set_drone_behavior": ("drone_bay", "set_drone_behavior"),
+    "drone_status": ("drone_bay", "drone_status"),
     # Fleet coordination commands
     "fleet_create": ("fleet_coord", "fleet_create"),
     "fleet_add_ship": ("fleet_coord", "fleet_add_ship"),
@@ -305,6 +310,10 @@ def execute_command(ship, command_type, command_data, all_ships=None):
         if all_ships is not None:
             # D6: Keep all_ships as dict for target resolution in weapon system
             command_data_with_ship["all_ships"] = all_ships
+        # Inject simulator ref for systems that spawn entities (e.g. drone bay)
+        sim_ref = getattr(ship, "_simulator_ref", None)
+        if sim_ref is not None:
+            command_data_with_ship["_simulator"] = sim_ref
 
         # Execute the command on the system
         try:

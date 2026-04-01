@@ -49,6 +49,7 @@ def get_system_class(system_type):
         "auto_engineering": AutoEngineeringSystem,
         "auto_science": AutoScienceSystem,
         "auto_comms": AutoCommsSystem,
+        "drone_bay": DroneBaySystem,
     }
 
     return system_map.get(system_type)
@@ -83,6 +84,7 @@ from hybrid.systems.auto_ops import AutoOpsSystem
 from hybrid.systems.auto_engineering import AutoEngineeringSystem
 from hybrid.systems.auto_science import AutoScienceSystem
 from hybrid.systems.auto_comms import AutoCommsSystem
+from hybrid.systems.drone_bay import DroneBaySystem
 
 __all__ = [
     'PowerSystem',
@@ -112,4 +114,5 @@ __all__ = [
     'AutoEngineeringSystem',
     'AutoScienceSystem',
     'AutoCommsSystem',
+    'DroneBaySystem',
 ]

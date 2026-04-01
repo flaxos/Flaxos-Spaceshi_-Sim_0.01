@@ -239,6 +239,7 @@ class Simulator:
             try:
                 ship._all_ships_ref = all_ships
                 ship._environment_manager_ref = self.environment_manager
+                ship._simulator_ref = self
                 # Inject projectile_manager and torpedo_manager into combat system
                 combat = ship.systems.get("combat")
                 if combat and hasattr(combat, "_projectile_manager"):

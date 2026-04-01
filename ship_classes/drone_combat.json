@@ -1,0 +1,104 @@
+{
+  "class_id": "drone_combat",
+  "class_name": "Combat Drone",
+  "description": "Expendable PDC screen drone. Medium-thrust drive for station-keeping near the parent ship. Carries a single PDC with 500 rounds for point-defense suppression. No armor — one solid hit destroys it, but it buys the parent ship time.",
+  "dimensions": {
+    "length_m": 1.5,
+    "beam_m": 0.8,
+    "draft_m": 0.6
+  },
+  "crew_complement": {
+    "minimum": 0,
+    "standard": 0,
+    "maximum": 0
+  },
+  "mass": {
+    "dry_mass": 70.0,
+    "max_fuel": 30.0,
+    "max_hull_integrity": 8.0
+  },
+  "armor": {
+    "fore":      { "thickness_cm": 0.1, "material": "composite" },
+    "aft":       { "thickness_cm": 0.0, "material": "none" },
+    "port":      { "thickness_cm": 0.0, "material": "none" },
+    "starboard": { "thickness_cm": 0.0, "material": "none" },
+    "dorsal":    { "thickness_cm": 0.0, "material": "none" },
+    "ventral":   { "thickness_cm": 0.0, "material": "none" }
+  },
+  "systems": {
+    "propulsion": {
+      "enabled": true,
+      "power_draw": 5,
+      "max_thrust": 1.0,
+      "isp": 2500,
+      "max_fuel": 30.0,
+      "fuel_level": 30.0,
+      "drive_type": "cold_gas",
+      "placement": { "section": "aft", "position": { "x": -0.6, "y": 0.0, "z": 0.0 } }
+    },
+    "rcs": {
+      "enabled": true,
+      "max_torque": 3.0,
+      "attitude_rate": 50.0,
+      "thruster_count": 4,
+      "placement": [
+        { "section": "fore", "position": { "x": 0.6, "y": 0.0, "z": 0.0 } },
+        { "section": "aft",  "position": { "x": -0.5, "y": 0.0, "z": 0.0 } }
+      ]
+    },
+    "sensors": {
+      "enabled": true,
+      "power_draw": 4,
+      "passive": { "range": 80000.0 },
+      "signature_base": 0.08,
+      "ir_modifier": 0.3,
+      "rcs_modifier": 0.06,
+      "placement": { "section": "fore", "position": { "x": 0.6, "y": 0.0, "z": 0.2 } }
+    },
+    "navigation": {
+      "enabled": true,
+      "power_draw": 2
+    },
+    "targeting": {
+      "enabled": true,
+      "lock_time": 3.0,
+      "lock_range": 50000.0
+    },
+    "combat": {
+      "enabled": true,
+      "railguns": 0,
+      "pdcs": 1
+    },
+    "power_management": {
+      "primary":   { "output": 15.0 },
+      "secondary": { "output": 8.0 },
+      "tertiary":  { "output": 3.0 },
+      "system_map": {
+        "propulsion": "primary",
+        "combat":     "primary",
+        "sensors":    "secondary",
+        "targeting":  "secondary",
+        "rcs":        "secondary",
+        "navigation": "tertiary"
+      }
+    }
+  },
+  "weapon_mounts": [
+    {
+      "mount_id": "pdc_1",
+      "weapon_type": "pdc",
+      "placement": { "section": "fore", "position": { "x": 0.5, "y": 0.0, "z": 0.2 } },
+      "firing_arc": { "azimuth_min": -180, "azimuth_max": 180, "elevation_min": -90, "elevation_max": 90 },
+      "coverage": "full_sphere",
+      "ammo_override": 500
+    }
+  ],
+  "damage_model": {
+    "propulsion":    { "max_health": 8.0,  "health": 8.0,  "criticality": 3.0, "failure_threshold": 0.3 },
+    "rcs":           { "max_health": 5.0,  "health": 5.0,  "criticality": 2.0, "failure_threshold": 0.3 },
+    "weapons":       { "max_health": 8.0,  "health": 8.0,  "criticality": 4.0, "failure_threshold": 0.3 },
+    "sensors":       { "max_health": 5.0,  "health": 5.0,  "criticality": 3.0, "failure_threshold": 0.3 },
+    "reactor":       { "max_health": 10.0, "health": 10.0, "criticality": 5.0, "failure_threshold": 0.2 },
+    "life_support":  { "max_health": 1.0,  "health": 1.0,  "criticality": 0.0, "failure_threshold": 1.0 }
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "class_id": "drone_sensor",
+  "class_name": "Sensor Drone",
+  "description": "Expendable remote sensor platform. Low-thrust drive for repositioning, passive sensors only. Extends the parent ship's sensor coverage without risking crewed assets. No weapons, no armor — if detected, it dies.",
+  "dimensions": {
+    "length_m": 1.2,
+    "beam_m": 0.6,
+    "draft_m": 0.4
+  },
+  "crew_complement": {
+    "minimum": 0,
+    "standard": 0,
+    "maximum": 0
+  },
+  "mass": {
+    "dry_mass": 70.0,
+    "max_fuel": 30.0,
+    "max_hull_integrity": 5.0
+  },
+  "armor": {
+    "fore":      { "thickness_cm": 0.0, "material": "none" },
+    "aft":       { "thickness_cm": 0.0, "material": "none" },
+    "port":      { "thickness_cm": 0.0, "material": "none" },
+    "starboard": { "thickness_cm": 0.0, "material": "none" },
+    "dorsal":    { "thickness_cm": 0.0, "material": "none" },
+    "ventral":   { "thickness_cm": 0.0, "material": "none" }
+  },
+  "systems": {
+    "propulsion": {
+      "enabled": true,
+      "power_draw": 3,
+      "max_thrust": 0.5,
+      "isp": 2500,
+      "max_fuel": 30.0,
+      "fuel_level": 30.0,
+      "drive_type": "cold_gas",
+      "placement": { "section": "aft", "position": { "x": -0.5, "y": 0.0, "z": 0.0 } }
+    },
+    "rcs": {
+      "enabled": true,
+      "max_torque": 2.0,
+      "attitude_rate": 60.0,
+      "thruster_count": 4,
+      "placement": [
+        { "section": "fore", "position": { "x": 0.5, "y": 0.0, "z": 0.0 } },
+        { "section": "aft",  "position": { "x": -0.4, "y": 0.0, "z": 0.0 } }
+      ]
+    },
+    "sensors": {
+      "enabled": true,
+      "power_draw": 5,
+      "passive": { "range": 150000.0 },
+      "signature_base": 0.05,
+      "ir_modifier": 0.2,
+      "rcs_modifier": 0.05,
+      "placement": { "section": "fore", "position": { "x": 0.5, "y": 0.0, "z": 0.1 } }
+    },
+    "navigation": {
+      "enabled": true,
+      "power_draw": 2
+    },
+    "power_management": {
+      "primary":   { "output": 10.0 },
+      "secondary": { "output": 5.0 },
+      "tertiary":  { "output": 2.0 },
+      "system_map": {
+        "propulsion": "primary",
+        "sensors":    "secondary",
+        "rcs":        "secondary",
+        "navigation": "tertiary"
+      }
+    }
+  },
+  "weapon_mounts": [],
+  "damage_model": {
+    "propulsion":    { "max_health": 5.0,  "health": 5.0,  "criticality": 3.0, "failure_threshold": 0.3 },
+    "rcs":           { "max_health": 5.0,  "health": 5.0,  "criticality": 2.0, "failure_threshold": 0.3 },
+    "sensors":       { "max_health": 5.0,  "health": 5.0,  "criticality": 4.0, "failure_threshold": 0.3 },
+    "reactor":       { "max_health": 10.0, "health": 10.0, "criticality": 5.0, "failure_threshold": 0.2 },
+    "life_support":  { "max_health": 1.0,  "health": 1.0,  "criticality": 0.0, "failure_threshold": 1.0 }
+  }
+}

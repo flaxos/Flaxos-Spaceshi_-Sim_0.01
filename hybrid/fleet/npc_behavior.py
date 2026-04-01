@@ -164,6 +164,21 @@ ROLE_DEFAULTS: Dict[str, BehaviorProfile] = {
         weapon_confidence_threshold=0.2,
         pack_targeting=True,
     ),
+
+    # ── Phase 3A: drone roles ────────────────────────────────────
+
+    "decoy": BehaviorProfile(
+        # Decoy doctrine: EMCON off, jammer on, flies toward enemy.
+        # Inflated IR signature draws fire away from the parent ship.
+        # Never flees, never evades — it exists to die loudly.
+        role="decoy",
+        aggression=1.0,
+        engagement_range=80_000,       # closes aggressively toward threats
+        flee_threshold=0.0,            # never flees — expendable
+        evade_threshold=0.0,           # never evades — wants to be hit
+        max_thrust_profile=0.5,        # full thrust toward enemy
+        weapon_confidence_threshold=1.0,  # never fires — has no weapons
+    ),
 }
 
 
@@ -211,6 +226,13 @@ def infer_role(ship_class: str, faction: str) -> str:
         return "freighter"
     if class_lower == "station":
         return "patrol"  # stations hold position
+    # Drone types map to purpose-specific roles
+    if class_lower == "drone_sensor":
+        return "patrol"
+    if class_lower == "drone_combat":
+        return "defender"
+    if class_lower == "drone_decoy":
+        return "decoy"
 
     # Faction-based fallbacks
     if faction_lower in ("pirates", "hostile"):

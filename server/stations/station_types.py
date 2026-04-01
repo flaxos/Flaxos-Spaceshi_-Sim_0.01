@@ -230,6 +230,11 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             "begin_boarding",
             "cancel_boarding",
             "boarding_status",
+            # Drone bay commands (Phase 3A)
+            "launch_drone",
+            "recall_drone",
+            "set_drone_behavior",
+            "drone_status",
             # Inter-station comms
             "station_message",
         },
@@ -241,6 +246,7 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             "crew_fatigue_status", "crew_station_status",
             "subsystem_health", "boarding_status",
             "auto_ops_status",
+            "drone_bay_status",
         },
         required_systems={"power", "power_management"},
     ),
