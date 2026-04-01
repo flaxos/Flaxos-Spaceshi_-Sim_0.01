@@ -370,6 +370,7 @@ class TruthWeapon:
         shooter_angular_vel: Optional[Dict[str, float]] = None,
         weapon_damage_factor: float = 1.0,
         target_accel: Optional[Dict[str, float]] = None,
+        shooter_heading: Optional[Dict[str, float]] = None,
     ) -> FiringSolution:
         """Calculate firing solution for a target.
 
@@ -393,6 +394,10 @@ class TruthWeapon:
                 Damaged weapons have degraded firing solutions.
             target_accel: Target acceleration vector {x, y, z} in m/s².
                 Maneuvering targets are harder to predict during slug flight.
+            shooter_heading: Ship orientation {pitch, yaw, roll} in degrees.
+                Required for firing arc checks — arcs are defined relative
+                to the ship's nose, so world-space aim angles must be
+                converted to ship-relative bearings for comparison.
 
         Returns:
             FiringSolution with engagement data including confidence score.
@@ -595,14 +600,33 @@ class TruthWeapon:
         )
         solution.tracking = turret_error < 5.0  # Within 5 degrees
 
-        # Check firing arc constraints from weapon mount config
+        # Check firing arc constraints from weapon mount config.
+        # Arcs are defined in ship-relative coordinates (0 azimuth = nose),
+        # so the world-space aim direction must be converted to a bearing
+        # relative to the ship's heading before comparison.
         if self.firing_arc:
             az_min = self.firing_arc.get("azimuth_min", -180)
             az_max = self.firing_arc.get("azimuth_max", 180)
             el_min = self.firing_arc.get("elevation_min", -90)
             el_max = self.firing_arc.get("elevation_max", 90)
-            yaw = solution.lead_angle["yaw"]
-            pitch = solution.lead_angle["pitch"]
+
+            if shooter_heading is not None:
+                # Convert intercept-point bearing to ship-relative frame.
+                # We use the same quaternion-based calculate_bearing that
+                # the sensor system uses, giving us a proper 3D rotation
+                # from world space into the ship body frame.
+                from hybrid.utils.math_utils import calculate_bearing
+                rel_bearing = calculate_bearing(
+                    shooter_pos, solution.intercept_point, shooter_heading
+                )
+                yaw = rel_bearing["yaw"]
+                pitch = rel_bearing["pitch"]
+            else:
+                # Fallback: no heading provided, use world-space angles.
+                # Only correct if the ship faces along +X (yaw=0, pitch=0).
+                yaw = solution.lead_angle["yaw"]
+                pitch = solution.lead_angle["pitch"]
+
             # Normalize yaw to [-180, 180] for comparison
             while yaw > 180:
                 yaw -= 360
@@ -1282,6 +1306,7 @@ class TruthWeapon:
                 "cone_radius_m": self.current_solution.cone_radius_m if self.current_solution else 0,
                 "cone_angle_deg": self.current_solution.cone_angle_deg if self.current_solution else 0,
                 "hit_probability": self.current_solution.hit_probability if self.current_solution else 0,
+                "in_arc": self.current_solution.in_arc if self.current_solution else True,
                 "ready_to_fire": self.current_solution.ready_to_fire if self.current_solution else False,
                 "reason": self.current_solution.reason if self.current_solution else "",
                 "time_of_flight": self.current_solution.time_of_flight if self.current_solution else 0,

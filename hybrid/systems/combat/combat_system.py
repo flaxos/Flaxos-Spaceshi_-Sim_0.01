@@ -217,6 +217,9 @@ class CombatSystem(BaseSystem):
                 shooter_angular_vel=getattr(ship, 'angular_velocity', None),
                 weapon_damage_factor=self._damage_factor,
                 target_accel=target_accel,
+                # Ship orientation needed for firing arc checks — arcs are
+                # defined relative to the ship's nose, not world space.
+                shooter_heading=getattr(ship, 'orientation', None),
             )
 
     def fire_weapon(
