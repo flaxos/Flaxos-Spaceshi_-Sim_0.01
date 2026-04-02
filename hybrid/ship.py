@@ -273,6 +273,7 @@ class Ship:
             "auto_engineering": {},  # CPU-ASSIST automated engineering management
             "auto_science": {},      # CPU-ASSIST automated science analysis
             "auto_comms": {},        # CPU-ASSIST automated communications management
+            "auto_fleet": {},        # CPU-ASSIST automated fleet management
         }
 
         # Merge config with defaults (config takes precedence)

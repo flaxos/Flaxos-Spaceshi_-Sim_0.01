@@ -387,6 +387,13 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             "fleet_status",
             "fleet_tactical",
             "share_contact",
+            # Auto-fleet commands (CPU-ASSIST tier)
+            "enable_auto_fleet",
+            "disable_auto_fleet",
+            "set_fleet_auto_mode",
+            "approve_fleet",
+            "deny_fleet",
+            "auto_fleet_status",
             # Inter-station comms
             "station_message",
         },
@@ -401,6 +408,8 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             "fleet_comms", "command_channel", "message_queue",
             # Target coordination
             "fleet_targets", "target_assignments", "firing_coordination",
+            # Auto-fleet status
+            "auto_fleet_status",
             # Also sees COMMS and TACTICAL displays
             "comm_log", "weapons_status", "target_info",
         },

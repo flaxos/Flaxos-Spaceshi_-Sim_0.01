@@ -188,6 +188,13 @@ system_commands = {
     "set_comms_policy": ("auto_comms", "set_policy"),
     "approve_comms": ("auto_comms", "approve"),
     "deny_comms": ("auto_comms", "deny"),
+    # Auto-fleet commands (CPU-ASSIST tier)
+    "enable_auto_fleet": ("auto_fleet", "enable"),
+    "disable_auto_fleet": ("auto_fleet", "disable"),
+    "set_fleet_auto_mode": ("auto_fleet", "set_mode"),
+    "approve_fleet": ("auto_fleet", "approve"),
+    "deny_fleet": ("auto_fleet", "deny"),
+    "auto_fleet_status": ("auto_fleet", "status"),
     # Boarding commands (Phase 3B — capture mission-killed ships)
     "begin_boarding": ("boarding", "begin_boarding"),
     "cancel_boarding": ("boarding", "cancel_boarding"),
