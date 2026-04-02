@@ -224,15 +224,25 @@ body.tier-manual .ops-log-panel {
 
 /* =========================================================================
    3E. ENGINEERING PANEL VISIBILITY — MANUAL TIER
-   Show only: Thermal, Eng Controls
+   "Stick and rudder" (~2 panels)
+   Show:   Thermal (HERO), Eng Controls (raw reactor + radiator)
+   Hidden: Everything else — minimal chrome
    ========================================================================= */
 
 body.tier-manual .eng-subsystem-panel,
 body.tier-manual .eng-power-panel,
 body.tier-manual .eng-systems-panel,
-body.tier-manual .eng-crew-panel,
 body.tier-manual .eng-log-panel {
   display: none;
+}
+
+/* Thermal display dominates in manual tier — raw temp is all you get */
+body.tier-manual .eng-thermal-panel {
+  grid-column: span 8;
+}
+
+body.tier-manual .eng-controls-panel {
+  grid-column: span 4;
 }
 
 
@@ -463,32 +473,86 @@ body.tier-cpu-assist helm-workflow-strip { --strip-accent: #c0a0ff; }
 
 
 /* =========================================================================
-   15. ENGINEERING PANEL VISIBILITY (unchanged from pre-refactor)
-   Eng view has its own panel set. These rules are preserved as-is
-   until engineering gets its own refactor pass.
+   15. ENGINEERING PANEL VISIBILITY — RAW TIER
+   "Full engineering workstation" (all 6 panels)
+
+   Show:     ALL panels. Thermal + Controls hero row.
+             Subsystem status, power draw, systems, event log all visible.
    ========================================================================= */
 
-/* RAW: hide automation/profile panels, show raw systems */
-body.tier-raw .eng-log-panel {
-  display: none;
+/* RAW: show everything — hero sizing set in base grid.
+ * Event log stays visible for full audit trail. */
+body.tier-raw .eng-thermal-panel {
+  grid-column: span 6;
 }
 
-/* ARCADE: hide low-level engineering, show balanced set */
-body.tier-arcade .eng-subsystem-panel,
-body.tier-arcade .helm-micro-rcs-panel {
-  display: none;
-}
-
-/* CPU-ASSIST: minimal engineering — just status and profiles */
-body.tier-cpu-assist .eng-systems-panel,
-body.tier-cpu-assist .eng-power-panel,
-body.tier-cpu-assist .helm-micro-rcs-panel {
-  display: none;
+body.tier-raw .eng-controls-panel {
+  grid-column: span 6;
 }
 
 
 /* =========================================================================
-   16. TUTORIAL HIGHLIGHT GLOW
+   16. ENGINEERING PANEL VISIBILITY — ARCADE TIER
+   "Balanced engineering" (~4 panels)
+
+   Show:     Thermal (simplified), Controls (HERO), Subsystem Status, Event Log
+   Hidden:   Power Draw (detail folded into controls), Systems (toggles)
+   ========================================================================= */
+
+body.tier-arcade .eng-power-panel,
+body.tier-arcade .eng-systems-panel {
+  display: none;
+}
+
+/* Eng Controls is hero in arcade — simplified reactor + repair queue */
+body.tier-arcade .eng-controls-panel {
+  grid-column: span 8;
+}
+
+body.tier-arcade .eng-thermal-panel {
+  grid-column: span 4;
+}
+
+body.tier-arcade .eng-subsystem-panel {
+  grid-column: span 6;
+}
+
+body.tier-arcade .eng-log-panel {
+  grid-column: span 6;
+}
+
+
+/* =========================================================================
+   17. ENGINEERING PANEL VISIBILITY — CPU-ASSIST TIER
+   "Auto-engineering dashboard" (~3 panels)
+
+   Show:     Controls (HERO — auto-eng proposals dominate),
+             Thermal (summary badge), Event Log
+   Hidden:   Power Draw, Systems, Subsystem Status
+   ========================================================================= */
+
+body.tier-cpu-assist .eng-power-panel,
+body.tier-cpu-assist .eng-systems-panel,
+body.tier-cpu-assist .eng-subsystem-panel {
+  display: none;
+}
+
+/* Auto-engineering panel is the hero — takes most of the row */
+body.tier-cpu-assist .eng-controls-panel {
+  grid-column: span 8;
+}
+
+body.tier-cpu-assist .eng-thermal-panel {
+  grid-column: span 4;
+}
+
+body.tier-cpu-assist .eng-log-panel {
+  grid-column: span 4;
+}
+
+
+/* =========================================================================
+   18. TUTORIAL HIGHLIGHT GLOW
    ========================================================================= */
 
 @keyframes tutorial-pulse {
@@ -510,7 +574,7 @@ body.tutorial-active flaxos-panel:not(.tutorial-highlight) {
 
 
 /* =========================================================================
-   17. REDUCED MOTION
+   19. REDUCED MOTION
    ========================================================================= */
 
 @media (prefers-reduced-motion: reduce) {
