@@ -488,7 +488,84 @@ body.tier-cpu-assist .helm-micro-rcs-panel {
 
 
 /* =========================================================================
-   16. TUTORIAL HIGHLIGHT GLOW
+   16. SCIENCE PANEL VISIBILITY — MANUAL TIER
+   "Raw sensor returns only, no computer analysis" (~1 panel)
+
+   Show:     Sensor Contacts (HERO, raw bearing/range/signal only)
+   Hidden:   Analysis, Sensor Log
+   ========================================================================= */
+
+body.tier-manual .sci-analysis-panel,
+body.tier-manual .sci-log-panel {
+  display: none;
+}
+
+body.tier-manual .sci-sensors-panel {
+  grid-column: span 12;
+}
+
+
+/* =========================================================================
+   17. SCIENCE PANEL VISIBILITY — RAW TIER
+   "Full manual science workflow, all data exposed" (~3 panels)
+
+   Show:     ALL panels. Sensor Contacts (HERO, full data). Analysis. Log.
+   ========================================================================= */
+
+body.tier-raw .sci-sensors-panel {
+  grid-column: span 12;
+}
+
+body.tier-raw .sci-analysis-panel {
+  grid-column: span 8;
+}
+
+body.tier-raw .sci-log-panel {
+  grid-column: span 4;
+}
+
+
+/* =========================================================================
+   18. SCIENCE PANEL VISIBILITY — ARCADE TIER
+   "Simplified threat picture, auto-classified contacts" (~3 panels)
+
+   Show:     Sensor Contacts, Analysis (HERO, simplified), Log
+   Hidden:   (none, but raw spectral hidden inside component)
+   ========================================================================= */
+
+body.tier-arcade .sci-analysis-panel {
+  grid-column: span 8;
+}
+
+body.tier-arcade .sci-sensors-panel {
+  grid-column: span 12;
+}
+
+
+/* =========================================================================
+   19. SCIENCE PANEL VISIBILITY — CPU-ASSIST TIER
+   "Auto-science proposals, minimal manual controls" (~3 panels)
+
+   Show:     Sensor Contacts (compact summary), Analysis (HERO, auto-science),
+             Log (condensed)
+   ========================================================================= */
+
+body.tier-cpu-assist .sci-analysis-panel {
+  grid-column: span 8;
+}
+
+body.tier-cpu-assist .sci-sensors-panel {
+  grid-column: span 12;
+}
+
+/* Hero: Analysis panel dominates in CPU-ASSIST — auto-science is primary */
+body.tier-cpu-assist .sci-log-panel {
+  grid-column: span 4;
+}
+
+
+/* =========================================================================
+   20. TUTORIAL HIGHLIGHT GLOW
    ========================================================================= */
 
 @keyframes tutorial-pulse {
@@ -510,7 +587,7 @@ body.tutorial-active flaxos-panel:not(.tutorial-highlight) {
 
 
 /* =========================================================================
-   17. REDUCED MOTION
+   21. REDUCED MOTION
    ========================================================================= */
 
 @media (prefers-reduced-motion: reduce) {
