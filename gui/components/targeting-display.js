@@ -26,6 +26,7 @@ class TargetingDisplay extends HTMLElement {
     this._solutionData = null;
     this._solutionInterval = null;
     this._hadTarget = false;
+    this._tier = window.controlTier || "arcade";
   }
 
   connectedCallback() {
@@ -36,6 +37,13 @@ class TargetingDisplay extends HTMLElement {
       this._onContactSelected(e.detail.contactId);
     };
     document.addEventListener("contact-selected", this._contactSelectedHandler);
+
+    // Tier-change listener: re-render when player switches control tier
+    this._tierHandler = (e) => {
+      this._tier = e.detail?.tier || "arcade";
+      this._updateDisplay();
+    };
+    document.addEventListener("tier-change", this._tierHandler);
   }
 
   disconnectedCallback() {
@@ -46,6 +54,10 @@ class TargetingDisplay extends HTMLElement {
     if (this._contactSelectedHandler) {
       document.removeEventListener("contact-selected", this._contactSelectedHandler);
       this._contactSelectedHandler = null;
+    }
+    if (this._tierHandler) {
+      document.removeEventListener("tier-change", this._tierHandler);
+      this._tierHandler = null;
     }
     this._stopSolutionPolling();
   }
@@ -397,6 +409,146 @@ class TargetingDisplay extends HTMLElement {
         .request-solution-btn:hover { background: rgba(0, 170, 255, 0.2); }
         .request-solution-btn:active { background: rgba(0, 170, 255, 0.3); }
 
+        /* === MANUAL tier: raw numbers, monospace, no progress bars === */
+        .manual-grid {
+          display: grid;
+          grid-template-columns: auto 1fr;
+          gap: 3px 12px;
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+          font-size: 0.75rem;
+          padding: 8px 10px;
+          background: rgba(0, 0, 0, 0.25);
+          border-radius: 4px;
+          margin-bottom: 10px;
+        }
+        .manual-grid .mg-label {
+          color: var(--text-dim, #555566);
+          text-transform: uppercase;
+          font-size: 0.65rem;
+          letter-spacing: 0.5px;
+        }
+        .manual-grid .mg-value {
+          color: var(--text-primary, #e0e0e0);
+          text-align: right;
+        }
+        .manual-lock-btns {
+          display: flex;
+          gap: 6px;
+          margin-top: 8px;
+        }
+        .manual-lock-btn {
+          flex: 1;
+          padding: 8px;
+          border: 1px solid var(--status-info, #00aaff);
+          border-radius: 4px;
+          background: rgba(0, 170, 255, 0.08);
+          color: var(--status-info, #00aaff);
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+          font-size: 0.7rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          cursor: pointer;
+          transition: background 0.15s;
+        }
+        .manual-lock-btn:hover { background: rgba(0, 170, 255, 0.2); }
+        .manual-lock-btn.locked {
+          border-color: var(--status-nominal, #00ff88);
+          color: var(--status-nominal, #00ff88);
+          background: rgba(0, 255, 136, 0.08);
+        }
+
+        /* === ARCADE tier: simplified single bar + LOCK button === */
+        .arcade-lock-bar {
+          padding: 10px 12px;
+          background: rgba(0, 0, 0, 0.25);
+          border-radius: 8px;
+          margin-bottom: 12px;
+        }
+        .arcade-lock-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 6px;
+        }
+        .arcade-lock-label {
+          font-size: 0.7rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.8px;
+          color: var(--text-secondary, #888899);
+        }
+        .arcade-lock-label.active { color: var(--status-info, #00aaff); }
+        .arcade-lock-label.complete { color: var(--status-nominal, #00ff88); }
+        .arcade-lock-pct {
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+          font-size: 1.1rem;
+          font-weight: 700;
+        }
+        .arcade-lock-pct.active { color: var(--status-info, #00aaff); }
+        .arcade-lock-pct.complete { color: var(--status-nominal, #00ff88); }
+        .arcade-lock-btn {
+          display: block;
+          width: 100%;
+          margin-top: 10px;
+          padding: 10px;
+          border: 2px solid var(--status-info, #00aaff);
+          border-radius: 6px;
+          background: rgba(0, 170, 255, 0.1);
+          color: var(--status-info, #00aaff);
+          font-family: inherit;
+          font-size: 0.85rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          cursor: pointer;
+          transition: background 0.15s;
+        }
+        .arcade-lock-btn:hover { background: rgba(0, 170, 255, 0.2); }
+        .arcade-lock-btn.locked {
+          border-color: var(--status-nominal, #00ff88);
+          color: var(--status-nominal, #00ff88);
+          background: rgba(0, 255, 136, 0.1);
+        }
+
+        /* === RAW tier: full pipeline with exact quality numbers === */
+        .raw-factor-grid {
+          display: grid;
+          grid-template-columns: auto 1fr auto;
+          gap: 3px 10px;
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+          font-size: 0.7rem;
+          padding: 8px 10px;
+          background: rgba(0, 0, 0, 0.2);
+          border-radius: 6px;
+          margin-top: 8px;
+        }
+        .raw-factor-grid .rf-label {
+          color: var(--text-secondary, #888899);
+          text-transform: uppercase;
+          font-size: 0.6rem;
+          letter-spacing: 0.4px;
+        }
+        .raw-factor-grid .rf-bar-bg {
+          height: 6px;
+          background: rgba(255,255,255,0.06);
+          border-radius: 3px;
+          overflow: hidden;
+          align-self: center;
+        }
+        .raw-factor-grid .rf-bar-fill {
+          height: 100%;
+          border-radius: 3px;
+          transition: width 0.3s ease;
+        }
+        .raw-factor-grid .rf-bar-fill.high { background: var(--status-nominal, #00ff88); }
+        .raw-factor-grid .rf-bar-fill.mid { background: var(--status-warning, #ffaa00); }
+        .raw-factor-grid .rf-bar-fill.low { background: var(--status-critical, #ff4444); }
+        .raw-factor-grid .rf-value {
+          color: var(--text-primary, #e0e0e0);
+          text-align: right;
+          font-weight: 600;
+        }
+
         @media (prefers-reduced-motion: reduce) {
           .bar-fill { transition: none !important; }
           .lock-indicator,
@@ -457,23 +609,92 @@ class TargetingDisplay extends HTMLElement {
     const closing = basicSolution.closing ?? false;
     const tca = basicSolution.time_to_cpa ?? null;
 
+    const tier = this._tier;
     let html = "";
 
-    // 1. Target header
+    // --- MANUAL tier: raw numbers only, manual lock/unlock buttons ---
+    if (tier === "manual") {
+      html += this._renderTargetHeader(lockState, lockedTarget);
+      html += this._renderManualView(targeting, solutions, lockState, lockedTarget);
+      content.innerHTML = html;
+      this._bindManualButtons(lockState, lockedTarget);
+      return;
+    }
+
+    // --- ARCADE tier: simplified lock progress + LOCK button ---
+    if (tier === "arcade") {
+      html += this._renderTargetHeader(lockState, lockedTarget);
+      if (range > 0) {
+        html += this._renderRangeHud(range, rangeRate, closing, tca);
+      }
+      html += this._renderArcadeView(lockState, trackQuality, lockProgress, lockQuality, solutions);
+
+      if (targetSubsystem) {
+        html += `
+          <div class="subsystem-section">
+            <div class="section-title">Targeted Subsystem</div>
+            <div class="subsystem-name">${targetSubsystem}</div>
+          </div>
+        `;
+      }
+      if (lockState === "lost") {
+        html += `<div class="warning-box"><span class="warning-icon">!</span><span>LOCK LOST - REACQUIRING</span></div>`;
+      }
+      content.innerHTML = html;
+      return;
+    }
+
+    // --- CPU-ASSIST tier: auto-targeting, minimal display ---
+    if (tier === "cpu-assist") {
+      html += this._renderTargetHeader(lockState, lockedTarget);
+      if (range > 0) {
+        html += this._renderRangeHud(range, rangeRate, closing, tca);
+      }
+      // Simple auto-targeting status
+      const autoStatus = lockState === "locked" ? "AUTO-LOCK ENGAGED" :
+                         lockState === "acquiring" ? "AUTO-ACQUIRING..." :
+                         lockState === "tracking" ? "AUTO-TRACKING" :
+                         lockState === "contact" ? "CORRELATING" : "SCANNING";
+      const autoClass = lockState === "locked" ? "complete" : "active";
+      html += `
+        <div class="step-bar ${autoClass}">
+          <div class="step-header">
+            <span class="step-label ${autoClass}">AUTO-TARGET</span>
+          </div>
+          <div class="bar-track">
+            <div class="bar-fill ${lockState === 'locked' ? 'green' : 'blue'}" style="width: ${lockState === 'locked' ? 100 : Math.round((lockProgress || trackQuality || 0) * 100)}%"></div>
+            <span class="bar-pct-overlay">${autoStatus}</span>
+          </div>
+        </div>
+      `;
+      if (targetSubsystem) {
+        html += `
+          <div class="subsystem-section">
+            <div class="section-title">Targeted Subsystem</div>
+            <div class="subsystem-name">${targetSubsystem}</div>
+          </div>
+        `;
+      }
+      content.innerHTML = html;
+      return;
+    }
+
+    // --- RAW tier (default): full pipeline with exact quality numbers per stage ---
     html += this._renderTargetHeader(lockState, lockedTarget);
 
-    // 2. Range HUD
     if (range > 0) {
       html += this._renderRangeHud(range, rangeRate, closing, tca);
     }
 
-    // 3. Two-step pipeline: SENSOR + WEAPONS bars
+    // Full two-step pipeline bars (existing)
     html += this._renderPipelineBars(lockState, trackQuality, lockProgress, lockQuality);
 
-    // 4. Solution + Fire status chips
+    // RAW: also show degradation factors as exact values
+    html += this._renderRawDegradation(targeting);
+
+    // Solution + Fire status chips
     html += this._renderStatusChips(lockState, solutions);
 
-    // 5. Subsystem target
     if (targetSubsystem) {
       html += `
         <div class="subsystem-section">
@@ -483,7 +704,6 @@ class TargetingDisplay extends HTMLElement {
       `;
     }
 
-    // 6. Lock lost warning
     if (lockState === "lost") {
       html += `
         <div class="warning-box">
@@ -493,7 +713,6 @@ class TargetingDisplay extends HTMLElement {
       `;
     }
 
-    // 7. Refresh button
     if (lockState === "locked") {
       html += `<button class="request-solution-btn" id="request-solution-btn">
         REQUEST SOLUTION UPDATE
@@ -710,6 +929,172 @@ class TargetingDisplay extends HTMLElement {
 
     html += `</div>`;
     return html;
+  }
+
+  // --- Tier-specific views ---
+
+  /**
+   * MANUAL tier: raw bearing (rad), range (m), closure rate (m/s).
+   * Manual lock/unlock buttons. No progress bar — just raw track quality number.
+   */
+  _renderManualView(targeting, solutions, lockState, lockedTarget) {
+    const basicSolution = solutions._basic || {};
+    const bearing = basicSolution.bearing;
+    const range = basicSolution.range ?? 0;
+    const rangeRate = basicSolution.range_rate ?? 0;
+    const trackQuality = targeting.track_quality ?? 0;
+    const lockQuality = targeting.lock_quality ?? 0;
+    const lockProgress = targeting.lock_progress ?? 0;
+
+    return `
+      <div class="manual-grid">
+        <span class="mg-label">BRG</span>
+        <span class="mg-value">${bearing != null ? bearing.toFixed(4) + ' rad' : '---'}</span>
+        <span class="mg-label">RNG</span>
+        <span class="mg-value">${range > 0 ? range.toFixed(0) + ' m' : '---'}</span>
+        <span class="mg-label">CLS/OPN</span>
+        <span class="mg-value">${rangeRate.toFixed(1)} m/s</span>
+        <span class="mg-label">TRACK Q</span>
+        <span class="mg-value">${trackQuality.toFixed(3)}</span>
+        <span class="mg-label">LOCK Q</span>
+        <span class="mg-value">${lockQuality.toFixed(3)}</span>
+        <span class="mg-label">LOCK PROG</span>
+        <span class="mg-value">${lockProgress.toFixed(3)}</span>
+        <span class="mg-label">STATE</span>
+        <span class="mg-value">${lockState.toUpperCase()}</span>
+      </div>
+      <div class="manual-lock-btns">
+        <button class="manual-lock-btn ${lockState === 'locked' ? 'locked' : ''}" id="manual-lock-btn">
+          ${lockState === 'locked' ? 'LOCKED' : 'LOCK'}
+        </button>
+        <button class="manual-lock-btn" id="manual-unlock-btn">UNLOCK</button>
+      </div>
+    `;
+  }
+
+  /** Bind lock/unlock buttons in MANUAL tier */
+  _bindManualButtons(lockState, lockedTarget) {
+    const lockBtn = this.shadowRoot.getElementById("manual-lock-btn");
+    const unlockBtn = this.shadowRoot.getElementById("manual-unlock-btn");
+
+    if (lockBtn) {
+      lockBtn.addEventListener("click", () => {
+        if (lockState !== "locked" && this._selectedContact) {
+          wsClient.sendShipCommand("designate_target", { contact_id: this._selectedContact });
+        }
+      });
+    }
+    if (unlockBtn) {
+      unlockBtn.addEventListener("click", () => {
+        wsClient.sendShipCommand("unlock_target", {});
+      });
+    }
+  }
+
+  /**
+   * ARCADE tier: single merged lock progress bar with percentage.
+   * Hides raw quality factors — just shows confidence and a LOCK button.
+   */
+  _renderArcadeView(lockState, trackQuality, lockProgress, lockQuality, solutions) {
+    // Compute a single combined percentage that represents overall lock progress
+    let combinedPct = 0;
+    let labelText = "SCANNING";
+    let labelClass = "";
+    let barColor = "amber";
+
+    if (lockState === "contact") {
+      combinedPct = Math.round((trackQuality || 0) * 30); // 0-30% during correlation
+      labelText = "CORRELATING";
+      labelClass = "active";
+      barColor = "purple";
+    } else if (lockState === "tracking") {
+      combinedPct = 30 + Math.round(trackQuality * 20); // 30-50% during tracking
+      labelText = "TRACKING";
+      labelClass = "active";
+      barColor = "amber";
+    } else if (lockState === "acquiring") {
+      combinedPct = 50 + Math.round(lockProgress * 40); // 50-90% during acquisition
+      labelText = "ACQUIRING";
+      labelClass = "active";
+      barColor = "blue";
+    } else if (lockState === "locked") {
+      combinedPct = 100;
+      labelText = "LOCKED";
+      labelClass = "complete";
+      barColor = "green";
+    } else if (lockState === "lost") {
+      combinedPct = 0;
+      labelText = "LOCK LOST";
+      labelClass = "";
+      barColor = "red";
+    }
+
+    // Solution confidence for the "READY" indicator
+    const weaponIds = Object.keys(solutions).filter(k => k !== "_basic");
+    let bestConfidence = null;
+    for (const wid of weaponIds) {
+      const wc = solutions[wid].confidence;
+      if (wc != null && (bestConfidence == null || wc > bestConfidence)) {
+        bestConfidence = wc;
+      }
+    }
+    const confText = bestConfidence != null ? `${Math.round(bestConfidence * 100)}%` : "---";
+
+    return `
+      <div class="arcade-lock-bar">
+        <div class="arcade-lock-header">
+          <span class="arcade-lock-label ${labelClass}">${labelText}</span>
+          <span class="arcade-lock-pct ${labelClass}">${combinedPct}%</span>
+        </div>
+        <div class="bar-track">
+          <div class="bar-fill ${barColor}" style="width: ${combinedPct}%"></div>
+        </div>
+      </div>
+      <div class="status-row">
+        <div class="status-chip ${lockState === 'locked' && bestConfidence > 0.5 ? 'ready' : 'unavailable'}">
+          <div class="chip-title ${lockState === 'locked' && bestConfidence > 0.5 ? 'ready' : ''}">CONFIDENCE</div>
+          ${confText}
+        </div>
+      </div>
+    `;
+  }
+
+  /**
+   * RAW tier extra: shows degradation factors as exact numbers.
+   * These are the individual sensor/targeting factors that affect track quality.
+   */
+  _renderRawDegradation(targeting) {
+    const factors = targeting?.degradation_factors || targeting?.track_factors || null;
+    if (!factors || Object.keys(factors).length === 0) return "";
+
+    const labels = {
+      range: "Range",
+      acceleration: "Tgt Accel",
+      sensor_damage: "Sensor Dmg",
+      ecm: "Enemy ECM",
+      aspect: "Aspect Angle",
+    };
+
+    let rows = "";
+    for (const [key, label] of Object.entries(labels)) {
+      const val = factors[key] ?? null;
+      if (val == null) continue;
+      const pct = Math.round(val * 100);
+      const barClass = pct > 70 ? "high" : pct > 40 ? "mid" : "low";
+      rows += `
+        <span class="rf-label">${label}</span>
+        <div class="rf-bar-bg"><div class="rf-bar-fill ${barClass}" style="width: ${pct}%"></div></div>
+        <span class="rf-value">${val.toFixed(3)}</span>
+      `;
+    }
+
+    if (!rows) return "";
+
+    return `
+      <div class="raw-factor-grid" data-testid="degradation-factors">
+        ${rows}
+      </div>
+    `;
   }
 
   // --- Helpers ---
