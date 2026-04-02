@@ -453,6 +453,97 @@ body.tier-cpu-assist .ops-subsystem-panel {
 
 
 /* =========================================================================
+   13B. COMMS PANEL VISIBILITY — MANUAL TIER
+   "Stick and rudder" — minimal comms, just a raw radio panel.
+
+   Show:     Communications (basic radio controls only, tier-adapted internally)
+   Hidden:   Incoming Comms, Contacts, Tactical Map, Crew Chat, Comms Log
+   ========================================================================= */
+
+body.tier-manual .comms-choice-panel,
+body.tier-manual .comms-contacts-panel,
+body.tier-manual .comms-map-panel,
+body.tier-manual .comms-chat-panel,
+body.tier-manual .comms-log-panel {
+  display: none;
+}
+
+/* Communications panel dominates as the only visible element */
+body.tier-manual .comms-panel {
+  grid-column: span 12;
+}
+
+
+/* =========================================================================
+   13C. COMMS PANEL VISIBILITY — RAW TIER
+   "Full manual comms workstation" — all panels visible.
+
+   Show:     ALL panels. Communications hero (span-8).
+   ========================================================================= */
+
+/* RAW: show everything — hero sizing only */
+body.tier-raw .comms-panel {
+  grid-column: span 8;
+}
+
+/* Incoming Comms widens when all panels share the grid */
+body.tier-raw .comms-choice-panel {
+  grid-column: span 4;
+}
+
+
+/* =========================================================================
+   13D. COMMS PANEL VISIBILITY — ARCADE TIER
+   "Simplified hailing interface" (~4 panels)
+
+   Show:     Communications (simplified, HERO), Incoming Comms,
+             Contacts, Comms Log
+   Hidden:   Tactical Map, Crew Chat (too low-level for comms officer)
+   ========================================================================= */
+
+body.tier-arcade .comms-map-panel,
+body.tier-arcade .comms-chat-panel {
+  display: none;
+}
+
+/* Hero: Communications panel */
+body.tier-arcade .comms-panel {
+  grid-column: span 6;
+}
+
+/* Incoming Comms gets equal billing */
+body.tier-arcade .comms-choice-panel {
+  grid-column: span 6;
+}
+
+
+/* =========================================================================
+   13E. COMMS PANEL VISIBILITY — CPU-ASSIST TIER
+   "Captain's comms — approve/deny only" (~3 panels)
+
+   Show:     Communications (auto-comms hero, span-8), Incoming Comms,
+             Comms Log
+   Hidden:   Contacts, Tactical Map, Crew Chat
+   ========================================================================= */
+
+body.tier-cpu-assist .comms-contacts-panel,
+body.tier-cpu-assist .comms-map-panel,
+body.tier-cpu-assist .comms-chat-panel {
+  display: none;
+}
+
+/* Hero: Communications panel with auto-comms dominates */
+body.tier-cpu-assist .comms-panel {
+  grid-column: span 8;
+}
+
+/* Incoming Comms narrower — auto-comms handles most */
+body.tier-cpu-assist .comms-choice-panel {
+  grid-column: span 4;
+}
+
+
+/* =========================================================================
    14. WORKFLOW STRIP
    Visible in all tiers, accent color matches tier.
    ========================================================================= */
