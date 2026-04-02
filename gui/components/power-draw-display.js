@@ -3,6 +3,11 @@
  * Shows power supply vs demand per bus (primary, secondary, tertiary)
  * as horizontal bars with surplus/deficit indicators.
  * Polls the server via get_draw_profile every 3 seconds.
+ *
+ * Tier awareness:
+ *   MANUAL/RAW: Exact wattage per consumer, detailed supply/demand numbers.
+ *   ARCADE:     Percentage of budget per category, simplified view.
+ *   CPU-ASSIST: Hidden by tiers.css (auto-ops manages). Renders minimal fallback if forced visible.
  */
 
 import { wsClient } from "../js/ws-client.js";
@@ -16,12 +21,15 @@ class PowerDrawDisplay extends HTMLElement {
     this.attachShadow({ mode: "open" });
     this._drawData = null;
     this._pollInterval = null;
+    this._tierHandler = null;
   }
 
   connectedCallback() {
     this._renderShell();
     this._fetchDrawProfile();
     this._pollInterval = setInterval(() => this._fetchDrawProfile(), POLL_INTERVAL_MS);
+    this._tierHandler = () => this._render();
+    document.addEventListener("tier-change", this._tierHandler);
   }
 
   disconnectedCallback() {
@@ -29,6 +37,14 @@ class PowerDrawDisplay extends HTMLElement {
       clearInterval(this._pollInterval);
       this._pollInterval = null;
     }
+    if (this._tierHandler) {
+      document.removeEventListener("tier-change", this._tierHandler);
+      this._tierHandler = null;
+    }
+  }
+
+  _getTier() {
+    return window.controlTier || "arcade";
   }
 
   async _fetchDrawProfile() {
@@ -130,6 +146,35 @@ class PowerDrawDisplay extends HTMLElement {
           padding: 24px;
           font-style: italic;
         }
+
+        /* --- MANUAL/RAW: monospace, sharper edges, amber/red tints --- */
+        :host(.tier-manual) .bar-track,
+        :host(.tier-raw) .bar-track {
+          border-radius: 0;
+        }
+        :host(.tier-manual) .bar-supply,
+        :host(.tier-manual) .bar-demand,
+        :host(.tier-raw) .bar-supply,
+        :host(.tier-raw) .bar-demand {
+          border-radius: 0;
+        }
+
+        /* --- ARCADE: percentage labels, rounded --- */
+        .pct-label {
+          font-size: 0.7rem;
+          color: var(--text-secondary, #a0a0b0);
+          text-align: center;
+          margin-top: 2px;
+        }
+
+        /* --- CPU-ASSIST: minimal fallback --- */
+        .assist-note {
+          font-size: 0.75rem;
+          color: var(--text-dim, #666);
+          font-style: italic;
+          text-align: center;
+          padding: 16px;
+        }
       </style>
       <div id="content">
         <div class="empty-state">Waiting for power data...</div>
@@ -144,8 +189,33 @@ class PowerDrawDisplay extends HTMLElement {
       return;
     }
 
+    const tier = this._getTier();
+
+    // Apply tier class to host for CSS targeting
+    this.classList.remove("tier-manual", "tier-raw", "tier-arcade", "tier-cpu-assist");
+    this.classList.add(`tier-${tier}`);
+
+    if (tier === "cpu-assist") {
+      el.innerHTML = '<div class="assist-note">Auto-ops is managing power distribution.</div>';
+      return;
+    }
+
+    const showExactWattage = tier === "manual" || tier === "raw";
     let hasDeficit = false;
-    let html = '<div class="header">Power Draw by Bus</div>';
+    let html = `<div class="header">Power Draw by Bus${showExactWattage ? " [kW]" : ""}</div>`;
+
+    // Compute total supply + demand for percentage mode
+    let totalSupply = 0;
+    let totalDemand = 0;
+    if (!showExactWattage) {
+      for (const bus of BUS_NAMES) {
+        const d = this._drawData[bus];
+        if (d) {
+          totalSupply += d.supply ?? 0;
+          totalDemand += d.requested ?? 0;
+        }
+      }
+    }
 
     for (const bus of BUS_NAMES) {
       const d = this._drawData[bus];
@@ -168,18 +238,37 @@ class PowerDrawDisplay extends HTMLElement {
       const deltaSign = delta >= 0 ? "+" : "";
       const deltaClass = delta >= 0 ? "surplus" : "deficit";
 
-      html += `
-        <div class="bus-row">
-          <div class="bus-label">
-            <span class="bus-name">${bus}</span>
-            <span class="bus-values">Supply: ${supply.toFixed(1)} / Demand: ${requested.toFixed(1)}</span>
-          </div>
-          <div class="bar-track">
-            <div class="bar-supply" style="width:${supplyPct.toFixed(1)}%;background:${supplyColor};"></div>
-            <div class="bar-demand" style="width:${demandPct.toFixed(1)}%;background:${demandColor};border-color:${demandColor};"></div>
-          </div>
-          <div class="delta ${deltaClass}">${deltaSign}${delta.toFixed(1)}</div>
-        </div>`;
+      if (showExactWattage) {
+        // MANUAL/RAW: exact wattage with supply/demand numbers
+        html += `
+          <div class="bus-row">
+            <div class="bus-label">
+              <span class="bus-name">${bus}</span>
+              <span class="bus-values">Supply: ${supply.toFixed(1)} kW / Demand: ${requested.toFixed(1)} kW</span>
+            </div>
+            <div class="bar-track">
+              <div class="bar-supply" style="width:${supplyPct.toFixed(1)}%;background:${supplyColor};"></div>
+              <div class="bar-demand" style="width:${demandPct.toFixed(1)}%;background:${demandColor};border-color:${demandColor};"></div>
+            </div>
+            <div class="delta ${deltaClass}">${deltaSign}${delta.toFixed(1)} kW</div>
+          </div>`;
+      } else {
+        // ARCADE: percentage of total budget
+        const budgetPct = totalSupply > 0 ? ((supply / totalSupply) * 100).toFixed(0) : "--";
+        const usagePct = totalDemand > 0 ? ((requested / totalDemand) * 100).toFixed(0) : "--";
+        html += `
+          <div class="bus-row">
+            <div class="bus-label">
+              <span class="bus-name">${bus}</span>
+              <span class="bus-values">${budgetPct}% of budget</span>
+            </div>
+            <div class="bar-track">
+              <div class="bar-supply" style="width:${supplyPct.toFixed(1)}%;background:${supplyColor};"></div>
+              <div class="bar-demand" style="width:${demandPct.toFixed(1)}%;background:${demandColor};border-color:${demandColor};"></div>
+            </div>
+            <div class="pct-label">${usagePct}% usage</div>
+          </div>`;
+      }
     }
 
     if (hasDeficit) {
