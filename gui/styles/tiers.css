@@ -388,6 +388,7 @@ body.tier-arcade .tac-fire-ctrl-panel {
 
 /* Hidden panels */
 body.tier-cpu-assist .tac-ecm-panel,
+body.tier-cpu-assist .tac-eccm-panel,
 body.tier-cpu-assist .tac-threat-panel,
 body.tier-cpu-assist .tac-subsystem-panel,
 body.tier-cpu-assist .tac-torpedo-panel,

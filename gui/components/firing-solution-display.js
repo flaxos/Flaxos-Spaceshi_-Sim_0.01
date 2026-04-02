@@ -18,16 +18,28 @@ class FiringSolutionDisplay extends HTMLElement {
     this._unsubscribe = null;
     this._feedbackLog = []; // Ring buffer of causal feedback messages
     this._maxFeedback = 20;
+    this._tier = window.controlTier || "arcade";
   }
 
   connectedCallback() {
     this.render();
     this._subscribe();
+
+    // Tier-change listener: re-render for tier-specific solution display
+    this._tierHandler = (e) => {
+      this._tier = e.detail?.tier || "arcade";
+      this._updateDisplay();
+    };
+    document.addEventListener("tier-change", this._tierHandler);
   }
 
   disconnectedCallback() {
     if (this._unsubscribe) {
       this._unsubscribe();
+    }
+    if (this._tierHandler) {
+      document.removeEventListener("tier-change", this._tierHandler);
+      this._tierHandler = null;
     }
   }
 
@@ -247,6 +259,137 @@ class FiringSolutionDisplay extends HTMLElement {
           background: rgba(255, 170, 0, 0.2);
           color: var(--status-warning, #ffaa00);
         }
+
+        /* === MANUAL tier: raw deflection numbers === */
+        .manual-solution-grid {
+          display: grid;
+          grid-template-columns: auto 1fr;
+          gap: 3px 12px;
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+          font-size: 0.75rem;
+          padding: 10px 12px;
+          background: rgba(0, 0, 0, 0.25);
+          border-radius: 4px;
+          margin-bottom: 12px;
+        }
+        .manual-solution-grid .ms-label {
+          color: var(--text-dim, #555566);
+          text-transform: uppercase;
+          font-size: 0.65rem;
+          letter-spacing: 0.5px;
+        }
+        .manual-solution-grid .ms-value {
+          color: var(--text-primary, #e0e0e0);
+          text-align: right;
+        }
+
+        /* === ARCADE tier: simplified confidence bar === */
+        .arcade-conf-bar {
+          padding: 12px;
+          background: rgba(0, 0, 0, 0.25);
+          border-radius: 8px;
+          margin-bottom: 12px;
+        }
+        .arcade-conf-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 6px;
+        }
+        .arcade-conf-label {
+          font-size: 0.7rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.8px;
+          color: var(--text-secondary, #888899);
+        }
+        .arcade-conf-value {
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+          font-size: 1.2rem;
+          font-weight: 700;
+        }
+        .arcade-conf-value.high { color: var(--status-nominal, #00ff88); }
+        .arcade-conf-value.mid { color: var(--status-warning, #ffaa00); }
+        .arcade-conf-value.low { color: var(--status-critical, #ff4444); }
+        .arcade-range-row {
+          display: flex;
+          justify-content: space-around;
+          margin-top: 8px;
+          font-size: 0.75rem;
+        }
+        .arcade-range-item {
+          text-align: center;
+        }
+        .arcade-range-value {
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+          color: var(--text-primary, #e0e0e0);
+          font-weight: 600;
+        }
+        .arcade-range-label {
+          font-size: 0.6rem;
+          color: var(--text-dim, #555566);
+          text-transform: uppercase;
+        }
+        .arcade-ready-chip {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          padding: 10px;
+          border-radius: 6px;
+          font-size: 0.85rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          margin-bottom: 12px;
+        }
+        .arcade-ready-chip.ready {
+          background: rgba(0, 255, 136, 0.1);
+          border: 1px solid var(--status-nominal, #00ff88);
+          color: var(--status-nominal, #00ff88);
+        }
+        .arcade-ready-chip.not-ready {
+          background: rgba(85, 85, 102, 0.1);
+          border: 1px solid var(--text-dim, #555566);
+          color: var(--text-dim, #555566);
+        }
+
+        /* === CPU-ASSIST tier: minimal indicator === */
+        .cpuassist-status {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 10px;
+          padding: 16px;
+          border-radius: 8px;
+          font-size: 1rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 1.5px;
+        }
+        .cpuassist-status.valid {
+          background: rgba(0, 255, 136, 0.08);
+          border: 2px solid var(--status-nominal, #00ff88);
+          color: var(--status-nominal, #00ff88);
+        }
+        .cpuassist-status.invalid {
+          background: rgba(85, 85, 102, 0.1);
+          border: 2px solid var(--text-dim, #555566);
+          color: var(--text-dim, #555566);
+        }
+        .cpuassist-dot {
+          width: 10px;
+          height: 10px;
+          border-radius: 50%;
+          background: currentColor;
+        }
+        .cpuassist-status.valid .cpuassist-dot {
+          animation: pulse 2s ease-in-out infinite;
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.4; }
+        }
       </style>
 
       <div id="content">
@@ -261,6 +404,7 @@ class FiringSolutionDisplay extends HTMLElement {
     if (!content) return;
 
     const lockState = targeting?.lock_state || "none";
+    const tier = this._tier;
 
     if (lockState !== "locked") {
       // Show feedback log even without a lock
@@ -298,13 +442,116 @@ class FiringSolutionDisplay extends HTMLElement {
     }
 
     let html = "";
+    const confPct = Math.round((bestSol.confidence || 0) * 100);
+    const confClass = confPct > 70 ? "high" : confPct > 40 ? "mid" : "low";
+
+    // --- MANUAL tier: raw deflection angle, time of flight, intercept geometry ---
+    if (tier === "manual") {
+      const deflection = bestSol.deflection_angle_deg ?? bestSol.cone_angle_deg ?? 0;
+      const tof = bestSol.time_of_flight ?? 0;
+      const rangeM = bestSol.range_m ?? 0;
+      const closingRate = bestSol.closing_rate ?? 0;
+
+      html += `
+        <div class="manual-solution-grid" data-testid="manual-solution">
+          <span class="ms-label">DEFLECTION</span>
+          <span class="ms-value">${deflection.toFixed(2)} deg</span>
+          <span class="ms-label">TOF</span>
+          <span class="ms-value">${tof.toFixed(2)} s</span>
+          <span class="ms-label">CONE RADIUS</span>
+          <span class="ms-value">${(bestSol.cone_radius_m || 0).toFixed(0)} m</span>
+          <span class="ms-label">CONE ANGLE</span>
+          <span class="ms-value">${(bestSol.cone_angle_deg || 0).toFixed(3)} deg</span>
+          <span class="ms-label">RANGE</span>
+          <span class="ms-value">${rangeM.toFixed(0)} m</span>
+          <span class="ms-label">CLOSING</span>
+          <span class="ms-value">${closingRate.toFixed(1)} m/s</span>
+          <span class="ms-label">CONFIDENCE</span>
+          <span class="ms-value">${(bestSol.confidence || 0).toFixed(4)}</span>
+          <span class="ms-label">IN ARC</span>
+          <span class="ms-value">${bestSol.in_arc === false ? 'NO' : bestSol.in_arc === true ? 'YES' : '---'}</span>
+        </div>
+      `;
+      html += this._renderFeedbackSection();
+      content.innerHTML = html;
+      return;
+    }
+
+    // --- ARCADE tier: single confidence bar + READY indicator, range in km ---
+    if (tier === "arcade") {
+      const isReady = confPct > 50;
+      const rangeKm = (bestSol.range_m ?? 0) / 1000;
+      const closingKmS = Math.abs(bestSol.closing_rate ?? 0) / 1000;
+
+      html += `
+        <div class="arcade-ready-chip ${isReady ? 'ready' : 'not-ready'}">
+          ${isReady ? 'READY' : 'COMPUTING'}
+        </div>
+        <div class="arcade-conf-bar">
+          <div class="arcade-conf-header">
+            <span class="arcade-conf-label">SOLUTION CONFIDENCE</span>
+            <span class="arcade-conf-value ${confClass}">${confPct}%</span>
+          </div>
+          <div class="factor-bar-bg" style="height:12px; border-radius:6px;">
+            <div class="factor-bar-fill ${confClass}" style="width:${confPct}%; height:100%; border-radius:6px;"></div>
+          </div>
+        </div>
+        <div class="arcade-range-row">
+          <div class="arcade-range-item">
+            <div class="arcade-range-value">${rangeKm.toFixed(1)} km</div>
+            <div class="arcade-range-label">Range</div>
+          </div>
+          <div class="arcade-range-item">
+            <div class="arcade-range-value">${closingKmS.toFixed(1)} km/s</div>
+            <div class="arcade-range-label">Closure</div>
+          </div>
+        </div>
+      `;
+
+      // Arc warning
+      if (bestSol.in_arc === false) {
+        const reason = bestSol.reason || "Target outside firing arc";
+        html += `
+          <div data-testid="arc-warning" style="
+            background: rgba(255, 68, 68, 0.1);
+            border: 1px solid var(--status-critical, #ff4444);
+            border-radius: 6px;
+            padding: 8px 12px;
+            margin-top: 12px;
+            text-align: center;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--status-critical, #ff4444);
+            text-transform: uppercase;
+          ">${reason}</div>
+        `;
+      }
+
+      html += this._renderFeedbackSection();
+      content.innerHTML = html;
+      return;
+    }
+
+    // --- CPU-ASSIST tier: minimal "SOLUTION VALID" / "NO SOLUTION" indicator ---
+    if (tier === "cpu-assist") {
+      const isValid = confPct > 30;
+      html += `
+        <div class="cpuassist-status ${isValid ? 'valid' : 'invalid'}">
+          <div class="cpuassist-dot"></div>
+          ${isValid ? 'SOLUTION VALID' : 'NO SOLUTION'}
+        </div>
+      `;
+      html += this._renderFeedbackSection();
+      content.innerHTML = html;
+      return;
+    }
+
+    // --- RAW tier (default): full factor breakdown table with exact values ---
 
     // 1. Confidence cone SVG
     html += this._renderCone(bestSol);
 
     // 2. Cone stats row
-    const confPct = Math.round((bestSol.confidence || 0) * 100);
-    const confClass = confPct > 70 ? "high" : confPct > 40 ? "mid" : "low";
     const coneRadius = bestSol.cone_radius_m || 0;
     const coneAngle = bestSol.cone_angle_deg || 0;
 
@@ -325,7 +572,7 @@ class FiringSolutionDisplay extends HTMLElement {
       </div>
     `;
 
-    // 2b. Firing arc warning — shown when target is outside the weapon's arc
+    // 2b. Firing arc warning
     if (bestSol.in_arc === false) {
       const reason = bestSol.reason || "Target outside firing arc";
       html += `
@@ -345,7 +592,7 @@ class FiringSolutionDisplay extends HTMLElement {
       `;
     }
 
-    // 3. Factor breakdown
+    // 3. Factor breakdown — RAW shows exact values per factor
     const factors = bestSol.confidence_factors;
     if (factors && Object.keys(factors).length > 0) {
       html += `<div class="section-title">Confidence Factors</div>`;
