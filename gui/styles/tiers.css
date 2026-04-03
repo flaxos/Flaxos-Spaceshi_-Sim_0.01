@@ -721,7 +721,93 @@ body.tier-cpu-assist .sci-log-panel {
 
 
 /* =========================================================================
-   22. TUTORIAL HIGHLIGHT GLOW
+   22. FLEET PANEL VISIBILITY -- MANUAL TIER
+   "You fly your own ship -- fleet is autonomous" (~2 panels)
+
+   Show:     Fleet Tactical, Fleet Roster (read-only)
+   Hidden:   Formation Control, Fleet Orders, Fire Control, Data Link
+   ========================================================================= */
+
+body.tier-manual .fleet-formation-panel,
+body.tier-manual .fleet-orders-panel,
+body.tier-manual .fleet-fire-panel,
+body.tier-manual .fleet-contacts-panel {
+  display: none;
+}
+
+/* Tactical display spans wide -- situational awareness only */
+body.tier-manual .fleet-tactical-panel {
+  grid-column: span 6;
+}
+
+body.tier-manual .fleet-roster-panel {
+  grid-column: span 6;
+}
+
+
+/* =========================================================================
+   23. FLEET PANEL VISIBILITY -- RAW TIER
+   "Full fleet control, raw vectors and coordinates" (all 6 panels)
+
+   Show:     ALL panels. Fleet Tactical hero (span-8).
+   ========================================================================= */
+
+body.tier-raw .fleet-tactical-panel {
+  grid-column: span 8;
+}
+
+
+/* =========================================================================
+   24. FLEET PANEL VISIBILITY -- ARCADE TIER
+   "One-click fleet commands, preset formations" (~5 panels)
+
+   Show:     Fleet Tactical (HERO), Roster, Formation (presets),
+             Orders (preset buttons), Fire Control
+   Hidden:   Tactical Data Link (raw contact sharing is too low-level)
+   ========================================================================= */
+
+body.tier-arcade .fleet-contacts-panel {
+  display: none;
+}
+
+/* Hero: Fleet Tactical */
+body.tier-arcade .fleet-tactical-panel {
+  grid-column: span 8;
+}
+
+/* Orders panel wider for preset maneuver buttons */
+body.tier-arcade .fleet-orders-panel {
+  grid-column: span 6;
+}
+
+
+/* =========================================================================
+   25. FLEET PANEL VISIBILITY -- CPU-ASSIST TIER
+   "Auto-fleet proposals, approve/deny workflow" (~4 panels)
+
+   Show:     Fleet Tactical (HERO), Roster (summary indicators),
+             Formation (auto-recommendations), Orders (proposal cards)
+   Hidden:   Fire Control (auto-tactical handles per-ship firing), Data Link
+   ========================================================================= */
+
+body.tier-cpu-assist .fleet-fire-panel,
+body.tier-cpu-assist .fleet-contacts-panel {
+  display: none;
+}
+
+/* Hero: Fleet Tactical -- dominates the CPU-ASSIST layout */
+body.tier-cpu-assist .fleet-tactical-panel {
+  grid-column: span 8;
+}
+
+/* Roster shows compact summary indicators */
+body.tier-cpu-assist .fleet-roster-panel {
+  grid-column: span 4;
+}
+
+
+/* =========================================================================
+   26. TUTORIAL HIGHLIGHT GLOW
    ========================================================================= */
 
 @keyframes tutorial-pulse {
@@ -743,7 +829,7 @@ body.tutorial-active flaxos-panel:not(.tutorial-highlight) {
 
 
 /* =========================================================================
-   23. REDUCED MOTION
+   27. REDUCED MOTION
    ========================================================================= */
 
 @media (prefers-reduced-motion: reduce) {
