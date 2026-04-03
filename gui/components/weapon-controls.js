@@ -31,6 +31,7 @@ class WeaponControls extends HTMLElement {
     this._authorized = { railgun: false, torpedo: false, missile: false };
     // Tracks in-flight salvo to prevent re-fire during staggered launch
     this._salvoInProgress = false;
+    this._tier = window.controlTier || "arcade";
   }
 
   connectedCallback() {
@@ -43,6 +44,15 @@ class WeaponControls extends HTMLElement {
       this._updateDisplay();
     };
     document.addEventListener("contact-selected", this._contactSelectedHandler);
+
+    // Tier-change listener: re-render weapon controls per tier
+    this._tierHandler = (e) => {
+      this._tier = e.detail?.tier || "arcade";
+      this._applyTier();
+    };
+    document.addEventListener("tier-change", this._tierHandler);
+    // Apply tier on first connect
+    this._applyTier();
   }
 
   disconnectedCallback() {
@@ -52,6 +62,10 @@ class WeaponControls extends HTMLElement {
     if (this._contactSelectedHandler) {
       document.removeEventListener("contact-selected", this._contactSelectedHandler);
       this._contactSelectedHandler = null;
+    }
+    if (this._tierHandler) {
+      document.removeEventListener("tier-change", this._tierHandler);
+      this._tierHandler = null;
     }
   }
 
@@ -848,6 +862,133 @@ class WeaponControls extends HTMLElement {
           display: block;
         }
 
+        /* === Tier-specific visibility classes === */
+        .tier-hidden { display: none !important; }
+
+        /* MANUAL tier: simplified layout, just mount buttons and raw ammo */
+        .manual-only { display: none; }
+        :host(.tier-manual) .manual-only { display: block; }
+        :host(.tier-manual) .pdc-mode-group,
+        :host(.tier-manual) .launcher-type-group,
+        :host(.tier-manual) .missile-options,
+        :host(.tier-manual) .auth-row,
+        :host(.tier-manual) .auth-conditions,
+        :host(.tier-manual) .target-lock-row,
+        :host(.tier-manual) .assess-btn { display: none !important; }
+
+        /* ARCADE tier: grouped fire buttons, confidence gate */
+        .arcade-grouped-btns {
+          display: none;
+          gap: 6px;
+          margin-bottom: 12px;
+        }
+        :host(.tier-arcade) .arcade-grouped-btns { display: flex; }
+        :host(.tier-arcade) .railgun-mount-row { display: none !important; }
+        :host(.tier-arcade) .auth-row { display: none !important; }
+        :host(.tier-arcade) .auth-conditions { display: none !important; }
+
+        .arcade-fire-btn {
+          flex: 1;
+          padding: 14px 10px;
+          border-radius: 8px;
+          font-size: 0.85rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          cursor: pointer;
+          min-height: 56px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 4px;
+          transition: all 0.1s ease;
+          font-family: inherit;
+        }
+        .arcade-fire-btn.railgun {
+          background: var(--status-critical, #ff4444);
+          border: 2px solid var(--status-critical, #ff4444);
+          color: white;
+        }
+        .arcade-fire-btn.torpedo {
+          background: var(--status-nominal, #00ff88);
+          border: 2px solid var(--status-nominal, #00ff88);
+          color: #0a0a0f;
+        }
+        .arcade-fire-btn.missile {
+          background: #ff8800;
+          border: 2px solid #ff8800;
+          color: white;
+        }
+        .arcade-fire-btn:disabled {
+          background: var(--bg-input, #1a1a24);
+          border-color: var(--border-default, #2a2a3a);
+          color: var(--text-dim, #555566);
+          cursor: not-allowed;
+        }
+        .arcade-fire-btn:hover:not(:disabled) {
+          filter: brightness(1.1);
+          transform: translateY(-1px);
+        }
+        .arcade-ammo-pct {
+          font-size: 0.65rem;
+          opacity: 0.85;
+        }
+
+        /* CPU-ASSIST tier: auth toggles only, hide manual controls */
+        :host(.tier-cpu-assist) .railgun-mount-row { display: none !important; }
+        :host(.tier-cpu-assist) .pdc-mode-group { display: none !important; }
+        :host(.tier-cpu-assist) .launcher-type-group { display: none !important; }
+        :host(.tier-cpu-assist) .missile-options { display: none !important; }
+        :host(.tier-cpu-assist) .fire-auth-row .fire-btn { display: none !important; }
+        :host(.tier-cpu-assist) #railgun-mounts { display: none !important; }
+        :host(.tier-cpu-assist) .fire-hint { display: none !important; }
+        :host(.tier-cpu-assist) .cease-fire-btn { display: none !important; }
+
+        .cpuassist-auth-grid {
+          display: none;
+          grid-template-columns: 1fr 1fr 1fr;
+          gap: 6px;
+          margin-bottom: 12px;
+        }
+        :host(.tier-cpu-assist) .cpuassist-auth-grid { display: grid; }
+
+        .cpuassist-auth-card {
+          padding: 12px 8px;
+          border-radius: 8px;
+          text-align: center;
+          cursor: pointer;
+          transition: all 0.15s ease;
+          border: 1px solid var(--border-default, #2a2a3a);
+          background: var(--bg-input, #1a1a24);
+        }
+        .cpuassist-auth-card.authorized {
+          border-color: var(--status-nominal, #00ff88);
+          background: rgba(0, 255, 136, 0.06);
+        }
+        .cpuassist-auth-card:hover {
+          border-color: var(--text-secondary, #888899);
+        }
+        .cpuassist-auth-card .auth-weapon-name {
+          font-size: 0.7rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          color: var(--text-dim, #555566);
+          margin-bottom: 4px;
+        }
+        .cpuassist-auth-card.authorized .auth-weapon-name {
+          color: var(--status-nominal, #00ff88);
+        }
+        .cpuassist-auth-card .auth-toggle-label {
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+          font-size: 0.65rem;
+          color: var(--text-dim, #555566);
+        }
+        .cpuassist-auth-card.authorized .auth-toggle-label {
+          color: var(--status-nominal, #00ff88);
+        }
+
         /* === Auto-Tactical Engagement Rules (CPU-ASSIST) === */
         .engagement-panel {
           display: none;
@@ -1036,6 +1177,38 @@ class WeaponControls extends HTMLElement {
         <div id="tactical-proposals"></div>
       </div>
 
+      <!-- ARCADE tier: grouped fire buttons (RAILGUN / TORPEDO / MISSILE) -->
+      <div class="arcade-grouped-btns" id="arcade-grouped-btns">
+        <button class="arcade-fire-btn railgun" id="arcade-fire-railgun" disabled>
+          RAILGUN
+          <span class="arcade-ammo-pct" id="arcade-rg-ammo">0%</span>
+        </button>
+        <button class="arcade-fire-btn torpedo" id="arcade-fire-torpedo" disabled>
+          TORPEDO
+          <span class="arcade-ammo-pct" id="arcade-trp-ammo">0%</span>
+        </button>
+        <button class="arcade-fire-btn missile" id="arcade-fire-missile" disabled>
+          MISSILE
+          <span class="arcade-ammo-pct" id="arcade-msl-ammo">0%</span>
+        </button>
+      </div>
+
+      <!-- CPU-ASSIST tier: per-weapon-type authorize toggles -->
+      <div class="cpuassist-auth-grid" id="cpuassist-auth-grid">
+        <div class="cpuassist-auth-card" id="cpuassist-auth-railgun" data-weapon="railgun">
+          <div class="auth-weapon-name">Railgun</div>
+          <div class="auth-toggle-label">AUTHORIZE</div>
+        </div>
+        <div class="cpuassist-auth-card" id="cpuassist-auth-torpedo" data-weapon="torpedo">
+          <div class="auth-weapon-name">Torpedo</div>
+          <div class="auth-toggle-label">AUTHORIZE</div>
+        </div>
+        <div class="cpuassist-auth-card" id="cpuassist-auth-missile" data-weapon="missile">
+          <div class="auth-weapon-name">Missile</div>
+          <div class="auth-toggle-label">AUTHORIZE</div>
+        </div>
+      </div>
+
       <div class="ammo-heat-hud" id="ammo-heat-hud"></div>
 
       <div class="weapon-group target-lock-row">
@@ -1141,7 +1314,49 @@ class WeaponControls extends HTMLElement {
     `;
   }
 
+  /**
+   * Apply tier class to :host and toggle tier-specific element visibility.
+   * MANUAL: individual mount fire buttons only, raw ammo count, no solution preview.
+   * RAW: per-mount status with solution data, ammo, heat, charge state. (default, all controls visible)
+   * ARCADE: grouped fire buttons (RAILGUN/TORPEDO/MISSILE), confidence gate, ammo as percentage.
+   * CPU-ASSIST: authorize toggles per weapon type, auto-fires when conditions met.
+   */
+  _applyTier() {
+    const host = this;
+    host.classList.remove("tier-manual", "tier-raw", "tier-arcade", "tier-cpu-assist");
+    host.classList.add(`tier-${this._tier}`);
+    this._updateDisplay();
+  }
+
   _setupInteraction() {
+    // ARCADE: grouped fire buttons
+    this.shadowRoot.getElementById("arcade-fire-railgun").addEventListener("click", () => {
+      // Fire first ready railgun mount
+      const weapons = stateManager.getWeapons();
+      const truthWeapons = weapons?.truth_weapons || {};
+      const railgun = Object.entries(truthWeapons).find(
+        ([id, w]) => id.startsWith("railgun") && w.solution?.ready_to_fire && !w.reloading && (w.ammo ?? 0) > 0
+      );
+      if (railgun) this._fireRailgun(railgun[0]);
+    });
+
+    this.shadowRoot.getElementById("arcade-fire-torpedo").addEventListener("click", () => {
+      this._fireLauncher();
+    });
+
+    this.shadowRoot.getElementById("arcade-fire-missile").addEventListener("click", () => {
+      this._missileProfile = "direct";
+      this._salvoSize = 1;
+      this._fireMissileSalvo();
+    });
+
+    // CPU-ASSIST: auth card toggles
+    this.shadowRoot.querySelectorAll(".cpuassist-auth-card").forEach((card) => {
+      card.addEventListener("click", () => {
+        this._toggleAuth(card.dataset.weapon);
+      });
+    });
+
     // Auto-tactical engagement toggle
     this.shadowRoot.getElementById("engagement-toggle").addEventListener("click", () => {
       this._toggleAutoTactical();
@@ -1344,6 +1559,10 @@ class WeaponControls extends HTMLElement {
 
     // Update auto-tactical engagement panel (CPU-ASSIST tier)
     this._updateEngagementPanel();
+
+    // --- Tier-specific updates ---
+    this._updateArcadeButtons(weapons, targeting, hasLock);
+    this._updateCpuAssistAuthCards();
   }
 
   /**
@@ -1902,6 +2121,81 @@ class WeaponControls extends HTMLElement {
       await wsClient.sendShipCommand("set_pdc_mode", { mode: "hold_fire" });
     } catch (error) {
       console.error("Cease fire failed:", error);
+    }
+  }
+
+  // --- Tier-specific display updates ---
+
+  /**
+   * ARCADE: update grouped fire buttons with confidence gate and ammo as percentage.
+   * Button is disabled until confidence > 50% threshold.
+   */
+  _updateArcadeButtons(weapons, targeting, hasLock) {
+    if (this._tier !== "arcade") return;
+
+    const truthWeapons = weapons?.truth_weapons || {};
+    const torpedoData = weapons?.torpedoes || weapons?.torpedo || {};
+    const missileData = weapons?.missiles || {};
+    const solutions = targeting?.solutions || {};
+
+    // Best confidence across any weapon solution
+    let bestConf = 0;
+    for (const [, sol] of Object.entries(solutions)) {
+      if ((sol.confidence ?? 0) > bestConf) bestConf = sol.confidence;
+    }
+    const confGate = hasLock && bestConf > 0.5;
+
+    // Railgun: ammo as percentage
+    const railguns = Object.entries(truthWeapons).filter(([id]) => id.startsWith("railgun"));
+    let rgCurrent = 0, rgCapacity = 0;
+    for (const [, w] of railguns) {
+      rgCurrent += w.ammo ?? 0;
+      rgCapacity += w.ammo_capacity ?? 0;
+    }
+    const rgPct = rgCapacity > 0 ? Math.round((rgCurrent / rgCapacity) * 100) : 0;
+    const rgReady = railguns.some(([, w]) => w.solution?.ready_to_fire && !w.reloading && (w.ammo ?? 0) > 0);
+
+    const rgBtn = this.shadowRoot.getElementById("arcade-fire-railgun");
+    const rgAmmo = this.shadowRoot.getElementById("arcade-rg-ammo");
+    if (rgBtn) rgBtn.disabled = !confGate || !rgReady;
+    if (rgAmmo) rgAmmo.textContent = `${rgPct}%`;
+
+    // Torpedo: ammo as percentage
+    const trpLoaded = torpedoData.loaded ?? torpedoData.count ?? 0;
+    const trpCapacity = torpedoData.capacity ?? trpLoaded;
+    const trpPct = trpCapacity > 0 ? Math.round((trpLoaded / trpCapacity) * 100) : 0;
+    const trpReady = trpLoaded > 0 && (torpedoData.cooldown ?? 0) <= 0;
+
+    const trpBtn = this.shadowRoot.getElementById("arcade-fire-torpedo");
+    const trpAmmo = this.shadowRoot.getElementById("arcade-trp-ammo");
+    if (trpBtn) trpBtn.disabled = !confGate || !trpReady;
+    if (trpAmmo) trpAmmo.textContent = `${trpPct}%`;
+
+    // Missile: ammo as percentage
+    const mslLoaded = missileData.loaded ?? missileData.count ?? 0;
+    const mslCapacity = missileData.capacity ?? mslLoaded;
+    const mslPct = mslCapacity > 0 ? Math.round((mslLoaded / mslCapacity) * 100) : 0;
+    const mslReady = mslLoaded > 0 && (missileData.cooldown ?? 0) <= 0;
+
+    const mslBtn = this.shadowRoot.getElementById("arcade-fire-missile");
+    const mslAmmo = this.shadowRoot.getElementById("arcade-msl-ammo");
+    if (mslBtn) mslBtn.disabled = !confGate || !mslReady;
+    if (mslAmmo) mslAmmo.textContent = `${mslPct}%`;
+  }
+
+  /**
+   * CPU-ASSIST: update per-weapon-type authorize card visuals.
+   */
+  _updateCpuAssistAuthCards() {
+    if (this._tier !== "cpu-assist") return;
+
+    for (const weapon of ["railgun", "torpedo", "missile"]) {
+      const card = this.shadowRoot.getElementById(`cpuassist-auth-${weapon}`);
+      if (!card) continue;
+      const isAuth = this._authorized[weapon];
+      card.classList.toggle("authorized", isAuth);
+      const label = card.querySelector(".auth-toggle-label");
+      if (label) label.textContent = isAuth ? "AUTHORIZED" : "AUTHORIZE";
     }
   }
 

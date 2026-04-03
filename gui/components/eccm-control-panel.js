@@ -27,17 +27,29 @@ class ECCMControlPanel extends HTMLElement {
     this.attachShadow({ mode: "open" });
     this._unsubscribe = null;
     this._analysisResult = null;
+    this._tier = window.controlTier || "arcade";
   }
 
   connectedCallback() {
     this.render();
     this._subscribe();
+
+    // Tier-change listener: switch between full/preset/hidden ECCM views
+    this._tierHandler = (e) => {
+      this._tier = e.detail?.tier || "arcade";
+      this._updateDisplay();
+    };
+    document.addEventListener("tier-change", this._tierHandler);
   }
 
   disconnectedCallback() {
     if (this._unsubscribe) {
       this._unsubscribe();
       this._unsubscribe = null;
+    }
+    if (this._tierHandler) {
+      document.removeEventListener("tier-change", this._tierHandler);
+      this._tierHandler = null;
     }
   }
 
@@ -296,6 +308,57 @@ class ECCMControlPanel extends HTMLElement {
           padding: 20px 10px;
           font-size: 0.75rem;
         }
+
+        /* === ARCADE tier: single AUTO-COUNTER preset button === */
+        .arcade-auto-btn {
+          display: block;
+          width: 100%;
+          padding: 14px;
+          border-radius: 8px;
+          font-size: 0.85rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          cursor: pointer;
+          transition: all 0.15s ease;
+          text-align: center;
+          font-family: inherit;
+          border: 2px solid var(--border-default, #2a2a3a);
+          background: var(--bg-input, #1a1a24);
+          color: var(--text-dim, #555566);
+        }
+        .arcade-auto-btn:hover {
+          border-color: var(--text-secondary, #888899);
+        }
+        .arcade-auto-btn.active {
+          border-color: var(--status-nominal, #00ff88);
+          color: var(--status-nominal, #00ff88);
+          background: rgba(0, 255, 136, 0.08);
+        }
+        .arcade-auto-hint {
+          font-size: 0.65rem;
+          font-weight: 400;
+          opacity: 0.7;
+          display: block;
+          margin-top: 4px;
+        }
+        .arcade-status-mini {
+          display: flex;
+          justify-content: space-between;
+          margin-top: 10px;
+          font-size: 0.7rem;
+        }
+        .arcade-status-mini .mini-label {
+          color: var(--text-secondary, #888899);
+        }
+        .arcade-status-mini .mini-value {
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+          font-weight: 600;
+          color: var(--text-primary, #e0e0e0);
+        }
+        .arcade-status-mini .mini-value.active {
+          color: var(--status-nominal, #00ff88);
+        }
       </style>
 
       <div id="eccm-content">
@@ -309,6 +372,7 @@ class ECCMControlPanel extends HTMLElement {
     // ECCM state is a top-level telemetry field (added alongside ecm, comms, etc.)
     const eccm = ship?.eccm;
     const container = this.shadowRoot.getElementById("eccm-content");
+    const tier = this._tier;
 
     if (!eccm || !container) {
       if (container) {
@@ -316,6 +380,28 @@ class ECCMControlPanel extends HTMLElement {
       }
       return;
     }
+
+    // CPU-ASSIST: ECCM is hidden (auto-tactical manages it).
+    // Show minimal indicator in case panel is forced visible.
+    if (tier === "cpu-assist") {
+      const anyActive = eccm.mode !== "off" || eccm.multispectral_active || eccm.hoj_active;
+      container.innerHTML = `
+        <div class="eccm-mode ${anyActive ? 'active' : 'standby'}">
+          <div class="mode-dot"></div>
+          <span>AUTO-TACTICAL ECCM</span>
+        </div>
+        <div class="no-eccm">ECCM managed by auto-tactical system</div>
+      `;
+      return;
+    }
+
+    // ARCADE: single AUTO-COUNTER preset button
+    if (tier === "arcade") {
+      this._renderArcadeEccm(container, eccm);
+      return;
+    }
+
+    // MANUAL/RAW: full manual ECCM (existing display)
 
     // Check if the analyze-target dropdown is currently focused/open.
     // Rebuilding innerHTML while a <select> is open destroys the native
@@ -534,6 +620,61 @@ class ECCMControlPanel extends HTMLElement {
 
     const hojEl = this.shadowRoot.getElementById("status-hoj");
     if (hojEl) hojEl.textContent = eccm.hoj_active ? "ACTIVE" : "OFF";
+  }
+
+  /**
+   * ARCADE tier: single "AUTO-COUNTER" button that activates the best
+   * ECCM mode automatically. One-click simplification.
+   */
+  _renderArcadeEccm(container, eccm) {
+    const mode = eccm.mode || "off";
+    const anyActive = mode !== "off" || eccm.multispectral_active || eccm.hoj_active;
+    const modeClass = anyActive ? "active" : "standby";
+    const statusText = eccm.status || "standby";
+
+    container.innerHTML = `
+      <div class="eccm-mode ${mode === 'burn_through' ? 'burn-through' : modeClass}">
+        <div class="mode-dot"></div>
+        <span>${statusText}</span>
+      </div>
+
+      <button class="arcade-auto-btn ${anyActive ? 'active' : ''}" id="arcade-auto-counter">
+        ${anyActive ? 'AUTO-COUNTER ACTIVE' : 'AUTO-COUNTER'}
+        <span class="arcade-auto-hint">Best ECCM mode selected automatically</span>
+      </button>
+
+      <div class="arcade-status-mini">
+        <span class="mini-label">Mode</span>
+        <span class="mini-value ${mode !== 'off' ? 'active' : ''}">${mode.replace(/_/g, "-").toUpperCase()}</span>
+      </div>
+      <div class="arcade-status-mini">
+        <span class="mini-label">Multi-Spectral</span>
+        <span class="mini-value ${eccm.multispectral_active ? 'active' : ''}">${eccm.multispectral_active ? 'ON' : 'OFF'}</span>
+      </div>
+      <div class="arcade-status-mini">
+        <span class="mini-label">Home-on-Jam</span>
+        <span class="mini-value ${eccm.hoj_active ? 'active' : ''}">${eccm.hoj_active ? 'ON' : 'OFF'}</span>
+      </div>
+    `;
+
+    const autoBtn = this.shadowRoot.getElementById("arcade-auto-counter");
+    if (autoBtn) {
+      autoBtn.addEventListener("click", () => {
+        if (anyActive) {
+          // Deactivate all ECCM
+          wsClient.sendShipCommand("eccm_off", {}).catch(e =>
+            console.warn("ECCM off failed:", e.message));
+        } else {
+          // Activate best ECCM: freq hop + multispectral + home-on-jam
+          wsClient.sendShipCommand("eccm_frequency_hop", {}).catch(e =>
+            console.warn("ECCM freq hop failed:", e.message));
+          wsClient.sendShipCommand("eccm_multispectral", {}).catch(e =>
+            console.warn("ECCM multispectral failed:", e.message));
+          wsClient.sendShipCommand("eccm_home_on_jam", {}).catch(e =>
+            console.warn("ECCM home-on-jam failed:", e.message));
+        }
+      });
+    }
   }
 
   _bindButtons() {

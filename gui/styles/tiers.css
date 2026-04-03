@@ -224,15 +224,25 @@ body.tier-manual .ops-log-panel {
 
 /* =========================================================================
    3E. ENGINEERING PANEL VISIBILITY — MANUAL TIER
-   Show only: Thermal, Eng Controls
+   "Stick and rudder" (~2 panels)
+   Show:   Thermal (HERO), Eng Controls (raw reactor + radiator)
+   Hidden: Everything else — minimal chrome
    ========================================================================= */
 
 body.tier-manual .eng-subsystem-panel,
 body.tier-manual .eng-power-panel,
 body.tier-manual .eng-systems-panel,
-body.tier-manual .eng-crew-panel,
 body.tier-manual .eng-log-panel {
   display: none;
+}
+
+/* Thermal display dominates in manual tier — raw temp is all you get */
+body.tier-manual .eng-thermal-panel {
+  grid-column: span 8;
+}
+
+body.tier-manual .eng-controls-panel {
+  grid-column: span 4;
 }
 
 
@@ -378,6 +388,7 @@ body.tier-arcade .tac-fire-ctrl-panel {
 
 /* Hidden panels */
 body.tier-cpu-assist .tac-ecm-panel,
+body.tier-cpu-assist .tac-eccm-panel,
 body.tier-cpu-assist .tac-threat-panel,
 body.tier-cpu-assist .tac-subsystem-panel,
 body.tier-cpu-assist .tac-torpedo-panel,
@@ -453,6 +464,97 @@ body.tier-cpu-assist .ops-subsystem-panel {
 
 
 /* =========================================================================
+   13B. COMMS PANEL VISIBILITY — MANUAL TIER
+   "Stick and rudder" — minimal comms, just a raw radio panel.
+
+   Show:     Communications (basic radio controls only, tier-adapted internally)
+   Hidden:   Incoming Comms, Contacts, Tactical Map, Crew Chat, Comms Log
+   ========================================================================= */
+
+body.tier-manual .comms-choice-panel,
+body.tier-manual .comms-contacts-panel,
+body.tier-manual .comms-map-panel,
+body.tier-manual .comms-chat-panel,
+body.tier-manual .comms-log-panel {
+  display: none;
+}
+
+/* Communications panel dominates as the only visible element */
+body.tier-manual .comms-panel {
+  grid-column: span 12;
+}
+
+
+/* =========================================================================
+   13C. COMMS PANEL VISIBILITY — RAW TIER
+   "Full manual comms workstation" — all panels visible.
+
+   Show:     ALL panels. Communications hero (span-8).
+   ========================================================================= */
+
+/* RAW: show everything — hero sizing only */
+body.tier-raw .comms-panel {
+  grid-column: span 8;
+}
+
+/* Incoming Comms widens when all panels share the grid */
+body.tier-raw .comms-choice-panel {
+  grid-column: span 4;
+}
+
+
+/* =========================================================================
+   13D. COMMS PANEL VISIBILITY — ARCADE TIER
+   "Simplified hailing interface" (~4 panels)
+
+   Show:     Communications (simplified, HERO), Incoming Comms,
+             Contacts, Comms Log
+   Hidden:   Tactical Map, Crew Chat (too low-level for comms officer)
+   ========================================================================= */
+
+body.tier-arcade .comms-map-panel,
+body.tier-arcade .comms-chat-panel {
+  display: none;
+}
+
+/* Hero: Communications panel */
+body.tier-arcade .comms-panel {
+  grid-column: span 6;
+}
+
+/* Incoming Comms gets equal billing */
+body.tier-arcade .comms-choice-panel {
+  grid-column: span 6;
+}
+
+
+/* =========================================================================
+   13E. COMMS PANEL VISIBILITY — CPU-ASSIST TIER
+   "Captain's comms — approve/deny only" (~3 panels)
+
+   Show:     Communications (auto-comms hero, span-8), Incoming Comms,
+             Comms Log
+   Hidden:   Contacts, Tactical Map, Crew Chat
+   ========================================================================= */
+
+body.tier-cpu-assist .comms-contacts-panel,
+body.tier-cpu-assist .comms-map-panel,
+body.tier-cpu-assist .comms-chat-panel {
+  display: none;
+}
+
+/* Hero: Communications panel with auto-comms dominates */
+body.tier-cpu-assist .comms-panel {
+  grid-column: span 8;
+}
+
+/* Incoming Comms narrower — auto-comms handles most */
+body.tier-cpu-assist .comms-choice-panel {
+  grid-column: span 4;
+}
+
+
+/* =========================================================================
    14. WORKFLOW STRIP
    Visible in all tiers, accent color matches tier.
    ========================================================================= */
@@ -463,32 +565,86 @@ body.tier-cpu-assist helm-workflow-strip { --strip-accent: #c0a0ff; }
 
 
 /* =========================================================================
-   15. ENGINEERING PANEL VISIBILITY (unchanged from pre-refactor)
-   Eng view has its own panel set. These rules are preserved as-is
-   until engineering gets its own refactor pass.
+   15. ENGINEERING PANEL VISIBILITY — RAW TIER
+   "Full engineering workstation" (all 6 panels)
+
+   Show:     ALL panels. Thermal + Controls hero row.
+             Subsystem status, power draw, systems, event log all visible.
    ========================================================================= */
 
-/* RAW: hide automation/profile panels, show raw systems */
-body.tier-raw .eng-log-panel {
-  display: none;
+/* RAW: show everything — hero sizing set in base grid.
+ * Event log stays visible for full audit trail. */
+body.tier-raw .eng-thermal-panel {
+  grid-column: span 6;
 }
 
-/* ARCADE: hide low-level engineering, show balanced set */
-body.tier-arcade .eng-subsystem-panel,
-body.tier-arcade .helm-micro-rcs-panel {
-  display: none;
-}
-
-/* CPU-ASSIST: minimal engineering — just status and profiles */
-body.tier-cpu-assist .eng-systems-panel,
-body.tier-cpu-assist .eng-power-panel,
-body.tier-cpu-assist .helm-micro-rcs-panel {
-  display: none;
+body.tier-raw .eng-controls-panel {
+  grid-column: span 6;
 }
 
 
 /* =========================================================================
-   16. SCIENCE PANEL VISIBILITY — MANUAL TIER
+   16. ENGINEERING PANEL VISIBILITY — ARCADE TIER
+   "Balanced engineering" (~4 panels)
+
+   Show:     Thermal (simplified), Controls (HERO), Subsystem Status, Event Log
+   Hidden:   Power Draw (detail folded into controls), Systems (toggles)
+   ========================================================================= */
+
+body.tier-arcade .eng-power-panel,
+body.tier-arcade .eng-systems-panel {
+  display: none;
+}
+
+/* Eng Controls is hero in arcade — simplified reactor + repair queue */
+body.tier-arcade .eng-controls-panel {
+  grid-column: span 8;
+}
+
+body.tier-arcade .eng-thermal-panel {
+  grid-column: span 4;
+}
+
+body.tier-arcade .eng-subsystem-panel {
+  grid-column: span 6;
+}
+
+body.tier-arcade .eng-log-panel {
+  grid-column: span 6;
+}
+
+
+/* =========================================================================
+   17. ENGINEERING PANEL VISIBILITY — CPU-ASSIST TIER
+   "Auto-engineering dashboard" (~3 panels)
+
+   Show:     Controls (HERO — auto-eng proposals dominate),
+             Thermal (summary badge), Event Log
+   Hidden:   Power Draw, Systems, Subsystem Status
+   ========================================================================= */
+
+body.tier-cpu-assist .eng-power-panel,
+body.tier-cpu-assist .eng-systems-panel,
+body.tier-cpu-assist .eng-subsystem-panel {
+  display: none;
+}
+
+/* Auto-engineering panel is the hero — takes most of the row */
+body.tier-cpu-assist .eng-controls-panel {
+  grid-column: span 8;
+}
+
+body.tier-cpu-assist .eng-thermal-panel {
+  grid-column: span 4;
+}
+
+body.tier-cpu-assist .eng-log-panel {
+  grid-column: span 4;
+}
+
+
+/* =========================================================================
+   18. SCIENCE PANEL VISIBILITY — MANUAL TIER
    "Raw sensor returns only, no computer analysis" (~1 panel)
 
    Show:     Sensor Contacts (HERO, raw bearing/range/signal only)
@@ -506,7 +662,7 @@ body.tier-manual .sci-sensors-panel {
 
 
 /* =========================================================================
-   17. SCIENCE PANEL VISIBILITY — RAW TIER
+   19. SCIENCE PANEL VISIBILITY — RAW TIER
    "Full manual science workflow, all data exposed" (~3 panels)
 
    Show:     ALL panels. Sensor Contacts (HERO, full data). Analysis. Log.
@@ -526,7 +682,7 @@ body.tier-raw .sci-log-panel {
 
 
 /* =========================================================================
-   18. SCIENCE PANEL VISIBILITY — ARCADE TIER
+   20. SCIENCE PANEL VISIBILITY — ARCADE TIER
    "Simplified threat picture, auto-classified contacts" (~3 panels)
 
    Show:     Sensor Contacts, Analysis (HERO, simplified), Log
@@ -543,7 +699,7 @@ body.tier-arcade .sci-sensors-panel {
 
 
 /* =========================================================================
-   19. SCIENCE PANEL VISIBILITY — CPU-ASSIST TIER
+   21. SCIENCE PANEL VISIBILITY — CPU-ASSIST TIER
    "Auto-science proposals, minimal manual controls" (~3 panels)
 
    Show:     Sensor Contacts (compact summary), Analysis (HERO, auto-science),
@@ -565,7 +721,7 @@ body.tier-cpu-assist .sci-log-panel {
 
 
 /* =========================================================================
-   20. TUTORIAL HIGHLIGHT GLOW
+   22. TUTORIAL HIGHLIGHT GLOW
    ========================================================================= */
 
 @keyframes tutorial-pulse {
@@ -587,7 +743,7 @@ body.tutorial-active flaxos-panel:not(.tutorial-highlight) {
 
 
 /* =========================================================================
-   21. REDUCED MOTION
+   23. REDUCED MOTION
    ========================================================================= */
 
 @media (prefers-reduced-motion: reduce) {

@@ -6,6 +6,12 @@
  * - Diplomatic state indicators on contacts
  * - Distress beacon activation
  * - Message log with hail response rendering
+ *
+ * Tier-aware rendering:
+ *   MANUAL:     Raw radio only — frequency, power, IFF hex, signal meter, raw compose.
+ *   RAW:        Full workstation — all controls, raw signal data, transponder spoof, message log.
+ *   ARCADE:     Simplified — one-click HAIL per contact, diplo badges, broadcast presets.
+ *   CPU-ASSIST: Auto-comms hero — proposals queue with approve/deny, incoming messages only.
  */
 
 import { stateManager } from "../js/state-manager.js";
@@ -21,23 +27,43 @@ const DIPLO_COLORS = {
   unknown: "var(--text-dim, #555566)",
 };
 
+/** Broadcast presets for ARCADE tier */
+const BROADCAST_PRESETS = [
+  { label: "IDENT", msg: "This is {ship}, transmitting IFF. Over.", channel: "general" },
+  { label: "HOLD FIRE", msg: "All stations hold fire. Repeat: hold fire.", channel: "tactical" },
+  { label: "MAYDAY", msg: "Mayday, mayday, mayday. Requesting immediate assistance.", channel: "emergency" },
+  { label: "SURRENDER", msg: "We are standing down. Cease fire.", channel: "general" },
+];
+
 class CommsControlPanel extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: "open" });
     this._unsubscribe = null;
+    this._tierHandler = null;
+    this._tier = window.controlTier || "arcade";
     this._hailingTarget = null; // contact_id currently being hailed
   }
 
   connectedCallback() {
     this.render();
     this._subscribe();
+    // Listen for tier changes (same pattern as flight-computer-panel)
+    this._tierHandler = (e) => {
+      this._tier = e.detail?.tier || "arcade";
+      this._updateDisplay();
+    };
+    document.addEventListener("tier-change", this._tierHandler);
   }
 
   disconnectedCallback() {
     if (this._unsubscribe) {
       this._unsubscribe();
       this._unsubscribe = null;
+    }
+    if (this._tierHandler) {
+      document.removeEventListener("tier-change", this._tierHandler);
+      this._tierHandler = null;
     }
   }
 
@@ -317,9 +343,117 @@ class CommsControlPanel extends HTMLElement {
         color: var(--text-dim, #555566); font-style: italic;
         text-align: center; padding: 20px 10px; font-size: 0.75rem;
       }
+
+      /* --- MANUAL tier: signal meter, textarea, slider --- */
+      .signal-meter {
+        height: 6px; border-radius: 3px;
+        background: rgba(42, 42, 58, 0.5);
+        overflow: hidden; margin: 4px 0;
+      }
+      .signal-fill {
+        height: 100%; border-radius: 3px;
+        transition: width 0.3s ease;
+      }
+      .comms-textarea {
+        width: 100%; resize: vertical;
+        min-height: 48px; max-height: 120px;
+        box-sizing: border-box;
+        font-family: var(--font-mono, "JetBrains Mono", monospace);
+        font-size: 0.7rem;
+      }
+      .comms-slider {
+        flex: 1; height: 4px;
+        -webkit-appearance: none; appearance: none;
+        background: var(--bg-input, #1a1a24);
+        border-radius: 2px; outline: none;
+      }
+      .comms-slider::-webkit-slider-thumb {
+        -webkit-appearance: none; width: 14px; height: 14px;
+        border-radius: 50%; background: var(--status-info, #00aaff);
+        cursor: pointer;
+      }
+
+      /* --- ARCADE tier: contact hail grid, broadcast presets --- */
+      .contact-hail-grid {
+        display: flex; flex-direction: column; gap: 4px;
+      }
+      .contact-hail-btn {
+        display: flex; justify-content: space-between; align-items: center;
+        text-align: left; padding: 8px 10px;
+      }
+      .contact-name {
+        font-family: var(--font-mono, "JetBrains Mono", monospace);
+        font-size: 0.75rem; font-weight: 600;
+      }
+      .preset-grid {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
+      }
+      .preset-btn {
+        font-size: 0.65rem; font-weight: 700;
+        letter-spacing: 0.5px; padding: 6px 8px;
+      }
+
+      /* --- CPU-ASSIST tier: auto-comms hero, proposals --- */
+      .auto-comms-hero {
+        border: 1px solid rgba(192, 160, 255, 0.2);
+        border-radius: 6px; padding: 12px;
+        background: rgba(192, 160, 255, 0.03);
+      }
+      .policy-grid {
+        display: flex; gap: 4px;
+      }
+      .policy-btn {
+        flex: 1; font-size: 0.65rem; font-weight: 600;
+        letter-spacing: 0.3px; padding: 4px 6px;
+      }
+      .policy-btn.active {
+        background: rgba(192, 160, 255, 0.15);
+        border-color: rgba(192, 160, 255, 0.5);
+        color: #c0a0ff;
+      }
+      .proposals-queue {
+        display: flex; flex-direction: column; gap: 6px;
+        max-height: 250px; overflow-y: auto;
+      }
+      .proposal-card {
+        background: rgba(0, 0, 0, 0.25);
+        border: 1px solid var(--border-default, #2a2a3a);
+        border-radius: 4px; padding: 8px 10px;
+      }
+      .proposal-desc {
+        font-size: 0.7rem; color: var(--text-primary, #e0e0e0);
+        margin-bottom: 6px; line-height: 1.4;
+      }
+      .proposal-actions {
+        display: flex; gap: 6px;
+      }
+      .approve-btn {
+        background: rgba(0, 255, 136, 0.1);
+        border-color: rgba(0, 255, 136, 0.3);
+        color: var(--status-nominal, #00ff88);
+        flex: 1;
+      }
+      .approve-btn:hover {
+        background: rgba(0, 255, 136, 0.2);
+        border-color: var(--status-nominal, #00ff88);
+      }
+      .deny-btn {
+        background: rgba(255, 68, 68, 0.1);
+        border-color: rgba(255, 68, 68, 0.3);
+        color: var(--status-critical, #ff4444);
+        flex: 1;
+      }
+      .deny-btn:hover {
+        background: rgba(255, 68, 68, 0.2);
+        border-color: var(--status-critical, #ff4444);
+      }
     `;
   }
 
+  /* -----------------------------------------------------------------------
+   * _updateDisplay — tier-aware main render dispatcher.
+   * Routes to per-tier render methods so each tier gets distinct UI.
+   * ----------------------------------------------------------------------- */
   _updateDisplay() {
     const ship = stateManager.getShipState();
     const container = this.shadowRoot.getElementById("comms-content");
@@ -331,60 +465,139 @@ class CommsControlPanel extends HTMLElement {
       return;
     }
 
-    const status = (comms.status || "offline").toUpperCase();
+    const tier = this._tier;
+    if (tier === "manual") {
+      container.innerHTML = this._renderManualTier(comms, ship);
+    } else if (tier === "cpu-assist") {
+      container.innerHTML = this._renderCpuAssistTier(comms, ship);
+    } else if (tier === "arcade") {
+      container.innerHTML = this._renderArcadeTier(comms, ship);
+    } else {
+      // RAW tier — full workstation, all controls
+      container.innerHTML = this._renderRawTier(comms, ship);
+    }
 
-    // Determine mode class
-    let modeClass = "silent";
-    if (comms.status === "DISTRESS" || comms.distress_active) modeClass = "distress";
-    else if (comms.status === "EMCON" || comms.emcon_suppressed) modeClass = "emcon";
-    else if (comms.status === "offline" || !comms.enabled) modeClass = "offline";
-    else if (comms.status === "active" || comms.enabled) modeClass = "active";
+    this._bindControls(comms, ship?.target_id || "");
+  }
 
-    // Transponder state class
-    let xpdrClass = "off";
-    if (comms.is_spoofed && comms.transponder_active) xpdrClass = "spoofed";
-    else if (comms.transponder_active) xpdrClass = "active";
-    else if (comms.transponder_enabled && comms.emcon_suppressed) xpdrClass = "suppressed";
+  /* -----------------------------------------------------------------------
+   * MANUAL tier: Raw radio controls only.
+   * Frequency input, transmit power slider, raw IFF hex, signal meter,
+   * raw message compose textarea. No diplomatic assists.
+   * ----------------------------------------------------------------------- */
+  _renderManualTier(comms, ship) {
+    const modeHtml = this._renderModeIndicator(comms);
+    const signalPct = Math.min(100, Math.max(0, (comms.signal_strength || 0) * 100));
+    const signalColor = signalPct > 60 ? "var(--status-nominal,#00ff88)"
+      : signalPct > 30 ? "var(--status-warning,#ffaa00)" : "var(--status-critical,#ff4444)";
 
-    let xpdrStatus = "OFF";
-    if (comms.is_spoofed && comms.transponder_active) xpdrStatus = "SPOOFED";
-    else if (comms.transponder_active) xpdrStatus = "ACTIVE";
-    else if (comms.transponder_enabled && comms.emcon_suppressed) xpdrStatus = "EMCON SUPPRESSED";
-    else if (comms.transponder_enabled) xpdrStatus = "ENABLED";
+    return `
+      ${modeHtml}
 
-    const radioRange = comms.radio_range
-      ? (comms.radio_range >= 1000
-          ? (comms.radio_range / 1000).toFixed(1) + " Mm"
-          : comms.radio_range.toFixed(0) + " km")
-      : "--";
+      <!-- RAW RADIO CONTROLS -->
+      <div class="section">
+        <div class="section-title">Radio Transceiver</div>
+        <div class="input-group">
+          <div class="input-label">Frequency (MHz)</div>
+          <div class="input-row">
+            <input type="number" class="comms-input" id="input-frequency"
+                   placeholder="243.000" step="0.001" min="1" max="30000"
+                   value="${comms.frequency || ""}" />
+            <button class="comms-btn" id="btn-set-freq">TUNE</button>
+          </div>
+        </div>
+        <div class="input-group">
+          <div class="input-label">Transmit Power (W)</div>
+          <div class="input-row">
+            <input type="range" class="comms-slider" id="input-tx-power"
+                   min="1" max="1000" step="1"
+                   value="${comms.radio_power || 100}" />
+            <span class="status-value" id="tx-power-readout" style="min-width:4em;text-align:right;">
+              ${comms.radio_power != null ? comms.radio_power.toFixed(0) + " W" : "--"}
+            </span>
+          </div>
+        </div>
+        <div class="input-group">
+          <div class="input-label">Signal Strength</div>
+          <div class="signal-meter">
+            <div class="signal-fill" style="width:${signalPct}%;background:${signalColor}"></div>
+          </div>
+          <div class="status-row">
+            <span class="status-label">SNR</span>
+            <span class="status-value">${signalPct.toFixed(0)}%</span>
+          </div>
+        </div>
+      </div>
 
-    const pendingBadge = comms.pending_hails > 0
-      ? `<span class="pending-badge">${comms.pending_hails}</span>`
-      : "";
+      <!-- IFF TRANSPONDER (raw hex) -->
+      <div class="section">
+        <div class="section-title">IFF Transponder</div>
+        <div class="input-group">
+          <div class="input-label">IFF Code (hex)</div>
+          <div class="input-row">
+            <input type="text" class="comms-input" id="input-iff-code"
+                   placeholder="0x7742" style="font-family:var(--font-mono);letter-spacing:2px;"
+                   value="${comms.transponder_code || ""}" maxlength="16" />
+            <button class="comms-btn" id="btn-set-iff">SET</button>
+          </div>
+        </div>
+        <div class="transponder-controls">
+          <button class="comms-btn ${comms.transponder_enabled ? 'active' : ''} full-width"
+                  id="btn-transponder-toggle">
+            ${comms.transponder_enabled ? "XPDR OFF" : "XPDR ON"}
+          </button>
+        </div>
+      </div>
 
-    const channelOptions = CHANNELS
-      .map(ch => `<option value="${ch}">${ch.toUpperCase()}</option>`)
-      .join("");
+      <!-- RAW MESSAGE COMPOSE -->
+      <div class="section">
+        <div class="section-title">Transmit</div>
+        <div class="input-group">
+          <div class="input-label">Target ID</div>
+          <div class="input-row">
+            <input type="text" class="comms-input" id="input-hail-target"
+                   placeholder="Contact ID or callsign" />
+          </div>
+        </div>
+        <div class="input-group">
+          <div class="input-label">Message</div>
+          <textarea class="comms-input comms-textarea" id="input-raw-message"
+                    placeholder="Type raw message..." rows="3"></textarea>
+        </div>
+        <div class="input-row">
+          <button class="comms-btn full-width" id="btn-hail">TRANSMIT</button>
+        </div>
+      </div>
 
-    // Get current target contact for the hail button
+      <!-- DISTRESS (always available) -->
+      ${this._renderDistressSection(comms)}
+    `;
+  }
+
+  /* -----------------------------------------------------------------------
+   * RAW tier: Full comms workstation — all controls, raw signal data,
+   * transponder spoof, message log. Existing behavior preserved.
+   * ----------------------------------------------------------------------- */
+  _renderRawTier(comms, ship) {
+    const modeHtml = this._renderModeIndicator(comms);
     const targetId = ship?.target_id || "";
+    const { xpdrClass, xpdrStatus } = this._getTransponderState(comms);
+    const radioRange = this._formatRadioRange(comms.radio_range);
+    const pendingBadge = comms.pending_hails > 0
+      ? `<span class="pending-badge">${comms.pending_hails}</span>` : "";
+    const channelOptions = CHANNELS
+      .map(ch => `<option value="${ch}">${ch.toUpperCase()}</option>`).join("");
     const isHailing = comms.pending_hails > 0;
     const hailBtnClass = isHailing ? "hailing" : (targetId ? "" : "disabled");
     const hailBtnText = isHailing ? "HAILING..." : "HAIL TARGET";
-    const hailTitle = targetId
-      ? `Hail contact ${targetId}`
-      : "Select a target first";
+    const hailTitle = targetId ? `Hail contact ${targetId}` : "Select a target first";
+    const spoofBadge = comms.is_spoofed ? '<span class="spoof-badge">SPOOFED</span>' : '';
+    const signalPct = Math.min(100, Math.max(0, (comms.signal_strength || 0) * 100));
+    const signalColor = signalPct > 60 ? "var(--status-nominal,#00ff88)"
+      : signalPct > 30 ? "var(--status-warning,#ffaa00)" : "var(--status-critical,#ff4444)";
 
-    // Spoof badge
-    const spoofBadge = comms.is_spoofed
-      ? '<span class="spoof-badge">SPOOFED</span>'
-      : '';
-
-    container.innerHTML = `
-      <div class="comms-mode ${modeClass}">
-        <div class="mode-dot"></div>
-        <span>COMMS: ${status}</span>
-      </div>
+    return `
+      ${modeHtml}
 
       <!-- TRANSPONDER -->
       <div class="section">
@@ -442,7 +655,7 @@ class CommsControlPanel extends HTMLElement {
         </div>
       </div>
 
-      <!-- RADIO -->
+      <!-- RADIO — with raw signal data -->
       <div class="section">
         <div class="section-title">Radio${pendingBadge}</div>
         <div class="status-row">
@@ -452,6 +665,13 @@ class CommsControlPanel extends HTMLElement {
         <div class="status-row">
           <span class="status-label">Range</span>
           <span class="status-value">${radioRange}</span>
+        </div>
+        <div class="status-row">
+          <span class="status-label">Signal</span>
+          <span class="status-value">${signalPct.toFixed(0)}%</span>
+        </div>
+        <div class="signal-meter" style="margin:4px 0 8px;">
+          <div class="signal-fill" style="width:${signalPct}%;background:${signalColor}"></div>
         </div>
 
         <div class="input-group" style="margin-top: 10px;">
@@ -482,7 +702,223 @@ class CommsControlPanel extends HTMLElement {
         </div>
       </div>
 
-      <!-- DISTRESS BEACON -->
+      ${this._renderDistressSection(comms)}
+
+      <!-- MESSAGE LOG -->
+      <div class="section">
+        <div class="section-title">Message Log (${comms.message_count || 0})</div>
+        <div class="message-log" id="message-log">
+          ${this._renderMessages(comms.recent_messages)}
+        </div>
+      </div>
+    `;
+  }
+
+  /* -----------------------------------------------------------------------
+   * ARCADE tier: Simplified hail/broadcast interface.
+   * One-click HAIL per contact, diplo badges, broadcast presets,
+   * auto-suggested responses.
+   * ----------------------------------------------------------------------- */
+  _renderArcadeTier(comms, ship) {
+    const modeHtml = this._renderModeIndicator(comms);
+    const targetId = ship?.target_id || "";
+    const { xpdrClass, xpdrStatus } = this._getTransponderState(comms);
+    const isHailing = comms.pending_hails > 0;
+
+    // Build contact hail buttons from sensor contacts
+    const contacts = ship?.contacts || [];
+    const contactHailBtns = contacts.length > 0
+      ? contacts.map(c => {
+          const name = c.name || c.classification || c.contact_id || "Unknown";
+          const diplo = c.diplomatic_state || "unknown";
+          const diploColor = DIPLO_COLORS[diplo] || DIPLO_COLORS.unknown;
+          const isTarget = c.contact_id === targetId;
+          const targetMark = isTarget ? ' style="border-color:var(--status-info,#00aaff);"' : '';
+          return `
+            <button class="comms-btn contact-hail-btn${isTarget ? ' active' : ''}"${targetMark}
+                    data-hail-contact="${this._escapeHtml(c.contact_id)}">
+              <span class="contact-name">${this._escapeHtml(name)}</span>
+              <span class="diplo-badge" style="color:${diploColor};border:1px solid ${diploColor}">${diplo.toUpperCase()}</span>
+            </button>`;
+        }).join("")
+      : '<div class="msg-empty">No contacts detected</div>';
+
+    // Broadcast presets
+    const presetBtns = BROADCAST_PRESETS.map((p, i) => `
+      <button class="comms-btn preset-btn" data-preset-idx="${i}">${p.label}</button>
+    `).join("");
+
+    return `
+      ${modeHtml}
+
+      <!-- TRANSPONDER (simplified) -->
+      <div class="section">
+        <div class="section-title">Transponder</div>
+        <div class="status-row">
+          <span class="status-label">IFF</span>
+          <span class="status-value ${xpdrClass}">${comms.transponder_code || "----"}</span>
+        </div>
+        <div class="status-row">
+          <span class="status-label">Status</span>
+          <span class="status-value ${xpdrClass}">${xpdrStatus}</span>
+        </div>
+        <div class="transponder-controls">
+          <button class="comms-btn ${comms.transponder_enabled ? 'active' : ''} full-width"
+                  id="btn-transponder-toggle">
+            ${comms.transponder_enabled ? "TRANSPONDER OFF" : "TRANSPONDER ON"}
+          </button>
+        </div>
+      </div>
+
+      <!-- HAIL CONTACTS (one button per detected contact) -->
+      <div class="section">
+        <div class="section-title">Hail Contact${isHailing ? ' <span class="pending-badge">HAILING</span>' : ''}</div>
+        <div class="contact-hail-grid">
+          ${contactHailBtns}
+        </div>
+      </div>
+
+      <!-- QUICK BROADCAST PRESETS -->
+      <div class="section">
+        <div class="section-title">Broadcast</div>
+        <div class="preset-grid">
+          ${presetBtns}
+        </div>
+        <div class="input-group" style="margin-top:8px;">
+          <div class="input-row">
+            <input type="text" class="comms-input" id="input-broadcast-msg"
+                   placeholder="Custom message..." />
+            <button class="comms-btn" id="btn-broadcast">SEND</button>
+          </div>
+        </div>
+      </div>
+
+      ${this._renderDistressSection(comms)}
+
+      <!-- RECENT MESSAGES (compact) -->
+      <div class="section">
+        <div class="section-title">Recent (${comms.message_count || 0})</div>
+        <div class="message-log" id="message-log">
+          ${this._renderMessages((comms.recent_messages || []).slice(0, 5))}
+        </div>
+      </div>
+    `;
+  }
+
+  /* -----------------------------------------------------------------------
+   * CPU-ASSIST tier: Auto-comms hero with approve/deny workflow.
+   * Shows incoming messages queue, auto-response recommendations,
+   * comms policy selector. Minimal manual controls.
+   * ----------------------------------------------------------------------- */
+  _renderCpuAssistTier(comms, ship) {
+    const modeHtml = this._renderModeIndicator(comms);
+    const autoComms = ship?.auto_comms || {};
+    const proposals = autoComms.proposals || [];
+    const policy = autoComms.policy || "open_comms";
+
+    // Policy selector buttons
+    const policies = [
+      { id: "open_comms", label: "OPEN" },
+      { id: "radio_silence", label: "SILENCE" },
+      { id: "diplomatic_mode", label: "DIPLOMATIC" },
+    ];
+    const policyBtns = policies.map(p =>
+      `<button class="comms-btn policy-btn${p.id === policy ? ' active' : ''}"
+              data-policy="${p.id}">${p.label}</button>`
+    ).join("");
+
+    // Proposals queue
+    const proposalsHtml = proposals.length === 0
+      ? '<div class="msg-empty">No pending proposals</div>'
+      : proposals.map(p => `
+          <div class="proposal-card">
+            <div class="proposal-desc">${this._escapeHtml(p.description || p.action)}</div>
+            <div class="proposal-actions">
+              <button class="comms-btn approve-btn" data-approve="${this._escapeHtml(p.id)}">APPROVE</button>
+              <button class="comms-btn deny-btn" data-deny="${this._escapeHtml(p.id)}">DENY</button>
+            </div>
+          </div>`).join("");
+
+    return `
+      ${modeHtml}
+
+      <!-- AUTO-COMMS CONTROL -->
+      <div class="section auto-comms-hero">
+        <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;">
+          <span>Auto Communications</span>
+          <button class="comms-btn ${autoComms.enabled ? 'active' : ''}" id="auto-comms-toggle"
+                  style="padding:2px 12px;font-size:0.65rem;">
+            ${autoComms.enabled ? "DISABLE" : "ENABLE"}
+          </button>
+        </div>
+
+        <!-- Comms Policy -->
+        <div class="input-group">
+          <div class="input-label">Comms Policy</div>
+          <div class="policy-grid" id="comms-policy-row">
+            ${policyBtns}
+          </div>
+        </div>
+
+        <!-- Proposals Queue -->
+        <div class="input-group">
+          <div class="input-label">Pending Actions (${proposals.length})</div>
+          <div class="proposals-queue" id="comms-proposals">
+            ${proposalsHtml}
+          </div>
+        </div>
+      </div>
+
+      <!-- TRANSPONDER (read-only status) -->
+      <div class="section">
+        <div class="section-title">Transponder</div>
+        <div class="status-row">
+          <span class="status-label">IFF</span>
+          <span class="status-value">${comms.transponder_code || "----"}</span>
+        </div>
+        <div class="status-row">
+          <span class="status-label">Status</span>
+          <span class="status-value ${this._getTransponderState(comms).xpdrClass}">
+            ${this._getTransponderState(comms).xpdrStatus}
+          </span>
+        </div>
+      </div>
+
+      ${this._renderDistressSection(comms)}
+
+      <!-- INCOMING MESSAGES (read-only) -->
+      <div class="section">
+        <div class="section-title">Incoming Messages (${comms.message_count || 0})</div>
+        <div class="message-log" id="message-log">
+          ${this._renderMessages((comms.recent_messages || []).slice(0, 8))}
+        </div>
+      </div>
+    `;
+  }
+
+  /* -----------------------------------------------------------------------
+   * Shared render helpers — used across tiers.
+   * ----------------------------------------------------------------------- */
+
+  /** Comms mode indicator bar (top of all tier layouts). */
+  _renderModeIndicator(comms) {
+    const status = (comms.status || "offline").toUpperCase();
+    let modeClass = "silent";
+    if (comms.status === "DISTRESS" || comms.distress_active) modeClass = "distress";
+    else if (comms.status === "EMCON" || comms.emcon_suppressed) modeClass = "emcon";
+    else if (comms.status === "offline" || !comms.enabled) modeClass = "offline";
+    else if (comms.status === "active" || comms.enabled) modeClass = "active";
+
+    return `
+      <div class="comms-mode ${modeClass}">
+        <div class="mode-dot"></div>
+        <span>COMMS: ${status}</span>
+      </div>`;
+  }
+
+  /** Distress beacon section — shown in all tiers. */
+  _renderDistressSection(comms) {
+    return `
       <div class="section">
         <div class="section-title">Distress Beacon</div>
         <div class="status-row">
@@ -495,18 +931,31 @@ class CommsControlPanel extends HTMLElement {
                 id="btn-distress" style="margin-top: 8px;">
           ${comms.distress_beacon_enabled ? "CANCEL DISTRESS" : "ACTIVATE DISTRESS"}
         </button>
-      </div>
+      </div>`;
+  }
 
-      <!-- MESSAGE LOG -->
-      <div class="section">
-        <div class="section-title">Message Log (${comms.message_count || 0})</div>
-        <div class="message-log" id="message-log">
-          ${this._renderMessages(comms.recent_messages)}
-        </div>
-      </div>
-    `;
+  /** Derive transponder display state from comms data. */
+  _getTransponderState(comms) {
+    let xpdrClass = "off";
+    if (comms.is_spoofed && comms.transponder_active) xpdrClass = "spoofed";
+    else if (comms.transponder_active) xpdrClass = "active";
+    else if (comms.transponder_enabled && comms.emcon_suppressed) xpdrClass = "suppressed";
 
-    this._bindControls(comms, targetId);
+    let xpdrStatus = "OFF";
+    if (comms.is_spoofed && comms.transponder_active) xpdrStatus = "SPOOFED";
+    else if (comms.transponder_active) xpdrStatus = "ACTIVE";
+    else if (comms.transponder_enabled && comms.emcon_suppressed) xpdrStatus = "EMCON SUPPRESSED";
+    else if (comms.transponder_enabled) xpdrStatus = "ENABLED";
+
+    return { xpdrClass, xpdrStatus };
+  }
+
+  /** Format radio range for display. */
+  _formatRadioRange(range) {
+    if (!range) return "--";
+    return range >= 1000
+      ? (range / 1000).toFixed(1) + " Mm"
+      : range.toFixed(0) + " km";
   }
 
   /**
@@ -578,8 +1027,12 @@ class CommsControlPanel extends HTMLElement {
       .replace(/"/g, "&quot;");
   }
 
+  /* -----------------------------------------------------------------------
+   * _bindControls — attaches event listeners after render.
+   * Handles all tier variants; missing elements are silently skipped.
+   * ----------------------------------------------------------------------- */
   _bindControls(comms, targetId) {
-    // Transponder toggle
+    // Transponder toggle (all tiers except cpu-assist)
     const btnXpdr = this.shadowRoot.getElementById("btn-transponder-toggle");
     if (btnXpdr) {
       btnXpdr.addEventListener("click", () => {
@@ -587,7 +1040,7 @@ class CommsControlPanel extends HTMLElement {
       });
     }
 
-    // Set IFF code
+    // Set IFF code (manual + raw)
     const btnSetIFF = this.shadowRoot.getElementById("btn-set-iff");
     const inputIFF = this.shadowRoot.getElementById("input-iff-code");
     if (btnSetIFF && inputIFF) {
@@ -599,7 +1052,7 @@ class CommsControlPanel extends HTMLElement {
       inputIFF.addEventListener("keydown", (e) => { if (e.key === "Enter") setIFF(); });
     }
 
-    // Spoof toggle
+    // Spoof toggle (raw only)
     const btnSpoof = this.shadowRoot.getElementById("btn-spoof-toggle");
     if (btnSpoof) {
       btnSpoof.addEventListener("click", () => {
@@ -607,7 +1060,7 @@ class CommsControlPanel extends HTMLElement {
       });
     }
 
-    // Set spoof identity
+    // Set spoof identity (raw only)
     const btnSetSpoof = this.shadowRoot.getElementById("btn-set-spoof");
     if (btnSetSpoof) {
       btnSetSpoof.addEventListener("click", () => {
@@ -622,7 +1075,7 @@ class CommsControlPanel extends HTMLElement {
       });
     }
 
-    // Hail current target button
+    // Hail current target button (raw tier)
     const btnHailTarget = this.shadowRoot.getElementById("btn-hail-target");
     if (btnHailTarget && targetId) {
       btnHailTarget.addEventListener("click", () => {
@@ -630,29 +1083,59 @@ class CommsControlPanel extends HTMLElement {
       });
     }
 
-    // Hail manual input
+    // Hail manual input (raw + manual tiers)
     const btnHail = this.shadowRoot.getElementById("btn-hail");
     const inputHailTarget = this.shadowRoot.getElementById("input-hail-target");
     if (btnHail && inputHailTarget) {
       const doHail = () => {
+        // Manual tier has a raw-message textarea, use it if present
+        const rawMsg = this.shadowRoot.getElementById("input-raw-message");
         const target = inputHailTarget.value.trim();
+        const message = rawMsg ? rawMsg.value.trim() || "Hailing..." : "Hailing...";
         if (target) {
-          this._sendCommand("hail_contact", { target, message: "Hailing..." });
+          this._sendCommand("hail_contact", { target, message });
           inputHailTarget.value = "";
+          if (rawMsg) rawMsg.value = "";
         }
       };
       btnHail.addEventListener("click", doHail);
       inputHailTarget.addEventListener("keydown", (e) => { if (e.key === "Enter") doHail(); });
     }
 
-    // Broadcast
+    // Frequency tuning (manual tier)
+    const btnSetFreq = this.shadowRoot.getElementById("btn-set-freq");
+    const inputFreq = this.shadowRoot.getElementById("input-frequency");
+    if (btnSetFreq && inputFreq) {
+      const setFreq = () => {
+        const freq = parseFloat(inputFreq.value);
+        if (!isNaN(freq) && freq > 0) {
+          this._sendCommand("set_radio_frequency", { frequency: freq });
+        }
+      };
+      btnSetFreq.addEventListener("click", setFreq);
+      inputFreq.addEventListener("keydown", (e) => { if (e.key === "Enter") setFreq(); });
+    }
+
+    // TX power slider (manual tier)
+    const inputTxPower = this.shadowRoot.getElementById("input-tx-power");
+    const txReadout = this.shadowRoot.getElementById("tx-power-readout");
+    if (inputTxPower) {
+      inputTxPower.addEventListener("input", () => {
+        if (txReadout) txReadout.textContent = inputTxPower.value + " W";
+      });
+      inputTxPower.addEventListener("change", () => {
+        this._sendCommand("set_radio_power", { power: parseInt(inputTxPower.value, 10) });
+      });
+    }
+
+    // Broadcast (raw + arcade tiers)
     const btnBroadcast = this.shadowRoot.getElementById("btn-broadcast");
     const inputBroadcastMsg = this.shadowRoot.getElementById("input-broadcast-msg");
     const selectChannel = this.shadowRoot.getElementById("select-channel");
-    if (btnBroadcast && inputBroadcastMsg && selectChannel) {
+    if (btnBroadcast && inputBroadcastMsg) {
       const doBroadcast = () => {
         const message = inputBroadcastMsg.value.trim();
-        const channel = selectChannel.value;
+        const channel = selectChannel ? selectChannel.value : "general";
         if (message) {
           this._sendCommand("broadcast_message", { message, channel });
           inputBroadcastMsg.value = "";
@@ -662,7 +1145,37 @@ class CommsControlPanel extends HTMLElement {
       inputBroadcastMsg.addEventListener("keydown", (e) => { if (e.key === "Enter") doBroadcast(); });
     }
 
-    // Distress beacon
+    // Contact hail buttons (arcade tier — delegated)
+    const contactGrid = this.shadowRoot.querySelector(".contact-hail-grid");
+    if (contactGrid) {
+      contactGrid.addEventListener("click", (e) => {
+        const btn = e.target.closest("[data-hail-contact]");
+        if (btn) {
+          this._sendCommand("hail_contact", {
+            target: btn.dataset.hailContact,
+            message: "Hailing...",
+          });
+        }
+      });
+    }
+
+    // Broadcast presets (arcade tier — delegated)
+    const presetGrid = this.shadowRoot.querySelector(".preset-grid");
+    if (presetGrid) {
+      presetGrid.addEventListener("click", (e) => {
+        const btn = e.target.closest("[data-preset-idx]");
+        if (btn) {
+          const preset = BROADCAST_PRESETS[parseInt(btn.dataset.presetIdx, 10)];
+          if (preset) {
+            const shipName = stateManager.getShipState()?.name || "Unknown";
+            const msg = preset.msg.replace("{ship}", shipName);
+            this._sendCommand("broadcast_message", { message: msg, channel: preset.channel });
+          }
+        }
+      });
+    }
+
+    // Distress beacon (all tiers)
     const btnDistress = this.shadowRoot.getElementById("btn-distress");
     if (btnDistress) {
       btnDistress.addEventListener("click", () => {
@@ -670,68 +1183,46 @@ class CommsControlPanel extends HTMLElement {
       });
     }
 
+    // Auto-comms toggle (cpu-assist tier)
+    const autoToggle = this.shadowRoot.getElementById("auto-comms-toggle");
+    if (autoToggle) {
+      autoToggle.addEventListener("click", () => {
+        const ship = stateManager.getShipState();
+        wsClient.sendShipCommand(
+          ship?.auto_comms?.enabled ? "disable_auto_comms" : "enable_auto_comms", {}
+        );
+      });
+    }
+
+    // Comms policy selector (cpu-assist tier — delegated)
+    const policyRow = this.shadowRoot.getElementById("comms-policy-row");
+    if (policyRow) {
+      policyRow.addEventListener("click", (e) => {
+        const btn = e.target.closest("[data-policy]");
+        if (btn) {
+          wsClient.sendShipCommand("set_comms_policy", { policy: btn.dataset.policy });
+        }
+      });
+    }
+
+    // Proposals approve/deny (cpu-assist tier — delegated)
+    const proposalsEl = this.shadowRoot.getElementById("comms-proposals");
+    if (proposalsEl) {
+      proposalsEl.addEventListener("click", (e) => {
+        const approveBtn = e.target.closest("[data-approve]");
+        const denyBtn = e.target.closest("[data-deny]");
+        if (approveBtn) {
+          wsClient.sendShipCommand("approve_comms", { proposal_id: approveBtn.dataset.approve });
+        }
+        if (denyBtn) {
+          wsClient.sendShipCommand("deny_comms", { proposal_id: denyBtn.dataset.deny });
+        }
+      });
+    }
+
     // Auto-scroll message log
     const logEl = this.shadowRoot.getElementById("message-log");
     if (logEl) logEl.scrollTop = 0;
-
-    this._updateAutoCommsPanel();
-  }
-
-  // --- Auto-Comms (CPU-ASSIST tier) ---
-  _updateAutoCommsPanel() {
-    let panel = this.shadowRoot.getElementById("auto-comms-panel");
-    const tier = window.controlTier || "raw";
-    if (tier !== "cpu-assist") { if (panel) panel.style.display = "none"; return; }
-    if (!panel) {
-      panel = document.createElement("div");
-      panel.id = "auto-comms-panel";
-      panel.style.cssText = "border:1px solid rgba(153,119,221,0.3);border-radius:4px;padding:8px;margin:8px 0;background:rgba(153,119,221,0.05);";
-      panel.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-        <span style="color:#9977dd;font-size:0.7rem;font-weight:600;letter-spacing:0.5px;">AUTO COMMS</span>
-        <button id="auto-comms-toggle" style="background:rgba(153,119,221,0.15);color:#9977dd;border:1px solid rgba(153,119,221,0.3);padding:2px 10px;border-radius:3px;cursor:pointer;font-size:0.65rem;">ENABLE</button>
-      </div>
-      <div style="display:flex;gap:4px;margin-bottom:6px;" id="comms-policy-row">
-        <button data-policy="open_comms" style="flex:1;background:var(--bg-input);color:var(--text-secondary);border:1px solid var(--border-default);padding:3px;border-radius:3px;cursor:pointer;font-size:0.6rem;">OPEN</button>
-        <button data-policy="radio_silence" style="flex:1;background:var(--bg-input);color:var(--text-secondary);border:1px solid var(--border-default);padding:3px;border-radius:3px;cursor:pointer;font-size:0.6rem;">SILENCE</button>
-        <button data-policy="diplomatic_mode" style="flex:1;background:var(--bg-input);color:var(--text-secondary);border:1px solid var(--border-default);padding:3px;border-radius:3px;cursor:pointer;font-size:0.6rem;">DIPLOMATIC</button>
-      </div>
-      <div id="comms-proposals"></div>`;
-      const content = this.shadowRoot.querySelector(".comms-content") || this.shadowRoot.getElementById("comms-content") || this.shadowRoot.firstElementChild;
-      if (content) content.prepend(panel); else this.shadowRoot.appendChild(panel);
-      panel.querySelector("#auto-comms-toggle").addEventListener("click", () => {
-        const ship = stateManager.getShipState();
-        wsClient.sendShipCommand(ship?.auto_comms?.enabled ? "disable_auto_comms" : "enable_auto_comms", {});
-      });
-      panel.querySelector("#comms-policy-row").addEventListener("click", (e) => {
-        const btn = e.target.closest("[data-policy]");
-        if (btn) wsClient.sendShipCommand("set_comms_policy", { policy: btn.dataset.policy });
-      });
-      panel.querySelector("#comms-proposals").addEventListener("click", (e) => {
-        const a = e.target.closest("[data-approve]"); const d = e.target.closest("[data-deny]");
-        if (a) wsClient.sendShipCommand("approve_comms", { proposal_id: a.dataset.approve });
-        if (d) wsClient.sendShipCommand("deny_comms", { proposal_id: d.dataset.deny });
-      });
-    }
-    panel.style.display = "block";
-    const ship = stateManager.getShipState();
-    const st = ship?.auto_comms || {};
-    const toggle = panel.querySelector("#auto-comms-toggle");
-    toggle.textContent = st.enabled ? "DISABLE" : "ENABLE";
-    toggle.style.background = st.enabled ? "rgba(0,255,136,0.15)" : "rgba(153,119,221,0.15)";
-    const policy = st.policy || "open_comms";
-    panel.querySelectorAll("[data-policy]").forEach(b => {
-      b.style.borderColor = b.dataset.policy === policy ? "#9977dd" : "var(--border-default)";
-      b.style.color = b.dataset.policy === policy ? "#9977dd" : "var(--text-secondary)";
-    });
-    const proposals = st.proposals || [];
-    const pc = panel.querySelector("#comms-proposals");
-    pc.innerHTML = proposals.length === 0
-      ? '<div style="color:var(--text-dim);font-size:0.65rem;">No pending proposals</div>'
-      : proposals.map(p => `<div style="background:var(--bg-input);border:1px solid var(--border-default);border-radius:4px;padding:5px 8px;margin:3px 0;font-size:0.65rem;">
-          <div style="color:var(--text-primary);margin-bottom:3px;">${p.description || p.action}</div>
-          <button data-approve="${p.id}" style="background:rgba(0,255,136,0.15);color:#00ff88;border:1px solid rgba(0,255,136,0.3);padding:1px 8px;border-radius:3px;cursor:pointer;font-size:0.6rem;margin-right:3px;">APPROVE</button>
-          <button data-deny="${p.id}" style="background:rgba(255,68,68,0.15);color:#ff4444;border:1px solid rgba(255,68,68,0.3);padding:1px 8px;border-radius:3px;cursor:pointer;font-size:0.6rem;">DENY</button>
-        </div>`).join('');
   }
 }
 
