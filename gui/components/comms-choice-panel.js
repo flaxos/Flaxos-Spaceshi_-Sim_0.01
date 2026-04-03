@@ -12,6 +12,11 @@
  *   2. Panel displays prompt + options with optional timeout countdown
  *   3. Player clicks an option -> comms_respond(choice_id, option_id)
  *   4. Choice moves from active to resolved
+ *
+ * Tier-aware rendering:
+ *   MANUAL/RAW: Full dialogue options with raw text, timeout bars, resolved history.
+ *   ARCADE:     Simplified option buttons with outcome prediction hints.
+ *   CPU-ASSIST: Auto-recommended best option highlighted, one-click confirm.
  */
 
 import { wsClient } from "../js/ws-client.js";
@@ -22,6 +27,8 @@ class CommsChoicePanel extends HTMLElement {
     this.attachShadow({ mode: "open" });
     this._pollInterval = null;
     this._countdownInterval = null;
+    this._tierHandler = null;
+    this._tier = window.controlTier || "arcade";
     this._choices = [];
     this._resolved = {};
     // Tracks the last choice we alerted on (avoid re-alerting)
@@ -34,6 +41,12 @@ class CommsChoicePanel extends HTMLElement {
   connectedCallback() {
     this._render();
     this._startPolling();
+    // Listen for tier changes
+    this._tierHandler = (e) => {
+      this._tier = e.detail?.tier || "arcade";
+      this._updateDisplay();
+    };
+    document.addEventListener("tier-change", this._tierHandler);
   }
 
   disconnectedCallback() {
@@ -48,6 +61,10 @@ class CommsChoicePanel extends HTMLElement {
     if (this._confirmationTimer) {
       clearTimeout(this._confirmationTimer);
       this._confirmationTimer = null;
+    }
+    if (this._tierHandler) {
+      document.removeEventListener("tier-change", this._tierHandler);
+      this._tierHandler = null;
     }
   }
 
@@ -365,6 +382,51 @@ class CommsChoicePanel extends HTMLElement {
         .resolved-option {
           color: var(--status-nominal, #00ff88);
         }
+
+        /* --- ARCADE tier: simplified option buttons --- */
+        .option-btn.arcade-style {
+          flex-direction: row;
+          align-items: center;
+          gap: 10px;
+          padding: 12px 14px;
+          border-radius: 6px;
+          font-size: 0.8rem;
+        }
+        .option-btn.arcade-style .option-label {
+          font-size: 0.8rem;
+        }
+        .option-outcome {
+          font-size: 0.6rem;
+          color: var(--text-dim, #555566);
+          font-style: italic;
+          margin-left: auto;
+        }
+
+        /* --- CPU-ASSIST tier: recommended option highlighting --- */
+        .option-btn.recommended {
+          border-color: rgba(192, 160, 255, 0.5);
+          background: rgba(192, 160, 255, 0.08);
+          position: relative;
+        }
+        .recommend-badge {
+          font-size: 0.55rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          color: #c0a0ff;
+          padding: 1px 6px;
+          border: 1px solid rgba(192, 160, 255, 0.3);
+          border-radius: 3px;
+          margin-left: auto;
+          flex-shrink: 0;
+        }
+        .auto-respond-hint {
+          text-align: center;
+          font-size: 0.6rem;
+          color: var(--text-dim, #555566);
+          font-style: italic;
+          padding: 4px 0;
+        }
       </style>
 
       <div id="choices-container" class="choices-container">
@@ -392,7 +454,7 @@ class CommsChoicePanel extends HTMLElement {
       html += `<div class="confirmation">${this._escapeHtml(this._confirmationMsg)}</div>`;
     }
 
-    // Active choices
+    // Active choices — tier-aware rendering
     for (const choice of this._choices) {
       html += this._renderChoice(choice);
     }
@@ -402,8 +464,9 @@ class CommsChoicePanel extends HTMLElement {
       html += '<div class="no-choices">No pending choices</div>';
     }
 
-    // Resolved summary
-    if (hasResolved) {
+    // Resolved summary (hidden in ARCADE/CPU-ASSIST to reduce noise)
+    const tier = this._tier;
+    if (hasResolved && (tier === "raw" || tier === "manual")) {
       html += '<div class="resolved-section">';
       html += '<div class="resolved-title">Previous Responses</div>';
       for (const [choiceId, optionId] of Object.entries(this._resolved)) {
@@ -430,9 +493,17 @@ class CommsChoicePanel extends HTMLElement {
     }
   }
 
+  /**
+   * Render a single choice card — tier-aware.
+   *   MANUAL/RAW: Full text with raw data, timeout bars, descriptions.
+   *   ARCADE:     Larger buttons, outcome prediction hints per option.
+   *   CPU-ASSIST: Default/recommended option highlighted, auto-respond hint.
+   */
   _renderChoice(choice) {
+    const tier = this._tier;
     const contactLabel = choice.contact_id || "UNKNOWN";
 
+    // Timeout bar (shown in all tiers)
     let timeoutHtml = "";
     if (choice.timeout != null && choice.presented_at != null) {
       const now = Date.now() / 1000;
@@ -449,19 +520,68 @@ class CommsChoicePanel extends HTMLElement {
         </div>`;
     }
 
-    const optionsHtml = choice.options.map(opt => {
-      const isDefault = choice.default_option === opt.option_id;
-      const defaultClass = isDefault ? " is-default" : "";
-      const descHtml = opt.description
-        ? `<span class="option-desc">${this._escapeHtml(opt.description)}</span>`
-        : "";
+    // Options — rendered differently per tier
+    let optionsHtml;
 
-      return `
-        <button class="option-btn${defaultClass}" id="opt-${choice.choice_id}-${opt.option_id}">
-          <span class="option-label">${this._escapeHtml(opt.label)}</span>
-          ${descHtml}
-        </button>`;
-    }).join("");
+    if (tier === "arcade") {
+      // ARCADE: Simplified large buttons with outcome hints
+      optionsHtml = choice.options.map(opt => {
+        const isDefault = choice.default_option === opt.option_id;
+        const defaultClass = isDefault ? " is-default" : "";
+        // Use description as outcome prediction hint
+        const outcomeHint = opt.description
+          ? `<span class="option-outcome">${this._escapeHtml(opt.description)}</span>`
+          : "";
+
+        return `
+          <button class="option-btn arcade-style${defaultClass}" id="opt-${choice.choice_id}-${opt.option_id}">
+            <span class="option-label">${this._escapeHtml(opt.label)}</span>
+            ${outcomeHint}
+          </button>`;
+      }).join("");
+    } else if (tier === "cpu-assist") {
+      // CPU-ASSIST: Highlight recommended (default) option, show auto-respond hint
+      optionsHtml = choice.options.map(opt => {
+        const isDefault = choice.default_option === opt.option_id;
+        const recClass = isDefault ? " recommended" : "";
+        const descHtml = opt.description
+          ? `<span class="option-desc">${this._escapeHtml(opt.description)}</span>`
+          : "";
+        const recBadge = isDefault
+          ? '<span class="recommend-badge">RECOMMENDED</span>'
+          : "";
+
+        return `
+          <button class="option-btn${recClass}" id="opt-${choice.choice_id}-${opt.option_id}"
+                  style="display:flex;align-items:center;gap:8px;">
+            <div style="flex:1;">
+              <span class="option-label">${this._escapeHtml(opt.label)}</span>
+              ${descHtml}
+            </div>
+            ${recBadge}
+          </button>`;
+      }).join("");
+
+      // Auto-respond hint if a default option exists
+      if (choice.default_option) {
+        optionsHtml += `<div class="auto-respond-hint">Auto-comms will select RECOMMENDED if no response given</div>`;
+      }
+    } else {
+      // MANUAL/RAW: Full text with descriptions — existing behavior
+      optionsHtml = choice.options.map(opt => {
+        const isDefault = choice.default_option === opt.option_id;
+        const defaultClass = isDefault ? " is-default" : "";
+        const descHtml = opt.description
+          ? `<span class="option-desc">${this._escapeHtml(opt.description)}</span>`
+          : "";
+
+        return `
+          <button class="option-btn${defaultClass}" id="opt-${choice.choice_id}-${opt.option_id}">
+            <span class="option-label">${this._escapeHtml(opt.label)}</span>
+            ${descHtml}
+          </button>`;
+      }).join("");
+    }
 
     return `
       <div class="choice-card">

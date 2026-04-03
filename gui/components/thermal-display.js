@@ -3,6 +3,14 @@
  * Shows hull temperature, heat balance, radiator status, and heat sink state.
  * Temperature bar color shifts from blue (cold) through green (nominal) to
  * yellow (warning) and red (emergency) as hull temperature rises.
+ *
+ * Tier-aware rendering:
+ * - MANUAL/RAW: Raw temperature in Kelvin, dissipation in watts, radiator area
+ *               in m-squared, coolant level. Full heat balance breakdown.
+ * - ARCADE:     Temperature as % of thermal limit, "TIME TO OVERHEAT" countdown,
+ *               simplified radiator status (deployed/retracted + efficiency %).
+ * - CPU-ASSIST: Thermal summary badge — "NOMINAL" / "WARNING" / "CRITICAL"
+ *               with auto-recommendations.
  */
 
 import { stateManager } from "../js/state-manager.js";
@@ -12,16 +20,25 @@ class ThermalDisplay extends HTMLElement {
     super();
     this.attachShadow({ mode: "open" });
     this._unsubscribe = null;
+    this._tierHandler = null;
   }
 
   connectedCallback() {
     this.render();
     this._subscribe();
+    // Listen for tier changes — same pattern as flight-computer-panel
+    this._tierHandler = () => this._updateDisplay();
+    document.addEventListener("tier-change", this._tierHandler);
   }
 
   disconnectedCallback() {
     if (this._unsubscribe) {
       this._unsubscribe();
+      this._unsubscribe = null;
+    }
+    if (this._tierHandler) {
+      document.removeEventListener("tier-change", this._tierHandler);
+      this._tierHandler = null;
     }
   }
 
@@ -29,6 +46,11 @@ class ThermalDisplay extends HTMLElement {
     this._unsubscribe = stateManager.subscribe("*", () => {
       this._updateDisplay();
     });
+  }
+
+  /** Get the current control tier. */
+  _getTier() {
+    return window.controlTier || "raw";
   }
 
   render() {
@@ -256,9 +278,110 @@ class ThermalDisplay extends HTMLElement {
           font-style: italic;
         }
 
+        /* --- CPU-ASSIST hero badge --- */
+        .thermal-hero-badge {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: 20px;
+          border-radius: 8px;
+          border: 1px solid var(--border-default, #2a2a3a);
+          margin-bottom: 12px;
+          text-align: center;
+        }
+
+        .thermal-hero-badge.nominal {
+          background: rgba(0, 255, 136, 0.06);
+          border-color: rgba(0, 255, 136, 0.2);
+        }
+
+        .thermal-hero-badge.warning {
+          background: rgba(255, 170, 0, 0.08);
+          border-color: rgba(255, 170, 0, 0.3);
+          animation: pulse 1.2s ease-in-out infinite;
+        }
+
+        .thermal-hero-badge.critical {
+          background: rgba(255, 68, 68, 0.1);
+          border-color: rgba(255, 68, 68, 0.4);
+          animation: pulse 0.6s ease-in-out infinite;
+        }
+
+        .hero-badge-label {
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+          font-size: 1.4rem;
+          font-weight: 700;
+          letter-spacing: 1px;
+        }
+
+        .hero-badge-label.nominal  { color: var(--status-nominal, #00ff88); }
+        .hero-badge-label.warning  { color: var(--status-warning, #ffaa00); }
+        .hero-badge-label.critical { color: var(--status-critical, #ff4444); }
+
+        .hero-badge-sub {
+          font-size: 0.7rem;
+          color: var(--text-secondary, #888899);
+          margin-top: 4px;
+        }
+
+        /* Recommendation card */
+        .recommendation {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 12px;
+          border-radius: 4px;
+          font-size: 0.7rem;
+          margin-top: 8px;
+        }
+
+        .recommendation.action {
+          background: rgba(255, 170, 0, 0.1);
+          border: 1px solid rgba(255, 170, 0, 0.3);
+          color: var(--status-warning, #ffaa00);
+        }
+
+        .recommendation.info {
+          background: rgba(0, 170, 255, 0.08);
+          border: 1px solid rgba(0, 170, 255, 0.2);
+          color: var(--status-info, #00aaff);
+        }
+
+        .rec-icon {
+          font-size: 0.9rem;
+          flex-shrink: 0;
+        }
+
+        /* Arcade radiator status */
+        .rad-status-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 6px 10px;
+          background: rgba(0, 0, 0, 0.2);
+          border-radius: 4px;
+          border: 1px solid var(--border-default, #2a2a3a);
+          margin-top: 8px;
+        }
+
+        .rad-status-label {
+          font-size: 0.7rem;
+          color: var(--text-secondary, #888899);
+        }
+
+        .rad-status-value {
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+          font-size: 0.75rem;
+          font-weight: 600;
+        }
+
         @media (max-width: 768px) {
           .temp-value {
             font-size: 1.3rem;
+          }
+          .hero-badge-label {
+            font-size: 1.1rem;
           }
         }
       </style>
@@ -279,33 +402,54 @@ class ThermalDisplay extends HTMLElement {
       return;
     }
 
+    const tier = this._getTier();
+
+    switch (tier) {
+      case "arcade":
+        this._renderArcade(content, thermal);
+        break;
+      case "cpu-assist":
+        this._renderCpuAssist(content, thermal);
+        break;
+      default: // "manual" and "raw" share the same detailed view
+        this._renderRaw(content, thermal);
+        break;
+    }
+  }
+
+  // =========================================================================
+  // MANUAL + RAW: Full raw thermal data in physical units
+  // =========================================================================
+  _renderRaw(content, thermal) {
     const hullTemp = thermal.hull_temperature ?? 0;
     const maxTemp = thermal.max_temperature ?? 500;
     const warnTemp = thermal.warning_temperature ?? 400;
     const nominalTemp = thermal.nominal_temperature ?? 300;
     const percent = thermal.temperature_percent ?? ((hullTemp / maxTemp) * 100);
     const status = (thermal.status || "nominal").toLowerCase();
-
-    // Determine status class for coloring
     const statusClass = this._statusClass(status, thermal);
-
-    // Temperature bar color: gradient based on position within the range
     const barColor = this._tempBarColor(hullTemp, nominalTemp, warnTemp, maxTemp);
-
-    // Warning marker position on the bar (percentage of max)
     const warnMarkerPct = (warnTemp / maxTemp) * 100;
 
-    // Heat balance
+    // Heat balance in watts
     const heatGen = thermal.heat_generated ?? 0;
     const heatRad = thermal.heat_radiated ?? 0;
     const heatSinkDumped = thermal.heat_sink_dumped ?? 0;
     const netRate = thermal.net_heat_rate ?? (heatGen - heatRad - heatSinkDumped);
     const netClass = netRate > 0 ? "positive" : netRate < 0 ? "negative" : "zero";
 
-    // Radiator
+    // Dissipation rate in watts
+    const dissipation = heatRad;
+
+    // Radiator area in m-squared
     const radArea = thermal.radiator_area ?? 0;
     const radFactor = thermal.radiator_factor ?? 1;
     const radEffective = thermal.radiator_effective_area ?? (radArea * radFactor);
+
+    // Coolant level
+    const coolantLevel = thermal.coolant_level ?? thermal.heat_sink_remaining ?? 0;
+    const coolantMax = thermal.coolant_capacity ?? thermal.heat_sink_capacity ?? 0;
+    const coolantPercent = coolantMax > 0 ? (coolantLevel / coolantMax) * 100 : 0;
 
     // Heat sink
     const sinkRemaining = thermal.heat_sink_remaining ?? 0;
@@ -344,8 +488,8 @@ class ThermalDisplay extends HTMLElement {
           <span class="detail-value">${this._formatWatts(heatGen)}</span>
         </div>
         <div class="detail-row">
-          <span class="detail-label">Radiated</span>
-          <span class="detail-value">${this._formatWatts(heatRad)}</span>
+          <span class="detail-label">Dissipation</span>
+          <span class="detail-value">${this._formatWatts(dissipation)}</span>
         </div>
         ${heatSinkDumped > 0 ? `
         <div class="detail-row">
@@ -376,6 +520,18 @@ class ThermalDisplay extends HTMLElement {
         </div>
       </div>
 
+      <!-- Coolant level -->
+      <div class="section">
+        <div class="section-title">Coolant</div>
+        <div class="detail-row">
+          <span class="detail-label">Level</span>
+          <span class="detail-value ${coolantPercent < 20 ? 'warning' : ''}">${this._formatJoules(coolantLevel)} / ${this._formatJoules(coolantMax)}</span>
+        </div>
+        <div class="sink-bar">
+          <div class="sink-bar-fill ${coolantPercent > 50 ? 'nominal' : coolantPercent > 20 ? 'warning' : 'critical'}" style="width: ${coolantPercent}%"></div>
+        </div>
+      </div>
+
       <!-- Heat sink section -->
       <div class="section">
         <div class="section-title">Heat Sink</div>
@@ -397,9 +553,162 @@ class ThermalDisplay extends HTMLElement {
     `;
   }
 
-  /**
-   * Map status string to a CSS class name.
-   */
+  // =========================================================================
+  // ARCADE: Simplified thermal view with % and countdown
+  // =========================================================================
+  _renderArcade(content, thermal) {
+    const hullTemp = thermal.hull_temperature ?? 0;
+    const maxTemp = thermal.max_temperature ?? 500;
+    const warnTemp = thermal.warning_temperature ?? 400;
+    const nominalTemp = thermal.nominal_temperature ?? 300;
+    const status = (thermal.status || "nominal").toLowerCase();
+    const statusClass = this._statusClass(status, thermal);
+
+    // Temperature as % of thermal limit
+    const tempPercent = maxTemp > 0 ? (hullTemp / maxTemp) * 100 : 0;
+    const barColor = this._tempBarColor(hullTemp, nominalTemp, warnTemp, maxTemp);
+
+    // Net heat rate for "time to overheat" calculation
+    const netRate = thermal.net_heat_rate ?? 0;
+    const tempRising = netRate > 0;
+    // Approximate seconds to overheat if temperature is rising
+    // netRate is typically in internal units; use temperature percent delta as proxy
+    let timeToOverheat = Infinity;
+    if (tempRising && hullTemp < maxTemp && netRate > 0) {
+      // Use a rough estimate: net_heat_rate drives temp change proportionally
+      // We compute the remaining temperature gap in Kelvin and divide by the
+      // net rate (which is effectively kelvin-per-second when thermal mass is 1)
+      const tempGap = maxTemp - hullTemp;
+      timeToOverheat = tempGap / (netRate * 0.001 || 0.01);
+    }
+
+    // Radiator status
+    const eng = stateManager.getShipState()?.engineering || {};
+    const radDeployed = eng.radiators_deployed ?? true;
+    const radFactor = thermal.radiator_factor ?? 1;
+    const radEffPct = (radFactor * 100).toFixed(0);
+
+    content.innerHTML = `
+      <!-- Temperature headline -->
+      <div class="temp-headline">
+        <div>
+          <span class="temp-value ${statusClass}">${tempPercent.toFixed(0)}</span>
+          <span class="temp-unit">%</span>
+        </div>
+        <span class="status-badge ${statusClass}">${this._statusLabel(status, thermal)}</span>
+      </div>
+
+      <!-- Temperature bar -->
+      <div class="temp-bar-container">
+        <div class="temp-bar-labels">
+          <span>0%</span>
+          <span>100%</span>
+        </div>
+        <div class="temp-bar">
+          <div class="temp-bar-fill" style="width: ${Math.min(tempPercent, 100)}%; background: ${barColor};"></div>
+        </div>
+      </div>
+
+      ${tempRising && isFinite(timeToOverheat) && timeToOverheat < 600 ? `
+      <!-- Time to overheat countdown -->
+      <div class="section">
+        <div class="section-title">Time to Overheat</div>
+        <div class="detail-row">
+          <span class="detail-label">ETA</span>
+          <span class="detail-value ${timeToOverheat < 60 ? 'positive' : 'warning'}">${this._formatTime(timeToOverheat)}</span>
+        </div>
+      </div>
+      ` : ""}
+
+      <!-- Radiator status (simplified) -->
+      <div class="section">
+        <div class="section-title">Radiators</div>
+        <div class="rad-status-row">
+          <span class="rad-status-label">Status</span>
+          <span class="rad-status-value" style="color: ${radDeployed ? 'var(--status-nominal, #00ff88)' : 'var(--status-warning, #ffaa00)'}">
+            ${radDeployed ? "DEPLOYED" : "RETRACTED"}
+          </span>
+        </div>
+        <div class="rad-status-row">
+          <span class="rad-status-label">Efficiency</span>
+          <span class="rad-status-value ${radFactor < 0.5 ? 'warning' : ''}" style="color: var(--text-primary, #e0e0e0)">${radEffPct}%</span>
+        </div>
+      </div>
+    `;
+  }
+
+  // =========================================================================
+  // CPU-ASSIST: Thermal summary badge with auto-recommendations
+  // =========================================================================
+  _renderCpuAssist(content, thermal) {
+    const hullTemp = thermal.hull_temperature ?? 0;
+    const maxTemp = thermal.max_temperature ?? 500;
+    const warnTemp = thermal.warning_temperature ?? 400;
+    const status = (thermal.status || "nominal").toLowerCase();
+    const netRate = thermal.net_heat_rate ?? 0;
+    const tempPercent = maxTemp > 0 ? (hullTemp / maxTemp) * 100 : 0;
+
+    // Determine badge level
+    let badgeLevel, badgeLabel;
+    if (thermal.is_emergency || hullTemp >= maxTemp * 0.95) {
+      badgeLevel = "critical";
+      badgeLabel = "CRITICAL";
+    } else if (thermal.is_overheating || hullTemp >= warnTemp) {
+      badgeLevel = "warning";
+      badgeLabel = "WARNING";
+    } else {
+      badgeLevel = "nominal";
+      badgeLabel = "NOMINAL";
+    }
+
+    // Radiator info for recommendations
+    const eng = stateManager.getShipState()?.engineering || {};
+    const radDeployed = eng.radiators_deployed ?? true;
+    const reactorOutput = eng.reactor_percent ?? ((eng.reactor_output ?? 1.0) * 100);
+
+    // Build recommendation list
+    const recommendations = [];
+    if (badgeLevel === "critical" && !radDeployed) {
+      recommendations.push({ type: "action", text: "Deploy radiators immediately" });
+    } else if (badgeLevel === "warning" && !radDeployed) {
+      recommendations.push({ type: "action", text: "Deploy radiators" });
+    }
+    if (badgeLevel !== "nominal" && reactorOutput > 80) {
+      recommendations.push({ type: "action", text: "Reduce reactor output" });
+    }
+    if (badgeLevel === "nominal" && netRate < 0) {
+      recommendations.push({ type: "info", text: "Thermal balance stable" });
+    }
+    if (badgeLevel === "nominal" && netRate >= 0 && netRate < 10) {
+      recommendations.push({ type: "info", text: "Heat generation near equilibrium" });
+    }
+
+    let recsHtml = "";
+    recommendations.forEach(r => {
+      const icon = r.type === "action" ? "!" : "i";
+      recsHtml += `
+        <div class="recommendation ${r.type}">
+          <span class="rec-icon">${icon}</span>
+          <span>${r.text}</span>
+        </div>
+      `;
+    });
+
+    content.innerHTML = `
+      <!-- Hero badge -->
+      <div class="thermal-hero-badge ${badgeLevel}">
+        <span class="hero-badge-label ${badgeLevel}">${badgeLabel}</span>
+        <span class="hero-badge-sub">${tempPercent.toFixed(0)}% thermal load</span>
+      </div>
+
+      ${recsHtml}
+    `;
+  }
+
+  // =========================================================================
+  // Helpers (shared across tiers)
+  // =========================================================================
+
   _statusClass(status, thermal) {
     if (thermal.is_emergency) return "critical";
     if (thermal.is_overheating) return "warning";
@@ -407,9 +716,6 @@ class ThermalDisplay extends HTMLElement {
     return "nominal";
   }
 
-  /**
-   * Produce a human-readable status label.
-   */
   _statusLabel(status, thermal) {
     if (thermal.is_emergency) return "EMERGENCY";
     if (thermal.is_overheating) return "WARNING";
@@ -426,21 +732,18 @@ class ThermalDisplay extends HTMLElement {
    */
   _tempBarColor(temp, nominal, warning, max) {
     if (temp <= nominal) {
-      // Blue to green
       const t = nominal > 0 ? Math.max(0, temp / nominal) : 0;
       const r = Math.round(0 * (1 - t) + 0 * t);
       const g = Math.round(120 * (1 - t) + 255 * t);
       const b = Math.round(255 * (1 - t) + 136 * t);
       return `rgb(${r}, ${g}, ${b})`;
     } else if (temp <= warning) {
-      // Green to yellow
       const t = (temp - nominal) / (warning - nominal || 1);
       const r = Math.round(0 + 255 * t);
       const g = Math.round(255 - 85 * t);
       const b = Math.round(136 * (1 - t));
       return `rgb(${r}, ${g}, ${b})`;
     } else {
-      // Yellow to red
       const t = Math.min(1, (temp - warning) / (max - warning || 1));
       const r = 255;
       const g = Math.round(170 * (1 - t));
@@ -449,9 +752,6 @@ class ThermalDisplay extends HTMLElement {
     }
   }
 
-  /**
-   * Format watts with kW / MW suffixes.
-   */
   _formatWatts(w) {
     const abs = Math.abs(w);
     const sign = w < 0 ? "-" : "";
@@ -460,14 +760,26 @@ class ThermalDisplay extends HTMLElement {
     return `${sign}${abs.toFixed(0)} W`;
   }
 
-  /**
-   * Format joule values with kJ / MJ suffixes.
-   */
   _formatJoules(j) {
     const abs = Math.abs(j);
     if (abs >= 1e6) return `${(j / 1e6).toFixed(1)} MJ`;
     if (abs >= 1e3) return `${(j / 1e3).toFixed(1)} kJ`;
     return `${j.toFixed(0)} J`;
+  }
+
+  _formatTime(seconds) {
+    if (!isFinite(seconds) || seconds <= 0) return "--:--";
+    if (seconds >= 3600) {
+      const h = Math.floor(seconds / 3600);
+      const m = Math.floor((seconds % 3600) / 60);
+      return `${h}h ${m.toString().padStart(2, "0")}m`;
+    }
+    if (seconds >= 60) {
+      const m = Math.floor(seconds / 60);
+      const s = Math.floor(seconds % 60);
+      return `${m}m ${s.toString().padStart(2, "0")}s`;
+    }
+    return seconds.toFixed(0) + "s";
   }
 }
 

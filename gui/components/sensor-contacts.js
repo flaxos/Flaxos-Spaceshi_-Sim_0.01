@@ -1,6 +1,12 @@
 /**
- * Sensor Contacts Panel
- * Displays contacts list, ping status, active scanning
+ * Sensor Contacts Panel — Tier-aware
+ *
+ * Displays contacts list, ping status, active scanning.
+ * Per-tier rendering:
+ *   MANUAL     — bearing/range/signal-strength only. No names, no classification.
+ *   RAW        — Full contact data: ID, bearing, range, velocity, confidence, classification.
+ *   ARCADE     — Simplified: name/class, threat level color, distance in km.
+ *   CPU-ASSIST — Summary contact list with auto-threat-ranking.
  */
 
 import { stateManager } from "../js/state-manager.js";
@@ -15,7 +21,9 @@ class SensorContacts extends HTMLElement {
     super();
     this.attachShadow({ mode: "open" });
     this._unsubscribe = null;
+    this._tierHandler = null;
     this._selectedContact = null;
+    this._tier = window.controlTier || "arcade";
     // Map of contactId -> { contact, lostAt } for contacts that disappeared from server data
     this._staleContacts = new Map();
     this._staleTimer = null;
@@ -24,6 +32,16 @@ class SensorContacts extends HTMLElement {
   connectedCallback() {
     this.render();
     this._subscribe();
+    // Listen for tier changes
+    this._tierHandler = () => {
+      const newTier = window.controlTier || "arcade";
+      if (newTier !== this._tier) {
+        this._tier = newTier;
+        this.render();
+        this._updateDisplay();
+      }
+    };
+    document.addEventListener("tier-change", this._tierHandler);
     // Periodically purge expired stale contacts
     this._staleTimer = setInterval(() => this._purgeStaleContacts(), 2000);
     // Rotating ASCII radar sweep for empty state
@@ -42,6 +60,10 @@ class SensorContacts extends HTMLElement {
     if (this._unsubscribe) {
       this._unsubscribe();
       this._unsubscribe = null;
+    }
+    if (this._tierHandler) {
+      document.removeEventListener("tier-change", this._tierHandler);
+      this._tierHandler = null;
     }
     if (this._staleTimer) {
       clearInterval(this._staleTimer);
@@ -160,13 +182,33 @@ class SensorContacts extends HTMLElement {
         .contacts-header {
           padding: 8px 16px;
           display: grid;
-          grid-template-columns: minmax(40px, 0.8fr) minmax(55px, 1.2fr) minmax(40px, 0.8fr) minmax(50px, 1fr) minmax(50px, 1fr);
           gap: 6px;
           font-size: 0.65rem;
           color: var(--text-dim, #555566);
           text-transform: uppercase;
           letter-spacing: 0.5px;
           border-bottom: 1px solid var(--border-default, #2a2a3a);
+        }
+
+        /* Tier-specific grid columns for header and rows */
+        .contacts-header,
+        .contact-row {
+          grid-template-columns: minmax(40px, 0.8fr) minmax(55px, 1.2fr) minmax(40px, 0.8fr) minmax(50px, 1fr) minmax(50px, 1fr);
+        }
+        /* MANUAL: bearing, range, signal only (3 cols) */
+        :host(.tier-manual) .contacts-header,
+        :host(.tier-manual) .contact-row {
+          grid-template-columns: minmax(50px, 1fr) minmax(60px, 1fr) minmax(50px, 1fr);
+        }
+        /* ARCADE: name, threat, distance (3 cols) */
+        :host(.tier-arcade) .contacts-header,
+        :host(.tier-arcade) .contact-row {
+          grid-template-columns: minmax(80px, 2fr) minmax(60px, 1fr) minmax(60px, 1fr);
+        }
+        /* CPU-ASSIST: name, threat, distance (3 cols, wider name) */
+        :host(.tier-cpu-assist) .contacts-header,
+        :host(.tier-cpu-assist) .contact-row {
+          grid-template-columns: minmax(100px, 2.5fr) minmax(60px, 1fr) minmax(60px, 1fr);
         }
 
         .contacts-list {
@@ -179,13 +221,41 @@ class SensorContacts extends HTMLElement {
 
         .contact-row {
           display: grid;
-          grid-template-columns: minmax(40px, 0.8fr) minmax(55px, 1.2fr) minmax(40px, 0.8fr) minmax(50px, 1fr) minmax(50px, 1fr);
           gap: 6px;
           padding: 8px 16px;
           cursor: pointer;
           transition: opacity 0.4s ease, background 0.1s ease;
           font-family: var(--font-mono, "JetBrains Mono", monospace);
           font-size: 0.75rem;
+        }
+
+        /* Threat color badges for ARCADE and CPU-ASSIST tiers */
+        .threat-indicator {
+          display: inline-block;
+          width: 8px; height: 8px;
+          border-radius: 50%;
+          margin-right: 4px;
+        }
+        .threat-indicator.threat-high { background: var(--status-critical, #ff4444); box-shadow: 0 0 4px var(--status-critical, #ff4444); }
+        .threat-indicator.threat-moderate { background: var(--status-warning, #ffaa00); }
+        .threat-indicator.threat-low { background: var(--status-nominal, #00ff88); }
+        .threat-indicator.threat-minimal { background: var(--text-dim, #555566); }
+        .threat-text { font-size: 0.65rem; text-transform: uppercase; }
+        .threat-text.threat-high { color: var(--status-critical, #ff4444); }
+        .threat-text.threat-moderate { color: var(--status-warning, #ffaa00); }
+        .threat-text.threat-low { color: var(--status-nominal, #00ff88); }
+        .threat-text.threat-minimal { color: var(--text-dim, #555566); }
+
+        /* MANUAL tier: amber monospace for raw returns */
+        :host(.tier-manual) .contact-row { color: #ffe0b0; }
+        :host(.tier-manual) .contact-id { color: #ff8800; }
+        .signal-bar {
+          display: inline-block; width: 40px; height: 6px;
+          background: var(--bg-input, #1a1a24); border-radius: 3px;
+          overflow: hidden; vertical-align: middle;
+        }
+        .signal-fill {
+          height: 100%; background: #ff8800; transition: width 0.2s ease;
         }
 
         .contact-expanded {
@@ -435,12 +505,8 @@ class SensorContacts extends HTMLElement {
         </div>
       </div>
 
-      <div class="contacts-header">
-        <span>ID</span>
-        <span>CLASS</span>
-        <span>BRG</span>
-        <span>RANGE</span>
-        <span>CLOSURE</span>
+      <div class="contacts-header" id="contacts-header">
+        ${this._renderHeader()}
       </div>
 
       <div class="contacts-list" id="contacts-list">
@@ -462,7 +528,33 @@ class SensorContacts extends HTMLElement {
       </div>
     `;
 
+    // Apply tier class to host for CSS :host(.tier-*) rules
+    this._applyTierClass();
     this._setupEvents();
+  }
+
+  /** Set the tier CSS class on the host element for tier-specific grid columns */
+  _applyTierClass() {
+    const tiers = ["manual", "raw", "arcade", "cpu-assist"];
+    for (const t of tiers) {
+      this.classList.toggle(`tier-${t}`, t === this._tier);
+    }
+  }
+
+  /** Return tier-specific column headers */
+  _renderHeader() {
+    const tier = this._tier;
+    if (tier === "manual") {
+      return `<span>BRG</span><span>RANGE</span><span>SIGNAL</span>`;
+    }
+    if (tier === "arcade") {
+      return `<span>CONTACT</span><span>THREAT</span><span>DIST</span>`;
+    }
+    if (tier === "cpu-assist") {
+      return `<span>CONTACT</span><span>THREAT</span><span>DIST</span>`;
+    }
+    // RAW: full data (default)
+    return `<span>ID</span><span>CLASS</span><span>BRG</span><span>RANGE</span><span>CLOSURE</span>`;
   }
 
   _setupEvents() {
@@ -679,13 +771,19 @@ class SensorContacts extends HTMLElement {
       return;
     }
 
-    // Sort by range (nearest first), stale contacts sort to bottom
+    // Sort contacts: stale to bottom, then tier-specific ordering
     const sorted = [...allContacts].sort((a, b) => {
       const aId = a.contact_id || a.id;
       const bId = b.contact_id || b.id;
       const aStale = this._staleContacts.has(aId) ? 1 : 0;
       const bStale = this._staleContacts.has(bId) ? 1 : 0;
       if (aStale !== bStale) return aStale - bStale;
+      // CPU-ASSIST: sort by threat level (highest first)
+      if (this._tier === "cpu-assist") {
+        const aThreat = this._threatScore(a);
+        const bThreat = this._threatScore(b);
+        if (aThreat !== bThreat) return bThreat - aThreat;
+      }
       const rangeA = a.range || a.distance || Infinity;
       const rangeB = b.range || b.distance || Infinity;
       return rangeA - rangeB;
@@ -714,6 +812,15 @@ class SensorContacts extends HTMLElement {
   }
 
   _renderContactRow(contact, isStale = false) {
+    const tier = this._tier;
+    if (tier === "manual") return this._renderContactManual(contact, isStale);
+    if (tier === "arcade") return this._renderContactArcade(contact, isStale);
+    if (tier === "cpu-assist") return this._renderContactCpuAssist(contact, isStale);
+    return this._renderContactRaw(contact, isStale);
+  }
+
+  // ---- RAW tier: full data (original layout) ----
+  _renderContactRaw(contact, isStale) {
     const id = contact.contact_id || contact.id || "???";
     const classification = contact.name || contact.classification || contact.class || "UNKNOWN";
     const bearing = contact.bearing ?? "---";
@@ -723,14 +830,90 @@ class SensorContacts extends HTMLElement {
     const isSelected = id === this._selectedContact;
     const closureClass = rangeRate < 0 ? "closing" : rangeRate > 0 ? "opening" : "";
     const closureSign = rangeRate < 0 ? "-" : rangeRate > 0 ? "+" : "";
+    const staleClass = isStale ? "stale" : "";
+    const iff = this._getIffClass(contact);
 
-    // Get position info
+    return `
+      <div class="contact-row ${isSelected ? 'selected' : ''} ${staleClass} ${iff}" data-contact-id="${id}">
+        <span class="contact-id">${isSelected ? '\u25B6' : ' '}${id.substring(0, 5)}</span>
+        <span class="contact-class" title="${isStale ? 'Lost contact' : classification}">${isStale ? '<span class="stale-label">LOST</span>' : classification.substring(0, 8)}</span>
+        <span class="contact-bearing">${isStale ? '---' : this._formatBearing(bearing) + '\u00B0'}</span>
+        <span class="contact-range">${isStale ? '---' : this._formatRange(range)}</span>
+        <span class="contact-closure ${closureClass}">${isStale ? '---' : closureSign + Math.abs(rangeRate).toFixed(0)}</span>
+      </div>
+      ${this._renderExpandedRow(contact, isSelected, isStale)}
+    `;
+  }
+
+  // ---- MANUAL tier: bearing, range, signal strength only. No names. ----
+  _renderContactManual(contact, isStale) {
+    const id = contact.contact_id || contact.id || "???";
+    const bearing = contact.bearing ?? 0;
+    const range = contact.range ?? contact.distance ?? 0;
+    const signal = contact.signal_strength ?? contact.confidence ?? 0;
+    const signalPct = typeof signal === "number" ? Math.min(100, signal * 100) : 0;
+
+    const isSelected = id === this._selectedContact;
+    const staleClass = isStale ? "stale" : "";
+
+    return `
+      <div class="contact-row ${isSelected ? 'selected' : ''} ${staleClass}" data-contact-id="${id}">
+        <span class="contact-bearing">${isStale ? '---' : this._formatBearing(bearing) + '\u00B0'}</span>
+        <span class="contact-range">${isStale ? '---' : range.toFixed(0) + ' m'}</span>
+        <span>${isStale ? '---' : `<span class="signal-bar"><span class="signal-fill" style="width:${signalPct}%"></span></span>`}</span>
+      </div>
+    `;
+  }
+
+  // ---- ARCADE tier: name/class, threat badge, distance in km ----
+  _renderContactArcade(contact, isStale) {
+    const id = contact.contact_id || contact.id || "???";
+    const name = contact.name || contact.classification || contact.class || "Unknown";
+    const range = contact.range ?? contact.distance ?? 0;
+    const threat = this._inferThreatLevel(contact);
+
+    const isSelected = id === this._selectedContact;
+    const staleClass = isStale ? "stale" : "";
+    const iff = this._getIffClass(contact);
+
+    return `
+      <div class="contact-row ${isSelected ? 'selected' : ''} ${staleClass} ${iff}" data-contact-id="${id}">
+        <span class="contact-class">${isStale ? '<span class="stale-label">LOST</span>' : name}</span>
+        <span><span class="threat-indicator threat-${threat}"></span><span class="threat-text threat-${threat}">${threat}</span></span>
+        <span class="contact-range">${isStale ? '---' : (range / 1000).toFixed(1) + ' km'}</span>
+      </div>
+      ${this._renderExpandedRow(contact, isSelected, isStale)}
+    `;
+  }
+
+  // ---- CPU-ASSIST tier: name, threat-ranked, auto-summary ----
+  _renderContactCpuAssist(contact, isStale) {
+    const id = contact.contact_id || contact.id || "???";
+    const name = contact.name || contact.classification || contact.class || "Unknown";
+    const range = contact.range ?? contact.distance ?? 0;
+    const threat = this._inferThreatLevel(contact);
+
+    const isSelected = id === this._selectedContact;
+    const staleClass = isStale ? "stale" : "";
+    const iff = this._getIffClass(contact);
+
+    return `
+      <div class="contact-row ${isSelected ? 'selected' : ''} ${staleClass} ${iff}" data-contact-id="${id}">
+        <span class="contact-class">${isStale ? '<span class="stale-label">LOST</span>' : name}</span>
+        <span><span class="threat-indicator threat-${threat}"></span><span class="threat-text threat-${threat}">${threat}</span></span>
+        <span class="contact-range">${isStale ? '---' : (range / 1000).toFixed(1) + ' km'}</span>
+      </div>
+    `;
+  }
+
+  /** Render the expandable detail row (shared by RAW and ARCADE tiers) */
+  _renderExpandedRow(contact, isSelected, isStale) {
+    const id = contact.contact_id || contact.id || "???";
     const pos = contact.position || contact.pos || {};
     const posX = pos.x ?? pos[0] ?? 0;
     const posY = pos.y ?? pos[1] ?? 0;
     const posZ = pos.z ?? pos[2] ?? 0;
 
-    // Get relative position from player ship
     const ship = stateManager.getShipState();
     const shipPos = ship?.position || ship?.pos || {};
     const shipX = shipPos.x ?? shipPos[0] ?? 0;
@@ -741,19 +924,7 @@ class SensorContacts extends HTMLElement {
     const relY = posY - shipY;
     const relZ = posZ - shipZ;
 
-    const staleClass = isStale ? "stale" : "";
-
-    // Determine IFF classification for left-border color strip
-    const iff = this._getIffClass(contact);
-
     return `
-      <div class="contact-row ${isSelected ? 'selected' : ''} ${staleClass} ${iff}" data-contact-id="${id}">
-        <span class="contact-id">${isSelected ? '►' : ' '}${id.substring(0, 5)}</span>
-        <span class="contact-class" title="${isStale ? 'Lost contact' : classification}">${isStale ? '<span class="stale-label">LOST</span>' : classification.substring(0, 8)}</span>
-        <span class="contact-bearing">${isStale ? '---' : this._formatBearing(bearing) + '°'}</span>
-        <span class="contact-range">${isStale ? '---' : this._formatRange(range)}</span>
-        <span class="contact-closure ${closureClass}">${isStale ? '---' : closureSign + Math.abs(rangeRate).toFixed(0)}</span>
-      </div>
       <div class="contact-expanded ${isSelected && !isStale ? 'visible' : ''}" data-contact-id="${id}">
         <div class="position-grid">
           <div class="pos-item">
@@ -840,6 +1011,32 @@ class SensorContacts extends HTMLElement {
     if (faction === "friendly" || faction === "allied" || cls === "friendly") return "iff-friendly";
     if (faction === "neutral" || cls === "neutral") return "iff-neutral";
     return "iff-unknown";
+  }
+
+  /**
+   * Infer a threat level string from contact data.
+   * Used by ARCADE and CPU-ASSIST tiers for threat badges/indicators.
+   */
+  _inferThreatLevel(contact) {
+    const faction = (contact.faction || contact.iff || "").toLowerCase();
+    if (faction === "hostile" || faction === "enemy") return "high";
+    if (faction === "friendly" || faction === "allied") return "minimal";
+
+    const rangeRate = contact.range_rate ?? contact.closure ?? 0;
+    const range = contact.range ?? contact.distance ?? 99999;
+    if (rangeRate < -500 && range < 20000) return "high";
+    if (rangeRate < -100 && range < 50000) return "moderate";
+    if (range < 10000) return "moderate";
+    return "low";
+  }
+
+  /**
+   * Numeric threat score for sorting (higher = more threatening).
+   * Used by CPU-ASSIST tier to sort contacts by threat.
+   */
+  _threatScore(contact) {
+    const levels = { critical: 5, high: 4, moderate: 3, low: 2, minimal: 1 };
+    return levels[this._inferThreatLevel(contact)] || 0;
   }
 
   /**

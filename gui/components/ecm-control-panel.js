@@ -16,16 +16,28 @@ class ECMControlPanel extends HTMLElement {
     super();
     this.attachShadow({ mode: "open" });
     this._unsubscribe = null;
+    this._tier = window.controlTier || "arcade";
   }
 
   connectedCallback() {
     this.render();
     this._subscribe();
+
+    // Tier-change listener: switch between manual/preset/hidden ECM views
+    this._tierHandler = (e) => {
+      this._tier = e.detail?.tier || "arcade";
+      this._updateDisplay();
+    };
+    document.addEventListener("tier-change", this._tierHandler);
   }
 
   disconnectedCallback() {
     if (this._unsubscribe) {
       this._unsubscribe();
+    }
+    if (this._tierHandler) {
+      document.removeEventListener("tier-change", this._tierHandler);
+      this._tierHandler = null;
     }
   }
 
@@ -263,6 +275,110 @@ class ECMControlPanel extends HTMLElement {
           padding: 20px 10px;
           font-size: 0.75rem;
         }
+
+        /* === MANUAL/RAW tier: jammer power slider === */
+        .jammer-slider-row {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 10px;
+        }
+        .jammer-slider-label {
+          font-size: 0.65rem;
+          text-transform: uppercase;
+          color: var(--text-secondary, #888899);
+          white-space: nowrap;
+        }
+        .jammer-slider {
+          flex: 1;
+          -webkit-appearance: none;
+          appearance: none;
+          height: 6px;
+          background: var(--bg-input, #1a1a24);
+          border-radius: 3px;
+          outline: none;
+        }
+        .jammer-slider::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 14px;
+          height: 14px;
+          border-radius: 50%;
+          background: var(--status-info, #00aaff);
+          cursor: pointer;
+        }
+        .jammer-power-value {
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+          font-size: 0.7rem;
+          color: var(--text-primary, #e0e0e0);
+          min-width: 4em;
+          text-align: right;
+        }
+        .freq-row {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 8px;
+        }
+        .freq-label {
+          font-size: 0.65rem;
+          text-transform: uppercase;
+          color: var(--text-secondary, #888899);
+        }
+        .freq-value {
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+          font-size: 0.7rem;
+          color: var(--text-primary, #e0e0e0);
+        }
+
+        /* === ARCADE tier: preset mode buttons === */
+        .preset-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr 1fr;
+          gap: 6px;
+          margin-bottom: 12px;
+        }
+        .preset-btn {
+          padding: 12px 8px;
+          border-radius: 6px;
+          border: 1px solid var(--border-default, #2a2a3a);
+          background: var(--bg-input, #1a1a24);
+          color: var(--text-dim, #555566);
+          font-family: inherit;
+          font-size: 0.7rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.3px;
+          cursor: pointer;
+          transition: all 0.15s ease;
+          text-align: center;
+        }
+        .preset-btn:hover {
+          border-color: var(--text-secondary, #888899);
+          color: var(--text-primary, #e0e0e0);
+        }
+        .preset-btn.active.aggressive {
+          border-color: var(--status-critical, #ff4444);
+          color: var(--status-critical, #ff4444);
+          background: rgba(255, 68, 68, 0.1);
+        }
+        .preset-btn.active.defensive {
+          border-color: var(--status-info, #00aaff);
+          color: var(--status-info, #00aaff);
+          background: rgba(0, 170, 255, 0.1);
+        }
+        .preset-btn.active.silent {
+          border-color: var(--status-nominal, #00ff88);
+          color: var(--status-nominal, #00ff88);
+          background: rgba(0, 255, 136, 0.08);
+        }
+        .preset-hint {
+          font-size: 0.55rem;
+          font-weight: 400;
+          opacity: 0.7;
+          display: block;
+          margin-top: 2px;
+        }
       </style>
 
       <div id="ecm-content">
@@ -275,6 +391,7 @@ class ECMControlPanel extends HTMLElement {
     const ship = stateManager.getShipState();
     const ecm = ship?.ecm;
     const container = this.shadowRoot.getElementById("ecm-content");
+    const tier = this._tier;
 
     if (!ecm || !container) {
       if (container) {
@@ -283,11 +400,144 @@ class ECMControlPanel extends HTMLElement {
       return;
     }
 
+    // CPU-ASSIST: ECM is hidden (auto-tactical manages it).
+    // Show a minimal status indicator in case the panel is forced visible.
+    if (tier === "cpu-assist") {
+      const modeClass = ecm.emcon_active ? "emcon" : (ecm.jammer_enabled || ecm.chaff_active) ? "active" : "standby";
+      container.innerHTML = `
+        <div class="ecm-mode ${modeClass}">
+          <div class="mode-dot"></div>
+          <span>AUTO-TACTICAL ECM</span>
+        </div>
+        <div class="no-ecm">ECM managed by auto-tactical system</div>
+      `;
+      return;
+    }
+
+    // ARCADE: preset ECM modes (AGGRESSIVE / DEFENSIVE / SILENT)
+    if (tier === "arcade") {
+      this._renderArcadeEcm(container, ecm);
+      return;
+    }
+
+    // MANUAL/RAW: full manual ECM with jammer power slider, individual deploy buttons
+    this._renderManualEcm(container, ecm, tier);
+  }
+
+  /**
+   * ARCADE tier: three preset ECM modes with one-click activation.
+   * AGGRESSIVE = jammer max + auto-deploy countermeasures
+   * DEFENSIVE = chaff/flare auto on incoming
+   * SILENT = EMCON mode
+   */
+  _renderArcadeEcm(container, ecm) {
+    // Determine which preset is currently active based on ECM state
+    let activePreset = "none";
+    if (ecm.emcon_active) {
+      activePreset = "silent";
+    } else if (ecm.jammer_enabled) {
+      activePreset = "aggressive";
+    } else if (ecm.chaff_active || ecm.flare_active) {
+      activePreset = "defensive";
+    }
+
+    const modeClass = ecm.emcon_active ? "emcon" : (ecm.jammer_enabled || ecm.chaff_active) ? "active" : "standby";
+    const modeText = ecm.status || "standby";
+
+    const chaffPct = ecm.chaff_max > 0 ? (ecm.chaff_count / ecm.chaff_max * 100) : 0;
+    const flarePct = ecm.flare_max > 0 ? (ecm.flare_count / ecm.flare_max * 100) : 0;
+
+    container.innerHTML = `
+      <div class="ecm-mode ${modeClass}">
+        <div class="mode-dot"></div>
+        <span>${modeText}</span>
+      </div>
+
+      <div class="preset-grid">
+        <button class="preset-btn ${activePreset === 'aggressive' ? 'active aggressive' : ''}"
+                id="preset-aggressive">
+          AGGRESSIVE
+          <span class="preset-hint">JAM + AUTO CM</span>
+        </button>
+        <button class="preset-btn ${activePreset === 'defensive' ? 'active defensive' : ''}"
+                id="preset-defensive">
+          DEFENSIVE
+          <span class="preset-hint">AUTO CHAFF/FLARE</span>
+        </button>
+        <button class="preset-btn ${activePreset === 'silent' ? 'active silent' : ''}"
+                id="preset-silent">
+          SILENT
+          <span class="preset-hint">EMCON</span>
+        </button>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Expendables</div>
+        <div class="cm-bar-container">
+          <div class="cm-bar-label">
+            <span class="cm-bar-label-name">Chaff</span>
+            <span class="cm-bar-label-count">${ecm.chaff_count}/${ecm.chaff_max}</span>
+          </div>
+          <div class="cm-bar">
+            <div class="cm-bar-fill chaff" style="width: ${chaffPct}%"></div>
+          </div>
+        </div>
+        <div class="cm-bar-container" style="margin-top: 8px">
+          <div class="cm-bar-label">
+            <span class="cm-bar-label-name">Flares</span>
+            <span class="cm-bar-label-count">${ecm.flare_count}/${ecm.flare_max}</span>
+          </div>
+          <div class="cm-bar">
+            <div class="cm-bar-fill flare" style="width: ${flarePct}%"></div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Bind preset buttons
+    const presetAggressive = this.shadowRoot.getElementById("preset-aggressive");
+    const presetDefensive = this.shadowRoot.getElementById("preset-defensive");
+    const presetSilent = this.shadowRoot.getElementById("preset-silent");
+
+    if (presetAggressive) {
+      presetAggressive.addEventListener("click", () => {
+        // AGGRESSIVE: jammer on, EMCON off
+        this._sendCommand("set_emcon", { enabled: false });
+        this._sendCommand("activate_jammer");
+      });
+    }
+    if (presetDefensive) {
+      presetDefensive.addEventListener("click", () => {
+        // DEFENSIVE: jammer off, EMCON off, deploy chaff+flare if available
+        this._sendCommand("set_emcon", { enabled: false });
+        this._sendCommand("deactivate_jammer");
+        if (ecm.chaff_count > 0) this._sendCommand("deploy_chaff");
+        if (ecm.flare_count > 0) this._sendCommand("deploy_flare");
+      });
+    }
+    if (presetSilent) {
+      presetSilent.addEventListener("click", () => {
+        // SILENT: EMCON on, jammer off
+        this._sendCommand("deactivate_jammer");
+        this._sendCommand("set_emcon", { enabled: true });
+      });
+    }
+  }
+
+  /**
+   * MANUAL/RAW tier: full manual ECM with jammer power slider,
+   * individual chaff/flare deploy buttons with count, EMCON toggle, frequency display.
+   */
+  _renderManualEcm(container, ecm, tier) {
     const modeClass = ecm.emcon_active ? "emcon" : (ecm.jammer_enabled || ecm.chaff_active || ecm.flare_active) ? "active" : "standby";
     const modeText = ecm.status || "standby";
 
     const chaffPct = ecm.chaff_max > 0 ? (ecm.chaff_count / ecm.chaff_max * 100) : 0;
     const flarePct = ecm.flare_max > 0 ? (ecm.flare_count / ecm.flare_max * 100) : 0;
+
+    // Jammer power in kW for display
+    const jammerPowerKw = Math.round((ecm.jammer_power || 0) / 1000);
+    const jammerMaxKw = Math.round((ecm.jammer_max_power || ecm.jammer_power || 10000) / 1000);
 
     container.innerHTML = `
       <!-- ECM Mode Indicator -->
@@ -296,34 +546,45 @@ class ECMControlPanel extends HTMLElement {
         <span>${modeText}</span>
       </div>
 
-      <!-- Controls -->
+      <!-- Jammer Power Slider (MANUAL/RAW) -->
       <div class="section">
-        <div class="section-title">Countermeasures</div>
+        <div class="section-title">Jammer</div>
+        <div class="jammer-slider-row">
+          <span class="jammer-slider-label">POWER</span>
+          <input type="range" class="jammer-slider" id="jammer-power-slider"
+                 min="0" max="${jammerMaxKw}" value="${jammerPowerKw}" step="1">
+          <span class="jammer-power-value" id="jammer-power-display">${jammerPowerKw} kW</span>
+        </div>
         <div class="controls-grid">
           <button class="ecm-btn ${ecm.jammer_enabled ? 'active' : ''} ${ecm.emcon_active ? 'disabled' : ''}"
                   id="btn-jammer">
             ${ecm.jammer_enabled ? 'JAM ON' : 'JAMMER'}
-            <span class="btn-count">${Math.round(ecm.jammer_power / 1000)}kW</span>
           </button>
           <button class="ecm-btn ${ecm.emcon_active ? 'emcon-active' : ''}"
                   id="btn-emcon">
             ${ecm.emcon_active ? 'EMCON ON' : 'EMCON'}
-            <span class="btn-count">stealth</span>
           </button>
+        </div>
+      </div>
+
+      <!-- Individual Countermeasure Deploy -->
+      <div class="section">
+        <div class="section-title">Countermeasures</div>
+        <div class="controls-grid">
           <button class="ecm-btn ${ecm.chaff_count <= 0 ? 'disabled' : ''}"
                   id="btn-chaff">
-            CHAFF
+            DEPLOY CHAFF
             <span class="btn-count">${ecm.chaff_count}/${ecm.chaff_max}</span>
           </button>
           <button class="ecm-btn ${ecm.flare_count <= 0 ? 'disabled' : ''}"
                   id="btn-flare">
-            FLARE
+            DEPLOY FLARE
             <span class="btn-count">${ecm.flare_count}/${ecm.flare_max}</span>
           </button>
         </div>
       </div>
 
-      <!-- Expendables Status -->
+      <!-- Expendables Status Bars -->
       <div class="section">
         <div class="section-title">Expendables</div>
         <div class="cm-bar-container">
@@ -356,6 +617,10 @@ class ECMControlPanel extends HTMLElement {
           <span class="status-value ${ecm.jammer_enabled ? 'active' : ''}">${ecm.jammer_enabled ? 'ACTIVE' : 'OFF'}</span>
         </div>
         <div class="status-row">
+          <span class="status-label">Jammer Power</span>
+          <span class="status-value">${jammerPowerKw} kW</span>
+        </div>
+        <div class="status-row">
           <span class="status-label">EMCON</span>
           <span class="status-value ${ecm.emcon_active ? 'emcon' : ''}">${ecm.emcon_active ? 'ENGAGED' : 'OFF'}</span>
         </div>
@@ -366,8 +631,20 @@ class ECMControlPanel extends HTMLElement {
       </div>
     `;
 
-    // Bind button events
+    // Bind buttons and slider
     this._bindButtons(ecm);
+
+    // Jammer power slider
+    const slider = this.shadowRoot.getElementById("jammer-power-slider");
+    const display = this.shadowRoot.getElementById("jammer-power-display");
+    if (slider) {
+      slider.addEventListener("input", () => {
+        if (display) display.textContent = `${slider.value} kW`;
+      });
+      slider.addEventListener("change", () => {
+        this._sendCommand("set_jammer_power", { power: parseInt(slider.value) * 1000 });
+      });
+    }
   }
 
   _bindButtons(ecm) {

@@ -1,32 +1,56 @@
 /**
- * Science Analysis Panel
- * Provides controls for science station analysis commands:
- * - Contact selection and deep analysis
- * - Spectral analysis (IR/RCS breakdown)
- * - Mass estimation
- * - Threat assessment
+ * Science Analysis Panel — Tier-aware
+ *
+ * Provides science station analysis controls with per-tier rendering:
+ *   MANUAL  — Raw sensor returns only. IR watts, RCS m^2, bearing/range in
+ *             radians/metres. No classification assist. Player interprets.
+ *   RAW     — Full spectral breakdown tables, manual classification workflow
+ *             (select contact -> view signature -> choose class from dropdown).
+ *   ARCADE  — Auto-classified contacts with confidence %. Threat level badges.
+ *             Simplified mass/drive-type. One-click "Deep Scan" button.
+ *   CPU-ASSIST — Auto-science proposals: scan queue, threat flags, approve/deny.
+ *
+ * Follows the tier-change listener pattern from flight-computer-panel.js.
  */
 
 import { stateManager } from "../js/state-manager.js";
 import { wsClient } from "../js/ws-client.js";
+
+/** Ship classification options for RAW tier manual workflow */
+const SHIP_CLASSES = [
+  "Unknown", "Corvette", "Frigate", "Destroyer", "Cruiser",
+  "Battleship", "Carrier", "Transport", "Freighter", "Station",
+  "Shuttle", "Mining", "Science", "Patrol", "Gunboat"
+];
 
 class ScienceAnalysisPanel extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: "open" });
     this._unsubscribe = null;
+    this._tierHandler = null;
     this._selectedContact = null;
     this._lastResult = null;
+    this._tier = window.controlTier || "arcade";
   }
 
   connectedCallback() {
-    this.render();
+    this._render();
     this._subscribe();
+    this._applyTier();
+    // Listen for tier changes (same pattern as flight-computer-panel.js)
+    this._tierHandler = () => this._applyTier();
+    document.addEventListener("tier-change", this._tierHandler);
   }
 
   disconnectedCallback() {
     if (this._unsubscribe) {
       this._unsubscribe();
+      this._unsubscribe = null;
+    }
+    if (this._tierHandler) {
+      document.removeEventListener("tier-change", this._tierHandler);
+      this._tierHandler = null;
     }
   }
 
@@ -36,11 +60,21 @@ class ScienceAnalysisPanel extends HTMLElement {
     });
   }
 
+  /** Respond to tier changes — re-render the entire panel layout */
+  _applyTier() {
+    const newTier = window.controlTier || "arcade";
+    if (newTier !== this._tier || !this.shadowRoot.querySelector(".sci-panel")) {
+      this._tier = newTier;
+      this._render();
+      this._updateDisplay();
+    }
+  }
+
   async _sendCommand(cmd, args = {}) {
-    const wsClient = window._flaxosModules?.wsClient || window.flaxosApp?.wsClient;
-    if (wsClient && wsClient.sendShipCommand) {
+    const ws = window._flaxosModules?.wsClient || window.flaxosApp?.wsClient;
+    if (ws && ws.sendShipCommand) {
       try {
-        const result = await wsClient.sendShipCommand(cmd, args);
+        const result = await ws.sendShipCommand(cmd, args);
         if (result && result.ok) {
           this._lastResult = result;
           this._showResult(cmd, result);
@@ -54,249 +88,824 @@ class ScienceAnalysisPanel extends HTMLElement {
     return null;
   }
 
-  render() {
+  // =========================================================================
+  //  RENDER — tier-dispatched
+  // =========================================================================
+
+  _render() {
+    const tier = this._tier;
+    let body = "";
+    if (tier === "manual") body = this._renderManual();
+    else if (tier === "raw") body = this._renderRaw();
+    else if (tier === "cpu-assist") body = this._renderCpuAssist();
+    else body = this._renderArcade();
+
     this.shadowRoot.innerHTML = `
-      <style>
-        :host {
-          display: block;
-          font-family: var(--font-sans, "Inter", sans-serif);
-          font-size: 0.8rem;
-          padding: 12px;
-        }
+      <style>${this._sharedStyles()}${this._tierStyles(tier)}</style>
+      <div class="sci-panel tier-${tier}">${body}</div>
+    `;
+    this._wireEvents(tier);
+  }
 
-        .section {
-          margin-bottom: 16px;
-        }
+  // ---- Shared CSS used by all tiers ----
+  _sharedStyles() {
+    return `
+      :host {
+        display: block;
+        font-family: var(--font-sans, "Inter", sans-serif);
+        font-size: 0.8rem;
+        padding: 12px;
+      }
+      .section { margin-bottom: 16px; }
+      .section-title {
+        font-size: 0.7rem; font-weight: 600;
+        text-transform: uppercase; letter-spacing: 0.5px;
+        color: var(--status-info, #00aaff);
+        margin-bottom: 8px; padding-bottom: 4px;
+        border-bottom: 1px solid var(--border-default, #2a2a3a);
+      }
+      .contact-select {
+        width: 100%; padding: 6px 8px;
+        background: var(--bg-secondary, #12121a);
+        color: var(--text-primary, #e0e0e8);
+        border: 1px solid var(--border-default, #2a2a3a);
+        border-radius: 4px;
+        font-family: var(--font-mono, "JetBrains Mono", monospace);
+        font-size: 0.75rem; margin-bottom: 8px;
+      }
+      .btn-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+      .btn {
+        padding: 6px 12px;
+        background: var(--bg-secondary, #12121a);
+        color: var(--text-primary, #e0e0e8);
+        border: 1px solid var(--border-default, #2a2a3a);
+        border-radius: 4px;
+        font-family: var(--font-mono, "JetBrains Mono", monospace);
+        font-size: 0.7rem; cursor: pointer;
+        transition: background 0.15s, border-color 0.15s;
+      }
+      .btn:hover { background: var(--bg-tertiary, #1a1a2a); border-color: var(--status-info, #00aaff); }
+      .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+      .btn-scan { border-color: var(--status-info, #00aaff); color: var(--status-info, #00aaff); }
+      .btn-scan:hover:not(:disabled) { background: rgba(0, 170, 255, 0.1); }
+      .result-panel {
+        background: var(--bg-secondary, #12121a);
+        border: 1px solid var(--border-default, #2a2a3a);
+        border-radius: 4px; padding: 10px;
+        font-family: var(--font-mono, "JetBrains Mono", monospace);
+        font-size: 0.7rem; line-height: 1.5;
+        max-height: 300px; overflow-y: auto; white-space: pre-wrap;
+      }
+      .result-panel .label { color: var(--text-secondary, #888899); }
+      .result-panel .value { color: var(--text-primary, #e0e0e8); }
+      .result-panel .highlight { color: var(--status-info, #00aaff); font-weight: 600; }
+      .threat-minimal { color: var(--status-nominal, #00ff88); }
+      .threat-low { color: var(--status-nominal, #00ff88); }
+      .threat-moderate { color: var(--status-warning, #ffaa00); }
+      .threat-high { color: var(--status-critical, #ff4444); }
+      .threat-critical { color: var(--status-critical, #ff4444); font-weight: 700; }
+      .status-row { display: flex; justify-content: space-between; padding: 3px 0; }
+      .status-label { color: var(--text-secondary, #888899); }
+      .status-value {
+        color: var(--text-primary, #e0e0e8);
+        font-family: var(--font-mono, "JetBrains Mono", monospace);
+      }
+      .no-contacts { color: var(--text-dim, #555566); font-style: italic; padding: 8px 0; }
+    `;
+  }
 
-        .section-title {
-          font-size: 0.7rem;
-          font-weight: 600;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-          color: var(--status-info, #00aaff);
-          margin-bottom: 8px;
-          padding-bottom: 4px;
-          border-bottom: 1px solid var(--border-default, #2a2a3a);
-        }
+  // ---- Per-tier extra CSS ----
+  _tierStyles(tier) {
+    if (tier === "manual") return `
+      /* MANUAL: amber monospace, minimal chrome */
+      .sci-panel.tier-manual {
+        font-family: var(--font-mono, "JetBrains Mono", monospace);
+        color: #ffe0b0;
+      }
+      .sci-panel.tier-manual .section-title {
+        color: #ff8800;
+        border-bottom-color: #442200;
+      }
+      .raw-data-grid {
+        display: grid; grid-template-columns: max-content 1fr;
+        gap: 2px 12px;
+        font-family: var(--font-mono, "JetBrains Mono", monospace);
+        font-size: 0.7rem;
+      }
+      .raw-data-grid .lbl { color: #aa7744; text-transform: uppercase; }
+      .raw-data-grid .val { color: #ffe0b0; }
+      .manual-note {
+        color: #886644; font-size: 0.65rem; font-style: italic;
+        margin-top: 12px; border-top: 1px solid #332200; padding-top: 6px;
+      }
+    `;
+    if (tier === "raw") return `
+      /* RAW: green phosphor terminal, full data exposure */
+      .sci-panel.tier-raw {
+        font-family: var(--font-mono, "JetBrains Mono", monospace);
+        color: #d8e8d8;
+      }
+      .sci-panel.tier-raw .section-title {
+        color: #44ff88;
+        border-bottom-color: #113322;
+      }
+      .spectral-table {
+        width: 100%; border-collapse: collapse;
+        font-family: var(--font-mono, "JetBrains Mono", monospace);
+        font-size: 0.65rem; margin-bottom: 8px;
+      }
+      .spectral-table th {
+        text-align: left; color: #44ff88; padding: 3px 6px;
+        border-bottom: 1px solid #224433;
+        font-weight: 600; text-transform: uppercase;
+      }
+      .spectral-table td {
+        padding: 3px 6px; color: #d8e8d8;
+        border-bottom: 1px solid #1a2a1f;
+      }
+      .classify-row {
+        display: flex; gap: 6px; align-items: center; margin-top: 8px;
+      }
+      .classify-select {
+        flex: 1; padding: 4px 6px;
+        background: var(--bg-secondary, #12121a);
+        color: #d8e8d8;
+        border: 1px solid #224433;
+        border-radius: 3px;
+        font-family: var(--font-mono, "JetBrains Mono", monospace);
+        font-size: 0.7rem;
+      }
+    `;
+    if (tier === "cpu-assist") return `
+      /* CPU-ASSIST: purple accents, card-based proposals */
+      .auto-proposal {
+        background: var(--bg-secondary, #12121a);
+        border: 1px solid rgba(192, 160, 255, 0.2);
+        border-radius: 6px; padding: 8px 10px; margin: 6px 0;
+      }
+      .auto-proposal .desc {
+        color: var(--text-primary, #e0e0e8);
+        font-size: 0.75rem; margin-bottom: 6px;
+      }
+      .auto-proposal .meta {
+        color: var(--text-dim, #555566);
+        font-size: 0.6rem; margin-bottom: 4px;
+      }
+      .proposal-actions { display: flex; gap: 6px; }
+      .btn-approve {
+        background: rgba(0, 255, 136, 0.1); color: #00ff88;
+        border: 1px solid rgba(0, 255, 136, 0.3);
+        padding: 3px 10px; border-radius: 4px; cursor: pointer;
+        font-size: 0.65rem;
+      }
+      .btn-approve:hover { background: rgba(0, 255, 136, 0.2); }
+      .btn-deny {
+        background: rgba(255, 68, 68, 0.1); color: #ff4444;
+        border: 1px solid rgba(255, 68, 68, 0.3);
+        padding: 3px 10px; border-radius: 4px; cursor: pointer;
+        font-size: 0.65rem;
+      }
+      .btn-deny:hover { background: rgba(255, 68, 68, 0.2); }
+      .auto-toggle-row {
+        display: flex; justify-content: space-between; align-items: center;
+        margin-bottom: 10px; padding: 6px 8px;
+        background: rgba(192, 160, 255, 0.05);
+        border: 1px solid rgba(192, 160, 255, 0.15);
+        border-radius: 4px;
+      }
+      .auto-toggle-label {
+        color: #c0a0ff; font-size: 0.7rem; font-weight: 600;
+        letter-spacing: 0.5px;
+      }
+      .auto-toggle-btn {
+        background: rgba(192, 160, 255, 0.15); color: #c0a0ff;
+        border: 1px solid rgba(192, 160, 255, 0.3);
+        padding: 3px 12px; border-radius: 4px; cursor: pointer;
+        font-size: 0.65rem;
+      }
+      .auto-toggle-btn:hover { background: rgba(192, 160, 255, 0.25); }
+      .auto-toggle-btn.active {
+        background: rgba(0, 255, 136, 0.15); color: #00ff88;
+        border-color: rgba(0, 255, 136, 0.3);
+      }
+      .threat-flag {
+        display: inline-block; padding: 1px 6px; border-radius: 3px;
+        font-size: 0.6rem; font-weight: 600; text-transform: uppercase;
+        margin-left: 6px;
+      }
+      .threat-flag.high { background: rgba(255, 68, 68, 0.2); color: #ff4444; }
+      .threat-flag.moderate { background: rgba(255, 170, 0, 0.2); color: #ffaa00; }
+      .threat-flag.low { background: rgba(0, 255, 136, 0.15); color: #00ff88; }
+      .contact-summary {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 4px 0; border-bottom: 1px solid var(--border-default, #2a2a3a);
+        font-size: 0.7rem;
+      }
+      .contact-summary .cname { color: var(--text-primary, #e0e0e8); }
+      .contact-summary .cdist { color: var(--text-secondary, #888899); font-family: var(--font-mono, monospace); }
+    `;
+    // ARCADE
+    return `
+      /* ARCADE: clean blue UI, threat badges, one-click actions */
+      .threat-badge {
+        display: inline-block; padding: 2px 8px; border-radius: 10px;
+        font-size: 0.6rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .threat-badge.critical { background: rgba(255, 68, 68, 0.2); color: #ff4444; }
+      .threat-badge.high { background: rgba(255, 68, 68, 0.15); color: #ff6666; }
+      .threat-badge.moderate { background: rgba(255, 170, 0, 0.15); color: #ffaa00; }
+      .threat-badge.low { background: rgba(0, 255, 136, 0.1); color: #00ff88; }
+      .threat-badge.minimal { background: rgba(85, 85, 102, 0.2); color: #888899; }
+      .contact-card {
+        background: var(--bg-secondary, #12121a);
+        border: 1px solid var(--border-default, #2a2a3a);
+        border-radius: 6px; padding: 8px 10px; margin: 4px 0;
+        cursor: pointer; transition: border-color 0.15s;
+      }
+      .contact-card:hover { border-color: var(--status-info, #00aaff); }
+      .contact-card.selected { border-color: var(--status-info, #00aaff); background: rgba(0, 170, 255, 0.05); }
+      .card-header {
+        display: flex; justify-content: space-between; align-items: center;
+        margin-bottom: 4px;
+      }
+      .card-name { color: var(--text-primary, #e0e0e8); font-weight: 600; font-size: 0.75rem; }
+      .card-details {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 2px 12px;
+        font-size: 0.7rem;
+      }
+      .card-details .cd-label { color: var(--text-dim, #555566); }
+      .card-details .cd-value { color: var(--text-secondary, #888899); font-family: var(--font-mono, monospace); }
+      .btn-deep-scan {
+        width: 100%; padding: 8px; margin-top: 8px;
+        background: rgba(0, 170, 255, 0.1);
+        color: var(--status-info, #00aaff);
+        border: 1px solid var(--status-info, #00aaff);
+        border-radius: 6px; cursor: pointer;
+        font-size: 0.75rem; font-weight: 600;
+        transition: background 0.15s;
+      }
+      .btn-deep-scan:hover:not(:disabled) { background: rgba(0, 170, 255, 0.2); }
+      .btn-deep-scan:disabled { opacity: 0.4; cursor: not-allowed; }
+    `;
+  }
 
-        .contact-select {
-          width: 100%;
-          padding: 6px 8px;
-          background: var(--bg-secondary, #12121a);
-          color: var(--text-primary, #e0e0e8);
-          border: 1px solid var(--border-default, #2a2a3a);
-          border-radius: 4px;
-          font-family: var(--font-mono, "JetBrains Mono", monospace);
-          font-size: 0.75rem;
-          margin-bottom: 8px;
-        }
+  // =========================================================================
+  //  MANUAL TIER — raw sensor returns, no classification assist
+  // =========================================================================
 
-        .btn-row {
-          display: flex;
-          gap: 6px;
-          flex-wrap: wrap;
-          margin-bottom: 8px;
-        }
+  _renderManual() {
+    return `
+      <div class="section">
+        <div class="section-title">Raw Sensor Returns</div>
+        <div id="manual-returns" class="raw-data-grid">
+          <span class="lbl">No contacts</span><span class="val">--</span>
+        </div>
+      </div>
+      <div class="section">
+        <div class="section-title">Sensor Status</div>
+        <div class="status-row">
+          <span class="status-label">Sensor Health</span>
+          <span class="status-value" id="sensor-health">--</span>
+        </div>
+        <div class="status-row">
+          <span class="status-label">Tracked Returns</span>
+          <span class="status-value" id="tracked-contacts">--</span>
+        </div>
+      </div>
+      <div class="manual-note">
+        No classification assist at this tier. Interpret signatures manually.
+      </div>
+    `;
+  }
 
-        .btn {
-          padding: 6px 12px;
-          background: var(--bg-secondary, #12121a);
-          color: var(--text-primary, #e0e0e8);
-          border: 1px solid var(--border-default, #2a2a3a);
-          border-radius: 4px;
-          font-family: var(--font-mono, "JetBrains Mono", monospace);
-          font-size: 0.7rem;
-          cursor: pointer;
-          transition: background 0.15s, border-color 0.15s;
-        }
+  /** Update the MANUAL tier raw returns grid */
+  _updateManual() {
+    const grid = this.shadowRoot.getElementById("manual-returns");
+    if (!grid) return;
 
-        .btn:hover {
-          background: var(--bg-tertiary, #1a1a2a);
-          border-color: var(--status-info, #00aaff);
-        }
+    const contacts = stateManager.getContacts?.() || [];
+    if (contacts.length === 0) {
+      grid.innerHTML = `<span class="lbl">No returns</span><span class="val">--</span>`;
+      return;
+    }
 
-        .btn:disabled {
-          opacity: 0.4;
-          cursor: not-allowed;
-        }
+    grid.innerHTML = contacts.map(c => {
+      const id = c.id || c.contact_id || "???";
+      const range = c.range ?? c.distance ?? 0;
+      const bearing = c.bearing ?? 0;
+      // Convert to radians for the manual display
+      const bearingRad = typeof bearing === "number" ? (bearing * Math.PI / 180).toFixed(4) : "--";
+      const irWatts = c.ir_signature ?? c.emissions?.ir_watts ?? "--";
+      const rcsM2 = c.rcs ?? c.emissions?.rcs_m2 ?? "--";
+      const signal = c.signal_strength ?? c.confidence ?? "--";
 
-        .btn-scan {
-          border-color: var(--status-info, #00aaff);
-          color: var(--status-info, #00aaff);
-        }
+      return `
+        <span class="lbl">RTN</span><span class="val">${id}</span>
+        <span class="lbl">BRG</span><span class="val">${bearingRad} rad</span>
+        <span class="lbl">RNG</span><span class="val">${range.toFixed(0)} m</span>
+        <span class="lbl">IR</span><span class="val">${typeof irWatts === "number" ? this._formatPower(irWatts) : irWatts}</span>
+        <span class="lbl">RCS</span><span class="val">${typeof rcsM2 === "number" ? rcsM2.toFixed(2) + " m\u00B2" : rcsM2}</span>
+        <span class="lbl">SIG</span><span class="val">${typeof signal === "number" ? (signal * 100).toFixed(0) + "%" : signal}</span>
+      `;
+    }).join('<span class="lbl" style="grid-column:span 2;border-top:1px solid #332200;margin:4px 0;"></span>');
+  }
 
-        .btn-scan:hover:not(:disabled) {
-          background: rgba(0, 170, 255, 0.1);
-        }
+  // =========================================================================
+  //  RAW TIER — full spectral tables, manual classification workflow
+  // =========================================================================
 
-        .result-panel {
-          background: var(--bg-secondary, #12121a);
-          border: 1px solid var(--border-default, #2a2a3a);
-          border-radius: 4px;
-          padding: 10px;
-          font-family: var(--font-mono, "JetBrains Mono", monospace);
-          font-size: 0.7rem;
-          line-height: 1.5;
-          max-height: 300px;
-          overflow-y: auto;
-          white-space: pre-wrap;
-        }
-
-        .result-panel .label {
-          color: var(--text-secondary, #888899);
-        }
-
-        .result-panel .value {
-          color: var(--text-primary, #e0e0e8);
-        }
-
-        .result-panel .highlight {
-          color: var(--status-info, #00aaff);
-          font-weight: 600;
-        }
-
-        .threat-minimal { color: var(--status-nominal, #00ff88); }
-        .threat-low { color: var(--status-nominal, #00ff88); }
-        .threat-moderate { color: var(--status-warning, #ffaa00); }
-        .threat-high { color: var(--status-critical, #ff4444); }
-        .threat-critical { color: var(--status-critical, #ff4444); font-weight: 700; }
-
-        .status-row {
-          display: flex;
-          justify-content: space-between;
-          padding: 3px 0;
-        }
-
-        .status-label {
-          color: var(--text-secondary, #888899);
-        }
-
-        .status-value {
-          color: var(--text-primary, #e0e0e8);
-          font-family: var(--font-mono, "JetBrains Mono", monospace);
-        }
-
-        .no-contacts {
-          color: var(--text-dim, #555566);
-          font-style: italic;
-          padding: 8px 0;
-        }
-      </style>
-
+  _renderRaw() {
+    return `
       <div class="section">
         <div class="section-title">Contact Selection</div>
         <select class="contact-select" id="contact-select">
           <option value="">-- Select Contact --</option>
         </select>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Spectral Breakdown</div>
+        <table class="spectral-table" id="spectral-table">
+          <thead>
+            <tr><th>Field</th><th>Value</th><th>Unit</th></tr>
+          </thead>
+          <tbody id="spectral-body">
+            <tr><td colspan="3" style="color:var(--text-dim);">Select a contact</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Manual Classification</div>
+        <div class="classify-row">
+          <select class="classify-select" id="classify-select" disabled>
+            ${SHIP_CLASSES.map(c => `<option value="${c}">${c}</option>`).join("")}
+          </select>
+          <button class="btn" id="btn-classify" disabled>Classify</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Analysis Commands</div>
         <div class="btn-row">
           <button class="btn" id="btn-analyze" disabled>Analyze</button>
           <button class="btn" id="btn-spectral" disabled>Spectral</button>
           <button class="btn" id="btn-mass" disabled>Est. Mass</button>
           <button class="btn" id="btn-threat" disabled>Threat</button>
         </div>
-        <div class="section-title">Active Scans</div>
         <div class="btn-row">
           <button class="btn btn-scan" id="btn-spectral-scan" disabled
-            title="Spectral Analysis — identify drive type, ISP, max accel. Effective within 50 km.">
-            Spectral Scan
-          </button>
+            title="Spectral Scan -- effective within 50 km">Spectral Scan</button>
           <button class="btn btn-scan" id="btn-composition-scan" disabled
-            title="Composition Scan — identify armor, hull class, mass. Effective within 20 km. Requires active radar ping.">
-            Composition Scan
-          </button>
+            title="Composition Scan -- effective within 20 km, requires active ping">Composition Scan</button>
         </div>
       </div>
 
       <div class="section">
-        <div class="section-title">Analysis Result</div>
+        <div class="section-title">Result</div>
         <div class="result-panel" id="result-panel">
-          <span class="label">Select a contact and run an analysis command.</span>
+          <span class="label">Select a contact and run analysis.</span>
         </div>
       </div>
 
       <div class="section">
-        <div class="section-title">Science Status</div>
-        <div id="science-status">
-          <div class="status-row">
-            <span class="status-label">Sensor Health</span>
-            <span class="status-value" id="sensor-health">--</span>
-          </div>
-          <div class="status-row">
-            <span class="status-label">Tracked Contacts</span>
-            <span class="status-value" id="tracked-contacts">--</span>
-          </div>
+        <div class="section-title">Sensor Status</div>
+        <div class="status-row">
+          <span class="status-label">Sensor Health</span>
+          <span class="status-value" id="sensor-health">--</span>
+        </div>
+        <div class="status-row">
+          <span class="status-label">Tracked Contacts</span>
+          <span class="status-value" id="tracked-contacts">--</span>
         </div>
       </div>
     `;
-
-    // Wire up event handlers
-    const select = this.shadowRoot.getElementById("contact-select");
-    select.addEventListener("change", (e) => {
-      this._selectedContact = e.target.value || null;
-      this._updateButtons();
-    });
-
-    this.shadowRoot.getElementById("btn-analyze").addEventListener("click", () => {
-      if (this._selectedContact) {
-        this._sendCommand("analyze_contact", { contact_id: this._selectedContact });
-      }
-    });
-
-    this.shadowRoot.getElementById("btn-spectral").addEventListener("click", () => {
-      if (this._selectedContact) {
-        this._sendCommand("spectral_analysis", { contact_id: this._selectedContact });
-      }
-    });
-
-    this.shadowRoot.getElementById("btn-mass").addEventListener("click", () => {
-      if (this._selectedContact) {
-        this._sendCommand("estimate_mass", { contact_id: this._selectedContact });
-      }
-    });
-
-    this.shadowRoot.getElementById("btn-threat").addEventListener("click", () => {
-      if (this._selectedContact) {
-        this._sendCommand("assess_threat", { contact_id: this._selectedContact });
-      }
-    });
-
-    this.shadowRoot.getElementById("btn-spectral-scan").addEventListener("click", () => {
-      if (this._selectedContact) {
-        this._sendCommand("science_spectral_analysis", { contact_id: this._selectedContact });
-      }
-    });
-
-    this.shadowRoot.getElementById("btn-composition-scan").addEventListener("click", () => {
-      if (this._selectedContact) {
-        this._sendCommand("science_composition_scan", { contact_id: this._selectedContact });
-      }
-    });
   }
 
-  _updateButtons() {
+  /** Update the RAW tier spectral breakdown table for the selected contact */
+  _updateRawSpectral() {
+    const body = this.shadowRoot.getElementById("spectral-body");
+    if (!body || !this._selectedContact) return;
+
+    const contacts = stateManager.getContacts?.() || [];
+    const contact = contacts.find(c => (c.id || c.contact_id) === this._selectedContact);
+    if (!contact) {
+      body.innerHTML = `<tr><td colspan="3" style="color:var(--text-dim);">Contact lost</td></tr>`;
+      return;
+    }
+
+    const range = contact.range ?? contact.distance ?? 0;
+    const bearing = contact.bearing ?? 0;
+    const irWatts = contact.ir_signature ?? contact.emissions?.ir_watts;
+    const rcsM2 = contact.rcs ?? contact.emissions?.rcs_m2;
+    const confidence = contact.confidence;
+    const velocity = contact.velocity ?? contact.speed;
+    const rangeRate = contact.range_rate ?? contact.closure;
+    const detection = contact.detection_method ?? "--";
+
+    const rows = [
+      ["Bearing", typeof bearing === "number" ? bearing.toFixed(1) : "--", "deg"],
+      ["Range", typeof range === "number" ? range.toFixed(0) : "--", "m"],
+      ["Range Rate", typeof rangeRate === "number" ? rangeRate.toFixed(1) : "--", "m/s"],
+      ["Velocity", typeof velocity === "number" ? velocity.toFixed(1) : "--", "m/s"],
+      ["IR Emission", typeof irWatts === "number" ? this._formatPower(irWatts) : "--", ""],
+      ["RCS", typeof rcsM2 === "number" ? rcsM2.toFixed(2) : "--", "m\u00B2"],
+      ["Confidence", typeof confidence === "number" ? (confidence * 100).toFixed(0) : "--", "%"],
+      ["Detection", detection, ""],
+    ];
+
+    body.innerHTML = rows.map(([field, value, unit]) =>
+      `<tr><td>${field}</td><td>${value}</td><td>${unit}</td></tr>`
+    ).join("");
+  }
+
+  // =========================================================================
+  //  ARCADE TIER — simplified, auto-classified, threat badges
+  // =========================================================================
+
+  _renderArcade() {
+    return `
+      <div class="section">
+        <div class="section-title">Contacts</div>
+        <div id="arcade-contacts">
+          <div class="no-contacts">No contacts detected</div>
+        </div>
+      </div>
+
+      <div class="section" id="arcade-selected-section" style="display:none;">
+        <div class="section-title">Selected Contact</div>
+        <div class="card-details" id="arcade-selected-details"></div>
+        <button class="btn-deep-scan" id="btn-deep-scan" disabled>Deep Scan</button>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Scan Result</div>
+        <div class="result-panel" id="result-panel">
+          <span class="label">Select a contact and scan.</span>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Sensor Status</div>
+        <div class="status-row">
+          <span class="status-label">Sensor Health</span>
+          <span class="status-value" id="sensor-health">--</span>
+        </div>
+        <div class="status-row">
+          <span class="status-label">Contacts Tracked</span>
+          <span class="status-value" id="tracked-contacts">--</span>
+        </div>
+      </div>
+    `;
+  }
+
+  /** Build the arcade contact card list with threat badges */
+  _updateArcadeContacts() {
+    const container = this.shadowRoot.getElementById("arcade-contacts");
+    if (!container) return;
+
+    const contacts = stateManager.getContacts?.() || [];
+    if (contacts.length === 0) {
+      container.innerHTML = `<div class="no-contacts">No contacts detected</div>`;
+      return;
+    }
+
+    container.innerHTML = contacts.map(c => {
+      const id = c.id || c.contact_id || "???";
+      const name = c.name || c.classification || "Unknown";
+      const range = c.range ?? c.distance ?? 0;
+      const rangeKm = (range / 1000).toFixed(1);
+      const threat = this._inferThreatLevel(c);
+      const isSelected = id === this._selectedContact;
+
+      return `
+        <div class="contact-card ${isSelected ? "selected" : ""}" data-contact-id="${id}">
+          <div class="card-header">
+            <span class="card-name">${name}</span>
+            <span class="threat-badge ${threat}">${threat.toUpperCase()}</span>
+          </div>
+          <div class="card-details">
+            <span class="cd-label">Range</span><span class="cd-value">${rangeKm} km</span>
+            <span class="cd-label">Confidence</span><span class="cd-value">${c.confidence ? (c.confidence * 100).toFixed(0) + "%" : "--"}</span>
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    // Update selected detail section
+    this._updateArcadeSelectedDetail(contacts);
+  }
+
+  /** Update the arcade selected contact detail and deep scan button */
+  _updateArcadeSelectedDetail(contacts) {
+    const section = this.shadowRoot.getElementById("arcade-selected-section");
+    const details = this.shadowRoot.getElementById("arcade-selected-details");
+    const scanBtn = this.shadowRoot.getElementById("btn-deep-scan");
+    if (!section || !details || !scanBtn) return;
+
+    if (!this._selectedContact) {
+      section.style.display = "none";
+      return;
+    }
+
+    const contact = (contacts || stateManager.getContacts?.() || [])
+      .find(c => (c.id || c.contact_id) === this._selectedContact);
+    if (!contact) {
+      section.style.display = "none";
+      return;
+    }
+
+    section.style.display = "block";
+    scanBtn.disabled = false;
+
+    const range = contact.range ?? contact.distance ?? 0;
+    const driveType = contact.drive_type ?? contact.emissions?.drive_type ?? "--";
+    const mass = contact.estimated_mass ?? "--";
+
+    details.innerHTML = `
+      <span class="cd-label">ID</span><span class="cd-value">${contact.id || contact.contact_id}</span>
+      <span class="cd-label">Class</span><span class="cd-value">${contact.name || contact.classification || "Unknown"}</span>
+      <span class="cd-label">Range</span><span class="cd-value">${(range / 1000).toFixed(1)} km</span>
+      <span class="cd-label">Drive</span><span class="cd-value">${driveType}</span>
+      <span class="cd-label">Mass</span><span class="cd-value">${typeof mass === "number" ? this._formatMassKg(mass) : mass}</span>
+      <span class="cd-label">Confidence</span><span class="cd-value">${contact.confidence ? (contact.confidence * 100).toFixed(0) + "%" : "--"}</span>
+    `;
+  }
+
+  // =========================================================================
+  //  CPU-ASSIST TIER — auto-science proposals, threat flags
+  // =========================================================================
+
+  _renderCpuAssist() {
+    return `
+      <div class="section">
+        <div class="auto-toggle-row">
+          <span class="auto-toggle-label">AUTO-SCIENCE</span>
+          <button class="auto-toggle-btn" id="auto-sci-toggle">ENABLE</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Scan Proposals</div>
+        <div id="proposals-list">
+          <div class="no-contacts">No pending proposals</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Contact Summary</div>
+        <div id="contact-summary-list">
+          <div class="no-contacts">No contacts</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Sensor Status</div>
+        <div class="status-row">
+          <span class="status-label">Sensor Health</span>
+          <span class="status-value" id="sensor-health">--</span>
+        </div>
+        <div class="status-row">
+          <span class="status-label">Auto-Scans Run</span>
+          <span class="status-value" id="tracked-contacts">--</span>
+        </div>
+      </div>
+    `;
+  }
+
+  /** Update the CPU-ASSIST proposals and contact summary */
+  _updateCpuAssist() {
+    const ship = stateManager.getShipState();
+    const autoSci = ship?.auto_science || {};
+
+    // Toggle button state
+    const toggle = this.shadowRoot.getElementById("auto-sci-toggle");
+    if (toggle) {
+      toggle.textContent = autoSci.enabled ? "DISABLE" : "ENABLE";
+      toggle.classList.toggle("active", !!autoSci.enabled);
+    }
+
+    // Proposals
+    const proposalsList = this.shadowRoot.getElementById("proposals-list");
+    if (proposalsList) {
+      const proposals = autoSci.proposals || [];
+      if (proposals.length === 0) {
+        proposalsList.innerHTML = `<div class="no-contacts">${autoSci.enabled ? "Scanning... no proposals yet" : "Enable auto-science to begin"}</div>`;
+      } else {
+        proposalsList.innerHTML = proposals.map(p => `
+          <div class="auto-proposal">
+            <div class="desc">${p.description || p.action || "Scan proposal"}</div>
+            <div class="meta">${p.target || ""} ${p.priority ? "Priority: " + p.priority : ""}</div>
+            <div class="proposal-actions">
+              <button class="btn-approve" data-approve="${p.id}">APPROVE</button>
+              <button class="btn-deny" data-deny="${p.id}">DENY</button>
+            </div>
+          </div>
+        `).join("");
+      }
+    }
+
+    // Contact summary with threat flags
+    const summaryList = this.shadowRoot.getElementById("contact-summary-list");
+    if (summaryList) {
+      const contacts = stateManager.getContacts?.() || [];
+      if (contacts.length === 0) {
+        summaryList.innerHTML = `<div class="no-contacts">No contacts</div>`;
+      } else {
+        // Sort by threat: hostile/high first
+        const sorted = [...contacts].sort((a, b) => {
+          return this._threatScore(b) - this._threatScore(a);
+        });
+        summaryList.innerHTML = sorted.map(c => {
+          const name = c.name || c.classification || "Unknown";
+          const range = c.range ?? c.distance ?? 0;
+          const threat = this._inferThreatLevel(c);
+          const threatHtml = threat !== "minimal"
+            ? `<span class="threat-flag ${threat}">${threat}</span>`
+            : "";
+          return `
+            <div class="contact-summary">
+              <span class="cname">${name}${threatHtml}</span>
+              <span class="cdist">${(range / 1000).toFixed(1)} km</span>
+            </div>
+          `;
+        }).join("");
+      }
+    }
+  }
+
+  // =========================================================================
+  //  EVENT WIRING — per tier
+  // =========================================================================
+
+  _wireEvents(tier) {
+    if (tier === "manual") {
+      // No interactive elements in manual tier
+      return;
+    }
+
+    if (tier === "raw") {
+      // Contact select
+      const select = this.shadowRoot.getElementById("contact-select");
+      if (select) {
+        select.addEventListener("change", (e) => {
+          this._selectedContact = e.target.value || null;
+          this._updateRawButtons();
+          this._updateRawSpectral();
+        });
+      }
+
+      // Classification workflow
+      const classifyBtn = this.shadowRoot.getElementById("btn-classify");
+      if (classifyBtn) {
+        classifyBtn.addEventListener("click", () => {
+          if (!this._selectedContact) return;
+          const classSelect = this.shadowRoot.getElementById("classify-select");
+          const cls = classSelect?.value;
+          if (cls) {
+            this._sendCommand("classify_contact", {
+              contact_id: this._selectedContact,
+              classification: cls
+            });
+          }
+        });
+      }
+
+      // Analysis commands
+      this._wireAnalysisButtons();
+      return;
+    }
+
+    if (tier === "arcade") {
+      // Contact card selection
+      const container = this.shadowRoot.getElementById("arcade-contacts");
+      if (container) {
+        container.addEventListener("click", (e) => {
+          const card = e.target.closest(".contact-card");
+          if (card) {
+            this._selectedContact = card.dataset.contactId;
+            this._updateArcadeContacts();
+          }
+        });
+      }
+
+      // Deep Scan button — runs all analysis commands in sequence
+      const deepScan = this.shadowRoot.getElementById("btn-deep-scan");
+      if (deepScan) {
+        deepScan.addEventListener("click", async () => {
+          if (!this._selectedContact) return;
+          deepScan.disabled = true;
+          deepScan.textContent = "Scanning...";
+          // Fire spectral + composition + threat in parallel
+          await Promise.all([
+            this._sendCommand("science_spectral_analysis", { contact_id: this._selectedContact }),
+            this._sendCommand("science_composition_scan", { contact_id: this._selectedContact }),
+            this._sendCommand("assess_threat", { contact_id: this._selectedContact })
+          ]);
+          deepScan.disabled = false;
+          deepScan.textContent = "Deep Scan";
+        });
+      }
+      return;
+    }
+
+    if (tier === "cpu-assist") {
+      // Auto-science toggle
+      const toggle = this.shadowRoot.getElementById("auto-sci-toggle");
+      if (toggle) {
+        toggle.addEventListener("click", () => {
+          const ship = stateManager.getShipState();
+          const cmd = ship?.auto_science?.enabled ? "disable_auto_science" : "enable_auto_science";
+          this._sendCommand(cmd, {});
+        });
+      }
+
+      // Proposal approve/deny via delegation
+      const proposalsList = this.shadowRoot.getElementById("proposals-list");
+      if (proposalsList) {
+        proposalsList.addEventListener("click", (e) => {
+          const approveBtn = e.target.closest("[data-approve]");
+          const denyBtn = e.target.closest("[data-deny]");
+          if (approveBtn) {
+            this._sendCommand("approve_science", { proposal_id: approveBtn.dataset.approve });
+          }
+          if (denyBtn) {
+            this._sendCommand("deny_science", { proposal_id: denyBtn.dataset.deny });
+          }
+        });
+      }
+      return;
+    }
+  }
+
+  /** Wire the standard analysis buttons (used in RAW tier) */
+  _wireAnalysisButtons() {
+    const cmds = [
+      ["btn-analyze", "analyze_contact"],
+      ["btn-spectral", "spectral_analysis"],
+      ["btn-mass", "estimate_mass"],
+      ["btn-threat", "assess_threat"],
+      ["btn-spectral-scan", "science_spectral_analysis"],
+      ["btn-composition-scan", "science_composition_scan"],
+    ];
+    for (const [id, cmd] of cmds) {
+      const btn = this.shadowRoot.getElementById(id);
+      if (btn) {
+        btn.addEventListener("click", () => {
+          if (this._selectedContact) this._sendCommand(cmd, { contact_id: this._selectedContact });
+        });
+      }
+    }
+  }
+
+  /** Enable/disable RAW tier buttons based on contact selection */
+  _updateRawButtons() {
     const hasContact = !!this._selectedContact;
-    this.shadowRoot.getElementById("btn-analyze").disabled = !hasContact;
-    this.shadowRoot.getElementById("btn-spectral").disabled = !hasContact;
-    this.shadowRoot.getElementById("btn-mass").disabled = !hasContact;
-    this.shadowRoot.getElementById("btn-threat").disabled = !hasContact;
-    this.shadowRoot.getElementById("btn-spectral-scan").disabled = !hasContact;
-    this.shadowRoot.getElementById("btn-composition-scan").disabled = !hasContact;
+    const ids = [
+      "btn-analyze", "btn-spectral", "btn-mass", "btn-threat",
+      "btn-spectral-scan", "btn-composition-scan",
+      "btn-classify", "classify-select"
+    ];
+    for (const id of ids) {
+      const el = this.shadowRoot.getElementById(id);
+      if (el) el.disabled = !hasContact;
+    }
   }
+
+  // =========================================================================
+  //  UPDATE DISPLAY — tier-dispatched
+  // =========================================================================
 
   _updateDisplay() {
     const ship = stateManager.getShipState();
     if (!ship) return;
 
-    // Update contact list from stateManager convenience method
-    this._updateContactList();
+    const tier = this._tier;
 
-    // Update science status from ship telemetry
-    // Sensor data lives at ship.sensors (from get_sensor_contacts in telemetry.py)
+    // Update sensor status (shared across all tiers)
+    this._updateSensorStatus(ship);
+
+    // Tier-specific updates
+    if (tier === "manual") {
+      this._updateManual();
+    } else if (tier === "raw") {
+      this._updateContactList();
+      this._updateRawSpectral();
+    } else if (tier === "arcade") {
+      this._updateArcadeContacts();
+    } else if (tier === "cpu-assist") {
+      this._updateCpuAssist();
+    }
+  }
+
+  /** Update the sensor health/count readout (all tiers) */
+  _updateSensorStatus(ship) {
     const sensors = ship.sensors || {};
     const healthEl = this.shadowRoot.getElementById("sensor-health");
     const contactsEl = this.shadowRoot.getElementById("tracked-contacts");
+
     if (healthEl) {
-      // sensor_health may be on the sensors object or under subsystem_health
       const health = sensors.sensor_health ?? ship.subsystem_health?.sensors;
       healthEl.textContent = health !== undefined
         ? `${(health * 100).toFixed(0)}%`
@@ -305,101 +914,56 @@ class ScienceAnalysisPanel extends HTMLElement {
     if (contactsEl) {
       contactsEl.textContent = sensors.count ?? sensors.contacts?.length ?? "--";
     }
-
-    this._updateAutoSciPanel();
   }
 
+  /** Update the contact dropdown (RAW tier) */
   _updateContactList() {
     const select = this.shadowRoot.getElementById("contact-select");
     if (!select) return;
 
-    // Use stateManager.getContacts() which resolves from ship.sensors.contacts
     const contacts = stateManager.getContacts?.() || [];
-    if (!Array.isArray(contacts) || contacts.length === 0) return;
-
-    // Skip innerHTML rebuild if the dropdown is currently focused/open.
-    // Rebuilding destroys the native dropdown menu, making it impossible
-    // for the user to pick a value.  Instead, do an in-place option sync.
     const isFocused = this.shadowRoot.activeElement === select;
-
     const currentValue = select.value;
-    const desiredIds = contacts.map(c => c.id || c.contact_id).filter(Boolean);
 
     if (isFocused) {
-      // In-place update: only add/remove options, never tear down the DOM
-      this._syncSelectOptionsInPlace(select, contacts, currentValue);
+      // Don't tear down the DOM while user is interacting
       return;
     }
 
     const options = ['<option value="">-- Select Contact --</option>'];
-
     for (const c of contacts) {
       const id = c.id || c.contact_id;
       if (!id) continue;
       const dist = c.distance ? `${(c.distance / 1000).toFixed(1)}km` : "?";
       const cls = c.classification || "Unknown";
-      const label = `${id} — ${cls} @ ${dist}`;
-      options.push(`<option value="${id}">${label}</option>`);
+      options.push(`<option value="${id}">${id} -- ${cls} @ ${dist}</option>`);
     }
 
     select.innerHTML = options.join("");
-    if (currentValue) {
-      select.value = currentValue;
-    }
+    if (currentValue) select.value = currentValue;
   }
 
-  /**
-   * Sync <select> options in-place without destroying the DOM element.
-   * Preserves focus and keeps native dropdown menus open while state
-   * updates arrive.
-   */
-  _syncSelectOptionsInPlace(select, contacts, currentValue) {
-    const desiredIds = ["", ...contacts.map(c => c.id || c.contact_id).filter(Boolean)];
-    const existingIds = Array.from(select.options).map(o => o.value);
-
-    // Only rebuild if the option set actually changed
-    if (JSON.stringify(desiredIds) !== JSON.stringify(existingIds)) {
-      const options = ['<option value="">-- Select Contact --</option>'];
-      for (const c of contacts) {
-        const id = c.id || c.contact_id;
-        if (!id) continue;
-        const dist = c.distance ? `${(c.distance / 1000).toFixed(1)}km` : "?";
-        const cls = c.classification || "Unknown";
-        const label = `${id} — ${cls} @ ${dist}`;
-        options.push(`<option value="${id}">${label}</option>`);
-      }
-      select.innerHTML = options.join("");
-      // Restore user's in-progress selection if it still exists
-      if (desiredIds.includes(currentValue)) {
-        select.value = currentValue;
-      }
-    }
-    // If options unchanged and focused, leave it alone entirely
-  }
+  // =========================================================================
+  //  RESULT FORMATTING (shared across RAW / ARCADE tiers)
+  // =========================================================================
 
   _showResult(command, result) {
     const panel = this.shadowRoot.getElementById("result-panel");
     if (!panel) return;
 
-    let html = "";
+    const formatters = {
+      "analyze_contact": (r) => this._formatAnalysis(r),
+      "spectral_analysis": (r) => this._formatSpectral(r),
+      "estimate_mass": (r) => this._formatMass(r),
+      "assess_threat": (r) => this._formatThreat(r),
+      "science_spectral_analysis": (r) => this._formatSpectralScan(r),
+      "science_composition_scan": (r) => this._formatCompositionScan(r),
+    };
 
-    if (command === "analyze_contact") {
-      html = this._formatAnalysis(result);
-    } else if (command === "spectral_analysis") {
-      html = this._formatSpectral(result);
-    } else if (command === "estimate_mass") {
-      html = this._formatMass(result);
-    } else if (command === "assess_threat") {
-      html = this._formatThreat(result);
-    } else if (command === "science_spectral_analysis") {
-      html = this._formatSpectralScan(result);
-    } else if (command === "science_composition_scan") {
-      html = this._formatCompositionScan(result);
-    } else {
-      html = `<span class="value">${result.status || JSON.stringify(result)}</span>`;
-    }
-
-    panel.innerHTML = html;
+    const formatter = formatters[command];
+    panel.innerHTML = formatter
+      ? formatter(result)
+      : `<span class="value">${result.status || JSON.stringify(result)}</span>`;
   }
 
   _formatAnalysis(r) {
@@ -413,7 +977,7 @@ class ScienceAnalysisPanel extends HTMLElement {
 <span class="label">Detection:</span> <span class="value">${cd.detection_method || "?"}</span>
 <span class="label">Track Age:</span> <span class="value">${cd.age ? cd.age.toFixed(1) + "s" : "?"}</span>
 <span class="label">IR Signature:</span> <span class="value">${em.ir_watts ? this._formatPower(em.ir_watts) : "?"}</span>
-<span class="label">RCS:</span> <span class="value">${em.rcs_m2 ? em.rcs_m2.toFixed(1) + " m²" : "?"}</span>
+<span class="label">RCS:</span> <span class="value">${em.rcs_m2 ? em.rcs_m2.toFixed(1) + " m\u00B2" : "?"}</span>
 <span class="label">Signature:</span> <span class="value">${em.signature_strength || "?"}</span>
 <span class="label">Quality:</span> <span class="value">${r.analysis_quality ? (r.analysis_quality * 100).toFixed(0) + "%" : "?"}</span>`;
   }
@@ -432,7 +996,7 @@ class ScienceAnalysisPanel extends HTMLElement {
 <span class="label">Radiator/Hull:</span> <span class="value">${ir.radiator_hull_ir ? this._formatPower(ir.radiator_hull_ir) : "?"}</span>
 <span class="label">Burning:</span> <span class="value">${ir.is_burning ? "YES" : "no"}</span>
 <span class="label">Post-burn Decay:</span> <span class="value">${ir.post_burn_decay ? "YES" : "no"}</span>
-<span class="label">RCS:</span> <span class="value">${rcs.effective_rcs ? rcs.effective_rcs.toFixed(1) + " m²" : "?"}</span>
+<span class="label">RCS:</span> <span class="value">${rcs.effective_rcs ? rcs.effective_rcs.toFixed(1) + " m\u00B2" : "?"}</span>
 <span class="label">EMCON Detected:</span> <span class="value">${rcs.emcon_detected ? "YES" : "no"}</span>`;
   }
 
@@ -443,7 +1007,7 @@ class ScienceAnalysisPanel extends HTMLElement {
 <span class="label">Estimated Mass:</span> <span class="value">${me.estimated_mass ? this._formatMassKg(me.estimated_mass) : "?"}</span>
 <span class="label">Confidence:</span> <span class="value">${me.confidence || "?"}</span>
 <span class="label">Method:</span> <span class="value">${me.method || "?"}</span>
-<span class="label">Range:</span> <span class="value">${me.range_low && me.range_high ? this._formatMassKg(me.range_low) + " — " + this._formatMassKg(me.range_high) : "?"}</span>
+<span class="label">Range:</span> <span class="value">${me.range_low && me.range_high ? this._formatMassKg(me.range_low) + " -- " + this._formatMassKg(me.range_high) : "?"}</span>
 <span class="label">Ship Class:</span> <span class="value">${di.ship_class || "?"}</span>
 <span class="label">Est. Length:</span> <span class="value">${di.estimated_length ? di.estimated_length.toFixed(0) + " m" : "?"}</span>`;
   }
@@ -461,7 +1025,7 @@ class ScienceAnalysisPanel extends HTMLElement {
 <span class="label">ECM Active:</span> <span class="value">${cm.ecm_detected ? "YES" : "no"}</span>
 <span class="label">EMCON:</span> <span class="value">${cm.emcon_active ? "YES" : "no"}</span>
 <span class="label">Notes:</span> <span class="value">${ta.tactical_notes || "none"}</span>
-${recs.length > 0 ? '\n<span class="highlight">RECOMMENDATIONS:</span>\n' + recs.map(r => `• ${r}`).join("\n") : ""}`;
+${recs.length > 0 ? '\n<span class="highlight">RECOMMENDATIONS:</span>\n' + recs.map(r => `- ${r}`).join("\n") : ""}`;
   }
 
   _formatSpectralScan(r) {
@@ -471,7 +1035,7 @@ ${recs.length > 0 ? '\n<span class="highlight">RECOMMENDATIONS:</span>\n' + recs
     return `<span class="highlight">SPECTRAL SCAN: ${r.contact_id}</span>
 <span class="label">Drive Type:</span> <span class="value">${sd.drive_type || "unknown"}</span>
 <span class="label">Drive Confidence:</span> <span class="value">${(conf * 100).toFixed(0)}%</span>
-<span class="label">Est. ISP Range:</span> <span class="value">${isp[0].toLocaleString()} — ${isp[1].toLocaleString()} s</span>
+<span class="label">Est. ISP Range:</span> <span class="value">${isp[0].toLocaleString()} -- ${isp[1].toLocaleString()} s</span>
 <span class="label">Est. Max Accel:</span> <span class="value">${sd.estimated_max_accel ? sd.estimated_max_accel.toFixed(1) + " m/s\u00B2" : "?"}</span>
 <span class="label">Scan Quality:</span> <span class="value">${sd.scan_quality ? (sd.scan_quality * 100).toFixed(0) + "%" : "?"}</span>
 <span class="label">Range:</span> <span class="value">${sd.range_km ? sd.range_km.toFixed(1) + " km" : "?"}</span>`;
@@ -490,6 +1054,10 @@ ${recs.length > 0 ? '\n<span class="highlight">RECOMMENDATIONS:</span>\n' + recs
 <span class="label">Range:</span> <span class="value">${cd.range_km ? cd.range_km.toFixed(1) + " km" : "?"}</span>`;
   }
 
+  // =========================================================================
+  //  UTILITY
+  // =========================================================================
+
   _formatPower(watts) {
     if (watts >= 1e6) return `${(watts / 1e6).toFixed(1)} MW`;
     if (watts >= 1e3) return `${(watts / 1e3).toFixed(1)} kW`;
@@ -501,46 +1069,25 @@ ${recs.length > 0 ? '\n<span class="highlight">RECOMMENDATIONS:</span>\n' + recs
     return `${kg.toFixed(0)} kg`;
   }
 
-  // --- Auto-Science (CPU-ASSIST tier) ---
-  _updateAutoSciPanel() {
-    let panel = this.shadowRoot.getElementById("auto-sci-panel");
-    const tier = window.controlTier || "raw";
-    if (tier !== "cpu-assist") { if (panel) panel.style.display = "none"; return; }
-    if (!panel) {
-      panel = document.createElement("div");
-      panel.id = "auto-sci-panel";
-      panel.style.cssText = "border:1px solid rgba(0,204,170,0.3);border-radius:4px;padding:8px;margin:8px 0;background:rgba(0,204,170,0.05);";
-      panel.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-        <span style="color:#00ccaa;font-size:0.7rem;font-weight:600;letter-spacing:0.5px;">AUTO SCAN</span>
-        <button id="auto-sci-toggle" style="background:rgba(0,204,170,0.15);color:#00ccaa;border:1px solid rgba(0,204,170,0.3);padding:2px 10px;border-radius:3px;cursor:pointer;font-size:0.65rem;">ENABLE</button>
-      </div><div id="sci-proposals"></div>`;
-      const content = this.shadowRoot.querySelector(".results") || this.shadowRoot.firstElementChild;
-      if (content) content.prepend(panel); else this.shadowRoot.appendChild(panel);
-      panel.querySelector("#auto-sci-toggle").addEventListener("click", () => {
-        const ship = stateManager.getShipState();
-        wsClient.sendShipCommand(ship?.auto_science?.enabled ? "disable_auto_science" : "enable_auto_science", {});
-      });
-      panel.querySelector("#sci-proposals").addEventListener("click", (e) => {
-        const a = e.target.closest("[data-approve]"); const d = e.target.closest("[data-deny]");
-        if (a) wsClient.sendShipCommand("approve_science", { proposal_id: a.dataset.approve });
-        if (d) wsClient.sendShipCommand("deny_science", { proposal_id: d.dataset.deny });
-      });
-    }
-    panel.style.display = "block";
-    const ship = stateManager.getShipState();
-    const st = ship?.auto_science || {};
-    const toggle = panel.querySelector("#auto-sci-toggle");
-    toggle.textContent = st.enabled ? "DISABLE" : "ENABLE";
-    toggle.style.background = st.enabled ? "rgba(0,255,136,0.15)" : "rgba(0,204,170,0.15)";
-    const proposals = st.proposals || [];
-    const pc = panel.querySelector("#sci-proposals");
-    pc.innerHTML = proposals.length === 0
-      ? '<div style="color:var(--text-dim);font-size:0.65rem;">No pending proposals</div>'
-      : proposals.map(p => `<div style="background:var(--bg-input);border:1px solid var(--border-default);border-radius:4px;padding:5px 8px;margin:3px 0;font-size:0.65rem;">
-          <div style="color:var(--text-primary);margin-bottom:3px;">${p.description || p.action}</div>
-          <button data-approve="${p.id}" style="background:rgba(0,255,136,0.15);color:#00ff88;border:1px solid rgba(0,255,136,0.3);padding:1px 8px;border-radius:3px;cursor:pointer;font-size:0.6rem;margin-right:3px;">APPROVE</button>
-          <button data-deny="${p.id}" style="background:rgba(255,68,68,0.15);color:#ff4444;border:1px solid rgba(255,68,68,0.3);padding:1px 8px;border-radius:3px;cursor:pointer;font-size:0.6rem;">DENY</button>
-        </div>`).join('');
+  /** Infer a threat level from contact data for badge display */
+  _inferThreatLevel(contact) {
+    const faction = (contact.faction || contact.iff || "").toLowerCase();
+    if (faction === "hostile" || faction === "enemy") return "high";
+    if (faction === "friendly" || faction === "allied") return "minimal";
+
+    // Heuristic: closing fast + armed = moderate-high
+    const rangeRate = contact.range_rate ?? contact.closure ?? 0;
+    const range = contact.range ?? contact.distance ?? 99999;
+    if (rangeRate < -500 && range < 20000) return "high";
+    if (rangeRate < -100 && range < 50000) return "moderate";
+    if (range < 10000) return "moderate";
+    return "low";
+  }
+
+  /** Numeric threat score for sorting (higher = more threatening) */
+  _threatScore(contact) {
+    const levels = { critical: 5, high: 4, moderate: 3, low: 2, minimal: 1 };
+    return levels[this._inferThreatLevel(contact)] || 0;
   }
 }
 
