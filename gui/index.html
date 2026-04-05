@@ -17,6 +17,7 @@
   <link rel="stylesheet" href="styles/mobile.css">
   <link rel="stylesheet" href="styles/tiers.css">
   <link rel="stylesheet" href="styles/damage.css">
+  <link rel="stylesheet" href="styles/proposals.css">
 
   <style>
     /* System messages container */
@@ -754,6 +755,14 @@
 
           <flaxos-panel title="Tactical Map" collapsible priority="primary" domain="sensor" class="tac-map-panel">
             <tactical-map></tactical-map>
+          </flaxos-panel>
+
+          <flaxos-panel title="Sensor Sweep" collapsible priority="secondary" domain="sensor" class="tac-sweep-game-panel">
+            <sensor-sweep-game></sensor-sweep-game>
+          </flaxos-panel>
+
+          <flaxos-panel title="Sensor Analysis" collapsible priority="secondary" domain="sensor" class="tac-sensor-analysis-panel">
+            <sensor-analysis-manual></sensor-analysis-manual>
           </flaxos-panel>
         </div>
 

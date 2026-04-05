@@ -8,6 +8,7 @@
  */
 
 import { wsClient } from "../js/ws-client.js";
+import { getProposalCSS } from "../js/proposal-styles.js";
 
 // RAW tier: full maneuver set with technical labels
 const RAW_MANEUVERS = [
@@ -110,22 +111,29 @@ class FleetOrders extends HTMLElement {
 
   _renderProposals() {
     const cards = this._proposals.length > 0
-      ? this._proposals.map(p => `
-        <div class="proposal-card">
+      ? this._proposals.map(p => {
+        const confidence = p.confidence ?? 0;
+        const remaining = Math.max(0, p.time_remaining || 0);
+        const total = p.total_time || 30;
+        const timerPct = Math.min(100, (remaining / total) * 100);
+        const isUrgent = confidence > 0.8 || remaining < 5;
+        const urgentClass = isUrgent ? " urgent" : "";
+        const countdownClass = remaining < 5 ? " expiring" : "";
+        return `
+        <div class="proposal-card${urgentClass}">
           <div class="proposal-header">
-            <span class="proposal-id">${this._esc(p.proposal_id)}</span>
-            <span class="proposal-confidence">${(p.confidence * 100).toFixed(0)}%</span>
+            <span class="proposal-action">${this._esc(p.proposal_id)}</span>
+            <span class="proposal-confidence">${(confidence * 100).toFixed(0)}%</span>
           </div>
           <div class="proposal-reason">${this._esc(p.reason)}</div>
-          <div class="proposal-timer">
-            ${p.auto_execute ? `Auto-execute in ${Math.ceil(p.time_remaining)}s` : "Awaiting approval"}
-          </div>
+          <div class="proposal-timer"><div class="proposal-timer-fill" style="width:${timerPct}%"></div></div>
+          ${p.auto_execute ? `<div class="proposal-countdown${countdownClass}" style="font-size:0.65rem;margin-bottom:6px;">Auto-execute in ${Math.ceil(remaining)}s</div>` : ""}
           <div class="proposal-actions">
             <button class="btn-approve" data-id="${this._esc(p.proposal_id)}">APPROVE</button>
             <button class="btn-deny" data-id="${this._esc(p.proposal_id)}">DENY</button>
           </div>
-        </div>
-      `).join("")
+        </div>`;
+      }).join("")
       : '<div class="no-proposals">Auto-fleet monitoring -- no proposals</div>';
 
     this.shadowRoot.innerHTML = `
@@ -397,83 +405,12 @@ class FleetOrders extends HTMLElement {
       .btn-toggle:hover {
         background: rgba(192, 160, 255, 0.1);
       }
-      .proposals {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-      }
-      .proposal-card {
-        background: var(--bg-input, #1a1a2e);
-        border: 1px solid var(--border-default, #2a2a3a);
-        border-left: 3px solid var(--tier-accent, #c0a0ff);
-        border-radius: 4px;
-        padding: 10px;
-      }
-      .proposal-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 4px;
-      }
+      /* Proposal cards — shared styles from proposal-styles.js */
+      ${getProposalCSS()}
       .proposal-id {
         font-size: 0.65rem;
         color: var(--text-dim, #666680);
         font-weight: 600;
-      }
-      .proposal-confidence {
-        font-size: 0.7rem;
-        color: var(--status-nominal, #00ff88);
-        font-weight: 700;
-      }
-      .proposal-reason {
-        font-size: 0.75rem;
-        color: var(--text-primary, #e0e0e0);
-        margin-bottom: 6px;
-        line-height: 1.3;
-      }
-      .proposal-timer {
-        font-size: 0.6rem;
-        color: var(--text-dim, #666680);
-        margin-bottom: 8px;
-      }
-      .proposal-actions {
-        display: flex;
-        gap: 6px;
-      }
-      .btn-approve {
-        flex: 1;
-        padding: 6px;
-        background: #114422;
-        color: var(--status-nominal, #00ff88);
-        border: none;
-        border-radius: 3px;
-        font-family: inherit;
-        font-size: 0.7rem;
-        font-weight: 700;
-        cursor: pointer;
-        text-transform: uppercase;
-      }
-      .btn-approve:hover { background: #1a6633; }
-      .btn-deny {
-        flex: 1;
-        padding: 6px;
-        background: #441111;
-        color: var(--status-critical, #ff4444);
-        border: none;
-        border-radius: 3px;
-        font-family: inherit;
-        font-size: 0.7rem;
-        font-weight: 700;
-        cursor: pointer;
-        text-transform: uppercase;
-      }
-      .btn-deny:hover { background: #662222; }
-      .no-proposals {
-        text-align: center;
-        padding: 20px 10px;
-        color: var(--text-dim, #666680);
-        font-size: 0.75rem;
-        font-style: italic;
       }
     `;
   }

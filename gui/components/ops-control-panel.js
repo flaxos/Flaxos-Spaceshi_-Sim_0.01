@@ -10,6 +10,7 @@
 
 import { stateManager } from "../js/state-manager.js";
 import { wsClient } from "../js/ws-client.js";
+import { getProposalCSS } from "../js/proposal-styles.js";
 
 const SUBSYSTEM_LABELS = {
   reactor: "Reactor",
@@ -419,82 +420,8 @@ class OpsControlPanel extends HTMLElement {
           background: rgba(128, 0, 255, 0.12);
         }
 
-        .ops-proposal-card {
-          padding: 10px 12px;
-          background: rgba(255, 170, 0, 0.08);
-          border: 1px solid var(--status-warning, #ffaa00);
-          border-radius: 6px;
-          margin-bottom: 6px;
-        }
-
-        .ops-proposal-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 6px;
-        }
-
-        .ops-proposal-action {
-          font-family: var(--font-mono, "JetBrains Mono", monospace);
-          font-size: 0.75rem;
-          font-weight: 700;
-          color: var(--status-warning, #ffaa00);
-          text-transform: uppercase;
-        }
-
-        .ops-proposal-countdown {
-          font-family: var(--font-mono, "JetBrains Mono", monospace);
-          font-size: 0.7rem;
-          color: var(--text-dim, #555566);
-        }
-
-        .ops-proposal-reason {
-          font-size: 0.7rem;
-          color: var(--text-secondary, #888899);
-          margin-bottom: 8px;
-        }
-
-        .ops-proposal-actions {
-          display: flex;
-          gap: 6px;
-        }
-
-        .ops-approve {
-          flex: 1;
-          padding: 6px;
-          border: 1px solid var(--status-nominal, #00ff88);
-          border-radius: 4px;
-          background: rgba(0, 255, 136, 0.1);
-          color: var(--status-nominal, #00ff88);
-          font-family: inherit;
-          font-size: 0.7rem;
-          font-weight: 700;
-          cursor: pointer;
-        }
-
-        .ops-deny {
-          flex: 1;
-          padding: 6px;
-          border: 1px solid var(--status-critical, #ff4444);
-          border-radius: 4px;
-          background: rgba(255, 68, 68, 0.1);
-          color: var(--status-critical, #ff4444);
-          font-family: inherit;
-          font-size: 0.7rem;
-          font-weight: 700;
-          cursor: pointer;
-        }
-
-        .ops-approve:hover { background: rgba(0, 255, 136, 0.2); }
-        .ops-deny:hover { background: rgba(255, 68, 68, 0.2); }
-
-        .ops-no-proposals {
-          font-size: 0.7rem;
-          color: var(--text-dim, #555566);
-          font-style: italic;
-          text-align: center;
-          padding: 4px;
-        }
+        /* Proposal cards — shared styles from proposal-styles.js */
+        ${getProposalCSS()}
       </style>
 
       <!-- Auto-Ops Panel (CPU-ASSIST tier) -->
@@ -734,8 +661,8 @@ class OpsControlPanel extends HTMLElement {
 
     // Proposal approve/deny (delegated)
     this.shadowRoot.getElementById("ops-proposals").addEventListener("click", (e) => {
-      const approveBtn = e.target.closest(".ops-approve");
-      const denyBtn = e.target.closest(".ops-deny");
+      const approveBtn = e.target.closest(".proposal-approve");
+      const denyBtn = e.target.closest(".proposal-deny");
       if (approveBtn) {
         wsClient.sendShipCommand("approve_ops", { proposal_id: approveBtn.dataset.id });
       } else if (denyBtn) {
@@ -774,7 +701,7 @@ class OpsControlPanel extends HTMLElement {
     const container = this.shadowRoot.getElementById("ops-proposals");
     if (!enabled || proposals.length === 0) {
       container.innerHTML = enabled
-        ? '<div class="ops-no-proposals">Monitoring subsystems...</div>'
+        ? '<div class="no-proposals">Monitoring subsystems...</div>'
         : '';
       return;
     }
@@ -782,18 +709,25 @@ class OpsControlPanel extends HTMLElement {
     let html = '';
     for (const p of proposals) {
       const remaining = Math.max(0, p.time_remaining || 0);
+      const total = p.total_time || 30;
+      const timerPct = Math.min(100, (remaining / total) * 100);
       const actionLabel = p.action.replace(/_/g, " ").toUpperCase();
       const targetLabel = (p.target || "").toUpperCase();
+      const confidence = p.confidence ?? 0;
+      const isUrgent = confidence > 0.8 || remaining < 5;
+      const urgentClass = isUrgent ? " urgent" : "";
+      const countdownClass = remaining < 5 ? " expiring" : "";
       html += `
-        <div class="ops-proposal-card">
-          <div class="ops-proposal-header">
-            <span class="ops-proposal-action">${actionLabel}: ${targetLabel}</span>
-            <span class="ops-proposal-countdown">${remaining.toFixed(1)}s</span>
+        <div class="proposal-card${urgentClass}">
+          <div class="proposal-header">
+            <span class="proposal-action">${actionLabel}: ${targetLabel}</span>
+            <span class="proposal-countdown${countdownClass}">${remaining.toFixed(1)}s</span>
           </div>
-          <div class="ops-proposal-reason">${p.reason}</div>
-          <div class="ops-proposal-actions">
-            <button class="ops-approve" data-id="${p.proposal_id}">APPROVE</button>
-            <button class="ops-deny" data-id="${p.proposal_id}">DENY</button>
+          <div class="proposal-reason">${p.reason}</div>
+          <div class="proposal-timer"><div class="proposal-timer-fill" style="width:${timerPct}%"></div></div>
+          <div class="proposal-actions">
+            <button class="proposal-approve" data-id="${p.proposal_id}">APPROVE</button>
+            <button class="proposal-deny" data-id="${p.proposal_id}">DENY</button>
           </div>
         </div>`;
     }

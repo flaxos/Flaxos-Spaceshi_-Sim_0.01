@@ -16,6 +16,7 @@
 
 import { wsClient } from "../js/ws-client.js";
 import { stateManager } from "../js/state-manager.js";
+import { getProposalCSS } from "../js/proposal-styles.js";
 
 class EngineeringControlPanel extends HTMLElement {
   constructor() {
@@ -590,52 +591,8 @@ class EngineeringControlPanel extends HTMLElement {
           font-size: 0.65rem;
         }
 
-        .proposal-card {
-          background: var(--bg-input, #1a1a24);
-          border: 1px solid var(--border-default, #2a2a3a);
-          border-radius: 4px;
-          padding: 5px 8px;
-          margin: 3px 0;
-          font-size: 0.65rem;
-        }
-
-        .proposal-desc {
-          color: var(--text-primary, #e0e0e0);
-          margin-bottom: 3px;
-        }
-
-        .proposal-btn-approve {
-          background: rgba(0, 255, 136, 0.15);
-          color: #00ff88;
-          border: 1px solid rgba(0, 255, 136, 0.3);
-          padding: 1px 8px;
-          border-radius: 3px;
-          cursor: pointer;
-          font-size: 0.6rem;
-          font-family: var(--font-mono, "JetBrains Mono", monospace);
-          margin-right: 3px;
-          transition: all 0.15s ease;
-        }
-
-        .proposal-btn-approve:hover {
-          background: rgba(0, 255, 136, 0.3);
-        }
-
-        .proposal-btn-deny {
-          background: rgba(255, 68, 68, 0.15);
-          color: #ff4444;
-          border: 1px solid rgba(255, 68, 68, 0.3);
-          padding: 1px 8px;
-          border-radius: 3px;
-          cursor: pointer;
-          font-size: 0.6rem;
-          font-family: var(--font-mono, "JetBrains Mono", monospace);
-          transition: all 0.15s ease;
-        }
-
-        .proposal-btn-deny:hover {
-          background: rgba(255, 68, 68, 0.3);
-        }
+        /* Proposal cards — shared styles from proposal-styles.js */
+        ${getProposalCSS()}
 
         /* --- Repair queue (RAW/ARCADE) --- */
         .repair-queue {
@@ -1324,16 +1281,28 @@ class EngineeringControlPanel extends HTMLElement {
       ${autoEng.enabled ? "DISABLE" : "ENABLE"}
     </button>`;
     html += '</div>';
-    html += '<div id="eng-proposals">';
+    html += '<div id="eng-proposals" class="proposals-container">';
     if (proposals.length === 0) {
-      html += '<div class="auto-eng-empty">No pending proposals</div>';
+      html += '<div class="no-proposals">No pending proposals</div>';
     } else {
       proposals.forEach(p => {
+        const confidence = p.confidence ?? 0;
+        const remaining = Math.max(0, p.time_remaining || 0);
+        const total = p.total_time || 30;
+        const timerPct = Math.min(100, (remaining / total) * 100);
+        const isUrgent = confidence > 0.8 || remaining < 5;
+        const urgentClass = isUrgent ? " urgent" : "";
         html += `
-          <div class="proposal-card">
-            <div class="proposal-desc">${p.description || p.action}</div>
-            <button class="proposal-btn-approve" data-approve="${p.id}">APPROVE</button>
-            <button class="proposal-btn-deny" data-deny="${p.id}">DENY</button>
+          <div class="proposal-card${urgentClass}">
+            <div class="proposal-header">
+              <span class="proposal-action">${p.description || p.action}</span>
+              ${confidence > 0 ? `<span class="proposal-confidence">${(confidence * 100).toFixed(0)}%</span>` : ""}
+            </div>
+            ${remaining > 0 ? `<div class="proposal-timer"><div class="proposal-timer-fill" style="width:${timerPct}%"></div></div>` : ""}
+            <div class="proposal-actions">
+              <button class="proposal-approve" data-approve="${p.id}">APPROVE</button>
+              <button class="proposal-deny" data-deny="${p.id}">DENY</button>
+            </div>
           </div>
         `;
       });
@@ -1380,8 +1349,8 @@ class EngineeringControlPanel extends HTMLElement {
     const proposals = this.shadowRoot.getElementById("eng-proposals");
     if (proposals) {
       proposals.addEventListener("click", (e) => {
-        const approveBtn = e.target.closest("[data-approve]");
-        const denyBtn = e.target.closest("[data-deny]");
+        const approveBtn = e.target.closest(".proposal-approve");
+        const denyBtn = e.target.closest(".proposal-deny");
         if (approveBtn) wsClient.sendShipCommand("approve_engineering", { proposal_id: approveBtn.dataset.approve });
         if (denyBtn) wsClient.sendShipCommand("deny_engineering", { proposal_id: denyBtn.dataset.deny });
       });

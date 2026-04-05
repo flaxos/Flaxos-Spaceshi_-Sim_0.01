@@ -1,0 +1,274 @@
+/* proposals.css — Shared visual identity for CPU-ASSIST proposal cards.
+ *
+ * All auto-system proposal cards (tactical, ops, engineering, science,
+ * comms, fleet) import these styles for consistent presentation.
+ *
+ * Since components use Shadow DOM, this file is consumed via the
+ * companion JS module (gui/js/proposal-styles.js) which exports the
+ * CSS as a string for injection into shadow roots.
+ *
+ * Color accent: CPU-ASSIST purple (#c0a0ff)
+ * Urgency accent: warning amber (#ffaa00)
+ */
+
+/* =========================================================================
+   PROPOSAL CARD BASE
+   ========================================================================= */
+
+.proposal-card {
+  background: rgba(192, 160, 255, 0.06);
+  border: 1px solid rgba(192, 160, 255, 0.3);
+  border-left: 3px solid var(--tier-accent, #c0a0ff);
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  animation: proposalSlideIn 0.3s ease-out;
+  position: relative;
+  overflow: hidden;
+}
+
+.proposal-card:last-child {
+  margin-bottom: 0;
+}
+
+/* Urgent proposal — high confidence or critical system state */
+.proposal-card.urgent {
+  border-color: var(--status-warning, #ffaa00);
+  border-left-color: var(--status-warning, #ffaa00);
+  background: rgba(255, 170, 0, 0.08);
+  animation: proposalSlideIn 0.3s ease-out, proposalPulse 2s ease-in-out 0.3s infinite;
+}
+
+
+/* =========================================================================
+   PROPOSAL HEADER — action name + countdown/confidence
+   ========================================================================= */
+
+.proposal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.proposal-action {
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--tier-accent, #c0a0ff);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.proposal-card.urgent .proposal-action {
+  color: var(--status-warning, #ffaa00);
+}
+
+.proposal-confidence {
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--status-nominal, #00ff88);
+  background: rgba(0, 255, 136, 0.1);
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
+.proposal-countdown {
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-size: 0.7rem;
+  color: var(--text-dim, #555566);
+}
+
+.proposal-countdown.expiring {
+  color: var(--status-warning, #ffaa00);
+  font-weight: 700;
+}
+
+
+/* =========================================================================
+   PROPOSAL BODY — reason/description text
+   ========================================================================= */
+
+.proposal-reason,
+.proposal-desc {
+  font-size: 0.72rem;
+  color: var(--text-secondary, #888899);
+  line-height: 1.4;
+  margin-bottom: 8px;
+}
+
+
+/* =========================================================================
+   COUNTDOWN TIMER BAR — visual expiry indicator
+   ========================================================================= */
+
+.proposal-timer {
+  height: 3px;
+  background: rgba(192, 160, 255, 0.1);
+  border-radius: 2px;
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+
+.proposal-timer-fill {
+  height: 100%;
+  background: var(--tier-accent, #c0a0ff);
+  border-radius: 2px;
+  transition: width 1s linear;
+}
+
+.proposal-card.urgent .proposal-timer-fill {
+  background: var(--status-warning, #ffaa00);
+}
+
+
+/* =========================================================================
+   APPROVE / DENY BUTTONS
+   ========================================================================= */
+
+.proposal-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.proposal-approve,
+.btn-approve {
+  flex: 1;
+  padding: 6px 10px;
+  background: rgba(0, 255, 136, 0.1);
+  border: 1px solid rgba(0, 255, 136, 0.4);
+  border-radius: 4px;
+  color: var(--status-nominal, #00ff88);
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  transition: all 0.15s ease;
+}
+
+.proposal-approve:hover,
+.btn-approve:hover {
+  background: rgba(0, 255, 136, 0.2);
+  border-color: var(--status-nominal, #00ff88);
+  box-shadow: 0 0 8px rgba(0, 255, 136, 0.15);
+}
+
+.proposal-approve:active,
+.btn-approve:active {
+  background: rgba(0, 255, 136, 0.3);
+  transform: scale(0.98);
+}
+
+.proposal-deny,
+.btn-deny {
+  flex: 1;
+  padding: 6px 10px;
+  background: rgba(255, 68, 68, 0.1);
+  border: 1px solid rgba(255, 68, 68, 0.4);
+  border-radius: 4px;
+  color: var(--status-critical, #ff4444);
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  transition: all 0.15s ease;
+}
+
+.proposal-deny:hover,
+.btn-deny:hover {
+  background: rgba(255, 68, 68, 0.2);
+  border-color: var(--status-critical, #ff4444);
+  box-shadow: 0 0 8px rgba(255, 68, 68, 0.15);
+}
+
+.proposal-deny:active,
+.btn-deny:active {
+  background: rgba(255, 68, 68, 0.3);
+  transform: scale(0.98);
+}
+
+
+/* =========================================================================
+   EMPTY STATE — no pending proposals
+   ========================================================================= */
+
+.no-proposals {
+  font-size: 0.7rem;
+  color: var(--text-dim, #555566);
+  font-style: italic;
+  text-align: center;
+  padding: 12px 8px;
+}
+
+
+/* =========================================================================
+   PROPOSAL CONTAINER — wrapper for list of cards
+   ========================================================================= */
+
+.proposals-container,
+.proposals-queue,
+.proposals {
+  display: flex;
+  flex-direction: column;
+  gap: 0;  /* margin-bottom on cards handles spacing */
+  max-height: 400px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(192, 160, 255, 0.2) transparent;
+}
+
+
+/* =========================================================================
+   ANIMATIONS
+   ========================================================================= */
+
+@keyframes proposalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes proposalPulse {
+  0%, 100% {
+    border-color: rgba(192, 160, 255, 0.3);
+    box-shadow: none;
+  }
+  50% {
+    border-color: var(--status-warning, #ffaa00);
+    box-shadow: 0 0 12px rgba(255, 170, 0, 0.2);
+  }
+}
+
+
+/* =========================================================================
+   REDUCED MOTION
+   ========================================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  .proposal-card {
+    animation: none;
+  }
+  .proposal-card.urgent {
+    animation: none;
+    box-shadow: 0 0 8px rgba(255, 170, 0, 0.15);
+  }
+  .proposal-approve,
+  .proposal-deny,
+  .btn-approve,
+  .btn-deny {
+    transition: none;
+  }
+  .proposal-timer-fill {
+    transition: none;
+  }
+}

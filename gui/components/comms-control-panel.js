@@ -16,6 +16,7 @@
 
 import { stateManager } from "../js/state-manager.js";
 import { wsClient } from "../js/ws-client.js";
+import { getProposalCSS } from "../js/proposal-styles.js";
 
 const CHANNELS = ["general", "fleet", "emergency", "tactical"];
 
@@ -411,42 +412,8 @@ class CommsControlPanel extends HTMLElement {
         border-color: rgba(192, 160, 255, 0.5);
         color: #c0a0ff;
       }
-      .proposals-queue {
-        display: flex; flex-direction: column; gap: 6px;
-        max-height: 250px; overflow-y: auto;
-      }
-      .proposal-card {
-        background: rgba(0, 0, 0, 0.25);
-        border: 1px solid var(--border-default, #2a2a3a);
-        border-radius: 4px; padding: 8px 10px;
-      }
-      .proposal-desc {
-        font-size: 0.7rem; color: var(--text-primary, #e0e0e0);
-        margin-bottom: 6px; line-height: 1.4;
-      }
-      .proposal-actions {
-        display: flex; gap: 6px;
-      }
-      .approve-btn {
-        background: rgba(0, 255, 136, 0.1);
-        border-color: rgba(0, 255, 136, 0.3);
-        color: var(--status-nominal, #00ff88);
-        flex: 1;
-      }
-      .approve-btn:hover {
-        background: rgba(0, 255, 136, 0.2);
-        border-color: var(--status-nominal, #00ff88);
-      }
-      .deny-btn {
-        background: rgba(255, 68, 68, 0.1);
-        border-color: rgba(255, 68, 68, 0.3);
-        color: var(--status-critical, #ff4444);
-        flex: 1;
-      }
-      .deny-btn:hover {
-        background: rgba(255, 68, 68, 0.2);
-        border-color: var(--status-critical, #ff4444);
-      }
+      /* Proposal cards — shared styles from proposal-styles.js */
+      ${getProposalCSS()}
     `;
   }
 
@@ -829,15 +796,27 @@ class CommsControlPanel extends HTMLElement {
 
     // Proposals queue
     const proposalsHtml = proposals.length === 0
-      ? '<div class="msg-empty">No pending proposals</div>'
-      : proposals.map(p => `
-          <div class="proposal-card">
-            <div class="proposal-desc">${this._escapeHtml(p.description || p.action)}</div>
-            <div class="proposal-actions">
-              <button class="comms-btn approve-btn" data-approve="${this._escapeHtml(p.id)}">APPROVE</button>
-              <button class="comms-btn deny-btn" data-deny="${this._escapeHtml(p.id)}">DENY</button>
+      ? '<div class="no-proposals">No pending proposals</div>'
+      : proposals.map(p => {
+          const confidence = p.confidence ?? 0;
+          const remaining = Math.max(0, p.time_remaining || 0);
+          const total = p.total_time || 30;
+          const timerPct = Math.min(100, (remaining / total) * 100);
+          const isUrgent = confidence > 0.8 || remaining < 5;
+          const urgentClass = isUrgent ? " urgent" : "";
+          return `
+          <div class="proposal-card${urgentClass}">
+            <div class="proposal-header">
+              <span class="proposal-action">${this._escapeHtml(p.description || p.action)}</span>
+              ${confidence > 0 ? `<span class="proposal-confidence">${(confidence * 100).toFixed(0)}%</span>` : ""}
             </div>
-          </div>`).join("");
+            ${remaining > 0 ? `<div class="proposal-timer"><div class="proposal-timer-fill" style="width:${timerPct}%"></div></div>` : ""}
+            <div class="proposal-actions">
+              <button class="proposal-approve" data-approve="${this._escapeHtml(p.id)}">APPROVE</button>
+              <button class="proposal-deny" data-deny="${this._escapeHtml(p.id)}">DENY</button>
+            </div>
+          </div>`;
+        }).join("");
 
     return `
       ${modeHtml}
