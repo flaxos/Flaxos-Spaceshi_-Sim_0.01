@@ -176,7 +176,8 @@ body.tier-manual .helm-autopilot-status-panel,
 body.tier-manual .helm-queue-panel,
 body.tier-manual .helm-docking-panel,
 body.tier-manual .helm-maneuver-panel,
-body.tier-manual .helm-micro-rcs-panel {
+body.tier-manual .helm-micro-rcs-panel,
+body.tier-manual .helm-balance-game-panel {
   display: none;
 }
 
@@ -209,7 +210,8 @@ body.tier-manual .tac-threat-panel,
 body.tier-manual .tac-ecm-panel,
 body.tier-manual .tac-eccm-panel,
 body.tier-manual .tac-lock-game-panel,
-body.tier-manual .tac-charge-game-panel {
+body.tier-manual .tac-charge-game-panel,
+body.tier-manual .tac-ecm-game-panel {
   display: none;
 }
 
@@ -287,7 +289,8 @@ body.tier-manual .eng-controls-panel {
 /* Hidden panels */
 body.tier-raw .helm-autopilot-status-panel,
 body.tier-raw .helm-queue-panel,
-body.tier-raw .helm-docking-panel {
+body.tier-raw .helm-docking-panel,
+body.tier-raw .helm-balance-game-panel {
   display: none;
 }
 
@@ -335,6 +338,11 @@ body.tier-arcade .helm-micro-rcs-panel {
   display: none;
 }
 
+/* Flight Stability balance game — ARCADE exclusive, compact sidebar panel */
+body.tier-arcade .helm-balance-game-panel {
+  grid-column: span 4;
+}
+
 
 /* =========================================================================
    6. HELM PANEL VISIBILITY — CPU-ASSIST TIER
@@ -349,7 +357,8 @@ body.tier-arcade .helm-micro-rcs-panel {
 body.tier-cpu-assist .helm-manual-flight-panel,
 body.tier-cpu-assist .helm-rcs-panel,
 body.tier-cpu-assist .helm-maneuver-panel,
-body.tier-cpu-assist .helm-rcs-thruster-panel {
+body.tier-cpu-assist .helm-rcs-thruster-panel,
+body.tier-cpu-assist .helm-balance-game-panel {
   display: none;
 }
 
@@ -382,7 +391,8 @@ body.tier-cpu-assist .helm-autopilot-status-panel {
 
 /* RAW: show everything — hero sizing only. Lock/charge games are arcade-exclusive. */
 body.tier-raw .tac-lock-game-panel,
-body.tier-raw .tac-charge-game-panel {
+body.tier-raw .tac-charge-game-panel,
+body.tier-raw .tac-ecm-game-panel {
   display: none;
 }
 
@@ -420,6 +430,11 @@ body.tier-arcade .tac-charge-game-panel {
   grid-column: span 4;
 }
 
+/* ECM Frequency matching game — ARCADE exclusive */
+body.tier-arcade .tac-ecm-game-panel {
+  grid-column: span 4;
+}
+
 
 /* =========================================================================
    10. TACTICAL PANEL VISIBILITY — CPU-ASSIST TIER
@@ -438,7 +453,8 @@ body.tier-cpu-assist .tac-subsystem-panel,
 body.tier-cpu-assist .tac-torpedo-panel,
 body.tier-cpu-assist .tac-solution-panel,
 body.tier-cpu-assist .tac-lock-game-panel,
-body.tier-cpu-assist .tac-charge-game-panel {
+body.tier-cpu-assist .tac-charge-game-panel,
+body.tier-cpu-assist .tac-ecm-game-panel {
   display: none;
 }
 
@@ -875,7 +891,24 @@ body.tutorial-active flaxos-panel:not(.tutorial-highlight) {
 
 
 /* =========================================================================
-   27. REDUCED MOTION
+   27. DAMAGE CONTROL GAME — ARCADE EXCLUSIVE
+   ========================================================================= */
+
+/* Hidden in all tiers except ARCADE */
+body.tier-raw .ops-damage-game-panel,
+body.tier-manual .ops-damage-game-panel,
+body.tier-cpu-assist .ops-damage-game-panel {
+  display: none;
+}
+
+/* ARCADE: visible, spans wide */
+body.tier-arcade .ops-damage-game-panel {
+  grid-column: span 6;
+}
+
+
+/* =========================================================================
+   28. REDUCED MOTION
    ========================================================================= */
 
 @media (prefers-reduced-motion: reduce) {
