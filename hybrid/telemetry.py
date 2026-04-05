@@ -196,6 +196,9 @@ def get_ship_telemetry(ship, sim_time: float = None) -> Dict[str, Any]:
     # Get crew fatigue system state
     crew_fatigue_state = _get_crew_fatigue_state(ship)
 
+    # Get crew progression data (XP, injury states, skill levels)
+    crew_progression_state = _get_crew_progression_state(ship)
+
     # Get auto-system states (CPU-ASSIST tier)
     auto_tactical_state = _get_auto_system_state(ship, "auto_tactical")
     auto_ops_state = _get_auto_system_state(ship, "auto_ops")
@@ -274,6 +277,7 @@ def get_ship_telemetry(ship, sim_time: float = None) -> Dict[str, Any]:
         "comms": comms_state,
         "docking": docking_state,
         "crew_fatigue": crew_fatigue_state,
+        "crew_progression": crew_progression_state,
         "auto_tactical": auto_tactical_state,
         "auto_ops": auto_ops_state,
         "auto_engineering": auto_engineering_state,
@@ -542,6 +546,47 @@ def _get_crew_fatigue_state(ship) -> Dict[str, Any]:
         "enabled": False,
         "status": "unavailable",
     }
+
+
+def _get_crew_progression_state(ship) -> Dict[str, Any]:
+    """Get crew progression data (XP, injuries, skill levels) for telemetry.
+
+    Reads from the shared CrewStationBinder to build a per-crew-member
+    snapshot including experience, injury state, and XP progress bars.
+    Falls back gracefully when crew binding is not initialized.
+
+    Args:
+        ship: Ship object
+
+    Returns:
+        dict: Crew progression data with roster, injuries, and XP.
+    """
+    try:
+        from hybrid.systems.crew_binding_system import CrewBindingSystem
+        binder = CrewBindingSystem._shared_binder
+        crew_manager = CrewBindingSystem._shared_crew_manager
+        if binder is None or crew_manager is None:
+            return {"available": False, "roster": []}
+
+        ship_crew = crew_manager.get_ship_crew(ship.id)
+        if not ship_crew:
+            return {"available": False, "roster": []}
+
+        roster = []
+        for crew in ship_crew:
+            entry = crew.to_dict()
+            # Add current station assignment
+            assignment = binder._find_assignment(ship.id, crew.crew_id)
+            entry["station_assignment"] = assignment.value if assignment else None
+            roster.append(entry)
+
+        return {
+            "available": True,
+            "roster": roster,
+            "count": len(roster),
+        }
+    except Exception:
+        return {"available": False, "roster": []}
 
 
 def _get_auto_system_state(ship, system_name: str) -> Dict[str, Any]:

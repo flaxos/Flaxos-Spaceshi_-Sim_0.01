@@ -30,6 +30,63 @@ ships:
     ai_enabled: false
     position: {x: 0, y: 0, z: 0}
     velocity: {x: 0, y: 0, z: 0}
+    systems:
+      propulsion:
+        max_thrust: 500000
+        fuel_level: 10000
+        max_fuel: 10000
+      sensors:
+        passive:
+          range: 500000
+        active:
+          scan_range: 500000
+      navigation: {}
+      targeting:
+        lock_range: 500000.0
+      weapons:
+        weapons:
+          - name: "railgun"
+            power_cost: 15
+            max_heat: 80
+            ammo: 50
+          - name: "torpedo"
+            power_cost: 10
+            max_heat: 100
+            ammo: 12
+          - name: "missile"
+            power_cost: 8
+            max_heat: 60
+            ammo: 16
+          - name: "pdc"
+            power_cost: 5
+            max_heat: 50
+            ammo: 3000
+        hardpoints:
+          - id: "hp_fwd_1"
+            weapon: "railgun"
+            mount_type: "fixed"
+            position_offset: {x: 20, y: 0, z: 0}
+            orientation: {azimuth: 0, elevation: 0}
+          - id: "hp_fwd_2"
+            weapon: "torpedo"
+            mount_type: "fixed"
+            position_offset: {x: 18, y: 2, z: 0}
+            orientation: {azimuth: 0, elevation: 0}
+          - id: "hp_fwd_3"
+            weapon: "missile"
+            mount_type: "fixed"
+            position_offset: {x: 18, y: -2, z: 0}
+            orientation: {azimuth: 0, elevation: 0}
+          - id: "hp_pdc_1"
+            weapon: "pdc"
+            mount_type: "turret"
+            position_offset: {x: 5, y: 0, z: 3.5}
+            orientation: {azimuth: 0, elevation: 0}
+          - id: "hp_pdc_2"
+            weapon: "pdc"
+            mount_type: "turret"
+            position_offset: {x: -3, y: 0, z: -3.5}
+            orientation: {azimuth: 0, elevation: 0}
 
   - id: "pdc_target"
     name: "PDC Target"

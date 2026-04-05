@@ -12,7 +12,7 @@ from hybrid.core.base_system import BaseSystem
 from hybrid.core.event_bus import EventBus
 from hybrid.utils.errors import success_dict, error_dict
 from hybrid.systems.weapons.truth_weapons import (
-    TruthWeapon, create_railgun, create_pdc,
+    TruthWeapon, FiringSolution, create_railgun, create_pdc,
     RAILGUN_SPECS, PDC_SPECS, WeaponSpecs, SlugType,
 )
 from hybrid.systems.combat.torpedo_manager import (
@@ -139,6 +139,10 @@ class CombatSystem(BaseSystem):
 
         # Torpedo manager reference (set by simulator each tick)
         self._torpedo_manager = None
+
+        # Pre-programmed munition configuration for next launch.
+        # Set via program_munition(), consumed on next launch_torpedo/launch_missile.
+        self._munition_program: Optional[dict] = None
 
         # Event bus
         self.event_bus = EventBus.get_instance()
@@ -378,6 +382,110 @@ class CombatSystem(BaseSystem):
             "results": results
         }
 
+    def fire_unguided(self, params: dict) -> dict:
+        """Fire a weapon without a targeting lock (MANUAL tier dumb-fire).
+
+        The weapon fires along the ship's nose vector (bore-sight).
+        No lead calculation, no confidence check, no lock required.
+        Pure point-and-shoot for players who want to aim manually.
+
+        Args:
+            params: Dict with:
+                weapon_type: "railgun" or "pdc" (required)
+                hardpoint_id: str (optional -- specific mount, default: first available)
+
+        Returns:
+            dict: Fire result from the weapon, or error.
+        """
+        if not self._ship_ref:
+            return error_dict("NO_SHIP", "Ship reference not available")
+
+        if self._damage_factor <= 0.0:
+            if hasattr(self._ship_ref, "damage_model"):
+                weapons_sub = self._ship_ref.damage_model.subsystems.get("weapons")
+                if weapons_sub and weapons_sub.is_overheated():
+                    return error_dict("WEAPONS_OVERHEATED",
+                                      "Weapons offline -- overheating, wait for cooldown")
+            return error_dict("WEAPONS_DESTROYED", "Weapons system has failed")
+
+        if getattr(self._ship_ref, "_cold_drift_active", False):
+            return error_dict("COLD_DRIFT", "Weapons offline -- ship is in cold-drift mode")
+
+        weapon_type = params.get("weapon_type")
+        if not weapon_type:
+            return error_dict("MISSING_PARAMETER", "weapon_type required ('railgun' or 'pdc')")
+
+        weapon_type = weapon_type.lower()
+        if weapon_type not in ("railgun", "pdc"):
+            return error_dict("INVALID_PARAMETER",
+                              f"weapon_type must be 'railgun' or 'pdc', got '{weapon_type}'")
+
+        hardpoint_id = params.get("hardpoint_id")
+
+        # Find the weapon mount to fire
+        weapon: Optional[TruthWeapon] = None
+        weapon_id: Optional[str] = None
+
+        if hardpoint_id:
+            weapon = self.truth_weapons.get(hardpoint_id)
+            if not weapon:
+                return error_dict("UNKNOWN_WEAPON", f"Hardpoint '{hardpoint_id}' not found")
+            weapon_id = hardpoint_id
+        else:
+            # Pick the first available mount of the requested type that can fire
+            for mid, w in self.truth_weapons.items():
+                if mid.startswith(weapon_type) and w.can_fire(self._sim_time):
+                    weapon = w
+                    weapon_id = mid
+                    break
+            if weapon is None:
+                # Fall back to any mount of the type even if not ready,
+                # so we return a meaningful "cycling" / "no_ammo" error
+                for mid, w in self.truth_weapons.items():
+                    if mid.startswith(weapon_type):
+                        weapon = w
+                        weapon_id = mid
+                        break
+            if weapon is None:
+                return error_dict("NO_WEAPON",
+                                  f"No {weapon_type} mounts available on this ship")
+
+        # Build a minimal bore-sight firing solution.
+        # Confidence is 0 because there is no computer-assisted tracking.
+        # The weapon fires along the ship's current heading (nose vector).
+        saved_solution = weapon.current_solution
+
+        bore_sight = FiringSolution(
+            valid=True,
+            target_id="unguided",
+            range_to_target=0.0,
+            lead_angle={"pitch": 0.0, "yaw": 0.0},
+            intercept_point={"x": 0.0, "y": 0.0, "z": 0.0},
+            time_of_flight=0.0,
+            confidence=0.0,
+            hit_probability=0.0,
+            in_range=True,
+            in_arc=True,
+            tracking=True,
+            ready_to_fire=True,
+            reason="unguided bore-sight fire",
+        )
+        weapon.current_solution = bore_sight
+
+        try:
+            slug_type = params.get("slug_type")
+            result = self.fire_weapon(weapon_id, target_ship=None,
+                                       slug_type=slug_type)
+        finally:
+            # Restore the original solution so the targeting pipeline
+            # is not disrupted for subsequent guided engagements.
+            weapon.current_solution = saved_solution
+
+        if result.get("ok"):
+            result["unguided"] = True
+
+        return result
+
     def get_ready_weapons(self) -> List[str]:
         """Get list of weapons ready to fire.
 
@@ -409,6 +517,123 @@ class CombatSystem(BaseSystem):
             "ok": True,
             **weapon.get_state()
         }
+
+    def program_munition(self, params: dict) -> dict:
+        """Pre-configure the next torpedo or missile launch.
+
+        Allows MANUAL-tier players to fine-tune munition parameters before
+        firing.  The program is stored and consumed on the next matching
+        launch (torpedo or missile).  If the player launches the *other*
+        munition type, the program is ignored (not consumed).
+
+        Args:
+            params: Dict with keys:
+                munition_type (required): "torpedo" or "missile"
+                guidance_mode: "dumb", "guided", or "smart"
+                warhead_type: "fragmentation", "shaped_charge", or "emp"
+                flight_profile: "direct", "evasive", "terminal_pop", "bracket"
+                pn_gain: float 1.0-8.0 — override proportional navigation gain
+                fuse_distance: float 5-200m — override proximity fuse radius
+                terminal_range: float 500-20000m — range for terminal phase
+                boost_duration: float 1.0-30.0s — override boost phase length
+                datalink: bool — maintain guidance datalink (default true)
+
+        Returns:
+            dict: Programmed configuration summary
+        """
+        munition_type = params.get("munition_type")
+        if munition_type not in ("torpedo", "missile"):
+            return error_dict(
+                "INVALID_MUNITION_TYPE",
+                "munition_type must be 'torpedo' or 'missile'"
+            )
+
+        program: dict = {"munition_type": munition_type}
+
+        # Validate guidance mode
+        guidance_mode = params.get("guidance_mode")
+        valid_guidance = {m.value for m in GuidanceMode}
+        if guidance_mode is not None:
+            if guidance_mode not in valid_guidance:
+                return error_dict(
+                    "INVALID_GUIDANCE_MODE",
+                    f"guidance_mode must be one of {sorted(valid_guidance)}"
+                )
+            program["guidance_mode"] = guidance_mode
+
+        # Validate warhead type
+        warhead_type = params.get("warhead_type")
+        valid_warheads = {w.value for w in WarheadType}
+        if warhead_type is not None:
+            if warhead_type not in valid_warheads:
+                return error_dict(
+                    "INVALID_WARHEAD_TYPE",
+                    f"warhead_type must be one of {sorted(valid_warheads)}"
+                )
+            program["warhead_type"] = warhead_type
+
+        # Validate flight profile
+        flight_profile = params.get("flight_profile")
+        if flight_profile is not None:
+            valid_profiles = {"direct", "evasive", "terminal_pop", "bracket"}
+            if flight_profile not in valid_profiles:
+                return error_dict(
+                    "INVALID_FLIGHT_PROFILE",
+                    f"flight_profile must be one of {sorted(valid_profiles)}"
+                )
+            program["flight_profile"] = flight_profile
+
+        # Validate pn_gain — clamp to [1.0, 8.0]
+        pn_gain = params.get("pn_gain")
+        if pn_gain is not None:
+            try:
+                pn_gain = float(pn_gain)
+            except (TypeError, ValueError):
+                return error_dict("INVALID_PN_GAIN", "pn_gain must be a number")
+            pn_gain = max(1.0, min(8.0, pn_gain))
+            program["pn_gain"] = pn_gain
+
+        # Validate fuse_distance — clamp to [5, 200] meters
+        fuse_distance = params.get("fuse_distance")
+        if fuse_distance is not None:
+            try:
+                fuse_distance = float(fuse_distance)
+            except (TypeError, ValueError):
+                return error_dict("INVALID_FUSE_DISTANCE", "fuse_distance must be a number")
+            fuse_distance = max(5.0, min(200.0, fuse_distance))
+            program["fuse_distance"] = fuse_distance
+
+        # Validate terminal_range — clamp to [500, 20000] meters
+        terminal_range = params.get("terminal_range")
+        if terminal_range is not None:
+            try:
+                terminal_range = float(terminal_range)
+            except (TypeError, ValueError):
+                return error_dict("INVALID_TERMINAL_RANGE", "terminal_range must be a number")
+            terminal_range = max(500.0, min(20000.0, terminal_range))
+            program["terminal_range"] = terminal_range
+
+        # Validate boost_duration — clamp to [1.0, 30.0] seconds
+        boost_duration = params.get("boost_duration")
+        if boost_duration is not None:
+            try:
+                boost_duration = float(boost_duration)
+            except (TypeError, ValueError):
+                return error_dict("INVALID_BOOST_DURATION", "boost_duration must be a number")
+            boost_duration = max(1.0, min(30.0, boost_duration))
+            program["boost_duration"] = boost_duration
+
+        # Datalink toggle
+        datalink = params.get("datalink")
+        if datalink is not None:
+            program["datalink"] = bool(datalink)
+
+        self._munition_program = program
+
+        return success_dict(
+            f"Munition program set for next {munition_type} launch",
+            program=program,
+        )
 
     def launch_torpedo(
         self, target_id: str, profile: str = "direct", all_ships: dict = None,
@@ -455,6 +680,17 @@ class CombatSystem(BaseSystem):
         if not self._torpedo_manager:
             return error_dict("NO_TORPEDO_MANAGER", "Torpedo manager not available")
 
+        # Apply pre-programmed munition config if it matches this munition type.
+        # The program is consumed on launch so only one launch gets the custom
+        # parameters.  If the program was set for "missile", it stays for the
+        # next missile launch and is not consumed here.
+        program = self._munition_program or {}
+        if program.get("munition_type") == "torpedo":
+            guidance_mode = program.get("guidance_mode", guidance_mode)
+            warhead_type = program.get("warhead_type", warhead_type)
+            profile = program.get("flight_profile", profile)
+            self._munition_program = None  # consumed
+
         # Resolve target — contact IDs (e.g. "C001") must be mapped back to
         # real ship IDs (e.g. "pirate01") so the torpedo manager can look up
         # the target in the ships dict for guidance and proximity detonation.
@@ -494,6 +730,14 @@ class CombatSystem(BaseSystem):
         self._torpedo_cooldown = self.torpedo_reload_time
         self.torpedoes_launched += 1
 
+        # Build custom overrides from the consumed program for torpedo_manager
+        custom_overrides = {}
+        if program.get("munition_type") == "torpedo":
+            for key in ("pn_gain", "fuse_distance", "terminal_range",
+                        "boost_duration", "datalink"):
+                if key in program:
+                    custom_overrides[key] = program[key]
+
         # Spawn torpedo — inherits launcher velocity.
         # Use resolved_target_id (real ship ID) so the torpedo manager can
         # look up the target ship for guidance updates and proximity fuse.
@@ -508,6 +752,7 @@ class CombatSystem(BaseSystem):
             profile=profile,
             warhead_type=warhead_type,
             guidance_mode=guidance_mode,
+            **custom_overrides,
         )
 
         # Generate heat from torpedo launch (exhaust backblast).
@@ -586,6 +831,14 @@ class CombatSystem(BaseSystem):
         if not self._torpedo_manager:
             return error_dict("NO_TORPEDO_MANAGER", "Torpedo manager not available")
 
+        # Apply pre-programmed munition config if it matches missile type.
+        program = self._munition_program or {}
+        if program.get("munition_type") == "missile":
+            guidance_mode = program.get("guidance_mode", guidance_mode)
+            warhead_type = program.get("warhead_type", warhead_type)
+            profile = program.get("flight_profile", profile)
+            self._munition_program = None  # consumed
+
         # Resolve target — same contact-ID lookup as launch_torpedo
         all_ships = all_ships or {}
         resolved_target_id = target_id
@@ -621,6 +874,14 @@ class CombatSystem(BaseSystem):
         self._missile_cooldown = self.missile_reload_time
         self.missiles_launched += 1
 
+        # Build custom overrides from the consumed program for torpedo_manager
+        custom_overrides = {}
+        if program.get("munition_type") == "missile":
+            for key in ("pn_gain", "fuse_distance", "terminal_range",
+                        "boost_duration", "datalink"):
+                if key in program:
+                    custom_overrides[key] = program[key]
+
         # Spawn missile through the torpedo manager with MISSILE type
         missile = self._torpedo_manager.spawn(
             shooter_id=self._ship_ref.id,
@@ -634,6 +895,7 @@ class CombatSystem(BaseSystem):
             munition_type=MunitionType.MISSILE,
             warhead_type=warhead_type,
             guidance_mode=guidance_mode,
+            **custom_overrides,
         )
 
         # Less heat than torpedo (smaller motor exhaust).
@@ -790,6 +1052,9 @@ class CombatSystem(BaseSystem):
 
             return self.fire_all_ready(target_ship)
 
+        elif action == "fire_unguided":
+            return self.fire_unguided(params)
+
         elif action == "ready_weapons":
             return success_dict(
                 "Ready weapons",
@@ -873,6 +1138,9 @@ class CombatSystem(BaseSystem):
             return self.launch_missile(target_id, profile, all_ships,
                                        warhead_type=warhead_type, guidance_mode=guidance_mode)
 
+        elif action == "program_munition":
+            return self.program_munition(params)
+
         elif action == "torpedo_status":
             return self.get_torpedo_status()
 
@@ -933,5 +1201,6 @@ class CombatSystem(BaseSystem):
                 "launched": self.missiles_launched,
                 "mass_per_missile": MISSILE_MASS,
             },
+            "munition_program": self._munition_program,
         })
         return state

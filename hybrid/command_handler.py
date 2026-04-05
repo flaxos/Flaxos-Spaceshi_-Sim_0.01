@@ -27,6 +27,7 @@ system_commands = {
     "rcs_attitude_target": ("rcs", "set_attitude_target"),
     "rcs_angular_velocity": ("rcs", "set_angular_velocity"),
     "rcs_clear": ("rcs", "clear_target"),
+    "rcs_fire_thruster": ("rcs", "fire_thruster"),
     # Navigation and autopilot
     "set_course": ("navigation", "set_course"),
     "autopilot": ("navigation", "set_autopilot"),
@@ -71,6 +72,7 @@ system_commands = {
     "fire_pdc": ("combat", "fire"),
     "fire_combat": ("combat", "fire"),
     "fire_all": ("combat", "fire_all"),
+    "fire_unguided": ("combat", "fire_unguided"),
     "ready_weapons": ("combat", "ready_weapons"),
     "combat_status": ("combat", "status"),
     "weapon_status": ("combat", "weapon_status"),
@@ -89,6 +91,7 @@ system_commands = {
     "torpedo_status": ("combat", "torpedo_status"),
     "launch_missile": ("combat", "launch_missile"),
     "missile_status": ("combat", "missile_status"),
+    "program_munition": ("combat", "program_munition"),
     "assess_damage": ("targeting", "assess_damage"),
     # ECCM commands (routed through sensors — ECCM is a sensor capability)
     "eccm_frequency_hop": ("sensors", "eccm_frequency_hop"),

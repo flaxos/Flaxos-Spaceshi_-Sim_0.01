@@ -542,5 +542,10 @@ class PropulsionSystem(BaseSystem):
             # Legacy compatibility
             "main_drive": self.main_drive,
             "current_thrust": self.thrust_world,
+            # MANUAL-tier propulsion diagnostics
+            "mass_flow_rate": (
+                (self.throttle * self.max_thrust) / self.exhaust_velocity
+                if self.exhaust_velocity > 0 else 0.0
+            ),  # kg/s theoretical mass flow at current throttle
         })
         return state

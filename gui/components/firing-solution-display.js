@@ -445,31 +445,66 @@ class FiringSolutionDisplay extends HTMLElement {
     const confPct = Math.round((bestSol.confidence || 0) * 100);
     const confClass = confPct > 70 ? "high" : confPct > 40 ? "mid" : "low";
 
-    // --- MANUAL tier: raw deflection angle, time of flight, intercept geometry ---
+    // --- MANUAL tier: full physics diagnostics — every intermediate value ---
     if (tier === "manual") {
-      const deflection = bestSol.deflection_angle_deg ?? bestSol.cone_angle_deg ?? 0;
       const tof = bestSol.time_of_flight ?? 0;
-      const rangeM = bestSol.range_m ?? 0;
-      const closingRate = bestSol.closing_rate ?? 0;
+      const rangeM = bestSol.range ?? bestSol.range_m ?? 0;
+      const closing = bestSol.closing_speed ?? bestSol.closing_rate ?? 0;
+      const lead = bestSol.lead_angle || {};
+      const intercept = bestSol.intercept_point || {};
+      const tgtAccel = bestSol.target_accel_magnitude ?? 0;
+      const latVel = bestSol.lateral_velocity ?? 0;
+      const cf = bestSol.confidence_factors || {};
+      const hitProb = bestSol.hit_probability ?? 0;
 
       html += `
+        <div class="section-title">ENGAGEMENT GEOMETRY</div>
         <div class="manual-solution-grid" data-testid="manual-solution">
-          <span class="ms-label">DEFLECTION</span>
-          <span class="ms-value">${deflection.toFixed(2)} deg</span>
-          <span class="ms-label">TOF</span>
-          <span class="ms-value">${tof.toFixed(2)} s</span>
-          <span class="ms-label">CONE RADIUS</span>
-          <span class="ms-value">${(bestSol.cone_radius_m || 0).toFixed(0)} m</span>
-          <span class="ms-label">CONE ANGLE</span>
-          <span class="ms-value">${(bestSol.cone_angle_deg || 0).toFixed(3)} deg</span>
           <span class="ms-label">RANGE</span>
           <span class="ms-value">${rangeM.toFixed(0)} m</span>
           <span class="ms-label">CLOSING</span>
-          <span class="ms-value">${closingRate.toFixed(1)} m/s</span>
-          <span class="ms-label">CONFIDENCE</span>
-          <span class="ms-value">${(bestSol.confidence || 0).toFixed(4)}</span>
+          <span class="ms-value">${closing.toFixed(1)} m/s</span>
+          <span class="ms-label">LEAD YAW</span>
+          <span class="ms-value">${(lead.yaw ?? 0).toFixed(3)}°</span>
+          <span class="ms-label">LEAD PITCH</span>
+          <span class="ms-value">${(lead.pitch ?? 0).toFixed(3)}°</span>
+          <span class="ms-label">TOF</span>
+          <span class="ms-value">${tof.toFixed(3)} s</span>
+          <span class="ms-label">INTERCEPT X</span>
+          <span class="ms-value">${(intercept.x ?? 0).toFixed(0)} m</span>
+          <span class="ms-label">INTERCEPT Y</span>
+          <span class="ms-value">${(intercept.y ?? 0).toFixed(0)} m</span>
+          <span class="ms-label">INTERCEPT Z</span>
+          <span class="ms-value">${(intercept.z ?? 0).toFixed(0)} m</span>
+          <span class="ms-label">TGT ACCEL</span>
+          <span class="ms-value">${tgtAccel.toFixed(2)} m/s²</span>
+          <span class="ms-label">LATERAL VEL</span>
+          <span class="ms-value">${latVel.toFixed(1)} m/s</span>
           <span class="ms-label">IN ARC</span>
           <span class="ms-value">${bestSol.in_arc === false ? 'NO' : bestSol.in_arc === true ? 'YES' : '---'}</span>
+          <span class="ms-label">IN RANGE</span>
+          <span class="ms-value">${bestSol.in_range === false ? 'NO' : bestSol.in_range === true ? 'YES' : '---'}</span>
+        </div>
+
+        <div class="section-title">CONFIDENCE FACTORS</div>
+        <div class="factor-list">
+          ${this._renderFactorRow("TRACK QUALITY", cf.track_quality)}
+          ${this._renderFactorRow("RANGE FACTOR", cf.range_factor)}
+          ${this._renderFactorRow("TGT ACCEL", cf.target_accel)}
+          ${this._renderFactorRow("OWN ROTATION", cf.own_rotation)}
+          ${this._renderFactorRow("WEAPON HEALTH", cf.weapon_health)}
+        </div>
+
+        <div class="section-title">DISPERSION</div>
+        <div class="manual-solution-grid">
+          <span class="ms-label">CONE ANGLE</span>
+          <span class="ms-value">${(bestSol.cone_angle_deg || 0).toFixed(3)}°</span>
+          <span class="ms-label">CONE RADIUS</span>
+          <span class="ms-value">${(bestSol.cone_radius_m || 0).toFixed(0)} m</span>
+          <span class="ms-label">HIT PROB</span>
+          <span class="ms-value">${(hitProb * 100).toFixed(1)}%</span>
+          <span class="ms-label">CONFIDENCE</span>
+          <span class="ms-value">${(bestSol.confidence || 0).toFixed(4)}</span>
         </div>
       `;
       html += this._renderFeedbackSection();
@@ -629,6 +664,21 @@ class FiringSolutionDisplay extends HTMLElement {
     html += this._renderFeedbackSection();
 
     content.innerHTML = html;
+  }
+
+  _renderFactorRow(label, value) {
+    const val = value ?? 0;
+    const pct = Math.round(val * 100);
+    const barClass = pct > 70 ? "high" : pct > 40 ? "mid" : "low";
+    return `
+      <div class="factor-row">
+        <span class="factor-label">${label}</span>
+        <div class="factor-bar-bg">
+          <div class="factor-bar-fill ${barClass}" style="width:${pct}%"></div>
+        </div>
+        <span class="factor-value">${val.toFixed(3)}</span>
+      </div>
+    `;
   }
 
   _renderCone(sol) {
