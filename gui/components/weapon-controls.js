@@ -1338,6 +1338,30 @@ class WeaponControls extends HTMLElement {
           ">UPLOAD PROGRAM</button>
           <div id="prog-status" style="font-size: 0.65rem; color: var(--text-dim); margin-top: 4px; text-align: center;"></div>
         </div>
+
+        <!-- MANUAL tier: dumb-fire (no targeting lock required) -->
+        <div class="manual-only" id="unguided-fire-section" style="margin-top: 12px;">
+          <div class="group-title">UNGUIDED FIRE (BORE-SIGHT)</div>
+          <div style="display: flex; gap: 6px;">
+            <button id="fire-unguided-railgun" style="
+              flex: 1; padding: 8px; cursor: pointer;
+              background: rgba(255, 136, 0, 0.08); border: 1px solid var(--tier-accent, #ff8800);
+              color: var(--tier-accent, #ff8800); font-family: var(--font-mono);
+              font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+              letter-spacing: 0.5px; border-radius: 2px;
+            ">RAILGUN</button>
+            <button id="fire-unguided-pdc" style="
+              flex: 1; padding: 8px; cursor: pointer;
+              background: rgba(255, 136, 0, 0.08); border: 1px solid var(--tier-accent, #ff8800);
+              color: var(--tier-accent, #ff8800); font-family: var(--font-mono);
+              font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+              letter-spacing: 0.5px; border-radius: 2px;
+            ">PDC BURST</button>
+          </div>
+          <div style="font-size: 0.6rem; color: var(--text-dim); margin-top: 4px; text-align: center; font-style: italic;">
+            Fires along ship heading — no lock required
+          </div>
+        </div>
       </div>
 
       <div class="weapon-group">
@@ -1498,6 +1522,20 @@ class WeaponControls extends HTMLElement {
         if (!pnInput) return;
         const defaults = { dumb: 0, guided: 4.0, smart: 6.0 };
         pnInput.value = defaults[progGuidance.value] ?? 4.0;
+      });
+    }
+
+    // MANUAL tier: unguided fire buttons
+    const unguidedRailgun = this.shadowRoot.getElementById("fire-unguided-railgun");
+    if (unguidedRailgun) {
+      unguidedRailgun.addEventListener("click", () => {
+        wsClient.sendShipCommand("fire_unguided", { weapon_type: "railgun" });
+      });
+    }
+    const unguidedPdc = this.shadowRoot.getElementById("fire-unguided-pdc");
+    if (unguidedPdc) {
+      unguidedPdc.addEventListener("click", () => {
+        wsClient.sendShipCommand("fire_unguided", { weapon_type: "pdc" });
       });
     }
   }
