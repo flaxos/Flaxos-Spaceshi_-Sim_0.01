@@ -175,7 +175,6 @@ body.tier-manual .helm-fc-panel,
 body.tier-manual .helm-autopilot-status-panel,
 body.tier-manual .helm-queue-panel,
 body.tier-manual .helm-docking-panel,
-body.tier-manual .helm-rcs-panel,
 body.tier-manual .helm-maneuver-panel,
 body.tier-manual .helm-micro-rcs-panel {
   display: none;
@@ -185,26 +184,49 @@ body.tier-manual .helm-manual-flight-panel {
   grid-column: span 8;
 }
 
+/* MANUAL: RCS is essential for attitude control without autopilot */
+body.tier-manual .helm-rcs-panel {
+  grid-column: span 4;
+}
+
 /* =========================================================================
    3C. TACTICAL PANEL VISIBILITY — MANUAL TIER
-   Show only: Map (HERO), Fire Control, Targeting
+   Show: Map, Fire Control, Targeting, Firing Solution, Multi-Track, Combat Log
+   MANUAL shows MORE tactical data than other tiers — you need all the physics
    ========================================================================= */
 
 body.tier-manual .tac-sensors-panel,
 body.tier-manual .tac-assessment-panel,
-body.tier-manual .tac-solution-panel,
-body.tier-manual .tac-multi-track-panel,
 body.tier-manual .tac-weapons-panel,
 body.tier-manual .tac-torpedo-panel,
 body.tier-manual .tac-subsystem-panel,
 body.tier-manual .tac-threat-panel,
 body.tier-manual .tac-ecm-panel,
-body.tier-manual .tac-eccm-panel,
-body.tier-manual .tac-combat-log-panel {
+body.tier-manual .tac-eccm-panel {
   display: none;
 }
 
 body.tier-manual .tac-map-panel {
+  grid-column: span 6;
+}
+
+body.tier-manual .tac-fire-ctrl-panel {
+  grid-column: span 6;
+}
+
+body.tier-manual .tac-targeting-panel {
+  grid-column: span 4;
+}
+
+body.tier-manual .tac-solution-panel {
+  grid-column: span 4;
+}
+
+body.tier-manual .tac-multi-track-panel {
+  grid-column: span 4;
+}
+
+body.tier-manual .tac-combat-log-panel {
   grid-column: span 12;
 }
 
