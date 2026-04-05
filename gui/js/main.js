@@ -55,6 +55,7 @@ import "../components/combat-log.js";
 import "../components/power-profile-selector.js";
 import "../components/power-draw-display.js";
 import "../components/crew-panel.js";
+import "../components/crew-roster-panel.js";
 import "../components/subsystem-status.js";
 // Thermal Management
 import "../components/thermal-display.js";
@@ -99,12 +100,16 @@ import "../components/boarding-panel.js";
 import "../components/multi-track-panel.js";
 // ARCADE tier lock minigame
 import "../components/targeting-lock-game.js";
+// ARCADE tier railgun charge timing game
+import "../components/weapons-charge-game.js";
 // Target damage assessment
 import "../components/target-assessment.js";
 // Damage visualization
 import { damageStateManager } from "./damage-state-manager.js";
 // Ship Class Editor
 import "../components/ship-editor.js";
+// RCS Thruster Visualization (MANUAL/RAW tier)
+import "../components/rcs-thruster-display.js";
 // Keyboard flight controls (MANUAL tier)
 import * as keyboardFlight from "./keyboard-flight.js";
 // Phase 6: Mobile optimization

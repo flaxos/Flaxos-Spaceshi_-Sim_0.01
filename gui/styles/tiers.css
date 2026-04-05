@@ -189,6 +189,11 @@ body.tier-manual .helm-rcs-panel {
   grid-column: span 4;
 }
 
+/* MANUAL: RCS thruster diagram — interactive with fire controls */
+body.tier-manual .helm-rcs-thruster-panel {
+  grid-column: span 4;
+}
+
 /* =========================================================================
    3C. TACTICAL PANEL VISIBILITY — MANUAL TIER
    Show: Map, Fire Control, Targeting, Firing Solution, Multi-Track, Combat Log
@@ -203,7 +208,8 @@ body.tier-manual .tac-subsystem-panel,
 body.tier-manual .tac-threat-panel,
 body.tier-manual .tac-ecm-panel,
 body.tier-manual .tac-eccm-panel,
-body.tier-manual .tac-lock-game-panel {
+body.tier-manual .tac-lock-game-panel,
+body.tier-manual .tac-charge-game-panel {
   display: none;
 }
 
@@ -292,6 +298,11 @@ body.tier-raw .helm-fc-panel {
   border-left: 3px solid var(--tier-accent, #ff4444);
 }
 
+/* RAW: RCS thruster diagram — read-only (fire controls hidden via component tier logic) */
+body.tier-raw .helm-rcs-thruster-panel {
+  grid-column: span 4;
+}
+
 
 
 /* =========================================================================
@@ -307,7 +318,8 @@ body.tier-raw .helm-fc-panel {
 /* Hidden panels */
 body.tier-arcade .helm-manual-flight-panel,
 body.tier-arcade .helm-maneuver-panel,
-body.tier-arcade .helm-queue-panel {
+body.tier-arcade .helm-queue-panel,
+body.tier-arcade .helm-rcs-thruster-panel {
   display: none;
 }
 
@@ -336,7 +348,8 @@ body.tier-arcade .helm-micro-rcs-panel {
 /* Hidden panels */
 body.tier-cpu-assist .helm-manual-flight-panel,
 body.tier-cpu-assist .helm-rcs-panel,
-body.tier-cpu-assist .helm-maneuver-panel {
+body.tier-cpu-assist .helm-maneuver-panel,
+body.tier-cpu-assist .helm-rcs-thruster-panel {
   display: none;
 }
 
@@ -367,8 +380,9 @@ body.tier-cpu-assist .helm-autopilot-status-panel {
    Show:     ALL panels. Fire Control hero (span-6). Target Status visible.
    ========================================================================= */
 
-/* RAW: show everything — hero sizing only. Lock game is arcade-exclusive. */
-body.tier-raw .tac-lock-game-panel {
+/* RAW: show everything — hero sizing only. Lock/charge games are arcade-exclusive. */
+body.tier-raw .tac-lock-game-panel,
+body.tier-raw .tac-charge-game-panel {
   display: none;
 }
 
@@ -401,6 +415,11 @@ body.tier-arcade .tac-fire-ctrl-panel {
   grid-column: span 6;
 }
 
+/* Railgun Charge timing game — ARCADE exclusive */
+body.tier-arcade .tac-charge-game-panel {
+  grid-column: span 4;
+}
+
 
 /* =========================================================================
    10. TACTICAL PANEL VISIBILITY — CPU-ASSIST TIER
@@ -418,7 +437,8 @@ body.tier-cpu-assist .tac-threat-panel,
 body.tier-cpu-assist .tac-subsystem-panel,
 body.tier-cpu-assist .tac-torpedo-panel,
 body.tier-cpu-assist .tac-solution-panel,
-body.tier-cpu-assist .tac-lock-game-panel {
+body.tier-cpu-assist .tac-lock-game-panel,
+body.tier-cpu-assist .tac-charge-game-panel {
   display: none;
 }
 
