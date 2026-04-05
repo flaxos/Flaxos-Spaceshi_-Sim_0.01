@@ -124,6 +124,11 @@ class RCSSystem(BaseSystem):
         # Maximum angular rates (degrees/second)
         self.max_rate = config.get("max_angular_rate", 30.0)
 
+        # Direct thruster overrides for MANUAL tier control.
+        # Maps thruster_id -> {"throttle": float, "remaining": float|None}
+        # where remaining is seconds until auto-cutoff (None = held indefinitely).
+        self._direct_thruster_overrides: dict = {}
+
         # Status tracking
         self.status = "standby"
         self.total_torque = np.zeros(3)
@@ -184,14 +189,32 @@ class RCSSystem(BaseSystem):
             self.status = "no_power"
             return
 
+        # --- Direct thruster overrides (MANUAL tier) ---
+        # Tick down durations and expire finished overrides before PD runs.
+        expired_overrides = []
+        for tid, ov in self._direct_thruster_overrides.items():
+            if ov["remaining"] is not None:
+                ov["remaining"] -= dt
+                if ov["remaining"] <= 0:
+                    expired_overrides.append(tid)
+        for tid in expired_overrides:
+            del self._direct_thruster_overrides[tid]
+
         # Compute desired torque based on control mode
         if self.control_mode == "attitude" and self.attitude_target is not None:
             desired_torque = self._compute_attitude_control(ship, dt)
         else:
             desired_torque = self._compute_rate_control(ship, dt)
 
-        # Allocate thrusters to achieve desired torque
+        # Allocate thrusters to achieve desired torque (PD controller)
         self._allocate_thrusters(desired_torque)
+
+        # Apply direct overrides ON TOP of PD allocation.
+        # Overridden thrusters ignore the PD-computed throttle and use the
+        # player's commanded value instead, giving raw manual authority.
+        for thruster in self.thrusters:
+            if thruster.id in self._direct_thruster_overrides:
+                thruster.throttle = self._direct_thruster_overrides[thruster.id]["throttle"]
 
         # Sum torque from all thrusters
         self.total_torque = np.zeros(3)
@@ -656,6 +679,8 @@ class RCSSystem(BaseSystem):
             return self.set_angular_velocity_target(params)
         if action == "clear_target":
             return self.clear_target()
+        if action == "fire_thruster":
+            return self.fire_thruster(params)
         if action == "status":
             return self.get_state()
         if action == "power_on":
@@ -719,6 +744,91 @@ class RCSSystem(BaseSystem):
 
         return {"status": "Targets cleared", "control_mode": self.control_mode}
 
+    def fire_thruster(self, params: dict, ship=None, event_bus=None) -> dict:
+        """Direct control of individual RCS thrusters (MANUAL tier).
+
+        Bypasses the PD attitude controller for the specified thruster,
+        giving the player raw rotational authority. The override persists
+        until the duration expires or the player zeros the throttle.
+
+        Args:
+            params: Dict with:
+                thruster_id: str -- thruster ID (e.g. "pitch_up", "yaw_left")
+                throttle: float 0.0-1.0 -- desired throttle
+                duration: float (optional) -- auto-cutoff in seconds.
+                    If omitted the override is held until explicitly cleared.
+
+        Returns:
+            dict with thruster state after applying the override.
+        """
+        if not self.enabled:
+            return {"error": "RCS system is disabled"}
+
+        thruster_id = params.get("thruster_id")
+        if not thruster_id:
+            return {"error": "thruster_id is required"}
+
+        # Look up the thruster by ID
+        thruster = None
+        for t in self.thrusters:
+            if t.id == thruster_id:
+                thruster = t
+                break
+
+        if thruster is None:
+            valid_ids = [t.id for t in self.thrusters]
+            return {
+                "error": f"Unknown thruster '{thruster_id}'",
+                "valid_ids": valid_ids,
+            }
+
+        throttle = float(params.get("throttle", 0.0))
+        throttle = max(0.0, min(1.0, throttle))
+
+        duration = params.get("duration")
+        if duration is not None:
+            duration = max(0.0, float(duration))
+
+        if throttle <= 0.0:
+            # Clearing the override -- remove from tracking and zero throttle
+            self._direct_thruster_overrides.pop(thruster_id, None)
+            thruster.throttle = 0.0
+        else:
+            self._direct_thruster_overrides[thruster_id] = {
+                "throttle": throttle,
+                "remaining": duration,
+            }
+            thruster.throttle = throttle
+
+        return {
+            "status": "ok",
+            "thruster_id": thruster_id,
+            "throttle": throttle,
+            "duration": duration,
+            "torque": thruster.get_torque().tolist(),
+            "override_active": thruster_id in self._direct_thruster_overrides,
+        }
+
+    def get_thruster_state(self) -> list:
+        """Return per-thruster telemetry for MANUAL tier display.
+
+        Returns:
+            List of dicts, one per thruster, with full physical state.
+        """
+        return [
+            {
+                "id": t.id,
+                "throttle": t.throttle,
+                "max_thrust": t.max_thrust,
+                "fuel_rate": t.get_fuel_rate(),
+                "torque": t.get_torque().tolist(),
+                "position": t.position.tolist(),
+                "direction": t.direction.tolist(),
+                "override": t.id in self._direct_thruster_overrides,
+            }
+            for t in self.thrusters
+        ]
+
     def get_state(self):
         state = super().get_state()
         state.update({
@@ -733,6 +843,26 @@ class RCSSystem(BaseSystem):
             },
             "fuel_used": self.fuel_used,
             "thruster_count": len(self.thrusters),
-            "active_thrusters": sum(1 for t in self.thrusters if t.throttle > 0.01)
+            "active_thrusters": sum(1 for t in self.thrusters if t.throttle > 0.01),
+            # Per-thruster state for MANUAL tier
+            "thrusters": [
+                {
+                    "id": t.id,
+                    "throttle": round(t.throttle, 3),
+                    "max_thrust": t.max_thrust,
+                    "fuel_rate": round(t.get_fuel_rate(), 4),
+                    "torque": [round(x, 2) for x in t.get_torque().tolist()],
+                    "position": t.position.tolist(),
+                    "direction": t.direction.tolist(),
+                }
+                for t in self.thrusters
+            ],
+            # PD controller state for MANUAL tier
+            "controller": {
+                "kp": self.kp,
+                "kd": self.kd,
+                "max_rate": self.max_rate,
+                "smoothed_target": self._smoothed_target,
+            },
         })
         return state

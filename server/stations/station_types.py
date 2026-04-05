@@ -67,6 +67,7 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             "rcs_attitude_target",
             "rcs_angular_velocity",
             "rcs_clear",
+            "rcs_fire_thruster",
             "set_course",
             "set_plan",
             "autopilot",
@@ -124,6 +125,7 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             "torpedo_status",
             "launch_missile",
             "missile_status",
+            "program_munition",
             "assess_damage",
             # Multi-target tracking commands
             "cycle_target",
@@ -142,6 +144,7 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             "fire_pdc",
             "fire_combat",
             "fire_all",
+            "fire_unguided",
             # Weapon status commands
             "ready_weapons",
             "combat_status",

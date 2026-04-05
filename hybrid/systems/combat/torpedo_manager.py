@@ -271,6 +271,16 @@ class Torpedo:
     warhead_type: str = WarheadType.FRAGMENTATION.value
     guidance_mode: str = GuidanceMode.GUIDED.value
 
+    # Player-programmable overrides (set via program_munition command).
+    # When None, the guidance code uses the default constant for this
+    # munition type.  These let MANUAL-tier players tune PN gain, fuse
+    # sensitivity, terminal transition range, boost duration, and
+    # datalink behavior per-munition.
+    pn_gain_override: Optional[float] = None
+    fuse_distance_override: Optional[float] = None
+    terminal_range_override: Optional[float] = None
+    boost_duration_override: Optional[float] = None
+
     # Damage tracking (for PDC interception)
     # Missiles are frailer: 40 HP vs 100 HP for torpedoes
     hull_health: float = 100.0   # PDC hits degrade this
@@ -316,6 +326,11 @@ class TorpedoManager:
         munition_type: MunitionType = MunitionType.TORPEDO,
         warhead_type: Optional[str] = None,
         guidance_mode: Optional[str] = None,
+        pn_gain: Optional[float] = None,
+        fuse_distance: Optional[float] = None,
+        terminal_range: Optional[float] = None,
+        boost_duration: Optional[float] = None,
+        datalink: Optional[bool] = None,
     ) -> Torpedo:
         """Launch a new torpedo or missile.
 
@@ -339,6 +354,11 @@ class TorpedoManager:
                 None defaults to fragmentation.
             guidance_mode: CPU assist level (dumb/guided/smart).
                 None defaults to guided.
+            pn_gain: Override PN gain (1.0-8.0). None uses guidance mode default.
+            fuse_distance: Override proximity fuse radius in meters. None uses default.
+            terminal_range: Override terminal phase transition range in meters.
+            boost_duration: Override boost phase duration in seconds.
+            datalink: Override datalink enabled state. None defaults to True.
 
         Returns:
             The spawned Torpedo (also used for missiles)
@@ -384,6 +404,12 @@ class TorpedoManager:
             hull_health=hull_hp,
             max_hull_health=hull_hp,
             delta_v_budget=dv_budget,
+            # Player-programmed overrides — None means "use default"
+            pn_gain_override=pn_gain,
+            fuse_distance_override=fuse_distance,
+            terminal_range_override=terminal_range,
+            boost_duration_override=boost_duration,
+            datalink_active=datalink if datalink is not None else True,
         )
         # Initialise per-missile profile state with randomised parameters.
         # Each profile needs different data seeded at launch so that
@@ -514,9 +540,13 @@ class TorpedoManager:
             # Proximity fuse radius depends on warhead type:
             # Torpedoes have a wider fuse (area-effect fragmentation)
             # Missiles have a tighter fuse (shaped-charge, needs near-hit)
-            prox_fuse = (MISSILE_PROXIMITY_FUSE
-                         if torpedo.munition_type == MunitionType.MISSILE
-                         else TORPEDO_PROXIMITY_FUSE)
+            # Player can override via program_munition for manual control.
+            if torpedo.fuse_distance_override is not None:
+                prox_fuse = torpedo.fuse_distance_override
+            else:
+                prox_fuse = (MISSILE_PROXIMITY_FUSE
+                             if torpedo.munition_type == MunitionType.MISSILE
+                             else TORPEDO_PROXIMITY_FUSE)
 
             # Check proximity detonation against target.
             # Two checks are needed:
@@ -667,9 +697,12 @@ class TorpedoManager:
         rel_pos = subtract_vectors(target_pos, torpedo.position)
         dist = magnitude(rel_pos)
 
-        # Per-type engagement parameters
-        terminal_range = (MISSILE_TERMINAL_RANGE if is_missile
-                          else TORPEDO_TERMINAL_RANGE)
+        # Per-type engagement parameters, with player override support
+        if torpedo.terminal_range_override is not None:
+            terminal_range = torpedo.terminal_range_override
+        else:
+            terminal_range = (MISSILE_TERMINAL_RANGE if is_missile
+                              else TORPEDO_TERMINAL_RANGE)
         max_lifetime = (MISSILE_MAX_LIFETIME if is_missile
                         else TORPEDO_MAX_LIFETIME)
 
@@ -704,8 +737,11 @@ class TorpedoManager:
         #   and better correction against maneuvering targets.
         # - Missiles use augmented PN (N=5) for tighter intercepts.
         # - Standard torpedoes use PN (N=4).
+        # Player can override via program_munition for fine-tuned control.
         is_smart = torpedo.guidance_mode == GuidanceMode.SMART.value
-        if is_smart:
+        if torpedo.pn_gain_override is not None:
+            pn_gain = torpedo.pn_gain_override
+        elif is_smart:
             pn_gain = 6.0  # Enhanced CPU predicts evasion patterns
         elif is_missile:
             pn_gain = 5.0
@@ -810,7 +846,8 @@ class TorpedoManager:
             # Once inside 2x terminal range they re-engage thrust to
             # execute the pop-up climb maneuver before terminal dive.
             if is_missile and torpedo.profile == "terminal_pop":
-                pop_range = 2.0 * MISSILE_TERMINAL_RANGE
+                _tr = torpedo.terminal_range_override if torpedo.terminal_range_override is not None else MISSILE_TERMINAL_RANGE
+                pop_range = 2.0 * _tr
                 if dist > pop_range:
                     thrust_fraction = 0.0
                 else:
@@ -878,9 +915,13 @@ class TorpedoManager:
         """
         is_missile = torpedo.munition_type == MunitionType.MISSILE
 
-        # Boost for a fixed duration, then coast
+        # Boost for a fixed duration, then coast.
+        # Player can override boost duration via program_munition.
         age = sim_time - torpedo.spawn_time
-        boost_duration = 3.0 if is_missile else 8.0
+        if torpedo.boost_duration_override is not None:
+            boost_duration = torpedo.boost_duration_override
+        else:
+            boost_duration = 3.0 if is_missile else 8.0
 
         if age > boost_duration or torpedo.fuel <= 0:
             # Coast phase — no thrust, no corrections
@@ -1080,7 +1121,8 @@ class TorpedoManager:
         if profile == "terminal_pop":
             offset_dir = pd.get("offset_dir", {"x": 0, "y": 1, "z": 0})
             offset_mag = pd.get("offset_mag", 750.0)
-            pop_range = 2.0 * MISSILE_TERMINAL_RANGE  # Pop at 6 km
+            _tr = missile.terminal_range_override if missile.terminal_range_override is not None else MISSILE_TERMINAL_RANGE
+            pop_range = 2.0 * _tr  # Pop at 2x terminal range
 
             if dist > pop_range:
                 # Midcourse: steer toward offset line (parallel to
@@ -1165,7 +1207,8 @@ class TorpedoManager:
 
             # Offset decays linearly as missile approaches terminal range
             # so all missiles converge for simultaneous impact
-            offset_strength = min(1.0, dist / max(1.0, MISSILE_TERMINAL_RANGE))
+            _tr = missile.terminal_range_override if missile.terminal_range_override is not None else MISSILE_TERMINAL_RANGE
+            offset_strength = min(1.0, dist / max(1.0, _tr))
             bracket_factor = 0.30 * offset_strength
 
             offset_dir = add_vectors(
@@ -1500,7 +1543,10 @@ class TorpedoManager:
         else:
             wh = TORPEDO_WARHEAD_SPECS.get(warhead, TORPEDO_WARHEAD_SPECS[WarheadType.FRAGMENTATION.value])
         lethal_r = wh["lethal_radius"]
-        prox_r = MISSILE_PROXIMITY_FUSE if is_missile else TORPEDO_PROXIMITY_FUSE
+        if torpedo.fuse_distance_override is not None:
+            prox_r = torpedo.fuse_distance_override
+        else:
+            prox_r = MISSILE_PROXIMITY_FUSE if is_missile else TORPEDO_PROXIMITY_FUSE
 
         # Include warhead type in label for non-default warheads
         warhead_label = ""
@@ -1603,6 +1649,7 @@ class TorpedoManager:
 
             # Estimated time to impact
             eta = None
+            closing_speed = 0.0
             rel_pos = subtract_vectors(t.last_target_pos, t.position)
             rel_vel = subtract_vectors(t.velocity, t.last_target_vel)
             dist_mag = magnitude(rel_pos)
@@ -1611,6 +1658,12 @@ class TorpedoManager:
                 closing_speed = dot_product(rel_vel, los)
                 if closing_speed > 1.0:
                     eta = round(dist_mag / closing_speed, 1)
+
+            # Compute delta-v remaining for this munition
+            munition_mass = t.mass
+            dry_mass = munition_mass - t.fuel
+            exhaust_vel = t.exhaust_velocity if hasattr(t, "exhaust_velocity") else 2943.0
+            dv_remaining = exhaust_vel * math.log(munition_mass / max(dry_mass, 0.1)) if t.fuel > 0 else 0.0
 
             result.append({
                 "id": t.id,
@@ -1633,6 +1686,14 @@ class TorpedoManager:
                 "is_thrusting": t.fuel > 0 and t.state in (TorpedoState.BOOST, TorpedoState.TERMINAL),
                 "ir_signature": thrust_ir if (t.fuel > 0 and t.state != TorpedoState.MIDCOURSE) else coast_ir,
                 "rcs_m2": rcs,
+                # MANUAL-tier guidance diagnostics
+                "pn_gain": getattr(t, "pn_gain", 4.0),
+                "fuse_distance": getattr(t, "fuse_distance", 50.0),
+                "datalink_active": getattr(t, "datalink_active", True),
+                "dv_remaining": round(dv_remaining, 1),
+                "closing_speed": round(closing_speed, 1) if closing_speed is not None else None,
+                "thrust": getattr(t, "thrust", 0.0),
+                "mass": round(munition_mass, 1),
             })
         return result
 

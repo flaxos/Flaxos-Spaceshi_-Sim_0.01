@@ -67,7 +67,7 @@ class TCPConnection:
                 return True
             try:
                 self.reader, self.writer = await asyncio.wait_for(
-                    asyncio.open_connection(self.host, self.port),
+                    asyncio.open_connection(self.host, self.port, limit=1024 * 1024),
                     timeout=5.0
                 )
                 self.connected = True

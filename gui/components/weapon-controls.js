@@ -865,16 +865,11 @@ class WeaponControls extends HTMLElement {
         /* === Tier-specific visibility classes === */
         .tier-hidden { display: none !important; }
 
-        /* MANUAL tier: simplified layout, just mount buttons and raw ammo */
+        /* MANUAL tier: full controls + munition programming */
         .manual-only { display: none; }
         :host(.tier-manual) .manual-only { display: block; }
-        :host(.tier-manual) .pdc-mode-group,
-        :host(.tier-manual) .launcher-type-group,
-        :host(.tier-manual) .missile-options,
         :host(.tier-manual) .auth-row,
-        :host(.tier-manual) .auth-conditions,
-        :host(.tier-manual) .target-lock-row,
-        :host(.tier-manual) .assess-btn { display: none !important; }
+        :host(.tier-manual) .auth-conditions { display: none !important; }
 
         /* ARCADE tier: grouped fire buttons, confidence gate */
         .arcade-grouped-btns {
@@ -1298,6 +1293,51 @@ class WeaponControls extends HTMLElement {
         <div class="warning-box hidden" id="no-lock-warning">
           No target lock - ordnance will fire dumb
         </div>
+
+        <!-- MANUAL tier: munition programming interface -->
+        <div class="manual-only" id="munition-program-section">
+          <div class="group-title" style="margin-top: 12px;">MUNITION PROGRAMMING</div>
+          <div class="manual-solution-grid" style="display: grid; grid-template-columns: auto 1fr; gap: 4px 8px; font-size: 0.72rem; padding: 8px;">
+            <span class="ms-label" style="color: var(--text-dim); text-transform: uppercase; font-size: 0.65rem;">GUIDANCE</span>
+            <select id="prog-guidance" style="background: var(--bg-input, #1a1a24); color: var(--text-primary, #e0e0e0); border: 1px solid var(--border-default, #2a2a3a); padding: 2px 4px; font-size: 0.72rem; font-family: var(--font-mono);">
+              <option value="dumb">DUMB (no corrections)</option>
+              <option value="guided" selected>GUIDED (PN gain 4.0)</option>
+              <option value="smart">SMART (PN gain 6.0)</option>
+            </select>
+
+            <span class="ms-label" style="color: var(--text-dim); text-transform: uppercase; font-size: 0.65rem;">PN GAIN</span>
+            <input id="prog-pn-gain" type="number" min="1.0" max="8.0" step="0.5" value="4.0"
+              style="background: var(--bg-input, #1a1a24); color: var(--text-primary); border: 1px solid var(--border-default, #2a2a3a); padding: 2px 4px; width: 60px; font-family: var(--font-mono); font-size: 0.72rem;">
+
+            <span class="ms-label" style="color: var(--text-dim); text-transform: uppercase; font-size: 0.65rem;">WARHEAD</span>
+            <select id="prog-warhead" style="background: var(--bg-input, #1a1a24); color: var(--text-primary); border: 1px solid var(--border-default, #2a2a3a); padding: 2px 4px; font-size: 0.72rem; font-family: var(--font-mono);">
+              <option value="fragmentation" selected>FRAGMENTATION</option>
+              <option value="shaped_charge">SHAPED CHARGE</option>
+              <option value="emp">EMP</option>
+            </select>
+
+            <span class="ms-label" style="color: var(--text-dim); text-transform: uppercase; font-size: 0.65rem;">FUSE DIST</span>
+            <span style="display:flex;align-items:center;gap:4px;">
+              <input id="prog-fuse" type="number" min="5" max="200" step="5" value="50"
+                style="background: var(--bg-input, #1a1a24); color: var(--text-primary); border: 1px solid var(--border-default, #2a2a3a); padding: 2px 4px; width: 50px; font-family: var(--font-mono); font-size: 0.72rem;">
+              <span style="color: var(--text-dim); font-size: 0.65rem;">m</span>
+            </span>
+
+            <span class="ms-label" style="color: var(--text-dim); text-transform: uppercase; font-size: 0.65rem;">DATALINK</span>
+            <label style="display:flex;align-items:center;gap:4px;cursor:pointer;">
+              <input id="prog-datalink" type="checkbox" checked style="accent-color: var(--tier-accent, #ff8800);">
+              <span style="color: var(--text-primary); font-size: 0.72rem;">Active</span>
+            </label>
+          </div>
+          <button id="prog-upload-btn" style="
+            width: 100%; padding: 6px; margin-top: 6px;
+            background: rgba(255, 136, 0, 0.1); border: 1px solid var(--tier-accent, #ff8800);
+            color: var(--tier-accent, #ff8800); font-family: var(--font-mono);
+            font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 1px; cursor: pointer; border-radius: 2px;
+          ">UPLOAD PROGRAM</button>
+          <div id="prog-status" style="font-size: 0.65rem; color: var(--text-dim); margin-top: 4px; text-align: center;"></div>
+        </div>
       </div>
 
       <div class="weapon-group">
@@ -1443,6 +1483,48 @@ class WeaponControls extends HTMLElement {
     this.shadowRoot.getElementById("cease-fire-btn").addEventListener("click", () => {
       this._ceaseFire();
     });
+
+    // MANUAL tier: munition programming upload
+    const progUploadBtn = this.shadowRoot.getElementById("prog-upload-btn");
+    if (progUploadBtn) {
+      progUploadBtn.addEventListener("click", () => this._uploadMunitionProgram());
+    }
+
+    // MANUAL tier: guidance mode updates PN gain default
+    const progGuidance = this.shadowRoot.getElementById("prog-guidance");
+    if (progGuidance) {
+      progGuidance.addEventListener("change", () => {
+        const pnInput = this.shadowRoot.getElementById("prog-pn-gain");
+        if (!pnInput) return;
+        const defaults = { dumb: 0, guided: 4.0, smart: 6.0 };
+        pnInput.value = defaults[progGuidance.value] ?? 4.0;
+      });
+    }
+  }
+
+  _uploadMunitionProgram() {
+    const guidance = this.shadowRoot.getElementById("prog-guidance")?.value || "guided";
+    const pnGain = parseFloat(this.shadowRoot.getElementById("prog-pn-gain")?.value) || 4.0;
+    const warhead = this.shadowRoot.getElementById("prog-warhead")?.value || "fragmentation";
+    const fuse = parseFloat(this.shadowRoot.getElementById("prog-fuse")?.value) || 50;
+    const datalink = this.shadowRoot.getElementById("prog-datalink")?.checked ?? true;
+
+    const program = {
+      munition_type: this._launcherType || "torpedo",
+      guidance_mode: guidance,
+      pn_gain: Math.max(1.0, Math.min(8.0, pnGain)),
+      warhead_type: warhead,
+      fuse_distance: Math.max(5, Math.min(200, fuse)),
+      datalink: datalink,
+    };
+
+    wsClient.sendShipCommand("program_munition", program);
+
+    const statusEl = this.shadowRoot.getElementById("prog-status");
+    if (statusEl) {
+      statusEl.textContent = `${program.munition_type.toUpperCase()} programmed: ${guidance.toUpperCase()}, PN=${program.pn_gain}, ${warhead.toUpperCase()}, fuse=${program.fuse_distance}m`;
+      statusEl.style.color = "var(--tier-accent, #ff8800)";
+    }
   }
 
   _updateDisplay() {

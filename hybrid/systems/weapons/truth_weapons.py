@@ -1506,6 +1506,35 @@ class TruthWeapon:
             return False
         return True
 
+    def _solution_telemetry(self) -> Optional[Dict]:
+        """Full firing solution telemetry including MANUAL-tier diagnostics."""
+        s = self.current_solution
+        if not s:
+            return None
+        return {
+            "valid": s.valid,
+            "target_id": s.target_id,
+            "range": s.range_to_target,
+            "confidence": s.confidence,
+            "confidence_factors": dict(s.confidence_factors),
+            "cone_radius_m": s.cone_radius_m,
+            "cone_angle_deg": s.cone_angle_deg,
+            "hit_probability": s.hit_probability,
+            "in_arc": s.in_arc,
+            "ready_to_fire": s.ready_to_fire,
+            "reason": s.reason,
+            "time_of_flight": s.time_of_flight,
+            # MANUAL-tier diagnostics (previously hidden)
+            "lead_angle": dict(s.lead_angle),
+            "intercept_point": dict(s.intercept_point),
+            "closing_speed": s.closing_speed,
+            "target_closing": s.target_closing,
+            "target_accel_magnitude": s.target_accel_magnitude,
+            "lateral_velocity": s.lateral_velocity,
+            "tracking": s.tracking,
+            "in_range": s.in_range,
+        }
+
     def get_state(self) -> Dict:
         """Get weapon state for telemetry."""
         return {
@@ -1534,20 +1563,7 @@ class TruthWeapon:
             "gimbal_azimuth": round(self.current_azimuth, 2),
             "gimbal_elevation": round(self.current_elevation, 2),
             "gimbal_error": round(self._gimbal_error, 2),
-            "solution": {
-                "valid": self.current_solution.valid if self.current_solution else False,
-                "target_id": self.current_solution.target_id if self.current_solution else None,
-                "range": self.current_solution.range_to_target if self.current_solution else 0,
-                "confidence": self.current_solution.confidence if self.current_solution else 0,
-                "confidence_factors": self.current_solution.confidence_factors if self.current_solution else {},
-                "cone_radius_m": self.current_solution.cone_radius_m if self.current_solution else 0,
-                "cone_angle_deg": self.current_solution.cone_angle_deg if self.current_solution else 0,
-                "hit_probability": self.current_solution.hit_probability if self.current_solution else 0,
-                "in_arc": self.current_solution.in_arc if self.current_solution else True,
-                "ready_to_fire": self.current_solution.ready_to_fire if self.current_solution else False,
-                "reason": self.current_solution.reason if self.current_solution else "",
-                "time_of_flight": self.current_solution.time_of_flight if self.current_solution else 0,
-            } if self.current_solution else None,
+            "solution": self._solution_telemetry(),
         }
 
 
