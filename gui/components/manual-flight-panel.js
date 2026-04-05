@@ -1,7 +1,8 @@
 /**
  * Manual Flight Panel — unified throttle + heading + velocity readout.
  * Tier-aware: RAW=full controls, ARCADE=throttle+readonly heading, CPU-ASSIST=hidden.
- * Commands: set_thrust {thrust:0-1}, set_orientation {pitch,yaw,roll} (same as existing components).
+ * MANUAL tier adds coordinate navigation section (set_course command).
+ * Commands: set_thrust {thrust:0-1}, set_orientation {pitch,yaw,roll}, set_course {x,y,z}.
  */
 import { stateManager } from "../js/state-manager.js";
 import { wsClient } from "../js/ws-client.js";
@@ -90,6 +91,28 @@ class ManualFlightPanel extends HTMLElement {
                     text-transform:uppercase; letter-spacing:.1em; cursor:pointer; }
         .all-stop:hover { background:#ff2222; }
         .all-stop:active { background:#cc0000; }
+        /* Manual-tier coordinate navigation section — visible only in MANUAL tier */
+        .manual-only { display:none; grid-column:1/-1; }
+        :host(.tier-manual) .manual-only { display:block; }
+        .mo-title { font-size:.65rem; text-transform:uppercase; color:var(--status-warning,#ffaa00); letter-spacing:.1em;
+                    margin-bottom:8px; font-weight:700; }
+        .mo-grid { display:grid; grid-template-columns:auto 1fr; gap:4px 8px; align-items:center;
+                   font-family:var(--font-mono,"JetBrains Mono",monospace); font-size:.8rem; }
+        .mo-grid .al { font-size:.65rem; text-transform:uppercase; color:var(--text-dim,#555566); }
+        .mo-grid input { width:100%; padding:4px 6px; background:var(--bg-primary,#0a0a0f);
+                         border:1px solid var(--border-default,#2a2a3a); border-radius:4px;
+                         color:var(--text-primary,#e0e0e0); font-family:inherit; font-size:.8rem;
+                         text-align:right; box-sizing:border-box; }
+        .mo-grid input:focus { outline:none; border-color:var(--status-warning,#ffaa00); }
+        .mo-go { margin-top:6px; padding:6px 10px; width:100%; background:var(--bg-input,#1a1a24);
+                 border:1px solid var(--status-warning,#ffaa00); border-radius:4px;
+                 color:var(--status-warning,#ffaa00); font-family:var(--font-mono,"JetBrains Mono",monospace);
+                 font-size:.75rem; font-weight:700; cursor:pointer; text-transform:uppercase; letter-spacing:.1em; }
+        .mo-go:hover { background:var(--status-warning,#ffaa00); color:#000; }
+        .mo-pos { margin-top:6px; padding:6px 8px; background:var(--bg-input,#1a1a24); border-radius:4px;
+                  font-family:var(--font-mono,"JetBrains Mono",monospace); font-size:.7rem;
+                  color:var(--text-dim,#555566); }
+        .mo-pos strong { color:var(--text-secondary,#888899); }
       </style>
       <div class="p">
         <div class="olbl">Manual Override</div>
@@ -127,6 +150,16 @@ class ManualFlightPanel extends HTMLElement {
           <span>Accel: <strong id="ag">0.0</strong>g</span>
         </div>
         <button class="all-stop" id="allstop" title="Kill all velocity (X)">ALL STOP</button>
+        <div class="manual-only" id="manual-nav">
+          <div class="mo-title">Navigate to Coordinates</div>
+          <div class="mo-grid">
+            <span class="al">X (m)</span><input type="number" id="mx" step="100" value="0"/>
+            <span class="al">Y (m)</span><input type="number" id="my" step="100" value="0"/>
+            <span class="al">Z (m)</span><input type="number" id="mz" step="100" value="0"/>
+          </div>
+          <button class="mo-go" id="mogo">GO</button>
+          <div class="mo-pos">Current: X <strong id="cpx">0</strong> Y <strong id="cpy">0</strong> Z <strong id="cpz">0</strong></div>
+        </div>
         <div class="rh">WASD/QE for RCS fine control</div>
       </div>`;
   }
@@ -159,6 +192,17 @@ class ManualFlightPanel extends HTMLElement {
     // Velocity
     this._velocity = nav.velocity || [0, 0, 0];
     this._updateVelStrip();
+    // Current position (manual-tier coordinate display)
+    const pos = ship?.position;
+    if (pos) {
+      const cpx = this.shadowRoot.getElementById("cpx");
+      const cpy = this.shadowRoot.getElementById("cpy");
+      const cpz = this.shadowRoot.getElementById("cpz");
+      const fmt = (v) => Math.abs(v) > 1000 ? `${(v / 1000).toFixed(1)}k` : Math.round(v).toString();
+      if (cpx) cpx.textContent = fmt(pos.x ?? pos[0] ?? 0);
+      if (cpy) cpy.textContent = fmt(pos.y ?? pos[1] ?? 0);
+      if (cpz) cpz.textContent = fmt(pos.z ?? pos[2] ?? 0);
+    }
   }
 
   _setThrottleVis(v) {
@@ -234,6 +278,13 @@ class ManualFlightPanel extends HTMLElement {
       const el = this.shadowRoot.getElementById(id);
       if (el) el.addEventListener("keydown", (e) => { if (e.key === "Enter") this._applyHeading(); });
     });
+    // Manual-tier coordinate navigation
+    const mogo = this.shadowRoot.getElementById("mogo");
+    if (mogo) mogo.addEventListener("click", () => this._goToCoords());
+    ["mx","my","mz"].forEach(id => {
+      const el = this.shadowRoot.getElementById(id);
+      if (el) el.addEventListener("keydown", (e) => { if (e.key === "Enter") this._goToCoords(); });
+    });
   }
 
   // ── Commands (same as throttle-control.js / heading-control.js) ────
@@ -270,11 +321,25 @@ class ManualFlightPanel extends HTMLElement {
     } catch (err) { this._showMsg(`All stop failed: ${err.message}`, "error"); }
   }
 
+  /** Send set_course command with raw X/Y/Z coordinates (MANUAL tier) */
+  async _goToCoords() {
+    const x = parseFloat(this.shadowRoot.getElementById("mx")?.value) || 0;
+    const y = parseFloat(this.shadowRoot.getElementById("my")?.value) || 0;
+    const z = parseFloat(this.shadowRoot.getElementById("mz")?.value) || 0;
+    try {
+      const r = await wsClient.sendShipCommand("set_course", {
+        x, y, z, stop: true, tolerance: 100, max_thrust: 1.0
+      });
+      if (r?.ok) { this._showMsg(`Course set: [${x}, ${y}, ${z}]`, "success"); }
+      else { this._showMsg(r?.error || "Set course failed", "error"); }
+    } catch (err) { this._showMsg(`Set course failed: ${err.message}`, "error"); }
+  }
+
   _showMsg(text, type) { const el = document.getElementById("system-messages"); if (el?.show) el.show({type,text}); }
 
   // ── Tier ────────────────────────────────────────────────────────────
   _applyTier() {
-    this.classList.remove("tier-raw", "tier-arcade", "tier-cpu-assist");
+    this.classList.remove("tier-raw", "tier-arcade", "tier-cpu-assist", "tier-manual");
     this.classList.add(`tier-${this._tier}`);
   }
 }
