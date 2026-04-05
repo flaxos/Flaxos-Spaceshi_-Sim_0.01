@@ -211,7 +211,8 @@ body.tier-manual .tac-ecm-panel,
 body.tier-manual .tac-eccm-panel,
 body.tier-manual .tac-lock-game-panel,
 body.tier-manual .tac-charge-game-panel,
-body.tier-manual .tac-ecm-game-panel {
+body.tier-manual .tac-ecm-game-panel,
+body.tier-manual .tac-sweep-game-panel {
   display: none;
 }
 
@@ -237,6 +238,10 @@ body.tier-manual .tac-multi-track-panel {
 
 body.tier-manual .tac-combat-log-panel {
   grid-column: span 12;
+}
+
+body.tier-manual .tac-sensor-analysis-panel {
+  grid-column: span 6;
 }
 
 /* =========================================================================
@@ -392,12 +397,17 @@ body.tier-cpu-assist .helm-autopilot-status-panel {
 /* RAW: show everything — hero sizing only. Lock/charge games are arcade-exclusive. */
 body.tier-raw .tac-lock-game-panel,
 body.tier-raw .tac-charge-game-panel,
-body.tier-raw .tac-ecm-game-panel {
+body.tier-raw .tac-ecm-game-panel,
+body.tier-raw .tac-sweep-game-panel {
   display: none;
 }
 
 body.tier-raw .tac-fire-ctrl-panel {
   grid-column: span 6;
+}
+
+body.tier-raw .tac-sensor-analysis-panel {
+  grid-column: span 4;
 }
 
 
@@ -411,7 +421,8 @@ body.tier-raw .tac-fire-ctrl-panel {
    ========================================================================= */
 
 /* Hidden panels */
-body.tier-arcade .tac-ecm-panel {
+body.tier-arcade .tac-ecm-panel,
+body.tier-arcade .tac-sensor-analysis-panel {
   display: none;
 }
 
@@ -435,6 +446,11 @@ body.tier-arcade .tac-ecm-game-panel {
   grid-column: span 4;
 }
 
+/* Sensor Sweep radar game — ARCADE exclusive */
+body.tier-arcade .tac-sweep-game-panel {
+  grid-column: span 4;
+}
+
 
 /* =========================================================================
    10. TACTICAL PANEL VISIBILITY — CPU-ASSIST TIER
@@ -454,7 +470,9 @@ body.tier-cpu-assist .tac-torpedo-panel,
 body.tier-cpu-assist .tac-solution-panel,
 body.tier-cpu-assist .tac-lock-game-panel,
 body.tier-cpu-assist .tac-charge-game-panel,
-body.tier-cpu-assist .tac-ecm-game-panel {
+body.tier-cpu-assist .tac-ecm-game-panel,
+body.tier-cpu-assist .tac-sweep-game-panel,
+body.tier-cpu-assist .tac-sensor-analysis-panel {
   display: none;
 }
 
@@ -869,7 +887,30 @@ body.tier-cpu-assist .fleet-roster-panel {
 
 
 /* =========================================================================
-   26. TUTORIAL HIGHLIGHT GLOW
+   26. CPU-ASSIST PROPOSAL PROMINENCE
+   Proposals are the primary interaction in CPU-ASSIST tier.
+   Float proposal containers to top, give them visual weight.
+   ========================================================================= */
+
+/* Proposal containers float above other content in the panel */
+body.tier-cpu-assist .proposal-container,
+body.tier-cpu-assist .proposals-container,
+body.tier-cpu-assist .proposals-queue,
+body.tier-cpu-assist .proposals,
+body.tier-cpu-assist [id$="-proposals"] {
+  order: -1;
+}
+
+/* The auto-system hero panels in CPU-ASSIST get extra prominence */
+body.tier-cpu-assist .eng-controls-panel,
+body.tier-cpu-assist .comms-panel,
+body.tier-cpu-assist .fleet-orders-panel {
+  border-top: 2px solid rgba(192, 160, 255, 0.35);
+}
+
+
+/* =========================================================================
+   26B. TUTORIAL HIGHLIGHT GLOW
    ========================================================================= */
 
 @keyframes tutorial-pulse {

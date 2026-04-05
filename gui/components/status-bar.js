@@ -167,6 +167,48 @@ class StatusBar extends HTMLElement {
             display: none;
           }
         }
+
+        /* Proposal notification badge — CPU-ASSIST tier only */
+        .proposal-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          padding: 2px 8px;
+          border-radius: 10px;
+          background: rgba(192, 160, 255, 0.12);
+          border: 1px solid rgba(192, 160, 255, 0.4);
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+          font-size: 0.7rem;
+          font-weight: 700;
+          color: #c0a0ff;
+          letter-spacing: 0.03em;
+          animation: proposalBadgePulse 2s ease-in-out infinite;
+        }
+
+        .proposal-badge.hidden {
+          display: none;
+        }
+
+        .badge-dot {
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          background: #c0a0ff;
+          box-shadow: 0 0 6px rgba(192, 160, 255, 0.6);
+        }
+
+        .badge-num {
+          color: #e0d0ff;
+        }
+
+        @keyframes proposalBadgePulse {
+          0%, 100% { box-shadow: none; }
+          50% { box-shadow: 0 0 10px rgba(192, 160, 255, 0.3); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .proposal-badge { animation: none; }
+        }
       </style>
 
       <div class="status-bar" id="bar">
@@ -255,6 +297,7 @@ class StatusBar extends HTMLElement {
       ${this._getEngineeringHtml(ship)}
       ${this._getCommsHtml(ship)}
       ${this._getFleetHtml(ship)}
+      ${this._getProposalBadgeHtml(ship)}
     `;
   }
 
@@ -498,6 +541,37 @@ class StatusBar extends HTMLElement {
       <div class="status-group">
         <span class="status-label">FLT</span>
         <span class="status-value ${info.cls}">${info.label} ${shipCount}S</span>
+      </div>
+    `;
+  }
+
+  _getProposalBadgeHtml(ship) {
+    // Only show in CPU-ASSIST tier
+    const tier = window.controlTier || "raw";
+    if (tier !== "cpu-assist") return "";
+
+    // Count pending proposals across all 6 auto-systems
+    const systems = [
+      "auto_tactical", "auto_ops", "auto_engineering",
+      "auto_science", "auto_comms", "auto_fleet"
+    ];
+    let total = 0;
+    for (const key of systems) {
+      const sys = ship?.[key];
+      if (sys?.enabled && sys?.proposals) {
+        total += sys.proposals.length;
+      }
+    }
+
+    if (total === 0) return "";
+
+    return `
+      <div class="separator"></div>
+      <div class="status-group">
+        <span class="proposal-badge">
+          <span class="badge-dot"></span>
+          <span class="badge-num">${total}</span> PENDING
+        </span>
       </div>
     `;
   }

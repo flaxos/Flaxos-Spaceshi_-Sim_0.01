@@ -15,6 +15,7 @@
 
 import { stateManager } from "../js/state-manager.js";
 import { wsClient } from "../js/ws-client.js";
+import { getProposalCSS } from "../js/proposal-styles.js";
 
 /** Ship classification options for RAW tier manual workflow */
 const SHIP_CLASSES = [
@@ -237,33 +238,24 @@ class ScienceAnalysisPanel extends HTMLElement {
       }
     `;
     if (tier === "cpu-assist") return `
-      /* CPU-ASSIST: purple accents, card-based proposals */
+      /* Proposal cards — shared styles from proposal-styles.js */
+      ${getProposalCSS()}
+      /* Legacy alias: auto-proposal maps to proposal-card */
       .auto-proposal {
-        background: var(--bg-secondary, #12121a);
-        border: 1px solid rgba(192, 160, 255, 0.2);
-        border-radius: 6px; padding: 8px 10px; margin: 6px 0;
+        background: rgba(192, 160, 255, 0.06);
+        border: 1px solid rgba(192, 160, 255, 0.3);
+        border-left: 3px solid var(--tier-accent, #c0a0ff);
+        border-radius: 6px; padding: 10px 12px; margin-bottom: 8px;
+        animation: proposalSlideIn 0.3s ease-out;
+        position: relative; overflow: hidden;
       }
       .auto-proposal .desc {
         color: var(--text-primary, #e0e0e8);
-        font-size: 0.75rem; margin-bottom: 6px;
+        font-size: 0.72rem; margin-bottom: 6px; line-height: 1.4;
       }
       .auto-proposal .meta {
         color: var(--text-dim, #555566);
         font-size: 0.6rem; margin-bottom: 4px;
-      }
-      .proposal-actions { display: flex; gap: 6px; }
-      .btn-approve {
-        background: rgba(0, 255, 136, 0.1); color: #00ff88;
-        border: 1px solid rgba(0, 255, 136, 0.3);
-        padding: 3px 10px; border-radius: 4px; cursor: pointer;
-        font-size: 0.65rem;
-      }
-      .btn-approve:hover { background: rgba(0, 255, 136, 0.2); }
-      .btn-deny {
-        background: rgba(255, 68, 68, 0.1); color: #ff4444;
-        border: 1px solid rgba(255, 68, 68, 0.3);
-        padding: 3px 10px; border-radius: 4px; cursor: pointer;
-        font-size: 0.65rem;
       }
       .btn-deny:hover { background: rgba(255, 68, 68, 0.2); }
       .auto-toggle-row {
@@ -693,16 +685,27 @@ class ScienceAnalysisPanel extends HTMLElement {
       if (proposals.length === 0) {
         proposalsList.innerHTML = `<div class="no-contacts">${autoSci.enabled ? "Scanning... no proposals yet" : "Enable auto-science to begin"}</div>`;
       } else {
-        proposalsList.innerHTML = proposals.map(p => `
-          <div class="auto-proposal">
-            <div class="desc">${p.description || p.action || "Scan proposal"}</div>
-            <div class="meta">${p.target || ""} ${p.priority ? "Priority: " + p.priority : ""}</div>
-            <div class="proposal-actions">
-              <button class="btn-approve" data-approve="${p.id}">APPROVE</button>
-              <button class="btn-deny" data-deny="${p.id}">DENY</button>
+        proposalsList.innerHTML = proposals.map(p => {
+          const confidence = p.confidence ?? 0;
+          const remaining = Math.max(0, p.time_remaining || 0);
+          const total = p.total_time || 30;
+          const timerPct = Math.min(100, (remaining / total) * 100);
+          const isUrgent = confidence > 0.8 || remaining < 5 || p.priority === "high";
+          const urgentClass = isUrgent ? " urgent" : "";
+          return `
+          <div class="proposal-card${urgentClass}">
+            <div class="proposal-header">
+              <span class="proposal-action">${p.description || p.action || "Scan proposal"}</span>
+              ${confidence > 0 ? `<span class="proposal-confidence">${(confidence * 100).toFixed(0)}%</span>` : ""}
             </div>
-          </div>
-        `).join("");
+            <div class="proposal-reason">${p.target || ""} ${p.priority ? "Priority: " + p.priority : ""}</div>
+            ${remaining > 0 ? `<div class="proposal-timer"><div class="proposal-timer-fill" style="width:${timerPct}%"></div></div>` : ""}
+            <div class="proposal-actions">
+              <button class="proposal-approve" data-approve="${p.id}">APPROVE</button>
+              <button class="proposal-deny" data-deny="${p.id}">DENY</button>
+            </div>
+          </div>`;
+        }).join("");
       }
     }
 

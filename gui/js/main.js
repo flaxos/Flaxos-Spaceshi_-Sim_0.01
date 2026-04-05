@@ -76,6 +76,8 @@ import "../components/ecm-control-panel.js";
 import "../components/eccm-control-panel.js";
 // ARCADE tier ECM frequency-matching mini-game
 import "../components/ecm-frequency-game.js";
+// ARCADE tier sensor sweep radar game
+import "../components/sensor-sweep-game.js";
 // Torpedo System
 import "../components/torpedo-status.js";
 // Engineering Station Controls
@@ -86,6 +88,8 @@ import "../components/comms-control-panel.js";
 import "../components/crew-fatigue-display.js";
 // Science Station Analysis
 import "../components/science-analysis-panel.js";
+// MANUAL tier raw sensor diagnostics
+import "../components/sensor-analysis-manual.js";
 // Tutorial System
 import "../components/tutorial-overlay.js";
 // Inter-station messaging
