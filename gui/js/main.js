@@ -74,6 +74,8 @@ import "../components/drone-control-panel.js";
 import "../components/ecm-control-panel.js";
 // ECCM Counter-Jamming
 import "../components/eccm-control-panel.js";
+// ARCADE tier ECM frequency-matching mini-game
+import "../components/ecm-frequency-game.js";
 // Torpedo System
 import "../components/torpedo-status.js";
 // Engineering Station Controls
@@ -102,6 +104,10 @@ import "../components/multi-track-panel.js";
 import "../components/targeting-lock-game.js";
 // ARCADE tier railgun charge timing game
 import "../components/weapons-charge-game.js";
+// ARCADE tier flight stability balance game
+import "../components/helm-balance-game.js";
+// ARCADE tier damage control pipe puzzle
+import "../components/damage-control-game.js";
 // Target damage assessment
 import "../components/target-assessment.js";
 // Damage visualization

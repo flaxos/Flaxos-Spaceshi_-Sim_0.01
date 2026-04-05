@@ -732,6 +732,10 @@
             <docking-panel></docking-panel>
           </flaxos-panel>
 
+          <flaxos-panel title="Flight Stability" collapsible priority="secondary" domain="helm" class="helm-balance-game-panel">
+            <helm-balance-game></helm-balance-game>
+          </flaxos-panel>
+
           <flaxos-panel title="Maneuver Planner" collapsible priority="tertiary" domain="helm" class="helm-maneuver-panel">
             <maneuver-planner></maneuver-planner>
           </flaxos-panel>
@@ -812,6 +816,10 @@
           <flaxos-panel title="Counter-Jamming (ECCM)" collapsible priority="secondary" domain="sensors" class="tac-eccm-panel">
             <eccm-control-panel></eccm-control-panel>
           </flaxos-panel>
+
+          <flaxos-panel title="Electronic Warfare" collapsible priority="secondary" domain="sensor" class="tac-ecm-game-panel">
+            <ecm-frequency-game></ecm-frequency-game>
+          </flaxos-panel>
         </div>
 
         <!-- AFTER-ACTION: Combat feedback -->
@@ -828,6 +836,10 @@
       <div class="view-grid">
         <!-- DAMAGE CONTROL -->
         <div class="panel-group" data-label="// DAMAGE CONTROL">
+          <flaxos-panel title="Damage Control" priority="primary" domain="power" class="ops-damage-game-panel">
+            <damage-control-game></damage-control-game>
+          </flaxos-panel>
+
           <flaxos-panel title="Ship Status" collapsible domain="ops" class="ops-status-panel">
             <ship-status></ship-status>
           </flaxos-panel>
