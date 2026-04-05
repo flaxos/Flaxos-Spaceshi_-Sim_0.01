@@ -235,6 +235,11 @@
       min-height: var(--panel-height-md);
     }
 
+    .tac-charge-game-panel {
+      grid-column: span 4;
+      min-height: var(--panel-height-sm);
+    }
+
     .tac-weapons-panel {
       grid-column: span 6;
       min-height: var(--panel-height-sm);
@@ -707,6 +712,10 @@
           <flaxos-panel title="RCS / Attitude" collapsible domain="helm" class="helm-rcs-panel">
             <rcs-controls></rcs-controls>
           </flaxos-panel>
+
+          <flaxos-panel title="RCS Thrusters" collapsible priority="secondary" domain="helm" class="helm-rcs-thruster-panel">
+            <rcs-thruster-display></rcs-thruster-display>
+          </flaxos-panel>
         </div>
 
         <!-- RIGHT: SHIP STATUS — "What is my ship doing?" -->
@@ -771,6 +780,10 @@
         <div class="panel-group tac-destroy-group" data-label="// DESTROY">
           <flaxos-panel title="Fire Control" collapsible priority="primary" domain="weapons" class="tac-fire-ctrl-panel">
             <weapon-controls></weapon-controls>
+          </flaxos-panel>
+
+          <flaxos-panel title="Railgun Charge" collapsible priority="secondary" domain="weapons" class="tac-charge-game-panel">
+            <weapons-charge-game></weapons-charge-game>
           </flaxos-panel>
 
           <flaxos-panel title="Weapons / Ordnance" collapsible priority="secondary" domain="weapons" class="tac-weapons-panel">
@@ -854,6 +867,10 @@
         <div class="panel-group" data-label="// CREW">
           <flaxos-panel title="Crew Management" priority="secondary" domain="ops" class="ops-crew-binding-panel">
             <crew-panel></crew-panel>
+          </flaxos-panel>
+
+          <flaxos-panel title="Crew Roster &amp; Progression" priority="secondary" domain="ops" class="ops-crew-roster-panel" collapsible>
+            <crew-roster-panel></crew-roster-panel>
           </flaxos-panel>
         </div>
 
