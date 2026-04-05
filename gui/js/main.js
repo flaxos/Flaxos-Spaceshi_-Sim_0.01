@@ -97,6 +97,8 @@ import "../components/scenario-editor.js";
 import "../components/boarding-panel.js";
 // Multi-target tracking
 import "../components/multi-track-panel.js";
+// ARCADE tier lock minigame
+import "../components/targeting-lock-game.js";
 // Target damage assessment
 import "../components/target-assessment.js";
 // Damage visualization
