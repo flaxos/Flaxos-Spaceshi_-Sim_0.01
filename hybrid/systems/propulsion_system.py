@@ -153,19 +153,20 @@ class PropulsionSystem(BaseSystem):
                 ship, ship_frame_force
             )
 
-        # Power check
-        total_power = self.power_draw + (self.power_draw_per_thrust * thrust_magnitude * dt)
-        power_system = ship.systems.get("power_management") or ship.systems.get("power")
-        if power_system and not power_system.request_power(total_power, "propulsion"):
-            logger.warning(f"Propulsion on {ship.id} reduced due to power shortage")
-            thrust_world_x = thrust_world_y = thrust_world_z = 0.0
-            thrust_magnitude = 0.0
-            if self.power_status:
-                self.power_status = False
-                event_bus.publish("propulsion_power_loss", {"source": "propulsion"})
-        elif not self.power_status:
-            self.power_status = True
-            event_bus.publish("propulsion_power_restored", {"source": "propulsion"})
+        # Power check — only when actually thrusting (idle ships skip this)
+        if thrust_magnitude > 0:
+            total_power = self.power_draw + (self.power_draw_per_thrust * thrust_magnitude * dt)
+            power_system = ship.systems.get("power_management") or ship.systems.get("power")
+            if power_system and not power_system.request_power(total_power, "propulsion"):
+                thrust_world_x = thrust_world_y = thrust_world_z = 0.0
+                thrust_magnitude = 0.0
+                if self.power_status:
+                    logger.warning(f"Propulsion on {ship.id} reduced due to power shortage")
+                    self.power_status = False
+                    event_bus.publish("propulsion_power_loss", {"source": "propulsion"})
+            elif not self.power_status:
+                self.power_status = True
+                event_bus.publish("propulsion_power_restored", {"source": "propulsion"})
 
         # Store world-frame thrust for telemetry
         self.thrust_world = {"x": thrust_world_x, "y": thrust_world_y, "z": thrust_world_z}

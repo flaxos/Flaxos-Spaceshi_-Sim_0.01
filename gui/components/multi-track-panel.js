@@ -30,6 +30,9 @@ class MultiTrackPanel extends HTMLElement {
     this._contactSelectedHandler = null;
     this._keydownHandler = null;
     this._selectedContact = null;
+    this._lastUpdateTime = 0;
+    this._lastTrackJson = "";
+    this._updatePending = false;
   }
 
   connectedCallback() {
@@ -72,6 +75,19 @@ class MultiTrackPanel extends HTMLElement {
 
   _subscribe() {
     this._unsubscribe = stateManager.subscribe("*", () => {
+      const now = performance.now();
+      if (now - this._lastUpdateTime < 200) {
+        if (!this._updatePending) {
+          this._updatePending = true;
+          setTimeout(() => {
+            this._updatePending = false;
+            this._lastUpdateTime = performance.now();
+            this._updateDisplay();
+          }, 200);
+        }
+        return;
+      }
+      this._lastUpdateTime = now;
       this._updateDisplay();
     });
   }
@@ -477,11 +493,24 @@ class MultiTrackPanel extends HTMLElement {
     if (!container) return;
 
     if (tracks.length === 0) {
+      this._lastTrackJson = "";
       container.innerHTML = `
         <div class="empty-msg">
           No contacts tracked. Select a contact and click Add.
         </div>
       `;
+      return;
+    }
+
+    // Dirty-check: skip rebuild if data hasn't changed
+    const trackJson = JSON.stringify({ tracks, primaryTarget, pdcAssignments, splitAssignments });
+    if (trackJson === this._lastTrackJson) return;
+    this._lastTrackJson = trackJson;
+
+    // If a dropdown is currently open/focused, do in-place updates only
+    const activeSelect = this.shadowRoot.activeElement;
+    if (activeSelect && activeSelect.classList.contains("split-select")) {
+      this._updateCardsInPlace(container, tracks, primaryTarget, pdcAssignments, splitAssignments);
       return;
     }
 
@@ -581,6 +610,51 @@ class MultiTrackPanel extends HTMLElement {
 
     container.innerHTML = html;
     this._bindCardHandlers(container);
+  }
+
+  /** In-place update when a dropdown is open — avoids destroying the active select */
+  _updateCardsInPlace(container, tracks, primaryTarget, pdcAssignments, splitAssignments) {
+    for (const track of tracks) {
+      const card = container.querySelector(`.track-card[data-contact="${track.contact_id}"]`);
+      if (!card) continue;
+
+      // Update primary badge
+      const isPrimary = track.contact_id === primaryTarget;
+      card.classList.toggle("primary", isPrimary);
+
+      // Update quality bar
+      const qualPct = Math.round((track.quality_modifier || 0) * 100);
+      const qualClass = qualPct >= 80 ? "high" : qualPct >= 50 ? "mid" : "low";
+      const qualFill = card.querySelector(".quality-fill");
+      if (qualFill) {
+        qualFill.style.width = `${qualPct}%`;
+        qualFill.className = `quality-fill ${qualClass}`;
+      }
+      const qualPctEl = card.querySelector(".quality-pct");
+      if (qualPctEl) qualPctEl.textContent = `${qualPct}%`;
+
+      // Update bearing/range
+      const metaEl = card.querySelector(".card-meta");
+      if (metaEl) {
+        const bearing = track.bearing != null
+          ? `${typeof track.bearing === 'number' ? track.bearing.toFixed(0) : '--'}deg`
+          : "--";
+        const range = track.range != null ? this._formatRange(track.range) : "--";
+        metaEl.textContent = `${bearing} | ${range}`;
+      }
+
+      // Update PDC toggle states
+      const pdcByContact = {};
+      for (const [mount, cid] of Object.entries(pdcAssignments)) {
+        if (!pdcByContact[cid]) pdcByContact[cid] = [];
+        pdcByContact[cid].push(mount);
+      }
+      const assignedPdcs = pdcByContact[track.contact_id] || [];
+      card.querySelectorAll(".pdc-toggle").forEach(btn => {
+        const isAssigned = assignedPdcs.includes(btn.dataset.pdcMount);
+        btn.classList.toggle("assigned", isAssigned);
+      });
+    }
   }
 
   /** Bind click/change handlers on newly-rendered card elements */
