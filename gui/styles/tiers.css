@@ -202,7 +202,8 @@ body.tier-manual .tac-torpedo-panel,
 body.tier-manual .tac-subsystem-panel,
 body.tier-manual .tac-threat-panel,
 body.tier-manual .tac-ecm-panel,
-body.tier-manual .tac-eccm-panel {
+body.tier-manual .tac-eccm-panel,
+body.tier-manual .tac-lock-game-panel {
   display: none;
 }
 
@@ -284,13 +285,11 @@ body.tier-raw .helm-docking-panel {
   display: none;
 }
 
-/* Disabled: Flight Computer — visible but inert.
- * The disabled-reason attribute on <flaxos-panel> handles the overlay message. */
+/* RAW: Flight Computer is a tool you understand, not a crutch.
+ * Fully accessible but visually distinguished as computer-assisted. */
 body.tier-raw .helm-fc-panel {
-  opacity: 0.5;
-  pointer-events: none;
-  position: relative;
-  order: 99; /* Push to end of grid */
+  opacity: 0.85;
+  border-left: 3px solid var(--tier-accent, #ff4444);
 }
 
 
@@ -368,7 +367,11 @@ body.tier-cpu-assist .helm-autopilot-status-panel {
    Show:     ALL panels. Fire Control hero (span-6). Target Status visible.
    ========================================================================= */
 
-/* RAW: show everything — hero sizing only */
+/* RAW: show everything — hero sizing only. Lock game is arcade-exclusive. */
+body.tier-raw .tac-lock-game-panel {
+  display: none;
+}
+
 body.tier-raw .tac-fire-ctrl-panel {
   grid-column: span 6;
 }
@@ -414,7 +417,8 @@ body.tier-cpu-assist .tac-eccm-panel,
 body.tier-cpu-assist .tac-threat-panel,
 body.tier-cpu-assist .tac-subsystem-panel,
 body.tier-cpu-assist .tac-torpedo-panel,
-body.tier-cpu-assist .tac-solution-panel {
+body.tier-cpu-assist .tac-solution-panel,
+body.tier-cpu-assist .tac-lock-game-panel {
   display: none;
 }
 
