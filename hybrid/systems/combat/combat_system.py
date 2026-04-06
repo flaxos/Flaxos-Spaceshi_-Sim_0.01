@@ -145,6 +145,13 @@ class CombatSystem(BaseSystem):
         # Set via program_munition(), consumed on next launch_torpedo/launch_missile.
         self._munition_program: Optional[dict] = None
 
+        # Salvo queue — server-side staggered launch replacing client setTimeout.
+        # Each entry: {target, munition_type, profile, warhead_type, guidance_mode, salvo_id}
+        self._salvo_queue: list = []
+        self._salvo_timer: float = 0.0
+        self._salvo_stagger: float = 0.1  # seconds between launches (default 100ms)
+        self._next_salvo_id: int = 0
+
         # Auto-fire manager — server-authoritative fire authorization
         # Replaces the client-side _processAutoExecute() in weapon-controls.js
         self.auto_fire_manager = AutoFireManager()
@@ -236,6 +243,9 @@ class CombatSystem(BaseSystem):
         for mid in expired:
             del self._pdc_reacquire_timers[mid]
 
+        # Process salvo queue — pop one launch per stagger interval
+        self._tick_salvo_queue(dt, ship)
+
         # Update firing solutions from targeting system
         self._update_weapon_solutions(ship)
 
@@ -243,6 +253,131 @@ class CombatSystem(BaseSystem):
         # Must run AFTER weapon solutions are updated so the manager sees
         # current ready_to_fire state.
         self.auto_fire_manager.tick(dt, self, ship)
+
+    def _tick_salvo_queue(self, dt: float, ship) -> None:
+        """Process the salvo queue, launching one munition per stagger interval.
+
+        The salvo queue decouples the player's "fire salvo" intent from the
+        individual launch timing.  Each tick, if enough time has elapsed since
+        the last staggered launch, the next queued launch config is popped and
+        executed through the normal launch_missile / launch_torpedo path.
+
+        Args:
+            dt: Time delta this tick.
+            ship: Ship object (needed for all_ships resolution).
+        """
+        if not self._salvo_queue:
+            return
+
+        self._salvo_timer -= dt
+        if self._salvo_timer > 0:
+            return
+
+        # Pop the next launch from the queue
+        launch_cfg = self._salvo_queue.pop(0)
+        self._salvo_timer = self._salvo_stagger
+
+        # Build all_ships dict from ship reference
+        all_ships_list = getattr(ship, "_all_ships_ref", None) or []
+        all_ships = {s.id: s for s in all_ships_list} if isinstance(all_ships_list, list) else {}
+
+        munition_type = launch_cfg.get("munition_type", "missile")
+        target = launch_cfg.get("target")
+        profile = launch_cfg.get("profile", "direct")
+        warhead_type = launch_cfg.get("warhead_type")
+        guidance_mode = launch_cfg.get("guidance_mode")
+
+        if munition_type == "torpedo":
+            self.launch_torpedo(target, profile, all_ships,
+                                warhead_type=warhead_type, guidance_mode=guidance_mode)
+        else:
+            self.launch_missile(target, profile, all_ships,
+                                warhead_type=warhead_type, guidance_mode=guidance_mode)
+
+    def launch_salvo(
+        self, target: Optional[str] = None, count: int = 2,
+        munition_type: str = "missile", profile: str = "direct",
+        stagger_ms: int = 100, warhead_type: Optional[str] = None,
+        guidance_mode: Optional[str] = None,
+    ) -> dict:
+        """Queue a salvo of missiles or torpedoes for staggered server-side launch.
+
+        Replaces the client-side setTimeout stagger with authoritative server
+        timing.  If the ship has fewer munitions than requested, a partial
+        salvo is queued (fire what you have).
+
+        Args:
+            target: Target ship/contact ID (uses locked target if omitted).
+            count: Number of munitions to fire (1/2/4/6/8, clamped to ammo).
+            munition_type: "missile" or "torpedo".
+            profile: Flight profile for missiles, attack profile for torpedoes.
+            stagger_ms: Milliseconds between each launch (default 100).
+            warhead_type: Optional warhead variant.
+            guidance_mode: Optional guidance CPU level.
+
+        Returns:
+            dict: {salvo_id, count_queued, munition_type} on success.
+        """
+        if not self._ship_ref:
+            return error_dict("NO_SHIP", "Ship reference not available")
+
+        # Resolve target from targeting system if not provided
+        if not target:
+            targeting = self._ship_ref.systems.get("targeting")
+            if targeting and targeting.locked_target:
+                target = targeting.locked_target
+
+        if not target:
+            return error_dict("NO_TARGET", "No target designated for salvo launch")
+
+        # Validate munition type and check available ammo
+        if munition_type == "torpedo":
+            available = self.torpedoes_loaded
+            if available <= 0:
+                return error_dict("NO_TORPEDOES", "No torpedoes remaining")
+        elif munition_type == "missile":
+            available = self.missiles_loaded
+            if available <= 0:
+                return error_dict("NO_MISSILES", "No missiles remaining")
+        else:
+            return error_dict("INVALID_MUNITION",
+                              f"munition_type must be 'missile' or 'torpedo', got '{munition_type}'")
+
+        # Clamp count to available ammo (partial salvo if insufficient)
+        count_queued = min(count, available)
+
+        # Assign salvo ID for tracking
+        self._next_salvo_id += 1
+        salvo_id = f"salvo_{self._next_salvo_id}"
+
+        # Set stagger timing
+        self._salvo_stagger = max(stagger_ms / 1000.0, 0.05)  # floor 50ms
+
+        # Queue each launch config
+        for _ in range(count_queued):
+            self._salvo_queue.append({
+                "target": target,
+                "munition_type": munition_type,
+                "profile": profile,
+                "warhead_type": warhead_type,
+                "guidance_mode": guidance_mode,
+                "salvo_id": salvo_id,
+            })
+
+        # Fire the first one immediately (timer starts from zero)
+        self._salvo_timer = 0.0
+
+        logger.info(
+            "Salvo %s queued: %d x %s at %s (stagger=%dms, profile=%s)",
+            salvo_id, count_queued, munition_type, target, stagger_ms, profile,
+        )
+
+        return success_dict(
+            f"Salvo queued: {count_queued}x {munition_type}",
+            salvo_id=salvo_id,
+            count_queued=count_queued,
+            munition_type=munition_type,
+        )
 
     def _update_weapon_solutions(self, ship):
         """Update firing solutions for all weapons."""
@@ -1147,6 +1282,24 @@ class CombatSystem(BaseSystem):
             guidance_mode = params.get("guidance_mode")
             return self.launch_missile(target_id, profile, all_ships,
                                        warhead_type=warhead_type, guidance_mode=guidance_mode)
+
+        elif action == "launch_salvo":
+            target_id = params.get("target")
+            if not target_id and self._ship_ref:
+                targeting = self._ship_ref.systems.get("targeting")
+                if targeting and targeting.locked_target:
+                    target_id = targeting.locked_target
+            count = params.get("count", 2)
+            munition_type = params.get("munition_type", "missile")
+            profile = params.get("profile", "direct")
+            stagger_ms = params.get("stagger_ms", 100)
+            warhead_type = params.get("warhead_type")
+            guidance_mode = params.get("guidance_mode")
+            return self.launch_salvo(
+                target=target_id, count=count, munition_type=munition_type,
+                profile=profile, stagger_ms=stagger_ms,
+                warhead_type=warhead_type, guidance_mode=guidance_mode,
+            )
 
         elif action == "program_munition":
             return self.program_munition(params)

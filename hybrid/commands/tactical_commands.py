@@ -469,6 +469,37 @@ def cmd_assess_damage(targeting, ship, params):
     )
 
 
+def cmd_launch_salvo(combat, ship, params):
+    """Launch a salvo of missiles or torpedoes with staggered timing.
+
+    Server-side salvo replaces the client's setTimeout loop with
+    authoritative tick-based stagger. Partial salvos are fired if
+    ammo is insufficient for the requested count.
+
+    Args:
+        combat: CombatSystem instance
+        ship: Ship object
+        params: Validated parameters with count, munition_type, profile, etc.
+
+    Returns:
+        dict: {salvo_id, count_queued, munition_type} on success
+    """
+    count = params.get("count", 2)
+    munition_type = params.get("munition_type", "missile")
+    profile = params.get("profile", "direct")
+    stagger_ms = params.get("stagger_ms", 100)
+    warhead_type = params.get("warhead_type")
+    guidance_mode = params.get("guidance_mode")
+    target = params.get("target")
+
+    result = combat.launch_salvo(
+        target=target, count=count, munition_type=munition_type,
+        profile=profile, stagger_ms=stagger_ms,
+        warhead_type=warhead_type, guidance_mode=guidance_mode,
+    )
+    return result
+
+
 def cmd_set_pdc_priority(combat, ship, params):
     """Set PDC threat engagement priority order.
 
@@ -659,6 +690,31 @@ def register_commands(dispatcher):
                                 "guided (PN with datalink), smart (evasion prediction)"),
         ],
         help_text="Launch missile with target designation, warhead type, and guidance mode",
+        system="combat",
+    ))
+
+    dispatcher.register("launch_salvo", CommandSpec(
+        handler=cmd_launch_salvo,
+        args=[
+            ArgSpec("target", "str", required=False,
+                    description="Target ship/contact ID (uses locked target if omitted)"),
+            ArgSpec("count", "int", required=False, default=2,
+                    description="Number of munitions to fire (1/2/4/6/8)"),
+            ArgSpec("munition_type", "str", required=False, default="missile",
+                    choices=["missile", "torpedo"],
+                    description="Munition type: missile (light, fast) or torpedo (heavy, slow)"),
+            ArgSpec("profile", "str", required=False, default="direct",
+                    description="Flight/attack profile for the munitions"),
+            ArgSpec("stagger_ms", "int", required=False, default=100,
+                    description="Milliseconds between each launch in the salvo"),
+            ArgSpec("warhead_type", "str", required=False,
+                    choices=["fragmentation", "shaped_charge", "emp"],
+                    description="Warhead variant for all munitions in the salvo"),
+            ArgSpec("guidance_mode", "str", required=False,
+                    choices=["dumb", "guided", "smart"],
+                    description="Guidance CPU level for all munitions in the salvo"),
+        ],
+        help_text="Launch a salvo of missiles or torpedoes with staggered server-side timing",
         system="combat",
     ))
 

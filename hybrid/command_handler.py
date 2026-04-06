@@ -90,6 +90,7 @@ system_commands = {
     "launch_torpedo": ("combat", "launch_torpedo"),
     "torpedo_status": ("combat", "torpedo_status"),
     "launch_missile": ("combat", "launch_missile"),
+    "launch_salvo": ("combat", "launch_salvo"),
     "missile_status": ("combat", "missile_status"),
     "program_munition": ("combat", "program_munition"),
     "assess_damage": ("targeting", "assess_damage"),

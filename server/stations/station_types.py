@@ -124,6 +124,7 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             "launch_torpedo",
             "torpedo_status",
             "launch_missile",
+            "launch_salvo",
             "missile_status",
             "program_munition",
             "assess_damage",
