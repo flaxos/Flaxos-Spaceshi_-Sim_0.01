@@ -30,6 +30,8 @@ class TacticalMap extends HTMLElement {
     this._scaleIndex = 2; // Default 10km
     this._autoFit = true; // Auto-scale to fit all contacts
     this._showVelocityVectors = true;
+    this._tier = window.controlTier || "arcade";
+    this._onTierChange = null;
     this._showHeading = true;
     this._showGrid = true;
     this._showWeaponArcs = false;
@@ -54,11 +56,26 @@ class TacticalMap extends HTMLElement {
     this._setupCanvas();
     this._subscribe();
     this._setupInteraction();
+    // Listen for tier changes — MANUAL tier forces velocity vectors on
+    this._onTierChange = (e) => {
+      this._tier = e.detail?.tier || "arcade";
+      if (this._tier === "manual") {
+        this._showVelocityVectors = true;
+        const btn = this.shadowRoot.getElementById("toggle-vectors");
+        if (btn) btn.classList.add("active");
+      }
+      this._draw();
+    };
+    document.addEventListener("tier-change", this._onTierChange);
   }
 
   disconnectedCallback() {
     if (this._unsubscribe) {
       this._unsubscribe();
+    }
+    if (this._onTierChange) {
+      document.removeEventListener("tier-change", this._onTierChange);
+      this._onTierChange = null;
     }
   }
 
@@ -577,6 +594,11 @@ class TacticalMap extends HTMLElement {
 
     // Draw player ship (always at center)
     this._drawPlayerShip(ctx, centerX, centerY, playerHeading, playerVel, pixelsPerMeter);
+
+    // Draw velocity legend (MANUAL tier only)
+    if (this._tier === "manual" && this._showVelocityVectors) {
+      this._drawVelocityLegend(ctx, w, h, playerVel, contacts);
+    }
 
     // Draw compass
     this._drawCompass(ctx, w, h);
@@ -1413,6 +1435,71 @@ class TacticalMap extends HTMLElement {
     }
 
     ctx.globalAlpha = 1;
+  }
+
+  /** MANUAL-tier velocity legend: numeric speed readouts in top-left corner */
+  _drawVelocityLegend(ctx, w, h, playerVel, contacts) {
+    const x = 12;
+    let y = 40;
+    const lineH = 16;
+
+    ctx.save();
+    ctx.font = "11px 'JetBrains Mono', 'Fira Code', monospace";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+
+    // Background panel
+    const panelH = lineH * 4 + 10;
+    ctx.fillStyle = "rgba(10, 10, 18, 0.85)";
+    ctx.strokeStyle = "rgba(255, 136, 0, 0.4)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(x - 4, y - 4, 180, panelH, 3);
+    ctx.fill();
+    ctx.stroke();
+
+    // Title
+    ctx.fillStyle = "#ff8800";
+    ctx.fillText("VELOCITY", x, y);
+    y += lineH;
+
+    // Ship speed
+    const shipSpeed = Math.sqrt(
+      (playerVel.x || 0) ** 2 + (playerVel.y || 0) ** 2 + (playerVel.z || 0) ** 2
+    );
+    ctx.fillStyle = "#00ff88";
+    ctx.fillText(`SHIP  ${shipSpeed.toFixed(1)} m/s`, x, y);
+    y += lineH;
+
+    // Target speed + relative velocity (if target selected)
+    const selContact = this._selectedContact
+      ? (contacts || []).find(c => (c.contact_id || c.id) === this._selectedContact)
+      : null;
+
+    if (selContact && selContact.velocity) {
+      const tv = selContact.velocity;
+      const tSpeed = Math.sqrt((tv.x || 0) ** 2 + (tv.y || 0) ** 2 + (tv.z || 0) ** 2);
+      ctx.fillStyle = "#ff4444";
+      ctx.fillText(`TGT   ${tSpeed.toFixed(1)} m/s`, x, y);
+      y += lineH;
+
+      // Relative velocity (closing = negative range_rate)
+      const rvx = (playerVel.x || 0) - (tv.x || 0);
+      const rvy = (playerVel.y || 0) - (tv.y || 0);
+      const rvz = (playerVel.z || 0) - (tv.z || 0);
+      const relSpeed = Math.sqrt(rvx * rvx + rvy * rvy + rvz * rvz);
+      // Determine closing vs opening from range_rate if available
+      const closing = selContact.range_rate != null ? selContact.range_rate < 0 : false;
+      ctx.fillStyle = "#ffaa00";
+      ctx.fillText(`REL   ${relSpeed.toFixed(1)} m/s ${closing ? "CLOSING" : "OPENING"}`, x, y);
+    } else {
+      ctx.fillStyle = "#555566";
+      ctx.fillText("TGT   -- m/s", x, y);
+      y += lineH;
+      ctx.fillText("REL   -- m/s", x, y);
+    }
+
+    ctx.restore();
   }
 
   _drawCompass(ctx, w, h) {
