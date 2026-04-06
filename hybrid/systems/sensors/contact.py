@@ -242,9 +242,12 @@ class ContactTracker:
                 self.contacts[cid].confidence = max(self.contacts[cid].confidence, 0.05)
                 continue
 
-            # Ship no longer exists — safe to fully remove
-            if real_id:
-                del self.id_mapping[real_id]
+            # Ship no longer exists — remove the contact data but PRESERVE
+            # the id_mapping entry. The mapping (real_ship_id -> stable_contact_id)
+            # must persist so that if this ship_id is ever reused or re-detected,
+            # it gets the same stable contact ID. Deleting the mapping causes
+            # subsequent update_contact() calls to generate new IDs that collide
+            # with existing contacts, cascading into total contact loss.
             del self.contacts[cid]
 
 def add_detection_noise(position: Dict[str, float], accuracy: float) -> Dict[str, float]:

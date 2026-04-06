@@ -286,10 +286,18 @@ class Simulator:
         # PDC auto-interception of incoming torpedoes
         self._process_pdc_torpedo_intercept(all_ships)
 
-        # D6: Remove destroyed ships
+        # D6: Remove destroyed ships.
+        # Publish ship_destroyed on the global event bus BEFORE removal so
+        # that subscribers (targeting, AI, mission logic) hear about it.
+        # The ship's own event_bus fires ship_destroyed in Ship.apply_damage,
+        # but systems subscribed to the simulator-level bus never see that.
         destroyed_ships = [ship.id for ship in all_ships if ship.is_destroyed()]
         for ship_id in destroyed_ships:
             logger.info(f"Removing destroyed ship: {ship_id}")
+            self._event_bus.publish("ship_destroyed", {
+                "ship_id": ship_id,
+                "source": "hull_destroyed",
+            })
             self.remove_ship(ship_id)
 
         # Update fleet manager
