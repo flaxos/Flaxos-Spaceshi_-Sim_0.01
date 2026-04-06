@@ -88,6 +88,9 @@ import "../components/comms-control-panel.js";
 import "../components/crew-fatigue-display.js";
 // Science Station Analysis
 import "../components/science-analysis-panel.js";
+// ARCADE tier science mini-games
+import "../components/spectral-analysis-game.js";
+import "../components/mass-estimation-game.js";
 // MANUAL tier raw sensor diagnostics
 import "../components/sensor-analysis-manual.js";
 // Tutorial System
