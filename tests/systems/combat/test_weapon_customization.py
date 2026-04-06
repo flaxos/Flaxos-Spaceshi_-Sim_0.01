@@ -160,14 +160,14 @@ class TestWarheadTypeEnums:
         """EMP torpedo must specify subsystem disable duration and count."""
         from hybrid.systems.combat.torpedo_manager import TORPEDO_WARHEAD_SPECS
         emp = TORPEDO_WARHEAD_SPECS["emp"]
-        assert emp["subsystem_disable_duration"] == 30.0
+        assert emp["subsystem_disable_duration"] == 60.0
         assert emp["max_subsystems_disabled"] == 2
 
     def test_emp_missile_has_disable_duration(self):
         """EMP missile must specify subsystem disable duration and count."""
         from hybrid.systems.combat.torpedo_manager import MISSILE_WARHEAD_SPECS
         emp = MISSILE_WARHEAD_SPECS["emp"]
-        assert emp["subsystem_disable_duration"] == 20.0
+        assert emp["subsystem_disable_duration"] == 40.0
         assert emp["max_subsystems_disabled"] == 1
 
     def test_missile_fragmentation_matches_baseline(self):

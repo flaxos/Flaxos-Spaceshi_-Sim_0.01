@@ -108,7 +108,7 @@ TORPEDO_WARHEAD_SPECS: Dict[str, Dict[str, float]] = {
         "subsystem_damage": 5.0,
         "lethal_radius": 30.0,
         "blast_radius": 100.0,
-        "subsystem_disable_duration": 30.0,
+        "subsystem_disable_duration": 60.0,  # 60s disable — enough for follow-up attacks
         "max_subsystems_disabled": 2,
     },
 }
@@ -136,7 +136,7 @@ MISSILE_WARHEAD_SPECS: Dict[str, Dict[str, float]] = {
         "subsystem_damage": 5.0,
         "lethal_radius": 10.0,
         "blast_radius": 30.0,
-        "subsystem_disable_duration": 20.0,
+        "subsystem_disable_duration": 40.0,  # 40s disable — viable tactical choice for lighter ordnance
         "max_subsystems_disabled": 1,
     },
 }

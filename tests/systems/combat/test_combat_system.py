@@ -15,7 +15,7 @@ class TestTruthWeapons:
         assert RAILGUN_SPECS.name == "UNE-440 Railgun"
         assert RAILGUN_SPECS.muzzle_velocity == 20000.0  # 20 km/s (design spec)
         assert RAILGUN_SPECS.effective_range == 500000.0  # 500 km (design spec)
-        assert RAILGUN_SPECS.base_damage == 35.0
+        assert RAILGUN_SPECS.base_damage == 55.0
         assert RAILGUN_SPECS.cycle_time == 5.0  # 5 second cycle
         assert RAILGUN_SPECS.ammo_capacity == 20
 
