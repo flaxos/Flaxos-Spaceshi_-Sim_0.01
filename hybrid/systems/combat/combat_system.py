@@ -21,6 +21,7 @@ from hybrid.systems.combat.torpedo_manager import (
     MunitionType, MISSILE_FLIGHT_PROFILES,
     WarheadType, GuidanceMode,
 )
+from hybrid.systems.combat.auto_fire_manager import AutoFireManager
 
 logger = logging.getLogger(__name__)
 
@@ -151,6 +152,10 @@ class CombatSystem(BaseSystem):
         self._salvo_stagger: float = 0.1  # seconds between launches (default 100ms)
         self._next_salvo_id: int = 0
 
+        # Auto-fire manager — server-authoritative fire authorization
+        # Replaces the client-side _processAutoExecute() in weapon-controls.js
+        self.auto_fire_manager = AutoFireManager()
+
         # Event bus
         self.event_bus = EventBus.get_instance()
 
@@ -243,6 +248,11 @@ class CombatSystem(BaseSystem):
 
         # Update firing solutions from targeting system
         self._update_weapon_solutions(ship)
+
+        # Auto-fire: check authorized weapons and fire when conditions met.
+        # Must run AFTER weapon solutions are updated so the manager sees
+        # current ready_to_fire state.
+        self.auto_fire_manager.tick(dt, self, ship)
 
     def _tick_salvo_queue(self, dt: float, ship) -> None:
         """Process the salvo queue, launching one munition per stagger interval.
@@ -1300,6 +1310,19 @@ class CombatSystem(BaseSystem):
         elif action == "missile_status":
             return self.get_missile_status()
 
+        elif action == "authorize_weapon":
+            weapon_type = params.get("weapon_type")
+            count = params.get("count", 1)
+            profile = params.get("profile", "direct")
+            return self.auto_fire_manager.authorize(weapon_type, count=count, profile=profile)
+
+        elif action == "deauthorize_weapon":
+            weapon_type = params.get("weapon_type")
+            return self.auto_fire_manager.deauthorize(weapon_type)
+
+        elif action == "cease_fire":
+            return self.auto_fire_manager.cease_fire()
+
         elif action == "status":
             return self.get_state()
 
@@ -1355,5 +1378,6 @@ class CombatSystem(BaseSystem):
                 "mass_per_missile": MISSILE_MASS,
             },
             "munition_program": self._munition_program,
+            "auto_fire": self.auto_fire_manager.get_state(),
         })
         return state
