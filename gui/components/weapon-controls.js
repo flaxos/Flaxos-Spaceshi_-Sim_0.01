@@ -1186,6 +1186,8 @@ class WeaponControls extends HTMLElement {
               <button class="salvo-btn active" data-salvo="1">1x</button>
               <button class="salvo-btn" data-salvo="2">2x</button>
               <button class="salvo-btn" data-salvo="4">4x</button>
+              <button class="salvo-btn" data-salvo="6">6x</button>
+              <button class="salvo-btn" data-salvo="8">8x</button>
               <button class="salvo-btn" data-salvo="all">ALL</button>
             </div>
           </div>
@@ -1920,8 +1922,8 @@ class WeaponControls extends HTMLElement {
   }
 
   /**
-   * Fire a missile salvo: sends launch_missile N times with 100ms stagger.
-   * Staggered launch overwhelms PDC coverage by spreading arrival windows.
+   * Fire a missile salvo via the server-side launch_salvo command.
+   * Server handles staggered timing authoritatively — no client setTimeout.
    */
   async _fireMissileSalvo() {
     const weapons = stateManager.getWeapons();
@@ -1937,16 +1939,17 @@ class WeaponControls extends HTMLElement {
     // Show fire flash
     this._showFireFlash("missile");
 
-    for (let i = 0; i < salvoSize; i++) {
-      setTimeout(() => {
-        wsClient.sendShipCommand("launch_missile", { profile: this._missileProfile })
-          .catch((err) => console.error(`Salvo missile ${i + 1} failed:`, err));
-
-        // Mark salvo complete after the last missile launches
-        if (i === salvoSize - 1) {
-          this._salvoInProgress = false;
-        }
-      }, i * 100);
+    try {
+      await wsClient.sendShipCommand("launch_salvo", {
+        count: salvoSize,
+        munition_type: this._launcherType || "missile",
+        profile: this._missileProfile || "direct",
+        stagger_ms: 100,
+      });
+    } catch (err) {
+      console.error("Salvo launch failed:", err);
+    } finally {
+      this._salvoInProgress = false;
     }
   }
 
