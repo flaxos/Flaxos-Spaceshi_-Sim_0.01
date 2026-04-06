@@ -765,6 +765,7 @@ def get_sensor_contacts(ship) -> Dict[str, Any]:
                 "distance": distance,
                 "bearing": bearing,
                 "confidence": getattr(contact, "confidence", 0.5),
+                "contact_state": getattr(contact, "contact_state", "confirmed"),
                 "last_update": getattr(contact, "last_update", 0),
                 "detection_method": getattr(contact, "detection_method", "passive"),
                 "name": getattr(contact, "name", None),
