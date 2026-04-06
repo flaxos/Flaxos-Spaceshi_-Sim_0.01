@@ -109,6 +109,9 @@ system_commands = {
     "eccm_home_on_jam": ("sensors", "eccm_home_on_jam"),
     "analyze_jamming": ("sensors", "analyze_jamming"),
     "eccm_status": ("sensors", "eccm_status"),
+    # Sensor probe commands (deploy/recall passive probes)
+    "deploy_probe": ("sensors", "deploy_probe"),
+    "recall_probe": ("sensors", "recall_probe"),
     # Multi-target tracking commands
     "cycle_target": ("targeting", "cycle_target"),
     "add_track": ("targeting", "add_track"),

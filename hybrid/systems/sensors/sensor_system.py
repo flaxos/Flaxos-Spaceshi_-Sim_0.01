@@ -13,6 +13,8 @@ range, not a detailed track.
 """
 
 import logging
+from typing import List
+
 from hybrid.core.event_bus import EventBus
 from hybrid.core.base_system import BaseSystem
 from hybrid.systems.sensors.passive import PassiveSensor
@@ -20,6 +22,11 @@ from hybrid.systems.sensors.active import ActiveSensor
 from hybrid.systems.sensors.contact import ContactTracker
 from hybrid.systems.sensors.eccm import ECCMState
 from hybrid.systems.sensors.emission_model import get_ship_emissions
+from hybrid.systems.sensors.sensor_probe import (
+    SensorProbe, MAX_PROBES_PER_SHIP, bearing_to_unit_vector,
+    _next_probe_id, PROBE_DELTA_V,
+)
+from hybrid.utils.math_utils import add_vectors, scale_vector
 from hybrid.utils.errors import success_dict, error_dict
 
 logger = logging.getLogger(__name__)
@@ -61,6 +68,10 @@ class SensorSystem(BaseSystem):
         # that the focused emission makes the painting ship much more
         # detectable — active radar is a loud beacon.
         self.fcr_paint_target: dict | None = None  # {target_id, start_time, duration}
+
+        # Deployable sensor probes — launched from the ship to extend
+        # passive detection coverage. Max MAX_PROBES_PER_SHIP active at once.
+        self.probes: List[SensorProbe] = []
 
         # Simulation reference (set during tick)
         self.all_ships = []
@@ -136,6 +147,12 @@ class SensorSystem(BaseSystem):
         # Boosts that contact to near-maximum confidence and overrides
         # classification to full ship class.  Expires after duration.
         self._process_fcr_paint(ship, dt)
+
+        # Update deployed sensor probes and merge their contacts.
+        # Probes run their own PassiveSensor; we pull their detections
+        # into the parent ship's contact tracker with detection_method
+        # rewritten to "probe" so the operator knows the source.
+        self._tick_probes(dt, self.sim_time)
 
         # Prune stale contacts periodically, preserving contacts whose
         # source ships still exist in the simulation
@@ -315,6 +332,10 @@ class SensorSystem(BaseSystem):
             return self._cmd_fcr_paint(params)
         elif action == "fcr_release":
             return self._cmd_fcr_release(params)
+        elif action == "deploy_probe":
+            return self._cmd_deploy_probe(params)
+        elif action == "recall_probe":
+            return self._cmd_recall_probe(params)
 
         # ECCM commands are routed through the sensor system because
         # ECCM is a sensor capability, not an independent system.
@@ -587,6 +608,116 @@ class SensorSystem(BaseSystem):
             "own_emissions": own_emissions,
             "eccm": self.eccm.get_state(),
             "fcr_paint": self.get_fcr_paint_status(),
+            "probes": [p.get_state() for p in self.probes],
         })
 
         return state
+
+    # ------------------------------------------------------------------
+    # Probe management
+    # ------------------------------------------------------------------
+
+    def _tick_probes(self, dt: float, sim_time: float) -> None:
+        """Update all active probes and merge their contacts.
+
+        Expired or inactive probes are pruned from the list.
+
+        Args:
+            dt: Simulation time step.
+            sim_time: Current simulation time.
+        """
+        still_active = []
+        for probe in self.probes:
+            contacts = probe.update(dt, self.all_ships, sim_time)
+            # Merge probe contacts into the parent ship's tracker,
+            # rewriting detection_method so the operator knows the
+            # contact was seen by a probe, not the ship's own sensors.
+            for ship_id, contact in contacts.items():
+                contact.detection_method = "probe"
+                self.contact_tracker.update_contact(
+                    ship_id, contact, sim_time
+                )
+            if probe.active:
+                still_active.append(probe)
+        self.probes = still_active
+
+    def _cmd_deploy_probe(self, params: dict) -> dict:
+        """Handle the deploy_probe command.
+
+        Creates a new SensorProbe with the ship's current velocity plus
+        an impulse along the commanded bearing.
+
+        Args:
+            params: Command parameters with 'bearing' and optional 'range'.
+
+        Returns:
+            Success/error dict.
+        """
+        ship = params.get("ship") or params.get("_ship")
+        if not ship:
+            return error_dict("NO_SHIP", "Ship reference required")
+
+        # Enforce magazine limit
+        active_count = sum(1 for p in self.probes if p.active)
+        if active_count >= MAX_PROBES_PER_SHIP:
+            return error_dict(
+                "PROBE_LIMIT",
+                f"Maximum {MAX_PROBES_PER_SHIP} active probes reached",
+            )
+
+        bearing = params.get("bearing", {"azimuth": 0.0, "elevation": 0.0})
+        direction = bearing_to_unit_vector(bearing)
+
+        # Launch velocity = ship velocity + impulse along bearing.
+        # The full delta-v budget goes into the initial kick; the probe
+        # has no further propulsion (cold-gas expended on launch).
+        launch_impulse = scale_vector(direction, PROBE_DELTA_V)
+        probe_velocity = add_vectors(ship.velocity, launch_impulse)
+
+        probe_id = _next_probe_id(ship.id)
+        probe = SensorProbe(
+            probe_id=probe_id,
+            parent_ship_id=ship.id,
+            position=dict(ship.position),
+            velocity=probe_velocity,
+            deploy_time=self.sim_time,
+        )
+        self.probes.append(probe)
+
+        logger.info(
+            "Deployed probe %s from %s bearing az=%.0f el=%.0f",
+            probe_id, ship.id,
+            bearing.get("azimuth", 0), bearing.get("elevation", 0),
+        )
+
+        return success_dict(
+            f"Probe {probe_id} deployed",
+            probe_id=probe_id,
+            deployment_vector=launch_impulse,
+        )
+
+    def _cmd_recall_probe(self, params: dict) -> dict:
+        """Handle the recall_probe command.
+
+        Deactivates a specific probe by ID. It will be pruned on the
+        next tick.
+
+        Args:
+            params: Command parameters with 'probe_id'.
+
+        Returns:
+            Success/error dict.
+        """
+        probe_id = params.get("probe_id")
+        if not probe_id:
+            return error_dict("MISSING_PROBE_ID", "probe_id is required")
+
+        for probe in self.probes:
+            if probe.id == probe_id and probe.active:
+                probe.deactivate()
+                return success_dict(f"Probe {probe_id} recalled")
+
+        return error_dict(
+            "PROBE_NOT_FOUND",
+            f"No active probe with id '{probe_id}'",
+        )

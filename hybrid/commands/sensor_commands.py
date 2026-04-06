@@ -134,6 +134,29 @@ def cmd_untarget(ship, params):
 
     return success_dict("Target unlocked")
 
+def cmd_deploy_probe(sensors, ship, params):
+    """Deploy a sensor probe along a bearing.
+
+    The probe inherits the ship's velocity plus a launch impulse along
+    the commanded bearing. It carries a reduced-range passive sensor
+    and feeds contacts back to the parent ship.
+    """
+    bearing = params.get("bearing", {"azimuth": 0.0, "elevation": 0.0})
+    # Forward directly to SensorSystem which handles creation + limits
+    return sensors.command("deploy_probe", {
+        "ship": ship,
+        "bearing": bearing,
+    })
+
+
+def cmd_recall_probe(sensors, ship, params):
+    """Recall (deactivate) a specific deployed sensor probe."""
+    probe_id = params.get("probe_id")
+    return sensors.command("recall_probe", {
+        "probe_id": probe_id,
+    })
+
+
 def register_commands(dispatcher):
     """Register all sensor commands with the dispatcher."""
 
@@ -203,5 +226,25 @@ def register_commands(dispatcher):
         handler=cmd_fcr_release,
         args=[],
         help_text="Release FCR paint (stop painting early)",
+        system="sensors"
+    ))
+
+    dispatcher.register("deploy_probe", CommandSpec(
+        handler=cmd_deploy_probe,
+        args=[
+            ArgSpec("bearing", "dict", required=False, default={"azimuth": 0.0, "elevation": 0.0},
+                    description="Launch bearing {azimuth, elevation} in degrees"),
+        ],
+        help_text="Deploy a sensor probe along a bearing",
+        system="sensors"
+    ))
+
+    dispatcher.register("recall_probe", CommandSpec(
+        handler=cmd_recall_probe,
+        args=[
+            ArgSpec("probe_id", "str", required=True,
+                    description="ID of the probe to recall"),
+        ],
+        help_text="Recall (deactivate) a deployed sensor probe",
         system="sensors"
     ))
