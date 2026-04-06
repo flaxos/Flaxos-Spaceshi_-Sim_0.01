@@ -273,7 +273,7 @@ def test_mission_objectives_parse():
     # Station destroy objective
     assert "destroy_station" in objectives
     assert objectives["destroy_station"].params.get("target") == STATION_ID
-    assert objectives["destroy_station"].required is False
+    assert objectives["destroy_station"].required is True
 
 
 # ---------------------------------------------------------------------------

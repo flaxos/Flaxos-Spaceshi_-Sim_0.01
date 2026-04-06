@@ -274,7 +274,7 @@ mission:
     - id: "destroy_station"
       type: "destroy_target"
       description: "Destroy Deimos Relay Station (TOTAL VICTORY)"
-      required: false
+      required: true
       params:
         target: "deimos_station"
 
