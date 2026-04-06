@@ -732,7 +732,9 @@ body.tier-cpu-assist .eng-log-panel {
    ========================================================================= */
 
 body.tier-manual .sci-analysis-panel,
-body.tier-manual .sci-log-panel {
+body.tier-manual .sci-log-panel,
+body.tier-manual .sci-spectral-game-panel,
+body.tier-manual .sci-mass-game-panel {
   display: none;
 }
 
@@ -760,6 +762,12 @@ body.tier-raw .sci-log-panel {
   grid-column: span 4;
 }
 
+/* Science mini-games hidden in RAW tier (full manual, no arcade games) */
+body.tier-raw .sci-spectral-game-panel,
+body.tier-raw .sci-mass-game-panel {
+  display: none;
+}
+
 
 /* =========================================================================
    20. SCIENCE PANEL VISIBILITY — ARCADE TIER
@@ -775,6 +783,15 @@ body.tier-arcade .sci-analysis-panel {
 
 body.tier-arcade .sci-sensors-panel {
   grid-column: span 12;
+}
+
+/* ARCADE science mini-games: spectral analysis and mass estimation */
+body.tier-arcade .sci-spectral-game-panel {
+  grid-column: span 6;
+}
+
+body.tier-arcade .sci-mass-game-panel {
+  grid-column: span 6;
 }
 
 
@@ -797,6 +814,12 @@ body.tier-cpu-assist .sci-sensors-panel {
 /* Hero: Analysis panel dominates in CPU-ASSIST — auto-science is primary */
 body.tier-cpu-assist .sci-log-panel {
   grid-column: span 4;
+}
+
+/* Science mini-games hidden in CPU-ASSIST tier (auto-science, no manual games) */
+body.tier-cpu-assist .sci-spectral-game-panel,
+body.tier-cpu-assist .sci-mass-game-panel {
+  display: none;
 }
 
 
