@@ -780,10 +780,18 @@ def get_sensor_contacts(ship) -> Dict[str, Any]:
     # Sort by distance
     contacts_list.sort(key=lambda c: c["distance"])
 
+    # Probe telemetry — list active probes with position, time remaining,
+    # and contact count so the GUI can render probe markers on the map.
+    probes_list = []
+    if hasattr(sensors, "probes"):
+        for probe in sensors.probes:
+            probes_list.append(probe.get_state())
+
     return {
         "available": True,
         "contacts": contacts_list,
-        "count": len(contacts_list)
+        "count": len(contacts_list),
+        "probes": probes_list,
     }
 
 
