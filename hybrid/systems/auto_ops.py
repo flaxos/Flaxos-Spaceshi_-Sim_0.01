@@ -16,7 +16,9 @@ from enum import Enum
 from typing import Dict, Optional
 
 from hybrid.core.base_system import BaseSystem
+from hybrid.systems.crew_binding_system import CrewBindingSystem
 from hybrid.systems.proposals import ProposalManager, Proposal
+from server.stations.crew_system import StationSkill
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +66,23 @@ class AutoOpsSystem(BaseSystem):
             self._scan_repair_needs(ship, event_bus, now)
         self._auto_execute(ship, event_bus, now)
 
+    def _get_crew_efficiency(self, ship) -> float:
+        """Look up best crew sensor efficiency for this ship.
+
+        Returns 0.5 default if no crew data is available, so proposals
+        still work without the crew system -- just at reduced confidence.
+        """
+        crew_eff = 0.5
+        crew_mgr = CrewBindingSystem._shared_crew_manager
+        if crew_mgr and hasattr(crew_mgr, 'get_ship_crew'):
+            crew_list = crew_mgr.get_ship_crew(ship.id)
+            if crew_list:
+                crew_eff = max(
+                    c.get_current_efficiency(StationSkill.SENSORS)
+                    for c in crew_list
+                )
+        return crew_eff
+
     def _scan_repair_needs(self, ship, event_bus, now: float):
         """Check subsystem health and propose repairs."""
         if not hasattr(ship, "damage_model"):
@@ -97,12 +116,16 @@ class AutoOpsSystem(BaseSystem):
             return
 
         auto_exec = self.ops_mode == OpsMode.AUTO
+        crew_eff = self._get_crew_efficiency(ship)
+        base_confidence = 1.0 - health_pct
+        adjusted_confidence = base_confidence * (0.5 + 0.5 * crew_eff)
         proposal = self._proposals.create(
             prefix="OP", action="dispatch_repair", target=target_name,
-            confidence=1.0 - health_pct,
+            confidence=adjusted_confidence,
             reason=f"{target_name} at {health_pct:.0%}",
             timeout=PROPOSAL_TIMEOUT, auto_execute=auto_exec, now=now,
             params={"subsystem": target_name},
+            crew_efficiency=crew_eff,
         )
 
         if event_bus and ship:
