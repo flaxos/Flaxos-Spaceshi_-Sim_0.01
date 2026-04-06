@@ -152,6 +152,9 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             "weapon_status",
             # Sensor commands (TACTICAL needs contacts for targeting)
             "ping_sensors",
+            # Sensor probes (TACTICAL can deploy probes for situational awareness)
+            "deploy_probe",
+            "recall_probe",
             # ECM commands (electronic warfare is a tactical function)
             "activate_jammer",
             "deactivate_jammer",
@@ -357,6 +360,9 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
         commands={
             # Sensor analysis and contact classification
             "ping_sensors",
+            # Sensor probes (SCIENCE station's primary probe authority)
+            "deploy_probe",
+            "recall_probe",
             # Science analysis commands
             "analyze_contact",
             "spectral_analysis",
