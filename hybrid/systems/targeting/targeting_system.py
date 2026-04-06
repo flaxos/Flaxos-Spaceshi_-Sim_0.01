@@ -170,7 +170,17 @@ class TargetingSystem(BaseSystem):
 
         contact = sensors.get_contact(self.locked_target)
         if not contact:
-            self._degrade_lock(dt, "contact_lost")
+            # Contact gone entirely — target destroyed or fully pruned.
+            # Clear lock immediately instead of degrading, to prevent
+            # stale firing solutions against a nonexistent target.
+            self.locked_target = None
+            self.lock_state = LockState.NONE
+            self.lock_quality = 0.0
+            self.lock_progress = 0.0
+            self._correlation_progress = 0.0
+            self.target_data = None
+            self.current_solution = None
+            self.firing_solutions = {}
             return
 
         # Update target data from contact
@@ -546,6 +556,15 @@ class TargetingSystem(BaseSystem):
                     return error_dict(
                         "INVALID_CONTACT",
                         f"Contact '{contact_id}' not found in sensors"
+                    )
+                # Reject ghost contacts — bearing-only data is too noisy
+                # for a meaningful lock. Need at least unconfirmed track.
+                contact_confidence = getattr(contact, 'confidence', 0)
+                if contact_confidence < 0.3:
+                    return error_dict(
+                        "CONTACT_TOO_WEAK",
+                        f"Contact {contact_id} confidence {contact_confidence:.0%} "
+                        f"too low for lock — need confirmed track"
                     )
 
         # Begin targeting pipeline: contact -> track -> lock -> solution -> fire

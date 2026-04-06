@@ -1280,8 +1280,8 @@ class TruthWeapon:
         for shot_i in range(self.specs.burst_count):
             burst_rounds += 1
 
-            # Magazine reload check per round (>= 0 so reload triggers on last round too)
-            if self._magazine_size > 0 and self.ammo is not None and self.ammo >= 0:
+            # Magazine reload check per round (> 0: only count live rounds)
+            if self._magazine_size > 0 and self.ammo is not None and self.ammo > 0:
                 self._rounds_since_reload += 1
                 if self._rounds_since_reload >= self._magazine_size:
                     self.reloading = True
