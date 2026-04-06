@@ -272,6 +272,11 @@
       min-height: var(--panel-height-sm);
     }
 
+    .tac-pdc-threat-panel {
+      grid-column: span 4;
+      min-height: var(--panel-height-sm);
+    }
+
     .tac-eccm-panel {
       grid-column: span 4;
       min-height: var(--panel-height-sm);
@@ -828,6 +833,10 @@
 
           <flaxos-panel title="Electronic Warfare" collapsible priority="secondary" domain="sensor" class="tac-ecm-game-panel">
             <ecm-frequency-game></ecm-frequency-game>
+          </flaxos-panel>
+
+          <flaxos-panel title="PDC Threat Triage" collapsible priority="secondary" domain="weapons" class="tac-pdc-threat-panel">
+            <pdc-threat-game></pdc-threat-game>
           </flaxos-panel>
         </div>
 

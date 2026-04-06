@@ -324,6 +324,97 @@ class WeaponControls extends HTMLElement {
           flex-shrink: 0;
         }
 
+        /* PDC Threat List (visible in PRIORITY mode) */
+        .pdc-threat-list {
+          margin-top: 6px;
+          padding: 6px 8px;
+          background: rgba(0, 0, 0, 0.3);
+          border: 1px solid rgba(255, 80, 80, 0.25);
+          border-radius: 6px;
+        }
+
+        .threat-list-header {
+          font-size: 0.6rem;
+          font-weight: 700;
+          letter-spacing: 1px;
+          color: var(--status-critical, #ff4444);
+          margin-bottom: 4px;
+          text-transform: uppercase;
+        }
+
+        .threat-list-items {
+          display: flex;
+          flex-direction: column;
+          gap: 3px;
+          max-height: 120px;
+          overflow-y: auto;
+        }
+
+        .threat-item {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 4px 6px;
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(255, 255, 255, 0.06);
+          border-radius: 4px;
+          font-size: 0.65rem;
+          cursor: pointer;
+          transition: background 0.1s ease;
+        }
+
+        .threat-item:hover {
+          background: rgba(255, 80, 80, 0.1);
+          border-color: rgba(255, 80, 80, 0.3);
+        }
+
+        .threat-item.prioritized {
+          border-color: rgba(255, 170, 0, 0.4);
+          background: rgba(255, 170, 0, 0.08);
+        }
+
+        .threat-priority-num {
+          width: 16px;
+          height: 16px;
+          border-radius: 50%;
+          background: var(--status-warning, #ffaa00);
+          color: #000;
+          font-size: 0.55rem;
+          font-weight: 700;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+
+        .threat-type {
+          font-weight: 600;
+          text-transform: uppercase;
+          flex-shrink: 0;
+        }
+
+        .threat-type.torpedo { color: #ff4444; }
+        .threat-type.missile { color: #ff8800; }
+
+        .threat-range {
+          color: var(--text-dim, #888);
+          margin-left: auto;
+        }
+
+        .threat-eta {
+          color: var(--status-warning, #ffaa00);
+          font-weight: 600;
+          min-width: 40px;
+          text-align: right;
+        }
+
+        .threat-empty {
+          font-size: 0.6rem;
+          color: var(--text-dim, #555);
+          font-style: italic;
+          padding: 4px 0;
+        }
+
         /* Assess damage button */
         .assess-btn {
           width: 100%;
@@ -1161,9 +1252,23 @@ class WeaponControls extends HTMLElement {
           <button class="pdc-mode-btn" data-mode="manual" data-testid="pdc-manual">
             <span class="pdc-mode-label"><span class="pdc-indicator"></span>MANUAL</span>
           </button>
+          <button class="pdc-mode-btn" data-mode="priority" data-testid="pdc-priority">
+            <span class="pdc-mode-label"><span class="pdc-indicator"></span>PRIORITY</span>
+          </button>
+          <button class="pdc-mode-btn" data-mode="network" data-testid="pdc-network">
+            <span class="pdc-mode-label"><span class="pdc-indicator"></span>NETWORK</span>
+          </button>
           <button class="pdc-mode-btn" data-mode="hold_fire" data-testid="pdc-hold">
             <span class="pdc-mode-label"><span class="pdc-indicator"></span>HOLD</span>
           </button>
+        </div>
+
+        <!-- Incoming threat mini-list: visible when PRIORITY mode active -->
+        <div class="pdc-threat-list" id="pdc-threat-list" style="display:none;">
+          <div class="threat-list-header">INCOMING THREATS</div>
+          <div class="threat-list-items" id="threat-list-items">
+            <div class="threat-empty">No incoming threats</div>
+          </div>
         </div>
       </div>
 
@@ -1533,6 +1638,9 @@ class WeaponControls extends HTMLElement {
       }
     });
 
+    // Incoming threat list — show only in PRIORITY mode
+    this._updateThreatList(currentPdcMode, ship);
+
     // Launcher type toggle visual state
     this.shadowRoot.querySelectorAll(".launcher-type-btn").forEach((btn) => {
       const isActive = btn.dataset.type === this._launcherType;
@@ -1901,6 +2009,100 @@ class WeaponControls extends HTMLElement {
       await wsClient.sendShipCommand("set_pdc_mode", { mode });
     } catch (error) {
       console.error("Set PDC mode failed:", error);
+    }
+  }
+
+  /**
+   * Update the incoming threat mini-list below PDC mode buttons.
+   * Filters active munitions targeting our ship.
+   * In PRIORITY mode, threats are clickable to reorder engagement priority.
+   */
+  _updateThreatList(pdcMode, ship) {
+    const listEl = this.shadowRoot.getElementById("pdc-threat-list");
+    if (!listEl) return;
+
+    // Only show in PRIORITY mode
+    const showList = pdcMode === "priority";
+    listEl.style.display = showList ? "" : "none";
+    if (!showList) return;
+
+    const itemsEl = this.shadowRoot.getElementById("threat-list-items");
+    if (!itemsEl) return;
+
+    // Read all in-flight munitions from top-level telemetry
+    const allMunitions = stateManager.getTorpedoes() || [];
+    const ourId = ship?.id || ship?.ship_id || "";
+
+    // Filter: only munitions targeting us
+    const incoming = allMunitions.filter((m) => m.alive && m.target === ourId);
+
+    // Current server priority order
+    const weapons = stateManager.getWeapons();
+    const combat = stateManager.getCombat();
+    const priorityIds = weapons?.pdc_priority_targets || combat?.pdc_priority_targets || [];
+
+    if (incoming.length === 0) {
+      itemsEl.innerHTML = '<div class="threat-empty">No incoming threats</div>';
+      return;
+    }
+
+    // Sort: prioritized first (in order), then by ETA ascending
+    incoming.sort((a, b) => {
+      const aIdx = priorityIds.indexOf(a.id);
+      const bIdx = priorityIds.indexOf(b.id);
+      if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
+      if (aIdx !== -1) return -1;
+      if (bIdx !== -1) return 1;
+      return (a.eta ?? 999) - (b.eta ?? 999);
+    });
+
+    // Build threat items
+    itemsEl.innerHTML = "";
+    incoming.forEach((threat) => {
+      const priIdx = priorityIds.indexOf(threat.id);
+      const isPrioritized = priIdx !== -1;
+      const typeLabel = threat.munition_type || "torpedo";
+      const rangeKm = (threat.distance / 1000).toFixed(1);
+      const etaStr = threat.eta != null ? `${threat.eta.toFixed(0)}s` : "--";
+
+      const item = document.createElement("div");
+      item.className = `threat-item${isPrioritized ? " prioritized" : ""}`;
+      item.dataset.threatId = threat.id;
+      item.title = "Click to toggle priority";
+
+      item.innerHTML = `
+        ${isPrioritized ? `<span class="threat-priority-num">${priIdx + 1}</span>` : ""}
+        <span class="threat-type ${typeLabel}">${typeLabel.substring(0, 4).toUpperCase()}</span>
+        <span class="threat-range">${rangeKm} km</span>
+        <span class="threat-eta">${etaStr}</span>
+      `;
+
+      // Click to toggle this threat in the priority queue
+      item.addEventListener("click", () => this._toggleThreatPriority(threat.id));
+
+      itemsEl.appendChild(item);
+    });
+  }
+
+  /**
+   * Toggle a threat in/out of the PDC priority queue and send the updated order.
+   */
+  async _toggleThreatPriority(threatId) {
+    const weapons = stateManager.getWeapons();
+    const combat = stateManager.getCombat();
+    const current = [...(weapons?.pdc_priority_targets || combat?.pdc_priority_targets || [])];
+
+    const idx = current.indexOf(threatId);
+    if (idx !== -1) {
+      current.splice(idx, 1);
+    } else {
+      current.push(threatId);
+    }
+
+    try {
+      await wsClient.sendShipCommand("set_pdc_priority", { torpedo_ids: current });
+    } catch (error) {
+      console.error("Set PDC priority failed:", error);
     }
   }
 

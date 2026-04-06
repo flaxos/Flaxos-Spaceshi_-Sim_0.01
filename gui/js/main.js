@@ -112,6 +112,8 @@ import "../components/weapons-charge-game.js";
 import "../components/helm-balance-game.js";
 // ARCADE tier damage control pipe puzzle
 import "../components/damage-control-game.js";
+// ARCADE tier PDC threat triage radial game
+import "../components/pdc-threat-game.js";
 // Target damage assessment
 import "../components/target-assessment.js";
 // Damage visualization
