@@ -48,7 +48,7 @@ from server.protocol import (
     make_error_response,
 )
 from server.command_validator import validate_command_params
-from server.rate_limiter import RateLimiter
+from server.rate_limiter import RateLimiter, RATE_LIMIT_EXEMPT
 from hybrid_runner import HybridRunner
 from utils.logger import setup_logging
 
@@ -201,8 +201,8 @@ class UnifiedServer:
                 self.station_manager.update_activity(client_id)
             return {"ok": True}
 
-        # Rate limiting (skip for state polling and discovery)
-        if cmd not in ("get_state", "get_events", "get_combat_log", "_discover", "_ping", "_resume_session", "list_ship_classes", "get_ship_classes_full"):
+        # Rate limiting (skip meta/setup commands, only limit gameplay commands)
+        if cmd not in RATE_LIMIT_EXEMPT:
             if not self.rate_limiter.allow(client_id):
                 return Response.error(
                     "Rate limited: too many commands", ErrorCode.BAD_REQUEST
