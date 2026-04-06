@@ -172,6 +172,32 @@ ships:
       weapons: {max_health: 70.0, health: 70.0}
       sensors: {max_health: 50.0, health: 50.0}
 
+  # -- Navigation buoys for spatial orientation --
+  - id: "nav_origin"
+    name: "Nav-Origin"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 0, y: 5000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_target_zone"
+    name: "Target-Zone"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 25000, y: 15000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_flank_ref"
+    name: "Flank-Ref"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 12000, y: -10000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+
 mission:
   name: "Intercept and Disable"
   description: "Disable the hostile corvette by achieving a mission kill."

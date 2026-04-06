@@ -132,6 +132,32 @@ ships:
             weapon: "pdc"
             position: "dorsal"
 
+  # -- Navigation buoys for spatial orientation --
+  - id: "nav_start"
+    name: "Start-Marker"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 0, y: 5000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_belt_entry"
+    name: "Belt-Entry"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 30000, y: 5000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_waypoint"
+    name: "Waypoint"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 100000, y: 5000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+
 mission:
   name: "Asteroid Gauntlet"
   description: "Navigate through the asteroid field to the waypoint"

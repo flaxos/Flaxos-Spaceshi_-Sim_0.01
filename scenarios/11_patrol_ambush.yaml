@@ -314,6 +314,32 @@ ships:
 #
 # All three branches share the first objective: detect the contact.
 
+  # -- Navigation buoys for spatial orientation --
+  - id: "nav_patrol_start"
+    name: "Patrol-Start"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 0, y: 5000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_midpoint"
+    name: "Midpoint"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 50000, y: 15000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_ambush_zone"
+    name: "Ambush-Zone"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 100000, y: 25000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+
 mission:
   name: "Patrol Sector 7-G"
   description: "Investigate unknown contact detected during routine patrol"

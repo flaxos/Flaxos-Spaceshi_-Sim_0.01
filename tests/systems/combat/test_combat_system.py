@@ -432,7 +432,7 @@ class TestInterceptScenario:
         scenario = ScenarioLoader.load(scenario_path)
 
         assert scenario["name"] == "Intercept: Mission Kill"
-        assert len(scenario["ships"]) == 2
+        assert len(scenario["ships"]) >= 2  # 2 combat ships + nav buoys
         assert scenario["ships"][0]["id"] == "player_ship"
         assert scenario["ships"][1]["id"] == "enemy_corvette"
         assert scenario["mission"] is not None

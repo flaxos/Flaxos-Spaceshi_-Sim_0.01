@@ -70,6 +70,40 @@ ships:
         passive:
           range: 10000
 
+  # -- Navigation buoys for spatial orientation --
+  - id: "nav_start_line"
+    name: "Start-Line"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 0, y: 5000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_course_1"
+    name: "Course-Marker-1"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 70000, y: 5000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_course_2"
+    name: "Course-Marker-2"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 120000, y: 5000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_finish_approach"
+    name: "Finish-Approach"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 170000, y: 5000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+
 mission:
   name: "Belt Runner Championship"
   description: "Complete the checkpoint course in under 4 minutes"

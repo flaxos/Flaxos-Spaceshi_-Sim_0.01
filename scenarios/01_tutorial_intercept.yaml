@@ -41,6 +41,32 @@ ships:
         passive:
           range: 100000
 
+  # -- Navigation buoys for spatial orientation --
+  - id: "nav_origin"
+    name: "Nav-Origin"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 0, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_midpoint"
+    name: "Midpoint"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 200000, y: 75000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_station_approach"
+    name: "Station-Approach"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 380000, y: 140000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+
 mission:
   name: "First Contact"
   description: "Rendezvous with Tycho Station and dock"

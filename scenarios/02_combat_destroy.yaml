@@ -116,6 +116,32 @@ ships:
         pdcs: 0
         torpedoes: 0
 
+  # -- Navigation buoys for spatial orientation --
+  - id: "nav_origin"
+    name: "Nav-Origin"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 0, y: 5000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_engagement_zone"
+    name: "Engagement-Zone"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 40000, y: -15000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_far_marker"
+    name: "Far-Marker"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 80000, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+
 mission:
   name: "Pirate Threat"
   description: "Eliminate the pirate ship threatening civilian traffic"

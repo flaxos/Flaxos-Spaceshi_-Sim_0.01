@@ -288,6 +288,40 @@ ships:
 
 # ── Fleet definitions ────────────────────────────────────────────
 
+  # -- Navigation buoys for spatial orientation --
+  - id: "nav_convoy_start"
+    name: "Convoy-Start"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 0, y: 5000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_waypoint_1"
+    name: "Waypoint-1"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 50000, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_waypoint_2"
+    name: "Waypoint-2"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 100000, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_waypoint_3"
+    name: "Waypoint-3"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 150000, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+
 fleets:
   - fleet_id: "escort_group"
     name: "Escort Group"

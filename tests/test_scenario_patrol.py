@@ -125,6 +125,10 @@ def test_all_ships_have_required_fields():
 
     for ship_def in ships:
         sid = ship_def["id"]
+        # Nav buoys use ship_class: "beacon" and get systems from the class
+        # definition at load time, so they don't need inline systems/mass.
+        if ship_def.get("ship_class") == "beacon":
+            continue
         assert "position" in ship_def, f"Ship {sid} missing position"
         assert "velocity" in ship_def, f"Ship {sid} missing velocity"
         assert "systems" in ship_def, f"Ship {sid} missing systems"

@@ -121,6 +121,40 @@ ships:
       navigation: {}
       targeting: {}
 
+  # -- Navigation buoys for spatial orientation --
+  - id: "nav_origin"
+    name: "Nav-Origin"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 0, y: 5000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_midpoint"
+    name: "Midpoint"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 60000, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_threat_zone"
+    name: "Threat-Zone"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 100000, y: -40000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_destination"
+    name: "Destination"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 120000, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+
 mission:
   name: "Convoy Protection"
   description: "Protect the Canterbury from pirate attack"

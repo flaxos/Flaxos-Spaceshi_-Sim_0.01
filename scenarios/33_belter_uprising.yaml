@@ -183,6 +183,32 @@ ships:
 
 # -- Mission --------------------------------------------------------------
 
+  # -- Navigation buoys for spatial orientation --
+  - id: "nav_origin"
+    name: "Nav-Origin"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 0, y: 5000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_civilian_zone"
+    name: "Civilian-Zone"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 20000, y: 5000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_far_contact"
+    name: "Far-Contact"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 60000, y: 20000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+
 mission:
   name: "Belter Uprising"
   description: "Identify a spoofed transponder among civilian traffic and neutralize the pirate threat"

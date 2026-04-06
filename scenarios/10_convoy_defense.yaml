@@ -279,6 +279,40 @@ ships:
 # Groups ships into logical fleets for coordination and objective
 # tracking.  The convoy fleet's survival is the win condition.
 
+  # -- Navigation buoys for spatial orientation --
+  - id: "nav_convoy_start"
+    name: "Convoy-Start"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 0, y: 5000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_route"
+    name: "Route-Marker"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 40000, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_threat_alpha"
+    name: "Threat-Alpha"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 80000, y: -30000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_threat_beta"
+    name: "Threat-Beta"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 60000, y: 40000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+
 fleets:
   - id: "convoy"
     name: "Supply Convoy"

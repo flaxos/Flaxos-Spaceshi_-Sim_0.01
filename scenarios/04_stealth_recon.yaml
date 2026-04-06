@@ -65,6 +65,32 @@ ships:
         active:
           scan_range: 350000
 
+  # -- Navigation buoys for spatial orientation --
+  - id: "nav_start"
+    name: "Start-Marker"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: -100000, y: -50000, z: -20000}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_midpoint"
+    name: "Midpoint"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: -50000, y: -25000, z: -10000}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_target_zone"
+    name: "Target-Zone"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 0, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+
 mission:
   name: "Operation: Dark Eye"
   description: "Gather intelligence on the Mars Defense Station"

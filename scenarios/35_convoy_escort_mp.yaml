@@ -239,6 +239,40 @@ ships:
 
 # -- Fleets ---------------------------------------------------------------
 
+  # -- Navigation buoys for spatial orientation --
+  - id: "nav_convoy_start"
+    name: "Convoy-Start"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 0, y: 5000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_front_sector"
+    name: "Front-Sector"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 30000, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_flank_sector"
+    name: "Flank-Sector"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 0, y: 40000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_rear_sector"
+    name: "Rear-Sector"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: -30000, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+
 fleets:
   - fleet_id: "escort_group"
     name: "Escort Group"

@@ -284,6 +284,40 @@ ships:
 
 # -- Fleets ---------------------------------------------------------------
 
+  # -- Navigation buoys for spatial orientation --
+  - id: "nav_fleet_start"
+    name: "Fleet-Start"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: -100000, y: 5000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_engagement_line"
+    name: "Engagement-Line"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: -50000, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_station_sector"
+    name: "Station-Sector"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 0, y: 5000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_flank_north"
+    name: "Flank-North"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: -50000, y: 20000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+
 fleets:
   - fleet_id: "attack_fleet"
     name: "Task Force Hammer"

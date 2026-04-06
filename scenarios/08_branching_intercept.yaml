@@ -80,6 +80,32 @@ ships:
       rcs: {max_health: 40, health: 40}
       sensors: {max_health: 30, health: 30}
 
+  # -- Navigation buoys for spatial orientation --
+  - id: "nav_origin"
+    name: "Nav-Origin"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 0, y: 5000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_midpoint"
+    name: "Midpoint"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 100000, y: 25000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_decision_point"
+    name: "Decision-Point"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 175000, y: 40000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+
 mission:
   name: "Hard Choices"
   description: "Intercept the freighter. What happens next depends on you."
