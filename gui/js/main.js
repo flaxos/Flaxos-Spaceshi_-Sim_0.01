@@ -127,6 +127,8 @@ import "../components/radiator-deploy-game.js";
 import "../components/pdc-threat-game.js";
 // ARCADE tier munition configuration loadout panel
 import "../components/munition-config-game.js";
+// MANUAL tier munition programming (full parameter form)
+import "../components/munition-programming-panel.js";
 // Target damage assessment
 import "../components/target-assessment.js";
 // Damage visualization

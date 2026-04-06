@@ -246,6 +246,11 @@ body.tier-manual .tac-sensor-analysis-panel {
   grid-column: span 6;
 }
 
+/* MANUAL tier: munition programming panel — full parameter form */
+body.tier-manual .tac-munition-program-panel {
+  grid-column: span 4;
+}
+
 /* =========================================================================
    3D. OPS PANEL VISIBILITY — MANUAL TIER
    Show only: Ship Status, Power Profiles
@@ -402,7 +407,8 @@ body.tier-raw .tac-charge-game-panel,
 body.tier-raw .tac-ecm-game-panel,
 body.tier-raw .tac-sweep-game-panel,
 body.tier-raw .tac-pdc-threat-panel,
-body.tier-raw .tac-munition-config-panel {
+body.tier-raw .tac-munition-config-panel,
+body.tier-raw .tac-munition-program-panel {
   display: none;
 }
 
@@ -426,7 +432,8 @@ body.tier-raw .tac-sensor-analysis-panel {
 
 /* Hidden panels */
 body.tier-arcade .tac-ecm-panel,
-body.tier-arcade .tac-sensor-analysis-panel {
+body.tier-arcade .tac-sensor-analysis-panel,
+body.tier-arcade .tac-munition-program-panel {
   display: none;
 }
 
@@ -488,7 +495,8 @@ body.tier-cpu-assist .tac-ecm-game-panel,
 body.tier-cpu-assist .tac-sweep-game-panel,
 body.tier-cpu-assist .tac-pdc-threat-panel,
 body.tier-cpu-assist .tac-sensor-analysis-panel,
-body.tier-cpu-assist .tac-munition-config-panel {
+body.tier-cpu-assist .tac-munition-config-panel,
+body.tier-cpu-assist .tac-munition-program-panel {
   display: none;
 }
 

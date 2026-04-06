@@ -493,6 +493,7 @@ class FiringSolutionDisplay extends HTMLElement {
           ${this._renderFactorRow("TGT ACCEL", cf.target_accel)}
           ${this._renderFactorRow("OWN ROTATION", cf.own_rotation)}
           ${this._renderFactorRow("WEAPON HEALTH", cf.weapon_health)}
+          ${this._renderFactorRow("TIME OF FLIGHT", cf.time_of_flight)}
         </div>
 
         <div class="section-title">DISPERSION</div>
@@ -639,6 +640,7 @@ class FiringSolutionDisplay extends HTMLElement {
         target_accel: "Tgt Accel",
         own_rotation: "Ship Stab",
         weapon_health: "Wpn Health",
+        time_of_flight: "ToF",
       };
 
       for (const [key, label] of Object.entries(factorLabels)) {

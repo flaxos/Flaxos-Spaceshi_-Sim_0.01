@@ -1375,21 +1375,35 @@ class WeaponControls extends HTMLElement {
         <!-- MANUAL tier: dumb-fire (no targeting lock required) -->
         <div class="manual-only" id="unguided-fire-section" style="margin-top: 12px;">
           <div class="group-title">UNGUIDED FIRE (BORE-SIGHT)</div>
-          <div style="display: flex; gap: 6px;">
+          <div style="display: flex; gap: 6px; flex-wrap: wrap;">
             <button id="fire-unguided-railgun" style="
-              flex: 1; padding: 8px; cursor: pointer;
+              flex: 1; min-width: 70px; padding: 8px; cursor: pointer;
               background: rgba(255, 136, 0, 0.08); border: 1px solid var(--tier-accent, #ff8800);
               color: var(--tier-accent, #ff8800); font-family: var(--font-mono);
               font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
               letter-spacing: 0.5px; border-radius: 2px;
             ">RAILGUN</button>
             <button id="fire-unguided-pdc" style="
-              flex: 1; padding: 8px; cursor: pointer;
+              flex: 1; min-width: 70px; padding: 8px; cursor: pointer;
               background: rgba(255, 136, 0, 0.08); border: 1px solid var(--tier-accent, #ff8800);
               color: var(--tier-accent, #ff8800); font-family: var(--font-mono);
               font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
               letter-spacing: 0.5px; border-radius: 2px;
             ">PDC BURST</button>
+            <button id="fire-unguided-torpedo" style="
+              flex: 1; min-width: 70px; padding: 8px; cursor: pointer;
+              background: rgba(255, 136, 0, 0.08); border: 1px solid var(--tier-accent, #ff8800);
+              color: var(--tier-accent, #ff8800); font-family: var(--font-mono);
+              font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+              letter-spacing: 0.5px; border-radius: 2px;
+            ">TORPEDO</button>
+            <button id="fire-unguided-missile" style="
+              flex: 1; min-width: 70px; padding: 8px; cursor: pointer;
+              background: rgba(255, 136, 0, 0.08); border: 1px solid var(--tier-accent, #ff8800);
+              color: var(--tier-accent, #ff8800); font-family: var(--font-mono);
+              font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+              letter-spacing: 0.5px; border-radius: 2px;
+            ">MISSILE</button>
           </div>
           <div style="font-size: 0.6rem; color: var(--text-dim); margin-top: 4px; text-align: center; font-style: italic;">
             Fires along ship heading — no lock required
@@ -1569,6 +1583,18 @@ class WeaponControls extends HTMLElement {
     if (unguidedPdc) {
       unguidedPdc.addEventListener("click", () => {
         wsClient.sendShipCommand("fire_unguided", { weapon_type: "pdc" });
+      });
+    }
+    const unguidedTorpedo = this.shadowRoot.getElementById("fire-unguided-torpedo");
+    if (unguidedTorpedo) {
+      unguidedTorpedo.addEventListener("click", () => {
+        wsClient.sendShipCommand("fire_unguided", { weapon_type: "torpedo" });
+      });
+    }
+    const unguidedMissile = this.shadowRoot.getElementById("fire-unguided-missile");
+    if (unguidedMissile) {
+      unguidedMissile.addEventListener("click", () => {
+        wsClient.sendShipCommand("fire_unguided", { weapon_type: "missile" });
       });
     }
   }
