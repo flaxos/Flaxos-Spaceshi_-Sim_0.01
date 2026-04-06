@@ -84,6 +84,44 @@ def cmd_target_subsystem(ship, params):
     ship.target_subsystem = target_subsystem
     return success_dict("Target subsystem set", target_subsystem=target_subsystem)
 
+def cmd_fcr_paint(sensors, ship, params):
+    """Paint a contact with the fire control radar.
+
+    Focuses the active sensor beam on a single contact to boost its
+    track quality to near-maximum.  This is a loud active emission
+    that increases the painting ship's own detectability.
+
+    Args:
+        sensors: SensorSystem instance.
+        ship: Ship object.
+        params: Validated params with contact_id and optional duration.
+    """
+    contact_id = params.get("contact_id")
+    duration = params.get("duration", 10.0)
+
+    if sensors and hasattr(sensors, "contact_tracker"):
+        return sensors.command("fcr_paint", {
+            "contact_id": contact_id,
+            "duration": duration,
+        })
+
+    return error_dict("NOT_IMPLEMENTED", "FCR paint requires SensorSystem with contact tracker")
+
+
+def cmd_fcr_release(sensors, ship, params):
+    """Release FCR paint (stop painting early).
+
+    Args:
+        sensors: SensorSystem instance.
+        ship: Ship object.
+        params: Command parameters (unused).
+    """
+    if sensors and hasattr(sensors, "fcr_paint_target"):
+        return sensors.command("fcr_release", params)
+
+    return error_dict("NOT_IMPLEMENTED", "FCR release requires SensorSystem")
+
+
 def cmd_untarget(ship, params):
     """Unlock current target."""
     targeting = ship.systems.get("targeting")
@@ -146,4 +184,24 @@ def register_commands(dispatcher):
         handler=cmd_untarget,
         args=[],
         help_text="Unlock current target"
+    ))
+
+    dispatcher.register("fcr_paint", CommandSpec(
+        handler=cmd_fcr_paint,
+        args=[
+            ArgSpec("contact_id", "str", required=True,
+                    description="Contact ID to paint with FCR"),
+            ArgSpec("duration", "float", required=False, default=10.0,
+                    min_val=1.0, max_val=60.0,
+                    description="Paint duration in seconds (default 10)")
+        ],
+        help_text="Paint a contact with fire control radar (boosts track quality, increases own detectability)",
+        system="sensors"
+    ))
+
+    dispatcher.register("fcr_release", CommandSpec(
+        handler=cmd_fcr_release,
+        args=[],
+        help_text="Release FCR paint (stop painting early)",
+        system="sensors"
     ))

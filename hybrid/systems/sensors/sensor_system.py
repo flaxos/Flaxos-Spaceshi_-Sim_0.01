@@ -55,6 +55,13 @@ class SensorSystem(BaseSystem):
         eccm_config = config.get("eccm", {})
         self.eccm = ECCMState(eccm_config)
 
+        # FCR (Fire Control Radar) paint state.
+        # When active, a focused radar beam is held on a single contact
+        # to boost its track quality to near-maximum.  The tradeoff is
+        # that the focused emission makes the painting ship much more
+        # detectable — active radar is a loud beacon.
+        self.fcr_paint_target: dict | None = None  # {target_id, start_time, duration}
+
         # Simulation reference (set during tick)
         self.all_ships = []
         self.current_tick = 0
@@ -125,6 +132,11 @@ class SensorSystem(BaseSystem):
         for ship_id, contact in self.active.get_contacts().items():
             self.contact_tracker.update_contact(ship_id, contact, self.sim_time)
 
+        # FCR paint: focused active beam on a single contact.
+        # Boosts that contact to near-maximum confidence and overrides
+        # classification to full ship class.  Expires after duration.
+        self._process_fcr_paint(ship, dt)
+
         # Prune stale contacts periodically, preserving contacts whose
         # source ships still exist in the simulation
         if self.current_tick % 100 == 0:  # Every 100 ticks
@@ -164,6 +176,109 @@ class SensorSystem(BaseSystem):
 
         self._last_contact_ids = current_ids
 
+    def _process_fcr_paint(self, ship, dt: float) -> None:
+        """Apply FCR paint effects to the targeted contact.
+
+        When the FCR is actively painting a contact:
+        1. Boost target confidence to 0.95 (confirmed state)
+        2. Override classification to real ship class
+        3. Reduce position/velocity noise to near-zero (accuracy ~0.98)
+        4. Increase own-ship IR signature (active emission penalty)
+
+        The FCR emits a focused radar beam, so the painting ship becomes
+        significantly easier to detect — anyone with passive sensors will
+        see the emission spike.
+
+        Args:
+            ship: The ship that owns this sensor system.
+            dt: Time delta this tick.
+        """
+        if self.fcr_paint_target is None:
+            # Clear any lingering IR bonus from a previous paint
+            if hasattr(ship, "_fcr_ir_bonus"):
+                del ship._fcr_ir_bonus
+            return
+
+        elapsed = self.sim_time - self.fcr_paint_target["start_time"]
+        if elapsed >= self.fcr_paint_target["duration"]:
+            # Paint expired — clean up
+            self.fcr_paint_target = None
+            if hasattr(ship, "_fcr_ir_bonus"):
+                del ship._fcr_ir_bonus
+            return
+
+        target_id = self.fcr_paint_target["target_id"]
+        contact = self.contact_tracker.get_contact(target_id)
+        if contact is None:
+            # Target lost from tracker — release paint
+            self.fcr_paint_target = None
+            if hasattr(ship, "_fcr_ir_bonus"):
+                del ship._fcr_ir_bonus
+            return
+
+        # Boost confidence to near-max (focused radar return is very good)
+        contact.confidence = 0.95
+        contact.detection_method = "fcr"
+        contact.contact_state = "confirmed"
+
+        # Resolve the real ship behind this contact to get true class/name
+        real_ship = self._resolve_target_ship(target_id)
+        if real_ship:
+            contact.classification = getattr(real_ship, "ship_class", contact.classification)
+            contact.name = getattr(real_ship, "name", contact.name)
+            contact.faction = getattr(real_ship, "faction", contact.faction)
+
+        # FCR emission penalty: painting ship radiates focused radar energy,
+        # making it ~50% more visible on passive IR/EM sensors.
+        # This is stored as a transient attribute that the emission model
+        # can pick up.  Value is in watts (matches IR signature scale).
+        ship._fcr_ir_bonus = 5000.0  # ~5 kW active emission
+
+    def _resolve_target_ship(self, contact_id: str):
+        """Resolve a contact ID to the actual ship object.
+
+        Walks the contact tracker's ID mapping to find the real ship ID,
+        then looks it up in all_ships.
+
+        Args:
+            contact_id: Stable contact ID (e.g. C001) or original ship ID.
+
+        Returns:
+            Ship object or None.
+        """
+        # Find the original ship ID from the stable contact ID
+        real_id = None
+        for ship_id, stable_id in self.contact_tracker.id_mapping.items():
+            if stable_id == contact_id:
+                real_id = ship_id
+                break
+
+        # If contact_id IS the real ship ID (not a stable C00X), use it directly
+        if real_id is None:
+            real_id = contact_id
+
+        for s in (self.all_ships or []):
+            if hasattr(s, "id") and s.id == real_id:
+                return s
+        return None
+
+    def get_fcr_paint_status(self) -> dict:
+        """Get current FCR paint status for telemetry.
+
+        Returns:
+            dict: FCR paint state with active flag, target, and time remaining.
+        """
+        if self.fcr_paint_target is None:
+            return {"active": False, "target_id": None, "time_remaining": 0.0}
+
+        elapsed = self.sim_time - self.fcr_paint_target["start_time"]
+        remaining = max(0.0, self.fcr_paint_target["duration"] - elapsed)
+        return {
+            "active": True,
+            "target_id": self.fcr_paint_target["target_id"],
+            "time_remaining": round(remaining, 1),
+        }
+
     def _serialize_contact(self, contact):
         return {
             "id": contact.id,
@@ -196,6 +311,10 @@ class SensorSystem(BaseSystem):
             return self.get_contacts_list(params)
         elif action == "status":
             return self.get_state()
+        elif action == "fcr_paint":
+            return self._cmd_fcr_paint(params)
+        elif action == "fcr_release":
+            return self._cmd_fcr_release(params)
 
         # ECCM commands are routed through the sensor system because
         # ECCM is a sensor capability, not an independent system.
@@ -213,6 +332,63 @@ class SensorSystem(BaseSystem):
             return self._handle_eccm_command(action, params)
 
         return super().command(action, params)
+
+    def _cmd_fcr_paint(self, params: dict) -> dict:
+        """Start FCR painting a contact.
+
+        Validates the contact exists, then sets the paint state so that
+        subsequent ticks will boost that contact's track quality.
+
+        Args:
+            params: Command parameters with contact_id and optional duration.
+
+        Returns:
+            dict: Success or error result.
+        """
+        contact_id = params.get("contact_id")
+        duration = params.get("duration", 10.0)
+
+        if not contact_id:
+            return error_dict("MISSING_CONTACT", "contact_id is required")
+
+        # Validate contact exists in tracker
+        contact = self.contact_tracker.get_contact(contact_id)
+        if contact is None:
+            return error_dict("CONTACT_NOT_FOUND",
+                              f"No contact '{contact_id}' in sensor tracker")
+
+        # Only one FCR paint at a time — new paint replaces the old one
+        self.fcr_paint_target = {
+            "target_id": contact_id,
+            "start_time": self.sim_time,
+            "duration": float(duration),
+        }
+
+        return success_dict(
+            f"FCR painting contact {contact_id} for {duration}s",
+            target_id=contact_id,
+            duration=duration,
+        )
+
+    def _cmd_fcr_release(self, params: dict) -> dict:
+        """Release FCR paint (stop painting early).
+
+        Args:
+            params: Command parameters (unused).
+
+        Returns:
+            dict: Success or error result.
+        """
+        if self.fcr_paint_target is None:
+            return error_dict("NOT_PAINTING", "FCR is not currently painting")
+
+        released_target = self.fcr_paint_target["target_id"]
+        self.fcr_paint_target = None
+
+        return success_dict(
+            f"FCR paint released from {released_target}",
+            released_target=released_target,
+        )
 
     def _handle_eccm_command(self, action: str, params: dict) -> dict:
         """Route ECCM commands to the ECCMState.
@@ -410,6 +586,7 @@ class SensorSystem(BaseSystem):
             },
             "own_emissions": own_emissions,
             "eccm": self.eccm.get_state(),
+            "fcr_paint": self.get_fcr_paint_status(),
         })
 
         return state

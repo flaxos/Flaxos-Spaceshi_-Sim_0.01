@@ -167,6 +167,9 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             "eccm_home_on_jam",
             "analyze_jamming",
             "eccm_status",
+            # FCR paint commands (focused radar beam on single contact)
+            "fcr_paint",
+            "fcr_release",
             # Auto-fire authorization commands (server-side fire auth)
             "authorize_weapon",
             "deauthorize_weapon",
@@ -366,6 +369,9 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             # ECCM analysis (science officer can analyze jamming)
             "analyze_jamming",
             "eccm_status",
+            # FCR paint commands (science officer can also paint contacts)
+            "fcr_paint",
+            "fcr_release",
             # Auto-science commands (CPU-ASSIST tier)
             "enable_auto_science",
             "disable_auto_science",
