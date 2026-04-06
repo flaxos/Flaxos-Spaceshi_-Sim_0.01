@@ -128,8 +128,8 @@ RAILGUN_SPECS = WeaponSpecs(
     muzzle_velocity=20000.0,  # 20 km/s - tungsten penetrator (design spec)
     effective_range=500000.0,  # 500 km effective range (design spec)
     min_range=500.0,  # Need some distance to track
-    base_damage=35.0,  # Heavy hull damage
-    subsystem_damage=25.0,  # 1 subsystem per hit (design spec: high-skill penetrator)
+    base_damage=55.0,  # Heavy hull damage — railgun is a high-skill penetrator, devastating on hit
+    subsystem_damage=37.0,  # ~67% of hull damage — 1 subsystem per hit (design spec)
     armor_penetration=1.5,  # Good vs armor
     cycle_time=5.0,  # 5 seconds between shots
     burst_count=1,
@@ -705,7 +705,10 @@ class TruthWeapon:
             (rel_vel["z"] - solution.closing_speed * range_direction["z"])**2
         )
         lateral_vel = math.sqrt(lateral_vel_sq)
-        lateral_factor = max(0.5, 1.0 - lateral_vel / 500.0)  # 500 m/s = 50% reduction
+        # Scale lateral penalty by muzzle velocity: slow bullets (PDC) are much more
+        # sensitive to lateral movement than fast slugs (railgun). The 0.025 factor
+        # means lateral vel at 2.5% of muzzle velocity halves hit probability.
+        lateral_factor = max(0.3, 1.0 - lateral_vel / max(100.0, self.specs.muzzle_velocity * 0.025))
 
         solution.hit_probability = max(0.05, min(0.95, range_accuracy * lateral_factor))
 
