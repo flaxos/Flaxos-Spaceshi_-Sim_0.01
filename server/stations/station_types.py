@@ -214,6 +214,8 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             "report_status",
             "emergency_shutdown",
             "restart_system",
+            # System power toggles
+            "toggle_system",
             # ECM (OPS can also manage countermeasures)
             "set_emcon",
             "ecm_status",
@@ -284,6 +286,8 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             "manage_radiators",
             "monitor_fuel",
             "emergency_vent",
+            # System power toggles
+            "toggle_system",
             # Crew fatigue (view only + rest authority)
             "crew_rest",
             "cancel_rest",

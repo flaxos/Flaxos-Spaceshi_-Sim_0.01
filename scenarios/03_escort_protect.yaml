@@ -166,6 +166,12 @@ mission:
         target: "freighter01"
         range: 10000
 
+    - id: "player_survive"
+      type: "player_mobility_kill"
+      description: "Keep your ship operational"
+      required: true
+      params: {}
+
   success_message: |
     Escort mission successful!
 

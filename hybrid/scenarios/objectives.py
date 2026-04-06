@@ -26,6 +26,19 @@ class ObjectiveType(Enum):
     ESCAPE_RANGE = "escape_range"
     AMMO_DEPLETED = "ammo_depleted"
     BOARD_AND_CAPTURE = "board_and_capture"
+    PLAYER_MOBILITY_KILL = "player_mobility_kill"
+
+
+# Guard objective types: these auto-complete when all non-guard required
+# objectives succeed.  Guards exist to fail the mission early (ammo gone,
+# player destroyed, target escaped) but should not block each other from
+# auto-completing when the primary win conditions are met.
+GUARD_TYPES = {
+    ObjectiveType.ESCAPE_RANGE,
+    ObjectiveType.AMMO_DEPLETED,
+    ObjectiveType.PLAYER_MOBILITY_KILL,
+    ObjectiveType.AVOID_MISSION_KILL,
+}
 
 class ObjectiveStatus(Enum):
     """Status of an objective."""
@@ -57,6 +70,23 @@ class Objective:
         self.progress = 0.0  # 0.0 to 1.0
         self.completion_time = None
         self.failure_reason = None
+
+    def _primary_objectives_complete(self, tracker) -> bool:
+        """Check if all non-guard required objectives have completed.
+
+        Guard objectives (escape_range, ammo_depleted, player_mobility_kill,
+        avoid_mission_kill) should auto-complete when the primary win
+        conditions are met, without blocking on each other.
+        """
+        if not tracker:
+            return False
+        primary = [
+            obj for obj in tracker.objectives.values()
+            if obj.required and obj.id != self.id and obj.type not in GUARD_TYPES
+        ]
+        return bool(primary) and all(
+            obj.status == ObjectiveStatus.COMPLETED for obj in primary
+        )
 
     def check(self, sim, player_ship, tracker=None) -> bool:
         """Check if objective is completed.
@@ -102,6 +132,8 @@ class Objective:
             return self._check_ammo_depleted(sim, player_ship, tracker)
         elif self.type == ObjectiveType.BOARD_AND_CAPTURE:
             return self._check_board_and_capture(sim, player_ship)
+        elif self.type == ObjectiveType.PLAYER_MOBILITY_KILL:
+            return self._check_player_mobility_kill(sim, player_ship, tracker)
 
         return False
 
@@ -225,19 +257,12 @@ class Objective:
             self.failure_reason = f"{target_id} hull destroyed"
             return False
 
-        if tracker:
-            other_required = [
-                obj for obj in tracker.objectives.values()
-                if obj.required and obj.id != self.id
-            ]
-            if other_required and all(
-                obj.status == ObjectiveStatus.COMPLETED for obj in other_required
-            ):
-                self.status = ObjectiveStatus.COMPLETED
-                self.completion_time = sim.time
-                self.progress = 1.0
-                logger.info(f"Objective {self.id} completed: {target_id} survived mission")
-                return True
+        if self._primary_objectives_complete(tracker):
+            self.status = ObjectiveStatus.COMPLETED
+            self.completion_time = sim.time
+            self.progress = 1.0
+            logger.info(f"Objective {self.id} completed: {target_id} survived mission")
+            return True
 
         return False
 
@@ -473,21 +498,14 @@ class Objective:
             logger.info(f"Objective {self.id} failed: {target_id} escaped at {current_range:.0f}m")
             return False
 
-        # Auto-complete when all other required objectives succeed --
-        # the player won before the target could escape.
-        if tracker:
-            other_required = [
-                obj for obj in tracker.objectives.values()
-                if obj.required and obj.id != self.id
-            ]
-            if other_required and all(
-                obj.status == ObjectiveStatus.COMPLETED for obj in other_required
-            ):
-                self.status = ObjectiveStatus.COMPLETED
-                self.completion_time = sim.time
-                self.progress = 1.0
-                logger.info(f"Objective {self.id} completed: target contained")
-                return True
+        # Auto-complete when all primary (non-guard) required objectives
+        # succeed -- the player won before the target could escape.
+        if self._primary_objectives_complete(tracker):
+            self.status = ObjectiveStatus.COMPLETED
+            self.completion_time = sim.time
+            self.progress = 1.0
+            logger.info(f"Objective {self.id} completed: target contained")
+            return True
 
         return False
 
@@ -508,6 +526,15 @@ class Objective:
             return False
 
         total_ammo = 0
+        # Truth weapons (railguns, PDCs) — current combat system
+        if hasattr(combat, "truth_weapons"):
+            for weapon in combat.truth_weapons.values():
+                if hasattr(weapon, "ammo"):
+                    total_ammo += weapon.ammo
+        # Torpedoes and missiles are tracked separately on the combat system
+        total_ammo += getattr(combat, "torpedoes_loaded", 0)
+        total_ammo += getattr(combat, "missiles_loaded", 0)
+        # Legacy weapons list (older combat system variant)
         if hasattr(combat, "weapons"):
             for weapon in combat.weapons:
                 if hasattr(weapon, "ammo"):
@@ -519,21 +546,14 @@ class Objective:
             logger.info(f"Objective {self.id} failed: {target_id} out of ammo")
             return False
 
-        # Auto-complete when all other required objectives succeed --
-        # the player won with ammo remaining.
-        if tracker:
-            other_required = [
-                obj for obj in tracker.objectives.values()
-                if obj.required and obj.id != self.id
-            ]
-            if other_required and all(
-                obj.status == ObjectiveStatus.COMPLETED for obj in other_required
-            ):
-                self.status = ObjectiveStatus.COMPLETED
-                self.completion_time = sim.time
-                self.progress = 1.0
-                logger.info(f"Objective {self.id} completed: ammo conserved")
-                return True
+        # Auto-complete when all primary (non-guard) required objectives
+        # succeed -- the player won with ammo remaining.
+        if self._primary_objectives_complete(tracker):
+            self.status = ObjectiveStatus.COMPLETED
+            self.completion_time = sim.time
+            self.progress = 1.0
+            logger.info(f"Objective {self.id} completed: ammo conserved")
+            return True
 
         return False
 
@@ -575,6 +595,33 @@ class Objective:
 
         return False
 
+    def _check_player_mobility_kill(self, sim, player_ship, tracker=None) -> bool:
+        """Check if player ship has lost mobility (propulsion destroyed).
+
+        Guard objective: fails when the player's damage model reports a
+        mobility kill (drive + RCS destroyed).  Auto-completes when all
+        other required objectives succeed -- the player won before losing
+        propulsion.
+        """
+        if player_ship and hasattr(player_ship, 'damage_model'):
+            damage_model = player_ship.damage_model
+            if damage_model and damage_model.is_mobility_kill():
+                self.status = ObjectiveStatus.FAILED
+                self.failure_reason = "Ship propulsion destroyed — mission failed"
+                logger.info(f"Objective {self.id} failed: player mobility kill")
+                return False
+
+        # Auto-complete when all primary (non-guard) required objectives
+        # succeed -- the player won before losing propulsion.
+        if self._primary_objectives_complete(tracker):
+            self.status = ObjectiveStatus.COMPLETED
+            self.completion_time = sim.time
+            self.progress = 1.0
+            logger.info(f"Objective {self.id} completed: player survived")
+            return True
+
+        return False
+
     def to_dict(self) -> Dict:
         """Convert to dictionary for serialization."""
         return {
@@ -612,9 +659,22 @@ class ObjectiveTracker:
         if self.mission_status != "in_progress":
             return
 
-        # Check all objectives
-        for obj in self.objectives.values():
-            obj.check(sim, player_ship, tracker=self)
+        # Check all objectives.  Guard objectives (escape_range,
+        # ammo_depleted, player_mobility_kill) auto-complete when all
+        # OTHER required objectives complete.  When multiple guards
+        # coexist, each sees the others as in_progress on the first
+        # pass, creating a circular dependency.  We iterate until no
+        # objective changes state (convergence), capped at 5 passes to
+        # prevent infinite loops from buggy objective logic.
+        for _ in range(5):
+            changed = False
+            for obj in self.objectives.values():
+                prev_status = obj.status
+                obj.check(sim, player_ship, tracker=self)
+                if obj.status != prev_status:
+                    changed = True
+            if not changed:
+                break
 
         # Evaluate win/loss conditions
         self._evaluate_mission_status(sim)

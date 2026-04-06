@@ -114,6 +114,46 @@ def cmd_emergency_vent(engineering, ship, params):
     })
 
 
+def cmd_toggle_system(engineering, ship, params):
+    """Toggle a ship system on or off.
+
+    The GUI sends this from system-toggles.js when the player flips a
+    system power switch.  We route through the engineering system but
+    operate on the target system directly via BaseSystem.power_on/off.
+
+    Args:
+        engineering: EngineeringSystem instance (unused — we target the
+            system specified in params)
+        ship: Ship object
+        params: Validated parameters with system id and state (1=on, 0=off)
+
+    Returns:
+        dict: Toggle result with new system state
+    """
+    system_id = params.get("system")
+    state = params.get("state", 1)
+
+    if not system_id:
+        return {"ok": False, "error": "No system specified"}
+
+    system = ship.systems.get(system_id)
+    if not system:
+        return {"ok": False, "error": f"Unknown system: {system_id}"}
+
+    if state:
+        result = system.power_on() if hasattr(system, "power_on") else {"status": "no power_on method"}
+    else:
+        result = system.power_off() if hasattr(system, "power_off") else {"status": "no power_off method"}
+
+    logger.info("System %s toggled %s on ship %s", system_id, "ON" if state else "OFF", ship.id)
+    return {
+        "ok": True,
+        "system": system_id,
+        "enabled": bool(state),
+        **(result if isinstance(result, dict) else {}),
+    }
+
+
 def register_commands(dispatcher):
     """Register all engineering commands with the dispatcher."""
 
@@ -166,5 +206,17 @@ def register_commands(dispatcher):
                     description="Confirm irreversible emergency coolant vent (true to activate)"),
         ],
         help_text="Dump heat rapidly by venting coolant — ONE-TIME USE, irreversible",
+        system="engineering",
+    ))
+
+    dispatcher.register("toggle_system", CommandSpec(
+        handler=cmd_toggle_system,
+        args=[
+            ArgSpec("system", "str", required=True,
+                    description="System ID to toggle (e.g. 'propulsion', 'sensors')"),
+            ArgSpec("state", "int", required=False,
+                    description="1 to enable, 0 to disable (default: 1)"),
+        ],
+        help_text="Toggle a ship system on or off (power switch)",
         system="engineering",
     ))

@@ -150,6 +150,19 @@ mission:
       params:
         target: "pirate01"
 
+    - id: "player_survive"
+      type: "player_mobility_kill"
+      description: "Keep your ship operational"
+      required: true
+      params: {}
+
+    - id: "conserve_ammo"
+      type: "ammo_depleted"
+      description: "Don't run out of ammunition"
+      required: true
+      params:
+        target: "player"
+
   time_limit: 600  # 10 minutes — need time to close 86km + 12 torpedo reloads
 
   success_message: |
