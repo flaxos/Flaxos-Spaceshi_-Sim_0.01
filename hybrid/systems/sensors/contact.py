@@ -47,6 +47,11 @@ class ContactData:
     name: Optional[str] = None  # Ship name if identified
     faction: Optional[str] = None  # Faction affiliation (for AI hostility checks)
     contact_state: str = "confirmed"  # ContactState value
+    # LOST state tracking: when a contact drops below detection threshold,
+    # it transitions to LOST with decaying confidence rather than vanishing.
+    # This gives the player a "last-known position" with growing uncertainty.
+    lost_since: Optional[float] = None  # sim_time when contact entered LOST state
+    last_known_position: Optional[Dict[str, float]] = None  # position at time of loss
 
     def is_stale(self, current_time: float, stale_threshold: float = 60.0) -> bool:
         """Check if contact is stale.

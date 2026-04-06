@@ -713,6 +713,113 @@ def get_weapons_status(ship) -> Dict[str, Any]:
 
     return result
 
+def _mask_contact_by_state(contact_dict: Dict[str, Any]) -> Dict[str, Any]:
+    """Mask contact fields based on contact_state.
+
+    Enforces information degradation at the telemetry layer so the GUI
+    only receives what the ship's sensors can actually resolve. This is
+    the hard-sci rule: you can't know what you can't measure.
+
+    - GHOST (confidence < 0.3): IR hit on the sensor but no resolved
+      track. Bearing is solid (it's a point source), distance is a rough
+      estimate (inverse-square law gives you order-of-magnitude), but
+      there's no velocity vector, no classification, no name.
+
+    - UNCONFIRMED (0.3 <= confidence < 0.6): Resolved position and size
+      class (thermal cross-section gives Small/Medium/Large) but not
+      enough integration time for a velocity track or positive ID.
+
+    - LOST: Last-known position preserved with growing uncertainty,
+      velocity and identity data stale. Marked for the GUI to render
+      as a fading marker.
+
+    - CONFIRMED (>= 0.6): Full track, no masking.
+
+    Args:
+        contact_dict: Fully populated contact telemetry dict.
+
+    Returns:
+        The same dict with fields nulled/noised per state rules.
+    """
+    import random
+
+    state = contact_dict.get("contact_state", "confirmed")
+
+    if state == "ghost":
+        # Bearing is reliable (point-source direction is easy).
+        # Distance gets +/- 30% noise — inverse-square flux gives a
+        # rough range but not a precise one.
+        raw_distance = contact_dict.get("distance", 0)
+        if raw_distance > 0:
+            noise_factor = 1.0 + random.uniform(-0.3, 0.3)
+            contact_dict["distance"] = raw_distance * noise_factor
+        # Null out everything we can't resolve from a single IR return
+        contact_dict["position"] = None
+        contact_dict["velocity"] = None
+        contact_dict["classification"] = None
+        contact_dict["name"] = None
+        contact_dict["faction"] = None
+        contact_dict["diplomatic_state"] = "unknown"
+
+    elif state == "unconfirmed":
+        # Position is available (multi-scan triangulation).
+        # Classification is coarse size class only — thermal cross-section
+        # tells you big/medium/small, not "Donnager-class battleship".
+        classification = contact_dict.get("classification")
+        if classification and classification not in ("Small", "Medium", "Large", "Unknown"):
+            # Downgrade detailed class to size bucket.
+            # The passive sensor already does this at low accuracy,
+            # but active sensors or re-acquired contacts might have
+            # a stale full classification from a higher-confidence moment.
+            contact_dict["classification"] = _coarsen_classification(classification)
+        # Velocity has extra noise — not enough integration time for
+        # a clean velocity track, so add 50% additional scatter.
+        vel = contact_dict.get("velocity")
+        if vel and isinstance(vel, dict):
+            for axis in ("x", "y", "z"):
+                if axis in vel and vel[axis] is not None:
+                    vel[axis] += random.gauss(0, abs(vel[axis]) * 0.5 + 5.0)
+        # No positive ID at unconfirmed confidence
+        contact_dict["name"] = None
+
+    elif state == "lost":
+        # Preserve last-known position but null out live tracking data.
+        # The GUI will show a fading marker at the last-known spot.
+        contact_dict["velocity"] = None
+        contact_dict["name"] = None
+
+    # "confirmed" — no masking needed, full track data
+
+    return contact_dict
+
+
+def _coarsen_classification(classification: str) -> str:
+    """Downgrade a detailed ship classification to a size bucket.
+
+    At unconfirmed confidence the sensor can estimate thermal
+    cross-section (which correlates with mass/size) but can't
+    resolve fine structural details for a class identification.
+
+    Args:
+        classification: Detailed class string (e.g. "Corvette")
+
+    Returns:
+        Size bucket: "Small", "Medium", or "Large"
+    """
+    # Map known class types to size buckets based on typical mass ranges.
+    # This is intentionally coarse — the point is information loss.
+    large_classes = {"battleship", "carrier", "cruiser", "station", "freighter"}
+    medium_classes = {"destroyer", "frigate", "corvette", "transport"}
+    # Everything else (shuttle, fighter, drone, unknown) -> Small
+
+    lower = classification.lower()
+    if lower in large_classes:
+        return "Large"
+    if lower in medium_classes:
+        return "Medium"
+    return "Small"
+
+
 def get_sensor_contacts(ship) -> Dict[str, Any]:
     """Get sensor contacts for a ship.
 
@@ -720,6 +827,11 @@ def get_sensor_contacts(ship) -> Dict[str, Any]:
     merged, de-duplicated contacts with stable IDs like C001).  Falls back to
     reading raw passive/active contact dicts only for legacy dict-based sensor
     systems that lack a ContactTracker.
+
+    Contact data is masked based on contact_state before serialization:
+    ghost contacts only expose bearing + rough distance, unconfirmed
+    contacts expose position + size class, and confirmed contacts get
+    full data. This enforces hard-sci sensor rules at the telemetry layer.
 
     Args:
         ship: Ship object
@@ -758,7 +870,7 @@ def get_sensor_contacts(ship) -> Dict[str, Any]:
             contact_faction = getattr(contact, "faction", None)
             diplo_state = _get_contact_diplomatic_state(our_faction, contact_faction)
 
-            contacts_list.append({
+            contact_dict = {
                 "id": contact_id,
                 "position": pos_dict,
                 "velocity": vel_dict,
@@ -772,13 +884,16 @@ def get_sensor_contacts(ship) -> Dict[str, Any]:
                 "classification": getattr(contact, "classification", None),
                 "faction": contact_faction,
                 "diplomatic_state": diplo_state,
-            })
+            }
+
+            # Mask fields the sensor can't actually resolve at this state
+            contacts_list.append(_mask_contact_by_state(contact_dict))
     else:
         # Legacy fallback for dict-based sensors without ContactTracker
         contacts_list = _get_contacts_from_raw_sensors(sensors, ship)
 
     # Sort by distance
-    contacts_list.sort(key=lambda c: c["distance"])
+    contacts_list.sort(key=lambda c: c.get("distance") or float("inf"))
 
     return {
         "available": True,
