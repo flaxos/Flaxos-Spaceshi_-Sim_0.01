@@ -780,10 +780,17 @@ def get_sensor_contacts(ship) -> Dict[str, Any]:
     # Sort by distance
     contacts_list.sort(key=lambda c: c["distance"])
 
+    # FCR paint status — lets the GUI show which contact is being
+    # actively painted and how long the paint has remaining.
+    fcr_paint = {"active": False, "target_id": None, "time_remaining": 0.0}
+    if hasattr(sensors, "get_fcr_paint_status"):
+        fcr_paint = sensors.get_fcr_paint_status()
+
     return {
         "available": True,
         "contacts": contacts_list,
-        "count": len(contacts_list)
+        "count": len(contacts_list),
+        "fcr_paint": fcr_paint,
     }
 
 

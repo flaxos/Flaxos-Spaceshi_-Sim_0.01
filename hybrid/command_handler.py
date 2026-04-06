@@ -98,6 +98,9 @@ system_commands = {
     "authorize_weapon": ("combat", "authorize_weapon"),
     "deauthorize_weapon": ("combat", "deauthorize_weapon"),
     "cease_fire": ("combat", "cease_fire"),
+    # FCR paint commands (focused active beam on single contact)
+    "fcr_paint": ("sensors", "fcr_paint"),
+    "fcr_release": ("sensors", "fcr_release"),
     # ECCM commands (routed through sensors — ECCM is a sensor capability)
     "eccm_frequency_hop": ("sensors", "eccm_frequency_hop"),
     "eccm_burn_through": ("sensors", "eccm_burn_through"),

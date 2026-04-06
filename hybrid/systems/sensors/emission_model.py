@@ -143,6 +143,13 @@ def calculate_ir_signature(ship) -> float:
     if ecm and hasattr(ecm, "get_emcon_ir_modifier"):
         ir_watts *= ecm.get_emcon_ir_modifier()
 
+    # FCR paint: focused radar beam adds significant active emission.
+    # The sensor system sets _fcr_ir_bonus on the ship while painting;
+    # this makes the painting ship louder on passive IR/EM sensors.
+    fcr_bonus = getattr(ship, "_fcr_ir_bonus", 0.0)
+    if fcr_bonus > 0:
+        ir_watts += fcr_bonus
+
     return ir_watts
 
 
