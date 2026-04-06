@@ -773,7 +773,7 @@ class TargetingSystem(BaseSystem):
             dict: Result
         """
         if action == "lock":
-            contact_id = params.get("contact_id") or params.get("target")
+            contact_id = params.get("contact_id") or params.get("target") or params.get("target_id")
             if not contact_id:
                 return error_dict("MISSING_PARAMETER", "contact_id required")
             sim_time = params.get("sim_time", self._sim_time)
@@ -811,20 +811,20 @@ class TargetingSystem(BaseSystem):
             return self.cycle_target()
 
         elif action == "add_track":
-            contact_id = params.get("contact_id") or params.get("target")
+            contact_id = params.get("contact_id") or params.get("target") or params.get("target_id")
             if not contact_id:
                 return error_dict("MISSING_PARAMETER", "contact_id required")
             return self.add_track(contact_id)
 
         elif action == "remove_track":
-            contact_id = params.get("contact_id") or params.get("target")
+            contact_id = params.get("contact_id") or params.get("target") or params.get("target_id")
             if not contact_id:
                 return error_dict("MISSING_PARAMETER", "contact_id required")
             return self.remove_track(contact_id)
 
         elif action == "assign_pdc_target":
             mount_id = params.get("mount_id")
-            contact_id = params.get("contact_id") or params.get("target")
+            contact_id = params.get("contact_id") or params.get("target") or params.get("target_id")
             if not mount_id:
                 return error_dict("MISSING_PARAMETER", "mount_id required")
             if not contact_id:
@@ -833,7 +833,7 @@ class TargetingSystem(BaseSystem):
 
         elif action == "split_fire":
             mount_id = params.get("mount_id") or params.get("weapon_id")
-            contact_id = params.get("contact_id") or params.get("target")
+            contact_id = params.get("contact_id") or params.get("target") or params.get("target_id")
             if not mount_id:
                 return error_dict("MISSING_PARAMETER", "mount_id required")
             if not contact_id:
