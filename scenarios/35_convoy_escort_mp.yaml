@@ -41,7 +41,7 @@ ships:
         max_fuel: 400.0
       sensors:
         passive:
-          range: 60000
+          range: 80000  # Must detect pirate_flank at 67km
         active:
           scan_range: 100000
       targeting:
@@ -73,7 +73,7 @@ ships:
         max_fuel: 400.0
       sensors:
         passive:
-          range: 60000
+          range: 80000  # Must detect pirate_flank at 67km
         active:
           scan_range: 100000
       targeting:

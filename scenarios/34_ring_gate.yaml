@@ -43,7 +43,7 @@ ships:
         max_fuel: 500.0
       sensors:
         passive:
-          range: 100000
+          range: 450000  # See all beacons from start to plan fuel route
         active:
           scan_range: 200000
       targeting:
