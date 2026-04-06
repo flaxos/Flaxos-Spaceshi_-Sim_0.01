@@ -114,6 +114,8 @@ import "../components/helm-balance-game.js";
 import "../components/damage-control-game.js";
 // ARCADE tier PDC threat triage radial game
 import "../components/pdc-threat-game.js";
+// ARCADE tier munition configuration loadout panel
+import "../components/munition-config-game.js";
 // Target damage assessment
 import "../components/target-assessment.js";
 // Damage visualization

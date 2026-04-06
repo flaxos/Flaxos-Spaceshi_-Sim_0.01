@@ -2113,9 +2113,14 @@ class WeaponControls extends HTMLElement {
   }
 
   async _fireLauncher() {
-    // Torpedo: always single fire, with profile param
+    // Torpedo: always single fire, with profile param.
+    // Read ARCADE munition config if available (set by munition-config-game).
+    const cfg = window._munitionConfig || {};
+    const params = { profile: "direct" };
+    if (cfg.warhead_type) params.warhead_type = cfg.warhead_type;
+    if (cfg.guidance_mode) params.guidance_mode = cfg.guidance_mode;
     try {
-      await wsClient.sendShipCommand("launch_torpedo", { profile: "direct" });
+      await wsClient.sendShipCommand("launch_torpedo", params);
     } catch (error) {
       console.error("launch_torpedo failed:", error);
     }
@@ -2139,9 +2144,16 @@ class WeaponControls extends HTMLElement {
     // Show fire flash
     this._showFireFlash("missile");
 
+    // Read ARCADE munition config if available (set by munition-config-game).
+    const cfg = window._munitionConfig || {};
+    const launchParams = { profile: this._missileProfile };
+    if (cfg.warhead_type) launchParams.warhead_type = cfg.warhead_type;
+    if (cfg.guidance_mode) launchParams.guidance_mode = cfg.guidance_mode;
+    if (cfg.flight_profile) launchParams.profile = cfg.flight_profile;
+
     for (let i = 0; i < salvoSize; i++) {
       setTimeout(() => {
-        wsClient.sendShipCommand("launch_missile", { profile: this._missileProfile })
+        wsClient.sendShipCommand("launch_missile", launchParams)
           .catch((err) => console.error(`Salvo missile ${i + 1} failed:`, err));
 
         // Mark salvo complete after the last missile launches
