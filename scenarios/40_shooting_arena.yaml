@@ -13,7 +13,7 @@ briefing: |
   PDC Target:       1 km    (point defense range)
   Close Railgun:   10 km    (easy shot)
   Medium Railgun:  50 km    (standard engagement)
-  Long Railgun:   200 km    (difficult shot)
+  Long Railgun:   150 km    (difficult shot)
   Extreme Range:  400 km    (edge of effective range)
   Torpedo Target:  30 km    (guided munition test)
   Missile Target:  60 km    (missile flight profile test)
@@ -121,7 +121,7 @@ ships:
     faction: "hostile"
     player_controlled: false
     ai_enabled: false
-    position: {x: 200000, y: 0, z: 0}
+    position: {x: 150000, y: 0, z: 0}
     velocity: {x: 0, y: 0, z: 0}
 
   - id: "extreme_railgun"
@@ -179,7 +179,7 @@ mission:
 
     - id: "destroy_long"
       type: "destroy_target"
-      description: "Destroy Long Railgun Target (200km)"
+      description: "Destroy Long Railgun Target (150km)"
       required: false
       params:
         target: "long_railgun"
