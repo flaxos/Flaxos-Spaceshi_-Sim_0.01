@@ -137,6 +137,7 @@ system_commands = {
     "manage_radiators": ("engineering", "manage_radiators"),
     "monitor_fuel": ("engineering", "monitor_fuel"),
     "emergency_vent": ("engineering", "emergency_vent"),
+    "toggle_system": ("engineering", "toggle_system"),
     # Comms station commands
     "set_transponder": ("comms", "set_transponder"),
     "hail_contact": ("comms", "hail_contact"),
