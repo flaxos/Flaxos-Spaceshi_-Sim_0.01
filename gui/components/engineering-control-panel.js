@@ -1297,6 +1297,7 @@ class EngineeringControlPanel extends HTMLElement {
             <div class="proposal-header">
               <span class="proposal-action">${p.description || p.action}</span>
               ${confidence > 0 ? `<span class="proposal-confidence">${(confidence * 100).toFixed(0)}%</span>` : ""}
+              ${p.crew_efficiency != null ? `<span class="proposal-crew">Crew: ${(p.crew_efficiency * 100).toFixed(0)}%</span>` : ""}
             </div>
             ${remaining > 0 ? `<div class="proposal-timer"><div class="proposal-timer-fill" style="width:${timerPct}%"></div></div>` : ""}
             <div class="proposal-actions">
