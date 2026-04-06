@@ -988,7 +988,41 @@ body.tier-arcade .ops-damage-game-panel {
 
 
 /* =========================================================================
-   28. REDUCED MOTION
+   28. HAIL FREQUENCY GAME — ARCADE EXCLUSIVE (Comms station)
+   ========================================================================= */
+
+/* Hidden in all tiers except ARCADE */
+body.tier-raw .comms-hail-game-panel,
+body.tier-manual .comms-hail-game-panel,
+body.tier-cpu-assist .comms-hail-game-panel {
+  display: none;
+}
+
+/* ARCADE: visible, spans wide */
+body.tier-arcade .comms-hail-game-panel {
+  grid-column: span 6;
+}
+
+
+/* =========================================================================
+   29. FLEET FORMATION GAME — ARCADE EXCLUSIVE (Fleet station)
+   ========================================================================= */
+
+/* Hidden in all tiers except ARCADE */
+body.tier-raw .fleet-formation-game-panel,
+body.tier-manual .fleet-formation-game-panel,
+body.tier-cpu-assist .fleet-formation-game-panel {
+  display: none;
+}
+
+/* ARCADE: visible, spans wide */
+body.tier-arcade .fleet-formation-game-panel {
+  grid-column: span 6;
+}
+
+
+/* =========================================================================
+   30. REDUCED MOTION
    ========================================================================= */
 
 @media (prefers-reduced-motion: reduce) {
