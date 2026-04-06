@@ -27,10 +27,12 @@ if ROOT_DIR not in sys.path:
 try:
     import websockets
     import websockets.asyncio.server
-    from websockets.server import WebSocketServerProtocol
 except ImportError:
     print("websockets library required: pip install websockets")
     raise
+
+# Type alias — websockets v16+ deprecated WebSocketServerProtocol
+WebSocketServerProtocol = websockets.asyncio.server.ServerConnection
 
 from server.config import (
     DEFAULT_TCP_PORT,
