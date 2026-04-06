@@ -251,6 +251,11 @@
       min-height: var(--panel-height-sm);
     }
 
+    .tac-munition-config-panel {
+      grid-column: span 4;
+      min-height: var(--panel-height-sm);
+    }
+
     /* AWARENESS group */
     .tac-subsystem-panel {
       grid-column: span 4;
@@ -565,6 +570,7 @@
       .tac-ecm-panel,
       .tac-multi-track-panel,
       .tac-eccm-panel,
+      .tac-munition-config-panel,
       .helm-micro-rcs-panel,
       .eng-systems-panel,
       .eng-log-panel,
@@ -608,6 +614,7 @@
       .tac-ecm-panel,
       .tac-multi-track-panel,
       .tac-eccm-panel,
+      .tac-munition-config-panel,
       .tac-sensors-panel,
       .ops-status-panel,
       .ops-subsystem-panel,
@@ -805,6 +812,10 @@
 
           <flaxos-panel title="Torpedoes" collapsible priority="secondary" domain="weapons" class="tac-torpedo-panel">
             <torpedo-status></torpedo-status>
+          </flaxos-panel>
+
+          <flaxos-panel title="Munition Loadout" priority="secondary" domain="weapons" class="tac-munition-config-panel">
+            <munition-config-game></munition-config-game>
           </flaxos-panel>
         </div>
 
