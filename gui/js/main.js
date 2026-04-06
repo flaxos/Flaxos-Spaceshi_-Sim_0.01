@@ -76,6 +76,10 @@ import "../components/ecm-control-panel.js";
 import "../components/eccm-control-panel.js";
 // ARCADE tier ECM frequency-matching mini-game
 import "../components/ecm-frequency-game.js";
+// ARCADE tier comms hail frequency tuning game
+import "../components/hail-frequency-game.js";
+// ARCADE tier fleet formation drag-and-drop game
+import "../components/fleet-formation-game.js";
 // ARCADE tier sensor sweep radar game
 import "../components/sensor-sweep-game.js";
 // Torpedo System
