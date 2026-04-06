@@ -26,6 +26,7 @@ if ROOT_DIR not in sys.path:
 
 try:
     import websockets
+    import websockets.asyncio.server
     from websockets.server import WebSocketServerProtocol
 except ImportError:
     print("websockets library required: pip install websockets")
@@ -469,7 +470,7 @@ class WSBridge:
         if self.game_code:
             logger.info("Game code authentication enabled")
 
-        async with websockets.serve(
+        async with websockets.asyncio.server.serve(
             self.handle_client,
             self.ws_host,
             self.ws_port,

@@ -233,8 +233,8 @@ class TargetingLockGame extends HTMLElement {
         this._lastLockCmd = timestamp;
         const targetId = targeting?.locked_target || targeting?.designated_target || targeting?.target_id;
         if (targetId) {
-          wsClient.sendShipCommand("lock_target", { target: targetId }).catch(() => {
-            // Silently ignore — lock commands are best-effort
+          wsClient.sendShipCommand("lock_target", { contact_id: targetId }).catch((err) => {
+            console.warn("Lock command failed:", err);
           });
         }
       }
