@@ -124,6 +124,7 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             "launch_torpedo",
             "torpedo_status",
             "launch_missile",
+            "launch_salvo",
             "missile_status",
             "program_munition",
             "assess_damage",
@@ -166,6 +167,10 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             "eccm_home_on_jam",
             "analyze_jamming",
             "eccm_status",
+            # Auto-fire authorization commands (server-side fire auth)
+            "authorize_weapon",
+            "deauthorize_weapon",
+            "cease_fire",
             # Auto-tactical commands (CPU-ASSIST tier)
             "enable_auto_tactical",
             "disable_auto_tactical",

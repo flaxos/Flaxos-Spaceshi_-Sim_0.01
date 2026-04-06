@@ -212,7 +212,9 @@ body.tier-manual .tac-eccm-panel,
 body.tier-manual .tac-lock-game-panel,
 body.tier-manual .tac-charge-game-panel,
 body.tier-manual .tac-ecm-game-panel,
-body.tier-manual .tac-sweep-game-panel {
+body.tier-manual .tac-sweep-game-panel,
+body.tier-manual .tac-pdc-threat-panel,
+body.tier-manual .tac-munition-config-panel {
   display: none;
 }
 
@@ -398,7 +400,9 @@ body.tier-cpu-assist .helm-autopilot-status-panel {
 body.tier-raw .tac-lock-game-panel,
 body.tier-raw .tac-charge-game-panel,
 body.tier-raw .tac-ecm-game-panel,
-body.tier-raw .tac-sweep-game-panel {
+body.tier-raw .tac-sweep-game-panel,
+body.tier-raw .tac-pdc-threat-panel,
+body.tier-raw .tac-munition-config-panel {
   display: none;
 }
 
@@ -451,6 +455,16 @@ body.tier-arcade .tac-sweep-game-panel {
   grid-column: span 4;
 }
 
+/* PDC Threat Triage radial game — ARCADE exclusive */
+body.tier-arcade .tac-pdc-threat-panel {
+  grid-column: span 4;
+}
+
+/* Munition Loadout config — ARCADE exclusive */
+body.tier-arcade .tac-munition-config-panel {
+  grid-column: span 4;
+}
+
 
 /* =========================================================================
    10. TACTICAL PANEL VISIBILITY — CPU-ASSIST TIER
@@ -472,7 +486,9 @@ body.tier-cpu-assist .tac-lock-game-panel,
 body.tier-cpu-assist .tac-charge-game-panel,
 body.tier-cpu-assist .tac-ecm-game-panel,
 body.tier-cpu-assist .tac-sweep-game-panel,
-body.tier-cpu-assist .tac-sensor-analysis-panel {
+body.tier-cpu-assist .tac-pdc-threat-panel,
+body.tier-cpu-assist .tac-sensor-analysis-panel,
+body.tier-cpu-assist .tac-munition-config-panel {
   display: none;
 }
 

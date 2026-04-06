@@ -90,9 +90,14 @@ system_commands = {
     "launch_torpedo": ("combat", "launch_torpedo"),
     "torpedo_status": ("combat", "torpedo_status"),
     "launch_missile": ("combat", "launch_missile"),
+    "launch_salvo": ("combat", "launch_salvo"),
     "missile_status": ("combat", "missile_status"),
     "program_munition": ("combat", "program_munition"),
     "assess_damage": ("targeting", "assess_damage"),
+    # Auto-fire authorization commands (server-side fire authorization)
+    "authorize_weapon": ("combat", "authorize_weapon"),
+    "deauthorize_weapon": ("combat", "deauthorize_weapon"),
+    "cease_fire": ("combat", "cease_fire"),
     # ECCM commands (routed through sensors — ECCM is a sensor capability)
     "eccm_frequency_hop": ("sensors", "eccm_frequency_hop"),
     "eccm_burn_through": ("sensors", "eccm_burn_through"),
