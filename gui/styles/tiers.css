@@ -740,6 +740,25 @@ body.tier-cpu-assist .eng-log-panel {
 
 
 /* =========================================================================
+   ENGINEERING ARCADE MINI-GAMES
+   Reactor Balance and Radiator Control — only visible in ARCADE tier.
+   ========================================================================= */
+
+body.tier-arcade .eng-reactor-game-panel {
+  grid-column: span 4;
+}
+
+body.tier-arcade .eng-radiator-game-panel {
+  grid-column: span 4;
+}
+
+body:not(.tier-arcade) .eng-reactor-game-panel,
+body:not(.tier-arcade) .eng-radiator-game-panel {
+  display: none;
+}
+
+
+/* =========================================================================
    18. SCIENCE PANEL VISIBILITY — MANUAL TIER
    "Raw sensor returns only, no computer analysis" (~1 panel)
 
