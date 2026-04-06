@@ -595,6 +595,21 @@ class CombatSystem(BaseSystem):
                 return error_dict("NO_WEAPON",
                                   f"No {weapon_type} mounts available on this ship")
 
+        # Gate: ensure weapon is actually ready to fire before building
+        # the bore-sight solution. Unguided fire skips targeting checks
+        # but still requires basic weapon readiness (ammo, heat, cycle).
+        if not weapon.can_fire(self._sim_time):
+            if weapon.ammo is not None and weapon.ammo <= 0:
+                reason = "no_ammo"
+            elif weapon.reloading:
+                reason = "reloading"
+            elif weapon.heat >= weapon.max_heat * 0.95:
+                reason = "overheated"
+            else:
+                reason = "not_ready"
+            return error_dict("WEAPON_NOT_READY",
+                              f"{weapon_type} not ready: {reason}")
+
         # Build a minimal bore-sight firing solution.
         # Confidence is 0 because there is no computer-assisted tracking.
         # The weapon fires along the ship's current heading (nose vector).
