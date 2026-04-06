@@ -255,19 +255,25 @@ class TestExperience:
 
 
 class TestCrewInjury:
-    """Test crew injury from subsystem damage."""
+    """Test crew injury from subsystem damage.
+
+    The injury model uses an InjuryState escalation ladder:
+    HEALTHY -> WOUNDED (30% * severity) -> CRITICAL (50%) -> DEAD (30%).
+    Tests use deterministic seeds chosen for the new probabilities.
+    """
 
     def test_severe_damage_can_injure_crew(self, binder, ship_with_crew):
-        """Catastrophic damage (severity=1.0) should almost always injure."""
+        """Catastrophic damage (severity=1.0) can wound healthy crew."""
         ship_id, gunner, _ = ship_with_crew
         binder.assign_crew(ship_id, gunner.crew_id, StationType.TACTICAL)
 
-        random.seed(42)  # Deterministic for test
+        # seed=1 gives random() ~ 0.134, below the 0.3 injury threshold
+        random.seed(1)
         result = binder.apply_damage_to_station(ship_id, StationType.TACTICAL, severity=1.0)
 
         assert result is not None
         assert result["injured"] is True
-        assert result["health_remaining"] < 1.0
+        assert result["new_state"] == "wounded"
 
     def test_light_damage_may_not_injure(self, binder, ship_with_crew):
         """Light damage (severity=0.1) should rarely injure."""
@@ -275,11 +281,13 @@ class TestCrewInjury:
         binder.assign_crew(ship_id, gunner.crew_id, StationType.TACTICAL)
 
         random.seed(0)  # deterministic
-        # With severity=0.1, injury chance is 0.08 -- very unlikely
+        # With severity=0.1, injury chance is 0.03 -- very unlikely
+        from server.stations.crew_system import InjuryState
         injuries = 0
         for _ in range(20):
-            # Reset health for each attempt
+            # Reset state for each attempt
             gunner.health = 1.0
+            gunner.injury_state = InjuryState.HEALTHY
             result = binder.apply_damage_to_station(
                 ship_id, StationType.TACTICAL, severity=0.1,
             )
@@ -291,13 +299,20 @@ class TestCrewInjury:
 
     def test_killed_crew_reverts_to_ai(self, binder, ship_with_crew):
         """Killing a crew member should activate AI backup."""
+        from server.stations.crew_system import InjuryState
         ship_id, gunner, _ = ship_with_crew
         binder.assign_crew(ship_id, gunner.crew_id, StationType.TACTICAL)
 
-        # Set health very low so any injury kills
-        gunner.health = 0.01
-        random.seed(42)
+        # Set to CRITICAL state so next hit has 30% kill chance
+        gunner.injury_state = InjuryState.CRITICAL
+        gunner.health = 0.1
+        # Re-assign since critical would normally remove from station
+        slots = binder._slots[ship_id]
+        slots[StationType.TACTICAL].crew_id = gunner.crew_id
+        slots[StationType.TACTICAL].is_ai_backup = False
 
+        # seed=1 gives random() ~ 0.134, below the 0.3 kill threshold
+        random.seed(1)
         result = binder.apply_damage_to_station(
             ship_id, StationType.TACTICAL, severity=1.0,
         )
@@ -324,7 +339,8 @@ class TestSubsystemDamageMapping:
         ship_id, gunner, _ = ship_with_crew
         binder.assign_crew(ship_id, gunner.crew_id, StationType.TACTICAL)
 
-        random.seed(42)
+        # seed=1 triggers injury at 30% chance
+        random.seed(1)
         results = binder.on_subsystem_damaged(ship_id, "weapons", severity=1.0)
         assert len(results) > 0
         assert results[0]["crew_name"] == gunner.name
@@ -333,7 +349,7 @@ class TestSubsystemDamageMapping:
         ship_id, _, pilot = ship_with_crew
         binder.assign_crew(ship_id, pilot.crew_id, StationType.HELM)
 
-        random.seed(42)
+        random.seed(1)
         results = binder.on_subsystem_damaged(ship_id, "propulsion", severity=1.0)
         assert len(results) > 0
         assert results[0]["crew_name"] == pilot.name

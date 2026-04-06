@@ -3,6 +3,10 @@ Crew efficiency and skill management system.
 
 Tracks individual crew members, their skills, fatigue, and performance.
 Integrates with the station system to affect command execution efficiency.
+
+Progression constants (InjuryState, XP_THRESHOLDS) and advancement
+logic live in crew_progression.py to keep this module under 300 lines.
+Re-exported here for backward compatibility.
 """
 
 import time
@@ -11,6 +15,10 @@ from typing import Dict, Optional, List
 from dataclasses import dataclass, field
 from enum import Enum
 from datetime import datetime
+
+# Re-export progression types so existing imports still work
+from .crew_progression import InjuryState, XP_THRESHOLDS  # noqa: F401
+from .crew_progression import try_advance_skill, check_all_advancements
 
 logger = logging.getLogger(__name__)
 
@@ -98,6 +106,12 @@ class CrewMember:
     stress: float = 0.0           # 0.0 = calm, 1.0 = max stress
     health: float = 1.0           # 0.0 = dead, 1.0 = healthy
 
+    # Experience tracking: skill_name -> accumulated XP
+    experience: Dict[str, int] = field(default_factory=dict)
+
+    # Injury state: healthy -> wounded -> critical -> dead
+    injury_state: str = field(default_factory=lambda: InjuryState.HEALTHY)
+
     # Performance tracking
     commands_executed: int = 0
     successful_commands: int = 0
@@ -110,7 +124,12 @@ class CrewMember:
 
     def get_current_efficiency(self, skill: StationSkill) -> float:
         """
-        Get current efficiency including skill level and fatigue/stress penalties.
+        Get current efficiency including skill level, fatigue/stress, and injury.
+
+        WOUNDED crew operate at 50% of their normal output -- a meaningful
+        penalty that makes injury feel real without instantly crippling the
+        ship. CRITICAL crew cannot work at all (assignment is blocked
+        upstream in CrewStationBinder).
 
         Args:
             skill: The skill to check
@@ -118,6 +137,11 @@ class CrewMember:
         Returns:
             Efficiency multiplier (0.0 to 1.0)
         """
+        if self.injury_state == InjuryState.CRITICAL:
+            return 0.0
+        if self.injury_state == InjuryState.DEAD:
+            return 0.0
+
         # Base efficiency from skill
         base_efficiency = self.skills.get_efficiency(skill)
 
@@ -133,7 +157,39 @@ class CrewMember:
         # Calculate final efficiency
         efficiency = base_efficiency - fatigue_penalty - stress_penalty - health_penalty
 
+        # Wounded crew operate at half effectiveness
+        if self.injury_state == InjuryState.WOUNDED:
+            efficiency *= 0.5
+
         return max(0.1, min(1.0, efficiency))  # Clamp to 0.1-1.0
+
+    def award_xp(self, skill_name: str, amount: int) -> bool:
+        """Award XP to a specific skill. Returns True if the skill levelled up.
+
+        Args:
+            skill_name: Name of the skill (e.g. "gunnery", "piloting")
+            amount: XP to award (always positive)
+
+        Returns:
+            True if the skill advanced a level this call, False otherwise.
+        """
+        if self.injury_state == InjuryState.DEAD:
+            return False
+        if amount <= 0:
+            return False
+
+        current_xp = self.experience.get(skill_name, 0)
+        self.experience[skill_name] = current_xp + amount
+
+        return self._try_advance_skill(skill_name)
+
+    def _try_advance_skill(self, skill_name: str) -> bool:
+        """Check if accumulated XP crosses the threshold for level-up."""
+        return try_advance_skill(self, skill_name)
+
+    def check_advancement(self) -> List[str]:
+        """Check all skills for possible level-ups from accumulated XP."""
+        return check_all_advancements(self)
 
     def get_success_rate(self) -> float:
         """
@@ -214,6 +270,19 @@ class CrewMember:
 
     def to_dict(self) -> Dict:
         """Convert to dictionary for serialization"""
+        # Build XP progress for each skill (current XP / threshold to next level)
+        xp_progress = {}
+        for skill in StationSkill:
+            sk = skill.value
+            current_level = self.skills.get_skill(skill)
+            current_xp = self.experience.get(sk, 0)
+            threshold = XP_THRESHOLDS.get(current_level)
+            xp_progress[sk] = {
+                "xp": current_xp,
+                "threshold": threshold,  # None if already MASTER
+                "level": current_level,
+            }
+
         return {
             "name": self.name,
             "crew_id": self.crew_id,
@@ -230,6 +299,9 @@ class CrewMember:
                 "command": self.skills.command,
                 "fleet_tactics": self.skills.fleet_tactics,
             },
+            "experience": dict(self.experience),
+            "xp_progress": xp_progress,
+            "injury_state": self.injury_state,
             "fatigue": round(self.fatigue, 2),
             "stress": round(self.stress, 2),
             "health": round(self.health, 2),
