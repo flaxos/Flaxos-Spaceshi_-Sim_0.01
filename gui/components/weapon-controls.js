@@ -26,9 +26,9 @@ class WeaponControls extends HTMLElement {
     // Missile flight profile sent with launch_missile command
     this._missileProfile = "direct";
 
-    // Auto-execute authorization state per weapon type.
-    // When authorized AND conditions are met (lock, solution, ammo, cooldown),
-    // the weapon fires automatically on the next _updateDisplay tick.
+    // Auto-fire authorization state — driven by server telemetry.
+    // Local cache of server-side auto_fire.authorized state, updated
+    // each _updateDisplay tick from combat telemetry.
     this._authorized = { railgun: false, torpedo: false, missile: false };
     // Tracks in-flight salvo to prevent re-fire during staggered launch
     this._salvoInProgress = false;
@@ -1497,6 +1497,9 @@ class WeaponControls extends HTMLElement {
     const combat = stateManager.getCombat();
     const ship = stateManager.getShipState();
 
+    // Sync auto-fire authorization state from server telemetry
+    this._syncAutoFireState(weapons);
+
     // Update ammo/heat HUD (above all fire controls)
     this._updateAmmoHeatHud(weapons);
 
@@ -1977,8 +1980,17 @@ class WeaponControls extends HTMLElement {
 
   _toggleAuth(weapon) {
     if (!this._authorized.hasOwnProperty(weapon)) return;
-    this._authorized[weapon] = !this._authorized[weapon];
-    this._updateDisplay();
+    // Server-authoritative: send authorize/deauthorize command.
+    // Local _authorized state is updated from server telemetry on next tick.
+    if (this._authorized[weapon]) {
+      wsClient.sendShipCommand("deauthorize_weapon", { weapon_type: weapon });
+    } else {
+      wsClient.sendShipCommand("authorize_weapon", {
+        weapon_type: weapon,
+        count: this._salvoSize,
+        profile: this._missileProfile,
+      });
+    }
   }
 
   /**
@@ -2071,46 +2083,23 @@ class WeaponControls extends HTMLElement {
    * Auto-execute queue: check each authorized weapon type and fire
    * when all conditions are satisfied. Runs every _updateDisplay tick.
    */
+  /**
+   * Sync local _authorized state from server telemetry.
+   * The server's AutoFireManager publishes auto_fire state in combat telemetry.
+   */
+  _syncAutoFireState(weapons) {
+    const autoFire = weapons?.auto_fire;
+    if (!autoFire || !autoFire.authorized) return;
+    this._authorized.railgun = !!autoFire.authorized.railgun;
+    this._authorized.torpedo = !!autoFire.authorized.torpedo;
+    this._authorized.missile = !!autoFire.authorized.missile;
+  }
+
   _processAutoExecute(weapons, targeting, hasLock) {
-    const truthWeapons = weapons?.truth_weapons || {};
-    const torpedoData = weapons?.torpedoes || weapons?.torpedo || {};
-    const missileData = weapons?.missiles || {};
-
-    // --- Railgun auto-fire (continuous: stays authorized until manually de-authed) ---
-    if (this._authorized.railgun && hasLock) {
-      const railguns = Object.entries(truthWeapons).filter(([id]) => id.startsWith("railgun"));
-      for (const [mountId, w] of railguns) {
-        const ammo = w.ammo ?? 0;
-        const ready = w.solution?.ready_to_fire && ammo > 0 && !w.reloading;
-        if (ready) {
-          this._fireRailgun(mountId);
-          this._showFireFlash("railgun");
-          // Fire one mount per tick to avoid double-commanding the same mount
-          break;
-        }
-      }
-    }
-
-    // --- Torpedo auto-fire (single shot, de-authorizes after firing) ---
-    if (this._authorized.torpedo && hasLock) {
-      const torpedoCount = torpedoData.loaded ?? torpedoData.count ?? 0;
-      const torpedoReady = torpedoCount > 0 && (torpedoData.cooldown ?? 0) <= 0;
-      if (torpedoReady) {
-        this._fireLauncher();
-        this._authorized.torpedo = false;
-        this._showFireFlash("torpedo");
-      }
-    }
-
-    // --- Missile auto-fire (fires configured salvo, de-authorizes after salvo) ---
-    if (this._authorized.missile && hasLock && !this._salvoInProgress) {
-      const missileCount = missileData.loaded ?? missileData.count ?? 0;
-      const missileReady = missileCount > 0 && (missileData.cooldown ?? 0) <= 0;
-      if (missileReady) {
-        this._fireMissileSalvo();
-        this._authorized.missile = false;
-      }
-    }
+    // Auto-fire is now server-authoritative.
+    // The server's AutoFireManager handles all fire decisions each tick.
+    // This method is kept as a no-op to avoid breaking callers.
+    // Authorization state is synced from server telemetry in _syncAutoFireState().
   }
 
   /**
@@ -2158,13 +2147,13 @@ class WeaponControls extends HTMLElement {
   }
 
   async _ceaseFire() {
-    // De-authorize all weapons on cease fire
-    this._authorized.railgun = false;
-    this._authorized.torpedo = false;
-    this._authorized.missile = false;
-
+    // Server-authoritative cease fire — deauthorizes all auto-fire weapons
+    // and sets PDC to hold_fire.
     try {
-      await wsClient.sendShipCommand("set_pdc_mode", { mode: "hold_fire" });
+      await Promise.all([
+        wsClient.sendShipCommand("cease_fire", {}),
+        wsClient.sendShipCommand("set_pdc_mode", { mode: "hold_fire" }),
+      ]);
     } catch (error) {
       console.error("Cease fire failed:", error);
     }
