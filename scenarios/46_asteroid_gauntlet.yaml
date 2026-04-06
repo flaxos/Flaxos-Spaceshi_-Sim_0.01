@@ -47,7 +47,7 @@ environment:
 ships:
   - id: "player"
     name: "Rocinante"
-    class: "corvette"
+    ship_class: "corvette"
     player_controlled: true
     position: {x: 0, y: 0, z: 0}
     velocity: {x: 200, y: 0, z: 0}
@@ -85,15 +85,18 @@ ships:
 
   - id: "pursuer"
     name: "Hammurabi"
-    class: "corvette"
+    ship_class: "corvette"
     faction: "hostile"
     position: {x: -20000, y: 0, z: 0}
     velocity: {x: 300, y: 0, z: 0}
     mass: 6000
-    ai:
-      type: "intercept"
-      target: "player"
-      behavior: "aggressive"
+    ai_enabled: true
+    ai_behavior:
+      role: "combat"
+      aggression: 0.9
+      engagement_range: 80000
+      flee_threshold: 0.1
+      evade_threshold: 0.3
     systems:
       propulsion:
         max_thrust: 60000
@@ -179,8 +182,7 @@ mission:
       description: "Keep your drive operational"
       required: true
       params:
-        ship_id: "player"
-        subsystem: "propulsion"
+        target: "player"
   success_message: "You navigated the gauntlet. The pursuer has broken off."
   failure_message: "Your ship was disabled in the asteroid field."
   hints:
