@@ -469,6 +469,37 @@ def cmd_assess_damage(targeting, ship, params):
     )
 
 
+def cmd_launch_salvo(combat, ship, params):
+    """Launch a salvo of missiles or torpedoes with staggered timing.
+
+    Server-side salvo replaces the client's setTimeout loop with
+    authoritative tick-based stagger. Partial salvos are fired if
+    ammo is insufficient for the requested count.
+
+    Args:
+        combat: CombatSystem instance
+        ship: Ship object
+        params: Validated parameters with count, munition_type, profile, etc.
+
+    Returns:
+        dict: {salvo_id, count_queued, munition_type} on success
+    """
+    count = params.get("count", 2)
+    munition_type = params.get("munition_type", "missile")
+    profile = params.get("profile", "direct")
+    stagger_ms = params.get("stagger_ms", 100)
+    warhead_type = params.get("warhead_type")
+    guidance_mode = params.get("guidance_mode")
+    target = params.get("target")
+
+    result = combat.launch_salvo(
+        target=target, count=count, munition_type=munition_type,
+        profile=profile, stagger_ms=stagger_ms,
+        warhead_type=warhead_type, guidance_mode=guidance_mode,
+    )
+    return result
+
+
 def cmd_set_pdc_priority(combat, ship, params):
     """Set PDC threat engagement priority order.
 
@@ -503,6 +534,56 @@ def cmd_set_pdc_priority(combat, ship, params):
         f"PDC priority queue set ({len(torpedo_ids)} targets)",
         torpedo_ids=combat.pdc_priority_targets,
     )
+
+
+def cmd_authorize_weapon(combat, ship, params):
+    """Authorize a weapon type for server-side auto-fire.
+
+    When authorized, the auto-fire manager will fire the weapon each tick
+    when all conditions are met (target locked, solution ready, ammo > 0,
+    cooldown clear).
+
+    Args:
+        combat: CombatSystem instance
+        ship: Ship object
+        params: Validated parameters with weapon_type and optional missile config
+
+    Returns:
+        dict: Authorization result
+    """
+    weapon_type = params.get("weapon_type")
+    count = params.get("count", 1)
+    profile = params.get("profile", "direct")
+    return combat.auto_fire_manager.authorize(weapon_type, count=count, profile=profile)
+
+
+def cmd_deauthorize_weapon(combat, ship, params):
+    """Remove auto-fire authorization for a weapon type.
+
+    Args:
+        combat: CombatSystem instance
+        ship: Ship object
+        params: Validated parameters with weapon_type
+
+    Returns:
+        dict: Deauthorization result
+    """
+    weapon_type = params.get("weapon_type")
+    return combat.auto_fire_manager.deauthorize(weapon_type)
+
+
+def cmd_cease_fire(combat, ship, params):
+    """Deauthorize all weapons — emergency cease fire.
+
+    Args:
+        combat: CombatSystem instance
+        ship: Ship object
+        params: Validated parameters (none required)
+
+    Returns:
+        dict: Cease fire result
+    """
+    return combat.auto_fire_manager.cease_fire()
 
 
 def register_commands(dispatcher):
@@ -612,6 +693,31 @@ def register_commands(dispatcher):
         system="combat",
     ))
 
+    dispatcher.register("launch_salvo", CommandSpec(
+        handler=cmd_launch_salvo,
+        args=[
+            ArgSpec("target", "str", required=False,
+                    description="Target ship/contact ID (uses locked target if omitted)"),
+            ArgSpec("count", "int", required=False, default=2,
+                    description="Number of munitions to fire (1/2/4/6/8)"),
+            ArgSpec("munition_type", "str", required=False, default="missile",
+                    choices=["missile", "torpedo"],
+                    description="Munition type: missile (light, fast) or torpedo (heavy, slow)"),
+            ArgSpec("profile", "str", required=False, default="direct",
+                    description="Flight/attack profile for the munitions"),
+            ArgSpec("stagger_ms", "int", required=False, default=100,
+                    description="Milliseconds between each launch in the salvo"),
+            ArgSpec("warhead_type", "str", required=False,
+                    choices=["fragmentation", "shaped_charge", "emp"],
+                    description="Warhead variant for all munitions in the salvo"),
+            ArgSpec("guidance_mode", "str", required=False,
+                    choices=["dumb", "guided", "smart"],
+                    description="Guidance CPU level for all munitions in the salvo"),
+        ],
+        help_text="Launch a salvo of missiles or torpedoes with staggered server-side timing",
+        system="combat",
+    ))
+
     dispatcher.register("missile_status", CommandSpec(
         handler=cmd_missile_status,
         args=[],
@@ -676,4 +782,40 @@ def register_commands(dispatcher):
         ],
         help_text="Assign a weapon to engage a specific tracked contact (split-fire)",
         system="targeting",
+    ))
+
+    # --- Auto-fire authorization commands ---
+
+    dispatcher.register("authorize_weapon", CommandSpec(
+        handler=cmd_authorize_weapon,
+        args=[
+            ArgSpec("weapon_type", "str", required=True,
+                    choices=["railgun", "torpedo", "missile"],
+                    description="Weapon category to authorize for auto-fire"),
+            ArgSpec("count", "int", required=False, default=1,
+                    description="Number of missiles per salvo (future use)"),
+            ArgSpec("profile", "str", required=False, default="direct",
+                    choices=["direct", "evasive", "terminal_pop", "bracket"],
+                    description="Missile flight profile for auto-fire"),
+        ],
+        help_text="Authorize a weapon type for server-side auto-fire",
+        system="combat",
+    ))
+
+    dispatcher.register("deauthorize_weapon", CommandSpec(
+        handler=cmd_deauthorize_weapon,
+        args=[
+            ArgSpec("weapon_type", "str", required=True,
+                    choices=["railgun", "torpedo", "missile"],
+                    description="Weapon category to deauthorize"),
+        ],
+        help_text="Remove auto-fire authorization for a weapon type",
+        system="combat",
+    ))
+
+    dispatcher.register("cease_fire", CommandSpec(
+        handler=cmd_cease_fire,
+        args=[],
+        help_text="Deauthorize all weapons — emergency cease fire",
+        system="combat",
     ))
