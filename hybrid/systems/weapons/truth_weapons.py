@@ -262,6 +262,7 @@ class FiringSolution:
         "target_accel": 0.0,      # Target maneuver penalty (0-1, lower = harder)
         "own_rotation": 0.0,      # Own ship rotation/vibration penalty (0-1)
         "weapon_health": 0.0,     # Weapon system damage factor (0-1)
+        "time_of_flight": 0.0,    # Long-flight uncertainty penalty (0-1)
     })
 
     # Confidence cone — dispersion area at target range
@@ -698,6 +699,18 @@ class TruthWeapon:
             self.specs, solution.range_to_target
         )
 
+        # Closing speed penalty for PDC against fast targets (missiles, torpedoes).
+        # A target approaching at a significant fraction of the PDC's muzzle
+        # velocity shortens the engagement window and reduces the number of
+        # rounds that can be walked onto target before it arrives. At 50% of
+        # muzzle velocity the effective accuracy drops by 25%; at 100% by 50%.
+        if self.specs.damage_type == DamageType.KINETIC_FRAGMENTATION:
+            closing_speed = getattr(solution, 'closing_speed', 0.0)
+            if closing_speed > 0 and self.specs.muzzle_velocity > 0:
+                speed_ratio = closing_speed / self.specs.muzzle_velocity
+                speed_penalty = max(0.5, 1.0 - speed_ratio * 0.5)
+                range_accuracy *= speed_penalty
+
         # Lateral velocity reduces accuracy
         lateral_vel_sq = (
             (rel_vel["x"] - solution.closing_speed * range_direction["x"])**2 +
@@ -710,7 +723,21 @@ class TruthWeapon:
         # means lateral vel at 2.5% of muzzle velocity halves hit probability.
         lateral_factor = max(0.3, 1.0 - lateral_vel / max(100.0, self.specs.muzzle_velocity * 0.025))
 
-        solution.hit_probability = max(0.05, min(0.95, range_accuracy * lateral_factor))
+        # Weapon-specific hit probability bounds reflect engagement doctrine:
+        # Railgun: precision weapon with a single slug — can thread the needle
+        #   at optimal range but has no volume-of-fire to compensate for errors,
+        #   so both floor and ceiling are lower than spray weapons.
+        # PDC: 3000 RPM suppression fire — high baseline at close range because
+        #   sheer volume compensates for individual round dispersion, but the
+        #   ceiling is capped because no amount of bullets fixes bad geometry.
+        if self.specs.damage_type == DamageType.KINETIC_PENETRATOR:
+            hp_floor, hp_ceil = 0.02, 0.85
+        elif self.specs.damage_type == DamageType.KINETIC_FRAGMENTATION:
+            hp_floor, hp_ceil = 0.15, 0.95
+        else:
+            hp_floor, hp_ceil = 0.05, 0.90
+
+        solution.hit_probability = max(hp_floor, min(hp_ceil, range_accuracy * lateral_factor))
 
         # --- Confidence from five physical factors (design spec) ---
         # 1. Track quality: sensor data freshness and accuracy (from targeting system)
@@ -751,6 +778,14 @@ class TruthWeapon:
         # 5. Weapon system health: damaged weapons have degraded fire control
         cf_weapon = max(0.1, min(1.0, weapon_damage_factor))
 
+        # 6. Time-of-flight degradation
+        # Longer flights accumulate uncertainty from target maneuvers
+        # that weren't predicted at fire time. Even a gentle 1G burn
+        # over 25s displaces the target ~3km from the ballistic prediction.
+        # At 0s: 1.0, at 10s: 0.8, at 25s: 0.5, at 50s: floor of 0.1
+        tof = getattr(solution, 'time_of_flight', 0.0)
+        cf_tof = max(0.1, 1.0 - tof / 50.0)
+
         # Store individual factors for telemetry/GUI breakdown
         solution.confidence_factors = {
             "track_quality": round(cf_track, 3),
@@ -758,11 +793,12 @@ class TruthWeapon:
             "target_accel": round(cf_accel, 3),
             "own_rotation": round(cf_rotation, 3),
             "weapon_health": round(cf_weapon, 3),
+            "time_of_flight": round(cf_tof, 3),
         }
 
         # Overall confidence is the product of all factors
         solution.confidence = max(0.0, min(1.0,
-            cf_track * cf_range * cf_accel * cf_rotation * cf_weapon
+            cf_track * cf_range * cf_accel * cf_rotation * cf_weapon * cf_tof
         ))
 
         # --- Confidence cone calculation ---
