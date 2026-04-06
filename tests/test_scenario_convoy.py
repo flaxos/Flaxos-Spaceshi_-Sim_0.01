@@ -59,8 +59,8 @@ def test_dt_is_positive(scenario_data):
 # ── Ship configuration ─────────────────────────────────────────────
 
 def test_ship_count(scenario_data):
-    """Scenario has exactly 6 ships: 1 player + 3 freighters + 2 enemies."""
-    assert len(scenario_data["ships"]) == 6
+    """Scenario has at least 6 ships: 1 player + 3 freighters + 2 enemies + nav buoys."""
+    assert len(scenario_data["ships"]) >= 6
 
 
 def test_player_ship_exists(scenario_data):
@@ -298,7 +298,7 @@ def test_scenario_loader_can_parse():
 
     result = ScenarioLoader.load(str(SCENARIO_PATH))
     assert result["name"] == "Convoy Defense: Gauntlet Run"
-    assert len(result["ships"]) == 6
+    assert len(result["ships"]) >= 6  # 6 combat ships + nav buoys
     assert result["mission"] is not None
     assert len(result["fleets"]) == 2
 

@@ -178,6 +178,48 @@ ships:
 
 # -- Mission --------------------------------------------------------------
 
+  # -- Navigation buoys for spatial orientation --
+  - id: "nav_origin"
+    name: "Nav-Origin"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 0, y: 5000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_beacon_1_marker"
+    name: "Beacon-1-Marker"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 50000, y: 5000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_midway"
+    name: "Midway"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 150000, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_deep_space"
+    name: "Deep-Space"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 300000, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_ring_approach"
+    name: "Ring-Approach"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 390000, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+
 mission:
   name: "Ring Gate Approach"
   description: "Scan four deep space beacons and return to origin on limited fuel"

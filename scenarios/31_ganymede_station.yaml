@@ -340,6 +340,48 @@ ships:
 
 # -- Fleets ---------------------------------------------------------------
 
+  # -- Navigation buoys for spatial orientation --
+  - id: "nav_station_ref"
+    name: "Station-Ref"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 0, y: 5000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_sector_ne"
+    name: "Sector-NE"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 50000, y: 50000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_sector_sw"
+    name: "Sector-SW"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: -50000, y: -50000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_bearing_045"
+    name: "Bearing-045"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 70000, y: 70000, z: 5000}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_bearing_270"
+    name: "Bearing-270"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: -80000, y: 0, z: 5000}
+    velocity: {x: 0, y: 0, z: 0}
+
 fleets:
   - fleet_id: "defense_group"
     name: "Ganymede Defense"

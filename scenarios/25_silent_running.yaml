@@ -109,6 +109,32 @@ ships:
         active:
           scan_range: 200000
 
+  # -- Navigation buoys for spatial orientation --
+  - id: "nav_start"
+    name: "Start-Marker"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: -120000, y: 5000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_midpoint"
+    name: "Midpoint"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: -60000, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_objective"
+    name: "Objective"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 0, y: 5000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+
 mission:
   name: "Operation: Ghost Protocol"
   description: "Infiltrate through enemy sensor net to reach extraction waypoint"

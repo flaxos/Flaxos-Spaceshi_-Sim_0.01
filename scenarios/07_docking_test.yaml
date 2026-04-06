@@ -41,6 +41,32 @@ ships:
         passive:
           range: 100000
 
+  # -- Navigation buoys for spatial orientation --
+  - id: "nav_origin"
+    name: "Nav-Origin"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 0, y: 5000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_approach"
+    name: "Approach"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 100000, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_station_marker"
+    name: "Station-Marker"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 195000, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+
 mission:
   name: "Docking Test"
   description: "Short-range approach and dock at 200km"

@@ -177,6 +177,48 @@ ships:
 
 # ── Mission ───────────────────────────────────────────────────────
 
+  # -- Navigation buoys for spatial orientation --
+  - id: "nav_task_force"
+    name: "Task-Force"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: -200000, y: 5000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_engagement_line"
+    name: "Engagement-Line"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: -100000, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_station_sector"
+    name: "Station-Sector"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: -20000, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_flank_north"
+    name: "Flank-North"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: -100000, y: 30000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_flank_south"
+    name: "Flank-South"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: -100000, y: -30000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+
 mission:
   name: "Operation Sledgehammer"
   description: "Assault Deimos Relay Station and neutralize its defense fleet"

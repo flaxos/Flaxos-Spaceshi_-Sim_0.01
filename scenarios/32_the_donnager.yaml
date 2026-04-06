@@ -356,6 +356,48 @@ ships:
 
 # -- Fleets ---------------------------------------------------------------
 
+  # -- Navigation buoys for spatial orientation --
+  - id: "nav_origin"
+    name: "Nav-Origin"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 0, y: 5000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_ne"
+    name: "Sector-NE"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 50000, y: 30000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_sw"
+    name: "Sector-SW"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: -50000, y: -50000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_se"
+    name: "Sector-SE"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 50000, y: -50000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_nw"
+    name: "Sector-NW"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: -50000, y: 30000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+
 fleets:
   - fleet_id: "donnager_group"
     name: "MCRN Donnager"

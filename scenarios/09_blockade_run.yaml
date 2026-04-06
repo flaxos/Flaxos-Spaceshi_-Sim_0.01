@@ -337,6 +337,40 @@ ships:
       weapons: {max_health: 90.0, health: 90.0}
       sensors: {max_health: 70.0, health: 70.0}
 
+  # -- Navigation buoys for spatial orientation --
+  - id: "nav_start"
+    name: "Start-Marker"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: -150000, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_blockade_zone"
+    name: "Blockade-Zone"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: -75000, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_gap"
+    name: "Gap-Marker"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: -40000, y: 30000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_destination"
+    name: "Destination"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 5000, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+
 mission:
   name: "Operation: Ghost Freight"
   description: "Navigate through a hostile blockade without being detected"

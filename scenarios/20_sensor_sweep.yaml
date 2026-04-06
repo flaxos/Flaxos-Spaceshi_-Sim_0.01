@@ -82,6 +82,32 @@ ships:
       flee_threshold: 0.9
       evade_threshold: 0.5
 
+  # -- Navigation buoys for spatial orientation --
+  - id: "nav_origin"
+    name: "Nav-Origin"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 0, y: 5000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_sector_east"
+    name: "Sector-East"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 60000, y: 5000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+  - id: "nav_sector_far"
+    name: "Sector-Far"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 120000, y: 5000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+
 mission:
   name: "Operation: Clear Eyes"
   description: "Identify all unknown contacts in the operational area"
