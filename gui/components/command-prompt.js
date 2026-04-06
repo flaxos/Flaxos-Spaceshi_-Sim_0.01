@@ -467,7 +467,7 @@ class CommandPrompt extends HTMLElement {
               args.yaw = parseFloat(parts[2] || 0);
               args.roll = parseFloat(parts[3] || 0);
             } else if (cmd === "lock_target") {
-              args.target_id = parts[1];
+              args.contact_id = parts[1];
             } else if (cmd === "load_scenario") {
               args.scenario = parts[1];
             } else if (cmd === "autopilot") {

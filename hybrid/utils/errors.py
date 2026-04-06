@@ -1,6 +1,10 @@
 # hybrid/utils/errors.py
 """Error handling and formatting utilities."""
 
+import logging
+
+_error_logger = logging.getLogger("hybrid.commands.errors")
+
 class UserError(Exception):
     """Errors shown to user - must be clear and actionable."""
     pass
@@ -206,6 +210,7 @@ def error_dict(error_type, message, **kwargs):
     Returns:
         dict: Error dictionary
     """
+    _error_logger.warning("Command error: %s — %s", error_type, message)
     result = {
         "ok": False,
         "error": error_type,
