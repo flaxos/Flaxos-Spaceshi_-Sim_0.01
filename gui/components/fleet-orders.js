@@ -124,6 +124,7 @@ class FleetOrders extends HTMLElement {
           <div class="proposal-header">
             <span class="proposal-action">${this._esc(p.proposal_id)}</span>
             <span class="proposal-confidence">${(confidence * 100).toFixed(0)}%</span>
+            ${p.crew_efficiency != null ? `<span class="proposal-crew">Crew: ${(p.crew_efficiency * 100).toFixed(0)}%</span>` : ""}
           </div>
           <div class="proposal-reason">${this._esc(p.reason)}</div>
           <div class="proposal-timer"><div class="proposal-timer-fill" style="width:${timerPct}%"></div></div>

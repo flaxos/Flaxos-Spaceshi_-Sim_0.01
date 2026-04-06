@@ -721,6 +721,8 @@ class OpsControlPanel extends HTMLElement {
         <div class="proposal-card${urgentClass}">
           <div class="proposal-header">
             <span class="proposal-action">${actionLabel}: ${targetLabel}</span>
+            ${confidence > 0 ? `<span class="proposal-confidence">${(confidence * 100).toFixed(0)}%</span>` : ""}
+            ${p.crew_efficiency != null ? `<span class="proposal-crew">Crew: ${(p.crew_efficiency * 100).toFixed(0)}%</span>` : ""}
             <span class="proposal-countdown${countdownClass}">${remaining.toFixed(1)}s</span>
           </div>
           <div class="proposal-reason">${p.reason}</div>

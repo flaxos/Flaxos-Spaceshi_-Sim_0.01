@@ -112,6 +112,12 @@ const INLINE_FALLBACK = `
   padding: 1px 6px;
   border-radius: 3px;
 }
+.proposal-crew {
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-size: 0.65rem;
+  color: #c0a0ff;
+  margin-left: 6px;
+}
 .proposal-countdown {
   font-family: var(--font-mono, "JetBrains Mono", monospace);
   font-size: 0.7rem;
