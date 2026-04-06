@@ -44,7 +44,7 @@ ships:
         max_fuel: 400.0
       sensors:
         passive:
-          range: 80000
+          range: 100000  # Must detect razorback at ~81km
         active:
           scan_range: 120000
       targeting:

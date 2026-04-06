@@ -38,7 +38,7 @@ ships:
         fuel_level: 500.0
       sensors:
         passive:
-          range: 40000.0
+          range: 110000.0  # Must detect enemy_alpha at 99km
         active:
           scan_range: 80000.0
           cooldown_time: 4.0

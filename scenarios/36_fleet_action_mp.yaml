@@ -74,7 +74,7 @@ ships:
         max_fuel: 400.0
       sensors:
         passive:
-          range: 60000
+          range: 120000  # Must detect enemies at 90-106km from fleet start
         active:
           scan_range: 100000
       targeting:
@@ -106,7 +106,7 @@ ships:
         max_fuel: 400.0
       sensors:
         passive:
-          range: 60000
+          range: 120000  # Must detect enemies at 90-106km from fleet start
         active:
           scan_range: 100000
       targeting:

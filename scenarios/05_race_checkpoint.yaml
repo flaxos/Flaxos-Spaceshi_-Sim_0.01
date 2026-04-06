@@ -21,7 +21,7 @@ ships:
         max_fuel: 5000
       sensors:
         passive:
-          range: 150000
+          range: 200000  # Must see finish_line beacon at 180km
         active:
           scan_range: 300000
       navigation: {}
