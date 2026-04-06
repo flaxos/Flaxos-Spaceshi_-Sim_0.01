@@ -19,7 +19,7 @@ import logging
 import random
 from typing import Dict, List
 from hybrid.systems.sensors.contact import (
-    ContactData, add_detection_noise, add_velocity_noise,
+    ContactData, ContactState, add_detection_noise, add_velocity_noise,
     calculate_detection_signature, calculate_detection_accuracy
 )
 from hybrid.systems.sensors.emission_model import (
@@ -39,6 +39,12 @@ class PassiveSensor:
     ship has an enormous IR signature and can be seen system-wide;
     a cold drifting ship might only appear at close range.
     """
+
+    # How long a LOST contact persists before removal (seconds).
+    # 30s gives the player time to react to "we lost track of something
+    # that was there a moment ago" without cluttering the display with
+    # ancient ghost returns.
+    LOST_PERSISTENCE_SECONDS: float = 30.0
 
     def __init__(self, config: dict):
         """Initialize passive sensor.
@@ -226,18 +232,49 @@ class PassiveSensor:
 
             detected[target_ship.id] = contact
 
-        # Merge new detections with existing contacts (don't drop on failed re-detect)
+        # Merge new detections with existing contacts.
+        # Contacts that fail re-detection transition to LOST with decaying
+        # confidence instead of vanishing instantly. This gives the player
+        # a "last-known position" with growing uncertainty circle, rather
+        # than a target blinking in and out of existence.
         for existing_id, existing_contact in self.contacts.items():
             if existing_id not in detected:
-                # Degrade confidence on missed re-detection, but never drop below
-                # a minimum floor — the ship still exists and emits IR, so it
-                # should remain as a degraded contact rather than vanishing.
-                existing_contact.confidence *= 0.95
-                existing_contact.confidence = max(existing_contact.confidence, 0.05)
+                # First missed scan: transition to LOST, snapshot position
+                if existing_contact.contact_state != ContactState.LOST.value:
+                    existing_contact.contact_state = ContactState.LOST.value
+                    existing_contact.lost_since = sim_time
+                    existing_contact.last_known_position = dict(existing_contact.position)
+                    logger.debug(
+                        f"Contact {existing_id} -> LOST on {observer_ship.id}"
+                    )
+
+                # Decay confidence while LOST (faster than normal degradation
+                # because we have no new data at all, not just noisy data)
+                existing_contact.confidence *= 0.90
+                existing_contact.confidence = max(existing_contact.confidence, 0.02)
+
+                # Check LOST timeout: remove contacts that have been LOST
+                # longer than the persistence window
+                lost_age = sim_time - (existing_contact.lost_since or sim_time)
+                if lost_age >= self.LOST_PERSISTENCE_SECONDS:
+                    logger.debug(
+                        f"Contact {existing_id} expired after "
+                        f"{lost_age:.0f}s LOST on {observer_ship.id}"
+                    )
+                    continue  # Don't carry into detected — effectively removed
+
                 detected[existing_id] = existing_contact
             else:
                 new_contact = detected[existing_id]
+                # Re-detection clears LOST state: the target is back
+                if existing_contact.contact_state == ContactState.LOST.value:
+                    logger.debug(
+                        f"Contact {existing_id} re-acquired on {observer_ship.id}"
+                    )
                 new_contact.confidence = max(new_contact.confidence, existing_contact.confidence)
+                # Clear LOST tracking on re-detection
+                new_contact.lost_since = None
+                new_contact.last_known_position = None
 
         self.contacts = detected
 
