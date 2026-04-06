@@ -3,13 +3,61 @@ Per-client command rate limiting.
 
 Prevents clients from flooding the server with commands.
 Uses a token bucket algorithm for smooth rate limiting.
+
+Meta/setup commands (session establishment, state queries, scenario
+management) are exempt from rate limiting — only ship-scoped gameplay
+commands consume tokens.
 """
 
 import time
 import logging
-from typing import Dict, Tuple
+from typing import Dict, Set, Tuple
 
 logger = logging.getLogger(__name__)
+
+# Commands exempt from rate limiting.  These are either:
+#  - read-only state queries (get_state, get_events, …)
+#  - session establishment / teardown (register_client, assign_ship, …)
+#  - scenario management (load_scenario, list_scenarios, …)
+# Only ship-scoped gameplay commands (fire, set_thrust, etc.) should be
+# rate-limited to prevent abuse.
+RATE_LIMIT_EXEMPT: Set[str] = {
+    # Protocol / discovery
+    "_discover",
+    "_ping",
+    "_resume_session",
+    "heartbeat",
+    # Session establishment
+    "register_client",
+    "assign_ship",
+    "claim_station",
+    "release_station",
+    "my_status",
+    # State queries
+    "get_state",
+    "get_events",
+    "get_combat_log",
+    "get_mission",
+    "get_mission_hints",
+    "get_tick_metrics",
+    # Scenario / campaign management
+    "list_scenarios",
+    "list_ships",
+    "list_ship_classes",
+    "get_ship_classes_full",
+    "save_ship_class",
+    "load_scenario",
+    "save_scenario",
+    "get_scenario_yaml",
+    "generate_skirmish",
+    "campaign_new",
+    "campaign_save",
+    "campaign_load",
+    "campaign_status",
+    # Time control (captain-only, not abusable)
+    "pause",
+    "set_time_scale",
+}
 
 
 class RateLimiter:
