@@ -26,9 +26,9 @@ class WeaponControls extends HTMLElement {
     // Missile flight profile sent with launch_missile command
     this._missileProfile = "direct";
 
-    // Auto-execute authorization state per weapon type.
-    // When authorized AND conditions are met (lock, solution, ammo, cooldown),
-    // the weapon fires automatically on the next _updateDisplay tick.
+    // Auto-fire authorization state — driven by server telemetry.
+    // Local cache of server-side auto_fire.authorized state, updated
+    // each _updateDisplay tick from combat telemetry.
     this._authorized = { railgun: false, torpedo: false, missile: false };
     // Tracks in-flight salvo to prevent re-fire during staggered launch
     this._salvoInProgress = false;
@@ -322,6 +322,97 @@ class WeaponControls extends HTMLElement {
           border-radius: 50%;
           background: currentColor;
           flex-shrink: 0;
+        }
+
+        /* PDC Threat List (visible in PRIORITY mode) */
+        .pdc-threat-list {
+          margin-top: 6px;
+          padding: 6px 8px;
+          background: rgba(0, 0, 0, 0.3);
+          border: 1px solid rgba(255, 80, 80, 0.25);
+          border-radius: 6px;
+        }
+
+        .threat-list-header {
+          font-size: 0.6rem;
+          font-weight: 700;
+          letter-spacing: 1px;
+          color: var(--status-critical, #ff4444);
+          margin-bottom: 4px;
+          text-transform: uppercase;
+        }
+
+        .threat-list-items {
+          display: flex;
+          flex-direction: column;
+          gap: 3px;
+          max-height: 120px;
+          overflow-y: auto;
+        }
+
+        .threat-item {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 4px 6px;
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(255, 255, 255, 0.06);
+          border-radius: 4px;
+          font-size: 0.65rem;
+          cursor: pointer;
+          transition: background 0.1s ease;
+        }
+
+        .threat-item:hover {
+          background: rgba(255, 80, 80, 0.1);
+          border-color: rgba(255, 80, 80, 0.3);
+        }
+
+        .threat-item.prioritized {
+          border-color: rgba(255, 170, 0, 0.4);
+          background: rgba(255, 170, 0, 0.08);
+        }
+
+        .threat-priority-num {
+          width: 16px;
+          height: 16px;
+          border-radius: 50%;
+          background: var(--status-warning, #ffaa00);
+          color: #000;
+          font-size: 0.55rem;
+          font-weight: 700;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+
+        .threat-type {
+          font-weight: 600;
+          text-transform: uppercase;
+          flex-shrink: 0;
+        }
+
+        .threat-type.torpedo { color: #ff4444; }
+        .threat-type.missile { color: #ff8800; }
+
+        .threat-range {
+          color: var(--text-dim, #888);
+          margin-left: auto;
+        }
+
+        .threat-eta {
+          color: var(--status-warning, #ffaa00);
+          font-weight: 600;
+          min-width: 40px;
+          text-align: right;
+        }
+
+        .threat-empty {
+          font-size: 0.6rem;
+          color: var(--text-dim, #555);
+          font-style: italic;
+          padding: 4px 0;
         }
 
         /* Assess damage button */
@@ -1161,9 +1252,23 @@ class WeaponControls extends HTMLElement {
           <button class="pdc-mode-btn" data-mode="manual" data-testid="pdc-manual">
             <span class="pdc-mode-label"><span class="pdc-indicator"></span>MANUAL</span>
           </button>
+          <button class="pdc-mode-btn" data-mode="priority" data-testid="pdc-priority">
+            <span class="pdc-mode-label"><span class="pdc-indicator"></span>PRIORITY</span>
+          </button>
+          <button class="pdc-mode-btn" data-mode="network" data-testid="pdc-network">
+            <span class="pdc-mode-label"><span class="pdc-indicator"></span>NETWORK</span>
+          </button>
           <button class="pdc-mode-btn" data-mode="hold_fire" data-testid="pdc-hold">
             <span class="pdc-mode-label"><span class="pdc-indicator"></span>HOLD</span>
           </button>
+        </div>
+
+        <!-- Incoming threat mini-list: visible when PRIORITY mode active -->
+        <div class="pdc-threat-list" id="pdc-threat-list" style="display:none;">
+          <div class="threat-list-header">INCOMING THREATS</div>
+          <div class="threat-list-items" id="threat-list-items">
+            <div class="threat-empty">No incoming threats</div>
+          </div>
         </div>
       </div>
 
@@ -1186,6 +1291,8 @@ class WeaponControls extends HTMLElement {
               <button class="salvo-btn active" data-salvo="1">1x</button>
               <button class="salvo-btn" data-salvo="2">2x</button>
               <button class="salvo-btn" data-salvo="4">4x</button>
+              <button class="salvo-btn" data-salvo="6">6x</button>
+              <button class="salvo-btn" data-salvo="8">8x</button>
               <button class="salvo-btn" data-salvo="all">ALL</button>
             </div>
           </div>
@@ -1497,6 +1604,9 @@ class WeaponControls extends HTMLElement {
     const combat = stateManager.getCombat();
     const ship = stateManager.getShipState();
 
+    // Sync auto-fire authorization state from server telemetry
+    this._syncAutoFireState(weapons);
+
     // Update ammo/heat HUD (above all fire controls)
     this._updateAmmoHeatHud(weapons);
 
@@ -1532,6 +1642,9 @@ class WeaponControls extends HTMLElement {
         btn.classList.toggle("hold-fire", isActive);
       }
     });
+
+    // Incoming threat list — show only in PRIORITY mode
+    this._updateThreatList(currentPdcMode, ship);
 
     // Launcher type toggle visual state
     this.shadowRoot.querySelectorAll(".launcher-type-btn").forEach((btn) => {
@@ -1904,6 +2017,100 @@ class WeaponControls extends HTMLElement {
     }
   }
 
+  /**
+   * Update the incoming threat mini-list below PDC mode buttons.
+   * Filters active munitions targeting our ship.
+   * In PRIORITY mode, threats are clickable to reorder engagement priority.
+   */
+  _updateThreatList(pdcMode, ship) {
+    const listEl = this.shadowRoot.getElementById("pdc-threat-list");
+    if (!listEl) return;
+
+    // Only show in PRIORITY mode
+    const showList = pdcMode === "priority";
+    listEl.style.display = showList ? "" : "none";
+    if (!showList) return;
+
+    const itemsEl = this.shadowRoot.getElementById("threat-list-items");
+    if (!itemsEl) return;
+
+    // Read all in-flight munitions from top-level telemetry
+    const allMunitions = stateManager.getTorpedoes() || [];
+    const ourId = ship?.id || ship?.ship_id || "";
+
+    // Filter: only munitions targeting us
+    const incoming = allMunitions.filter((m) => m.alive && m.target === ourId);
+
+    // Current server priority order
+    const weapons = stateManager.getWeapons();
+    const combat = stateManager.getCombat();
+    const priorityIds = weapons?.pdc_priority_targets || combat?.pdc_priority_targets || [];
+
+    if (incoming.length === 0) {
+      itemsEl.innerHTML = '<div class="threat-empty">No incoming threats</div>';
+      return;
+    }
+
+    // Sort: prioritized first (in order), then by ETA ascending
+    incoming.sort((a, b) => {
+      const aIdx = priorityIds.indexOf(a.id);
+      const bIdx = priorityIds.indexOf(b.id);
+      if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
+      if (aIdx !== -1) return -1;
+      if (bIdx !== -1) return 1;
+      return (a.eta ?? 999) - (b.eta ?? 999);
+    });
+
+    // Build threat items
+    itemsEl.innerHTML = "";
+    incoming.forEach((threat) => {
+      const priIdx = priorityIds.indexOf(threat.id);
+      const isPrioritized = priIdx !== -1;
+      const typeLabel = threat.munition_type || "torpedo";
+      const rangeKm = (threat.distance / 1000).toFixed(1);
+      const etaStr = threat.eta != null ? `${threat.eta.toFixed(0)}s` : "--";
+
+      const item = document.createElement("div");
+      item.className = `threat-item${isPrioritized ? " prioritized" : ""}`;
+      item.dataset.threatId = threat.id;
+      item.title = "Click to toggle priority";
+
+      item.innerHTML = `
+        ${isPrioritized ? `<span class="threat-priority-num">${priIdx + 1}</span>` : ""}
+        <span class="threat-type ${typeLabel}">${typeLabel.substring(0, 4).toUpperCase()}</span>
+        <span class="threat-range">${rangeKm} km</span>
+        <span class="threat-eta">${etaStr}</span>
+      `;
+
+      // Click to toggle this threat in the priority queue
+      item.addEventListener("click", () => this._toggleThreatPriority(threat.id));
+
+      itemsEl.appendChild(item);
+    });
+  }
+
+  /**
+   * Toggle a threat in/out of the PDC priority queue and send the updated order.
+   */
+  async _toggleThreatPriority(threatId) {
+    const weapons = stateManager.getWeapons();
+    const combat = stateManager.getCombat();
+    const current = [...(weapons?.pdc_priority_targets || combat?.pdc_priority_targets || [])];
+
+    const idx = current.indexOf(threatId);
+    if (idx !== -1) {
+      current.splice(idx, 1);
+    } else {
+      current.push(threatId);
+    }
+
+    try {
+      await wsClient.sendShipCommand("set_pdc_priority", { torpedo_ids: current });
+    } catch (error) {
+      console.error("Set PDC priority failed:", error);
+    }
+  }
+
   _setLauncherType(type) {
     if (type !== "torpedo" && type !== "missile") return;
     this._launcherType = type;
@@ -1911,17 +2118,22 @@ class WeaponControls extends HTMLElement {
   }
 
   async _fireLauncher() {
-    // Torpedo: always single fire, with profile param
+    // Torpedo: always single fire, with profile param.
+    // Read ARCADE munition config if available (set by munition-config-game).
+    const cfg = window._munitionConfig || {};
+    const params = { profile: "direct" };
+    if (cfg.warhead_type) params.warhead_type = cfg.warhead_type;
+    if (cfg.guidance_mode) params.guidance_mode = cfg.guidance_mode;
     try {
-      await wsClient.sendShipCommand("launch_torpedo", { profile: "direct" });
+      await wsClient.sendShipCommand("launch_torpedo", params);
     } catch (error) {
       console.error("launch_torpedo failed:", error);
     }
   }
 
   /**
-   * Fire a missile salvo: sends launch_missile N times with 100ms stagger.
-   * Staggered launch overwhelms PDC coverage by spreading arrival windows.
+   * Fire a missile salvo via the server-side launch_salvo command.
+   * Server handles staggered timing authoritatively — no client setTimeout.
    */
   async _fireMissileSalvo() {
     const weapons = stateManager.getWeapons();
@@ -1937,16 +2149,24 @@ class WeaponControls extends HTMLElement {
     // Show fire flash
     this._showFireFlash("missile");
 
-    for (let i = 0; i < salvoSize; i++) {
-      setTimeout(() => {
-        wsClient.sendShipCommand("launch_missile", { profile: this._missileProfile })
-          .catch((err) => console.error(`Salvo missile ${i + 1} failed:`, err));
+    // Read ARCADE munition config if available (set by munition-config-game).
+    const cfg = window._munitionConfig || {};
+    const salvoParams = {
+      count: salvoSize,
+      munition_type: this._launcherType || "missile",
+      profile: this._missileProfile || "direct",
+      stagger_ms: 100,
+    };
+    if (cfg.warhead_type) salvoParams.warhead_type = cfg.warhead_type;
+    if (cfg.guidance_mode) salvoParams.guidance_mode = cfg.guidance_mode;
+    if (cfg.flight_profile) salvoParams.profile = cfg.flight_profile;
 
-        // Mark salvo complete after the last missile launches
-        if (i === salvoSize - 1) {
-          this._salvoInProgress = false;
-        }
-      }, i * 100);
+    try {
+      await wsClient.sendShipCommand("launch_salvo", salvoParams);
+    } catch (err) {
+      console.error("Salvo launch failed:", err);
+    } finally {
+      this._salvoInProgress = false;
     }
   }
 
@@ -1977,8 +2197,17 @@ class WeaponControls extends HTMLElement {
 
   _toggleAuth(weapon) {
     if (!this._authorized.hasOwnProperty(weapon)) return;
-    this._authorized[weapon] = !this._authorized[weapon];
-    this._updateDisplay();
+    // Server-authoritative: send authorize/deauthorize command.
+    // Local _authorized state is updated from server telemetry on next tick.
+    if (this._authorized[weapon]) {
+      wsClient.sendShipCommand("deauthorize_weapon", { weapon_type: weapon });
+    } else {
+      wsClient.sendShipCommand("authorize_weapon", {
+        weapon_type: weapon,
+        count: this._salvoSize,
+        profile: this._missileProfile,
+      });
+    }
   }
 
   /**
@@ -2071,46 +2300,23 @@ class WeaponControls extends HTMLElement {
    * Auto-execute queue: check each authorized weapon type and fire
    * when all conditions are satisfied. Runs every _updateDisplay tick.
    */
+  /**
+   * Sync local _authorized state from server telemetry.
+   * The server's AutoFireManager publishes auto_fire state in combat telemetry.
+   */
+  _syncAutoFireState(weapons) {
+    const autoFire = weapons?.auto_fire;
+    if (!autoFire || !autoFire.authorized) return;
+    this._authorized.railgun = !!autoFire.authorized.railgun;
+    this._authorized.torpedo = !!autoFire.authorized.torpedo;
+    this._authorized.missile = !!autoFire.authorized.missile;
+  }
+
   _processAutoExecute(weapons, targeting, hasLock) {
-    const truthWeapons = weapons?.truth_weapons || {};
-    const torpedoData = weapons?.torpedoes || weapons?.torpedo || {};
-    const missileData = weapons?.missiles || {};
-
-    // --- Railgun auto-fire (continuous: stays authorized until manually de-authed) ---
-    if (this._authorized.railgun && hasLock) {
-      const railguns = Object.entries(truthWeapons).filter(([id]) => id.startsWith("railgun"));
-      for (const [mountId, w] of railguns) {
-        const ammo = w.ammo ?? 0;
-        const ready = w.solution?.ready_to_fire && ammo > 0 && !w.reloading;
-        if (ready) {
-          this._fireRailgun(mountId);
-          this._showFireFlash("railgun");
-          // Fire one mount per tick to avoid double-commanding the same mount
-          break;
-        }
-      }
-    }
-
-    // --- Torpedo auto-fire (single shot, de-authorizes after firing) ---
-    if (this._authorized.torpedo && hasLock) {
-      const torpedoCount = torpedoData.loaded ?? torpedoData.count ?? 0;
-      const torpedoReady = torpedoCount > 0 && (torpedoData.cooldown ?? 0) <= 0;
-      if (torpedoReady) {
-        this._fireLauncher();
-        this._authorized.torpedo = false;
-        this._showFireFlash("torpedo");
-      }
-    }
-
-    // --- Missile auto-fire (fires configured salvo, de-authorizes after salvo) ---
-    if (this._authorized.missile && hasLock && !this._salvoInProgress) {
-      const missileCount = missileData.loaded ?? missileData.count ?? 0;
-      const missileReady = missileCount > 0 && (missileData.cooldown ?? 0) <= 0;
-      if (missileReady) {
-        this._fireMissileSalvo();
-        this._authorized.missile = false;
-      }
-    }
+    // Auto-fire is now server-authoritative.
+    // The server's AutoFireManager handles all fire decisions each tick.
+    // This method is kept as a no-op to avoid breaking callers.
+    // Authorization state is synced from server telemetry in _syncAutoFireState().
   }
 
   /**
@@ -2158,13 +2364,13 @@ class WeaponControls extends HTMLElement {
   }
 
   async _ceaseFire() {
-    // De-authorize all weapons on cease fire
-    this._authorized.railgun = false;
-    this._authorized.torpedo = false;
-    this._authorized.missile = false;
-
+    // Server-authoritative cease fire — deauthorizes all auto-fire weapons
+    // and sets PDC to hold_fire.
     try {
-      await wsClient.sendShipCommand("set_pdc_mode", { mode: "hold_fire" });
+      await Promise.all([
+        wsClient.sendShipCommand("cease_fire", {}),
+        wsClient.sendShipCommand("set_pdc_mode", { mode: "hold_fire" }),
+      ]);
     } catch (error) {
       console.error("Cease fire failed:", error);
     }
