@@ -11,9 +11,15 @@ commands consume tokens.
 
 import time
 import logging
-from typing import Dict, Set, Tuple
+from collections import Counter
+from typing import Dict, Optional, Set, Tuple
 
 logger = logging.getLogger(__name__)
+
+# Throttle rate-limit warnings: log a summary every N seconds instead of
+# one WARNING per blocked command (which can itself generate 40 MB+ of
+# log churn and saturate I/O).
+_WARN_INTERVAL = 5.0
 
 # Commands exempt from rate limiting.  These are either:
 #  - read-only state queries (get_state, get_events, …)
@@ -33,13 +39,26 @@ RATE_LIMIT_EXEMPT: Set[str] = {
     "claim_station",
     "release_station",
     "my_status",
-    # State queries
+    "station_status",
+    # State queries (read-only, polled by GUI components)
     "get_state",
     "get_events",
     "get_combat_log",
     "get_mission",
     "get_mission_hints",
     "get_tick_metrics",
+    "get_station_messages",
+    "crew_status",
+    "fleet_status",
+    "fleet_tactical",
+    "auto_fleet_status",
+    "get_draw_profile",
+    "get_power_profiles",
+    "get_nav_solutions",
+    "get_target_solution",
+    "get_comms_choices",
+    "assess_damage",
+    "helm_queue_status",
     # Scenario / campaign management
     "list_scenarios",
     "list_ships",
@@ -77,12 +96,15 @@ class RateLimiter:
         self.rate = rate
         self.burst = burst
         self._buckets: Dict[str, Tuple[float, float]] = {}  # client_id -> (tokens, last_update)
+        # Throttled warning state: client_id -> (last_warn_time, Counter of blocked cmds)
+        self._warn_state: Dict[str, Tuple[float, Counter]] = {}
 
-    def allow(self, client_id: str) -> bool:
+    def allow(self, client_id: str, cmd: Optional[str] = None) -> bool:
         """Check if a command from this client is allowed.
 
         Args:
             client_id: Client identifier
+            cmd: Command name (for diagnostic logging)
 
         Returns:
             True if the command is allowed, False if rate limited
@@ -103,14 +125,33 @@ class RateLimiter:
             self._buckets[client_id] = (tokens - 1, now)
             return True
 
-        # Rate limited
-        logger.warning(f"Rate limited client {client_id}")
+        # Rate limited — log a throttled summary instead of per-command warnings
+        self._record_blocked(client_id, cmd or "unknown", now)
         self._buckets[client_id] = (tokens, now)
         return False
+
+    def _record_blocked(self, client_id: str, cmd: str, now: float) -> None:
+        """Record a blocked command and emit a periodic summary warning."""
+        if client_id not in self._warn_state:
+            self._warn_state[client_id] = (now, Counter())
+
+        last_warn, counter = self._warn_state[client_id]
+        counter[cmd] += 1
+
+        if now - last_warn >= _WARN_INTERVAL:
+            total = sum(counter.values())
+            top = counter.most_common(5)
+            breakdown = ", ".join(f"{c}:{n}" for c, n in top)
+            logger.warning(
+                f"Rate limited {client_id}: {total} commands blocked "
+                f"in {now - last_warn:.1f}s (top: {breakdown})"
+            )
+            self._warn_state[client_id] = (now, Counter())
 
     def remove_client(self, client_id: str) -> None:
         """Remove a client's rate limit state (on disconnect)."""
         self._buckets.pop(client_id, None)
+        self._warn_state.pop(client_id, None)
 
     def cleanup(self, max_age: float = 300.0) -> None:
         """Remove stale entries older than max_age seconds."""

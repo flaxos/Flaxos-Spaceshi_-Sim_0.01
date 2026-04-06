@@ -203,7 +203,7 @@ class UnifiedServer:
 
         # Rate limiting (skip meta/setup commands, only limit gameplay commands)
         if cmd not in RATE_LIMIT_EXEMPT:
-            if not self.rate_limiter.allow(client_id):
+            if not self.rate_limiter.allow(client_id, cmd):
                 return Response.error(
                     "Rate limited: too many commands", ErrorCode.BAD_REQUEST
                 ).to_dict()
