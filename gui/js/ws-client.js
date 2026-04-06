@@ -29,6 +29,22 @@ class WSClient extends EventTarget {
     // Request tracking for concurrent command handling
     this._pendingRequests = new Map();
     this._requestIdCounter = 0;
+    this._unloading = false;
+
+    // Prevent reconnect loops on page refresh/navigation
+    window.addEventListener("beforeunload", () => {
+      this._unloading = true;
+      this.disconnect();
+    });
+    // Reset if navigation was cancelled or page restored from bfcache.
+    // If the page was restored from bfcache, the socket is dead — reconnect.
+    window.addEventListener("pageshow", (event) => {
+      this._unloading = false;
+      if (event.persisted && this.status === "disconnected") {
+        this.reconnectAttempts = 0;
+        this.connect().catch(() => {});
+      }
+    });
   }
 
   /**
@@ -102,12 +118,18 @@ class WSClient extends EventTarget {
 
       this.socket.onclose = (event) => {
         clearTimeout(timeout);
+        const wasClean = event.wasClean;
+        const code = event.code;
+        const reason = event.reason;
+        console.warn(
+          `WebSocket closed: code=${code} reason="${reason}" clean=${wasClean}`
+        );
         this._setStatus("disconnected");
         this._stopPing();
         this._stopHeartbeat();
         this._clearPendingRequests();
         this._connectPromise = null;
-        this._emit("close", { code: event.code, reason: event.reason });
+        this._emit("close", { code, reason, wasClean });
         this._attemptReconnect();
       };
 
@@ -196,7 +218,13 @@ class WSClient extends EventTarget {
       return;
     }
 
-    // Fallback: If no request ID in response, use FIFO (for backward compatibility)
+    // If the response has a request ID that doesn't match any pending request,
+    // it's likely from a fire-and-forget sendAsync() call — drop it silently.
+    if (requestId !== null && requestId !== undefined) {
+      return;
+    }
+
+    // Fallback: If no request ID in response at all, use FIFO (backward compat)
     // This handles cases where the server doesn't echo the request ID
     const iterator = this._pendingRequests.entries().next();
     if (!iterator.done) {
@@ -229,7 +257,10 @@ class WSClient extends EventTarget {
   }
 
   /**
-   * Send command and ignore response
+   * Send command and ignore response (fire-and-forget).
+   *
+   * Includes a `_request_id` so the bridge echoes it back, preventing the
+   * response from being incorrectly FIFO-matched to a pending `send()` call.
    * @param {string} cmd - Command name
    * @param {object} args - Command arguments
    */
@@ -237,7 +268,12 @@ class WSClient extends EventTarget {
     if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
       return;
     }
-    const message = JSON.stringify({ cmd, ...args });
+    // Use a request ID so the bridge echoes it back.  The response won't
+    // match any entry in _pendingRequests (we don't register one), and the
+    // FIFO fallback only fires when the response has NO _request_id at all,
+    // so the response is silently dropped — which is the desired behavior.
+    const requestId = ++this._requestIdCounter;
+    const message = JSON.stringify({ cmd, _request_id: requestId, ...args });
     try {
       this.socket.send(message);
     } catch (error) {
@@ -336,6 +372,9 @@ class WSClient extends EventTarget {
    * Attempt automatic reconnection
    */
   _attemptReconnect() {
+    if (this._unloading) {
+      return;
+    }
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
       return;
     }
