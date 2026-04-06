@@ -110,6 +110,11 @@ class RcsThrusterDisplay extends HTMLElement {
               <input type="range" min="0" max="100" value="50" class="throttle-slider" id="fire-slider">
               <span class="slider-val" id="fire-slider-val">50%</span>
             </div>
+            <div class="slider-row">
+              <label class="slider-label">Duration</label>
+              <input type="number" min="0.1" max="10.0" step="0.1" value="1.0" class="duration-input" id="fire-duration">
+              <span class="slider-val" id="fire-duration-unit">sec</span>
+            </div>
             <div class="btn-row">
               <button class="btn-fire" id="btn-fire">FIRE</button>
               <button class="btn-clear" id="btn-clear-all">CLEAR ALL</button>
@@ -163,14 +168,16 @@ class RcsThrusterDisplay extends HTMLElement {
       sliderVal.textContent = `${slider.value}%`;
     });
 
-    // FIRE button
+    // FIRE button — reads duration from the numeric input
     root.getElementById("btn-fire").addEventListener("click", () => {
       if (!this._selectedThruster) return;
       const throttle = parseInt(slider.value, 10) / 100;
+      const durationInput = root.getElementById("fire-duration");
+      const duration = Math.max(0.1, Math.min(10.0, parseFloat(durationInput.value) || 1.0));
       wsClient.sendShipCommand("rcs_fire_thruster", {
         thruster_id: this._selectedThruster,
         throttle,
-        duration: 1.0,
+        duration,
       }).catch(err => console.warn("rcs_fire_thruster failed:", err.message));
     });
 
@@ -518,6 +525,29 @@ class RcsThrusterDisplay extends HTMLElement {
         text-align: right;
         font-size: 0.75rem;
         color: #ff8800;
+      }
+
+      .duration-input {
+        flex: 1;
+        max-width: 5em;
+        padding: 4px 6px;
+        background: #0a0a12;
+        border: 1px solid #2a2a3a;
+        border-radius: 3px;
+        color: #ff8800;
+        font-family: var(--font-mono, 'JetBrains Mono', 'Fira Code', monospace);
+        font-size: 0.75rem;
+        text-align: right;
+        box-sizing: border-box;
+        -moz-appearance: textfield;
+      }
+      .duration-input::-webkit-inner-spin-button,
+      .duration-input::-webkit-outer-spin-button {
+        opacity: 0.5;
+      }
+      .duration-input:focus {
+        outline: none;
+        border-color: #ff8800;
       }
 
       .btn-row {

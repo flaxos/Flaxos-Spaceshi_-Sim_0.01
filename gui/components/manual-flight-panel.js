@@ -113,6 +113,22 @@ class ManualFlightPanel extends HTMLElement {
                   font-family:var(--font-mono,"JetBrains Mono",monospace); font-size:.7rem;
                   color:var(--text-dim,#555566); }
         .mo-pos strong { color:var(--text-secondary,#888899); }
+        /* Waypoint status section — MANUAL tier only */
+        .wp-status { display:none; grid-column:1/-1; }
+        :host(.tier-manual) .wp-status { display:block; }
+        .wp-title { font-size:.65rem; text-transform:uppercase; color:var(--status-warning,#ffaa00); letter-spacing:.1em;
+                    margin-bottom:6px; font-weight:700; border-top:1px solid var(--border-default,#2a2a3a); padding-top:10px; margin-top:8px; }
+        .wp-table { width:100%; border-collapse:collapse; font-family:var(--font-mono,"JetBrains Mono",monospace); font-size:.7rem; }
+        .wp-table td { padding:2px 4px; }
+        .wp-table td:first-child { color:var(--text-dim,#555566); text-transform:uppercase; font-size:.6rem; letter-spacing:.06em; white-space:nowrap; }
+        .wp-table td:last-child { color:var(--text-primary,#e0e0e0); text-align:right; }
+        .wp-phase { display:inline-block; padding:1px 6px; border-radius:2px; font-size:.6rem; font-weight:700;
+                    text-transform:uppercase; letter-spacing:.08em; }
+        .wp-phase.accelerating { background:rgba(0,170,255,0.2); color:#00aaff; }
+        .wp-phase.coasting { background:rgba(136,136,153,0.2); color:#888899; }
+        .wp-phase.braking { background:rgba(255,170,0,0.2); color:#ffaa00; }
+        .wp-phase.arrived { background:rgba(0,255,136,0.2); color:#00ff88; }
+        .wp-phase.idle { background:rgba(85,85,102,0.15); color:#555566; }
       </style>
       <div class="p">
         <div class="olbl">Manual Override</div>
@@ -160,6 +176,15 @@ class ManualFlightPanel extends HTMLElement {
           <button class="mo-go" id="mogo">GO</button>
           <div class="mo-pos">Current: X <strong id="cpx">0</strong> Y <strong id="cpy">0</strong> Z <strong id="cpz">0</strong></div>
         </div>
+        <div class="wp-status" id="wp-status">
+          <div class="wp-title">Waypoint Status</div>
+          <table class="wp-table">
+            <tr><td>Destination</td><td id="wp-dest">--</td></tr>
+            <tr><td>Distance</td><td id="wp-dist">--</td></tr>
+            <tr><td>ETA</td><td id="wp-eta">--</td></tr>
+            <tr><td>Phase</td><td id="wp-phase"><span class="wp-phase idle">IDLE</span></td></tr>
+          </table>
+        </div>
         <div class="rh">WASD/QE for RCS fine control</div>
       </div>`;
   }
@@ -203,6 +228,82 @@ class ManualFlightPanel extends HTMLElement {
       if (cpy) cpy.textContent = fmt(pos.y ?? pos[1] ?? 0);
       if (cpz) cpz.textContent = fmt(pos.z ?? pos[2] ?? 0);
     }
+    // Waypoint status (MANUAL tier only)
+    if (this._tier === "manual") {
+      this._updateWaypointStatus(ship, nav);
+    }
+  }
+
+  /** Update the waypoint status readouts from navigation/autopilot telemetry */
+  _updateWaypointStatus(ship, nav) {
+    const root = this.shadowRoot;
+    const wpDest = root.getElementById("wp-dest");
+    const wpDist = root.getElementById("wp-dist");
+    const wpEta = root.getElementById("wp-eta");
+    const wpPhase = root.getElementById("wp-phase");
+    if (!wpDest) return;
+
+    // Try to get destination from autopilot course or navigation state
+    const ap = ship?.autopilot || nav?.autopilot || {};
+    const course = ap.course || nav.course || {};
+    const dest = course.destination || course.target_position || null;
+
+    if (!dest) {
+      wpDest.textContent = "--";
+      wpDist.textContent = "--";
+      wpEta.textContent = "--";
+      wpPhase.innerHTML = '<span class="wp-phase idle">IDLE</span>';
+      return;
+    }
+
+    // Format destination coordinates
+    const dx = dest.x ?? dest[0] ?? 0;
+    const dy = dest.y ?? dest[1] ?? 0;
+    const dz = dest.z ?? dest[2] ?? 0;
+    const fmtK = (v) => Math.abs(v) > 1000 ? `${(v / 1000).toFixed(1)}k` : Math.round(v).toString();
+    wpDest.textContent = `${fmtK(dx)}, ${fmtK(dy)}, ${fmtK(dz)}`;
+
+    // Compute distance from ship position to destination
+    const pos = ship?.position || {};
+    const px = pos.x ?? pos[0] ?? 0;
+    const py = pos.y ?? pos[1] ?? 0;
+    const pz = pos.z ?? pos[2] ?? 0;
+    const ddx = dx - px, ddy = dy - py, ddz = dz - pz;
+    const distance = Math.sqrt(ddx * ddx + ddy * ddy + ddz * ddz);
+
+    if (distance > 1000) {
+      wpDist.textContent = `${(distance / 1000).toFixed(2)} km`;
+    } else {
+      wpDist.textContent = `${Math.round(distance)} m`;
+    }
+
+    // ETA: distance / current speed
+    const [vx, vy, vz] = this._velocity;
+    const speed = Math.sqrt(vx * vx + vy * vy + vz * vz);
+    if (speed > 0.1 && distance > 1) {
+      const etaSec = distance / speed;
+      if (etaSec > 3600) {
+        const hrs = Math.floor(etaSec / 3600);
+        const mins = Math.floor((etaSec % 3600) / 60);
+        wpEta.textContent = `${hrs}h ${mins.toString().padStart(2, "0")}m`;
+      } else {
+        const mins = Math.floor(etaSec / 60);
+        const secs = Math.floor(etaSec % 60);
+        wpEta.textContent = `${mins}:${secs.toString().padStart(2, "0")}`;
+      }
+    } else {
+      wpEta.textContent = speed < 0.1 ? "--" : "< 1s";
+    }
+
+    // Phase from autopilot state
+    const phase = (ap.phase || ap.autopilot_state || course.phase || "idle").toLowerCase();
+    const phaseClass = phase.includes("accel") || phase.includes("burn") ? "accelerating"
+      : phase.includes("coast") ? "coasting"
+      : phase.includes("brak") || phase.includes("decel") ? "braking"
+      : phase.includes("arriv") || phase.includes("complete") || phase.includes("done") ? "arrived"
+      : "idle";
+    const phaseLabel = phaseClass.charAt(0).toUpperCase() + phaseClass.slice(1);
+    wpPhase.innerHTML = `<span class="wp-phase ${phaseClass}">${phaseLabel.toUpperCase()}</span>`;
   }
 
   _setThrottleVis(v) {

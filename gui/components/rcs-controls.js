@@ -13,17 +13,37 @@ class RCSControls extends HTMLElement {
     this.attachShadow({ mode: "open" });
     this._unsubscribe = null;
     this._selectedTarget = null;
+    this._tier = window.controlTier || "arcade";
+    this._onTier = null;
   }
 
   connectedCallback() {
     this.render();
     this._subscribe();
     this._setupEvents();
+    this._onTier = (e) => {
+      this._tier = e.detail?.tier || "arcade";
+      this._applyTierVisibility();
+    };
+    document.addEventListener("tier-change", this._onTier);
+    this._applyTierVisibility();
   }
 
   disconnectedCallback() {
     if (this._unsubscribe) {
       this._unsubscribe();
+    }
+    if (this._onTier) {
+      document.removeEventListener("tier-change", this._onTier);
+      this._onTier = null;
+    }
+  }
+
+  /** Show/hide MANUAL-tier-only sections */
+  _applyTierVisibility() {
+    const setpoint = this.shadowRoot.getElementById("attitude-setpoint");
+    if (setpoint) {
+      setpoint.style.display = (this._tier === "manual") ? "" : "none";
     }
   }
 
@@ -258,6 +278,87 @@ class RCSControls extends HTMLElement {
         .stop-rotation-btn:hover {
           filter: brightness(1.1);
         }
+
+        /* MANUAL-tier attitude setpoint */
+        .attitude-setpoint {
+          padding: 12px;
+          background: rgba(255, 136, 0, 0.05);
+          border: 1px solid rgba(255, 136, 0, 0.3);
+          border-radius: 6px;
+        }
+
+        .setpoint-title {
+          font-size: 0.65rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+          color: #ff8800;
+          margin-bottom: 8px;
+        }
+
+        .setpoint-grid {
+          display: grid;
+          grid-template-columns: auto 1fr auto;
+          gap: 4px 8px;
+          align-items: center;
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+          font-size: 0.75rem;
+        }
+
+        .setpoint-grid .sp-label {
+          font-size: 0.6rem;
+          text-transform: uppercase;
+          color: var(--text-dim, #555566);
+          letter-spacing: 0.06em;
+        }
+
+        .setpoint-grid input {
+          width: 100%;
+          padding: 4px 6px;
+          background: var(--bg-primary, #0a0a0f);
+          border: 1px solid var(--border-default, #2a2a3a);
+          border-radius: 4px;
+          color: var(--text-primary, #e0e0e0);
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+          font-size: 0.75rem;
+          text-align: right;
+          box-sizing: border-box;
+        }
+
+        .setpoint-grid input:focus {
+          outline: none;
+          border-color: #ff8800;
+        }
+
+        .sp-error {
+          font-size: 0.65rem;
+          color: var(--text-dim, #555566);
+        }
+
+        .sp-error.large {
+          color: #ffaa00;
+        }
+
+        .set-attitude-btn {
+          width: 100%;
+          margin-top: 8px;
+          padding: 8px;
+          background: rgba(255, 136, 0, 0.15);
+          border: 1px solid #ff8800;
+          border-radius: 4px;
+          color: #ff8800;
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+          font-size: 0.7rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+          cursor: pointer;
+          min-height: 36px;
+        }
+
+        .set-attitude-btn:hover {
+          background: rgba(255, 136, 0, 0.3);
+        }
       </style>
 
       <!-- Current Attitude Display -->
@@ -353,6 +454,27 @@ class RCSControls extends HTMLElement {
         </div>
         <button class="stop-rotation-btn" id="stop-rotation-btn">STOP ROTATION</button>
       </div>
+
+      <!-- MANUAL-tier: Absolute Attitude Setpoint -->
+      <div class="section" id="attitude-setpoint" style="display:none">
+        <div class="attitude-setpoint">
+          <div class="setpoint-title">Attitude Setpoint</div>
+          <div class="setpoint-grid">
+            <span class="sp-label">Pitch</span>
+            <input type="number" id="sp-pitch" min="-90" max="90" step="0.5" value="0"/>
+            <span class="sp-error" id="sp-pitch-err">0.0</span>
+
+            <span class="sp-label">Yaw</span>
+            <input type="number" id="sp-yaw" min="0" max="360" step="0.5" value="0"/>
+            <span class="sp-error" id="sp-yaw-err">0.0</span>
+
+            <span class="sp-label">Roll</span>
+            <input type="number" id="sp-roll" min="-180" max="180" step="0.5" value="0"/>
+            <span class="sp-error" id="sp-roll-err">0.0</span>
+          </div>
+          <button class="set-attitude-btn" id="set-attitude-btn">SET ATTITUDE</button>
+        </div>
+      </div>
     `;
   }
 
@@ -387,6 +509,17 @@ class RCSControls extends HTMLElement {
     this.shadowRoot.getElementById("stop-rotation-btn").addEventListener("click", () => {
       this._stopRotation();
     });
+
+    // Attitude setpoint (MANUAL tier)
+    const setAttBtn = this.shadowRoot.getElementById("set-attitude-btn");
+    if (setAttBtn) {
+      setAttBtn.addEventListener("click", () => this._setAttitude());
+    }
+    // Enter key in setpoint inputs triggers set attitude
+    ["sp-pitch", "sp-yaw", "sp-roll"].forEach(id => {
+      const el = this.shadowRoot.getElementById(id);
+      if (el) el.addEventListener("keydown", (e) => { if (e.key === "Enter") this._setAttitude(); });
+    });
   }
 
   _updateDisplay() {
@@ -395,19 +528,65 @@ class RCSControls extends HTMLElement {
 
     // Update current attitude display
     const pitchSign = heading.pitch >= 0 ? "+" : "";
-    this.shadowRoot.getElementById("current-pitch").textContent = 
+    this.shadowRoot.getElementById("current-pitch").textContent =
       `${pitchSign}${(heading.pitch || 0).toFixed(1)}°`;
-    
+
     // Format yaw to always show 3 digits
     const yawNorm = ((heading.yaw || 0) + 360) % 360;
-    this.shadowRoot.getElementById("current-yaw").textContent = 
+    this.shadowRoot.getElementById("current-yaw").textContent =
       `${yawNorm.toFixed(1).padStart(5, "0")}°`;
-    
+
     const rollSign = (heading.roll || 0) >= 0 ? "+" : "";
-    this.shadowRoot.getElementById("current-roll").textContent = 
+    this.shadowRoot.getElementById("current-roll").textContent =
       `${rollSign}${(heading.roll || 0).toFixed(1)}°`;
 
     this._updateTargetDisplay();
+
+    // Update attitude setpoint error display (MANUAL tier)
+    if (this._tier === "manual") {
+      this._updateSetpointErrors(heading);
+    }
+  }
+
+  /** Update error readouts showing difference between current attitude and setpoint inputs */
+  _updateSetpointErrors(heading) {
+    const root = this.shadowRoot;
+    const spPitch = parseFloat(root.getElementById("sp-pitch")?.value) || 0;
+    const spYaw = parseFloat(root.getElementById("sp-yaw")?.value) || 0;
+    const spRoll = parseFloat(root.getElementById("sp-roll")?.value) || 0;
+
+    const pErr = Math.abs(spPitch - (heading.pitch || 0));
+    const yErr = Math.abs(((spYaw - (heading.yaw || 0)) + 540) % 360 - 180); // shortest angular distance
+    const rErr = Math.abs(spRoll - (heading.roll || 0));
+
+    const setErr = (id, val) => {
+      const el = root.getElementById(id);
+      if (!el) return;
+      el.textContent = `${val.toFixed(1)}`;
+      el.className = val > 5 ? "sp-error large" : "sp-error";
+    };
+    setErr("sp-pitch-err", pErr);
+    setErr("sp-yaw-err", yErr);
+    setErr("sp-roll-err", rErr);
+  }
+
+  /** Send absolute attitude setpoint command */
+  async _setAttitude() {
+    const root = this.shadowRoot;
+    const pitch = Math.max(-90, Math.min(90, parseFloat(root.getElementById("sp-pitch")?.value) || 0));
+    const yaw = ((parseFloat(root.getElementById("sp-yaw")?.value) || 0) % 360 + 360) % 360;
+    const roll = Math.max(-180, Math.min(180, parseFloat(root.getElementById("sp-roll")?.value) || 0));
+
+    try {
+      const r = await wsClient.sendShipCommand("set_orientation", { pitch, yaw, roll });
+      if (r?.ok) {
+        this._showMessage(`Attitude set: P:${pitch.toFixed(1)} Y:${yaw.toFixed(1)} R:${roll.toFixed(1)}`, "info");
+      } else {
+        this._showMessage(r?.error || "Set attitude failed", "error");
+      }
+    } catch (err) {
+      this._showMessage(`Set attitude failed: ${err.message}`, "error");
+    }
   }
 
   _updateTargetDisplay() {
