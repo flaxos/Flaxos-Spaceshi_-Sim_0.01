@@ -4,9 +4,32 @@
 import math
 import time
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import Dict, Optional
 from hybrid.utils.math_utils import add_vectors, scale_vector
 import random
+
+
+class ContactState(Enum):
+    """Contact classification state based on track quality."""
+    GHOST = "ghost"             # confidence < 0.3 — bearing + rough range only
+    UNCONFIRMED = "unconfirmed" # 0.3 <= confidence < 0.6 — position + size class
+    CONFIRMED = "confirmed"     # confidence >= 0.6 — full track
+    LOST = "lost"               # was tracked, now fading
+
+
+def compute_contact_state(confidence: float) -> str:
+    """Compute contact state from confidence value.
+
+    Returns:
+        str: ContactState value string
+    """
+    if confidence < 0.3:
+        return ContactState.GHOST.value
+    elif confidence < 0.6:
+        return ContactState.UNCONFIRMED.value
+    return ContactState.CONFIRMED.value
+
 
 @dataclass
 class ContactData:
@@ -23,6 +46,7 @@ class ContactData:
     classification: Optional[str] = None  # Ship class if known
     name: Optional[str] = None  # Ship name if identified
     faction: Optional[str] = None  # Faction affiliation (for AI hostility checks)
+    contact_state: str = "confirmed"  # ContactState value
 
     def is_stale(self, current_time: float, stale_threshold: float = 60.0) -> bool:
         """Check if contact is stale.
@@ -76,9 +100,10 @@ class ContactTracker:
 
         stable_id = self.id_mapping[ship_id]
 
-        # Update contact with stable ID
+        # Update contact with stable ID and compute state
         contact_data.id = stable_id
         contact_data.last_update = current_time
+        contact_data.contact_state = compute_contact_state(contact_data.confidence)
 
         self.contacts[stable_id] = contact_data
 
@@ -168,6 +193,7 @@ class ContactTracker:
                 "bearing": bearing,
                 "closing_speed": closing_speed,
                 "confidence": effective_confidence,
+                "contact_state": compute_contact_state(effective_confidence),
                 "age": age,
                 "stale": contact.is_stale(current_time, self.stale_threshold),
                 "detection_method": contact.detection_method,
