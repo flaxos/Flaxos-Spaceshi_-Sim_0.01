@@ -57,8 +57,13 @@ class WeaponControls extends HTMLElement {
   }
 
   disconnectedCallback() {
-    if (this._unsubscribe) {
-      this._unsubscribe();
+    if (this._unsubWeapons) {
+      this._unsubWeapons();
+      this._unsubWeapons = null;
+    }
+    if (this._unsubTargeting) {
+      this._unsubTargeting();
+      this._unsubTargeting = null;
     }
     if (this._contactSelectedHandler) {
       document.removeEventListener("contact-selected", this._contactSelectedHandler);
@@ -71,9 +76,9 @@ class WeaponControls extends HTMLElement {
   }
 
   _subscribe() {
-    this._unsubscribe = stateManager.subscribe("*", () => {
-      this._updateDisplay();
-    });
+    const update = () => { this._updateDisplay(); };
+    this._unsubWeapons = stateManager.subscribe("weapons", update);
+    this._unsubTargeting = stateManager.subscribe("targeting", update);
   }
 
   render() {

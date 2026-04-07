@@ -43,7 +43,7 @@ class ThermalDisplay extends HTMLElement {
   }
 
   _subscribe() {
-    this._unsubscribe = stateManager.subscribe("*", () => {
+    this._unsubscribe = stateManager.subscribe("thermal", () => {
       this._updateDisplay();
     });
   }

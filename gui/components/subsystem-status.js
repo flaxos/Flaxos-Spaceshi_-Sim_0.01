@@ -97,7 +97,7 @@ class SubsystemStatusPanel extends HTMLElement {
   }
 
   _subscribe() {
-    this._unsubscribe = stateManager.subscribe("*", () => {
+    this._unsubscribe = stateManager.subscribe("subsystem_health", () => {
       this._updateDisplay();
     });
   }

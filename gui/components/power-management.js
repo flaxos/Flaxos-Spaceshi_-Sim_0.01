@@ -54,7 +54,7 @@ class PowerManagement extends HTMLElement {
   }
 
   _subscribe() {
-    this._unsubscribe = stateManager.subscribe("*", () => {
+    this._unsubscribe = stateManager.subscribe("ops", () => {
       this._updateDisplay();
     });
   }

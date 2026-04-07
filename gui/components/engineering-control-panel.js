@@ -47,7 +47,7 @@ class EngineeringControlPanel extends HTMLElement {
   }
 
   _subscribe() {
-    this._unsubscribe = stateManager.subscribe("*", () => {
+    this._unsubscribe = stateManager.subscribe("engineering", () => {
       this._updateDisplay();
     });
   }

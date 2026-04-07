@@ -228,7 +228,11 @@ class StateManager extends EventTarget {
   }
 
   /**
-   * Detect which top-level keys changed
+   * Detect which top-level keys changed.
+   * Also reports sub-key changes inside the "state" envelope so that
+   * components can subscribe to e.g. "weapons" or "sensors" instead of "*".
+   * The server wraps ship telemetry as {ok, ship, state: {weapons, sensors, ...}},
+   * so without this expansion subscribe("weapons") would never fire.
    */
   _detectChanges(oldState, newState) {
     const changes = [];
@@ -243,15 +247,42 @@ class StateManager extends EventTarget {
       }
     }
 
+    // Expand "state" sub-keys so components can subscribe to specific
+    // telemetry domains (e.g. "weapons", "targeting", "sensors") without "*".
+    if (changes.includes("state")) {
+      const oldSub = oldState?.state || {};
+      const newSub = newState?.state || {};
+      if (typeof oldSub === "object" && typeof newSub === "object") {
+        const subKeys = new Set([
+          ...Object.keys(oldSub),
+          ...Object.keys(newSub)
+        ]);
+        for (const sk of subKeys) {
+          if (!changes.includes(sk) &&
+              JSON.stringify(oldSub[sk]) !== JSON.stringify(newSub[sk])) {
+            changes.push(sk);
+          }
+        }
+      }
+    }
+
     return changes;
   }
 
   /**
-   * Get nested value from state
+   * Get nested value from state.
+   * Falls back to obj.state[path] when the key isn't found at the top level,
+   * since ship telemetry is wrapped inside a "state" envelope by the server.
    */
   _getNestedValue(obj, path) {
     if (path === "*") return obj;
-    return path.split(".").reduce((o, k) => o?.[k], obj);
+    const direct = path.split(".").reduce((o, k) => o?.[k], obj);
+    if (direct !== undefined) return direct;
+    // Fallback: look inside the "state" envelope for ship telemetry keys
+    if (obj?.state && typeof obj.state === "object") {
+      return path.split(".").reduce((o, k) => o?.[k], obj.state);
+    }
+    return undefined;
   }
 
   /**
