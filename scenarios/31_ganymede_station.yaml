@@ -37,6 +37,7 @@ ships:
     orientation: {pitch: 0, yaw: 0, roll: 0}
     systems:
       propulsion:
+        max_thrust: 800000
         fuel_level: 900.0
         max_fuel: 1200.0
       sensors:

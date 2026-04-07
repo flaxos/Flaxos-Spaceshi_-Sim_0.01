@@ -9,7 +9,7 @@ dt: 0.1
 ships:
   - id: "player"
     name: "Guardian"
-    class: "corvette"
+    ship_class: "corvette"
     player_controlled: true
     position: {x: -1000, y: 0, z: 0}
     velocity: {x: 50, y: 0, z: 0}
@@ -43,7 +43,7 @@ ships:
 
   - id: "freighter01"
     name: "Canterbury"
-    class: "freighter"
+    ship_class: "freighter"
     faction: "civilian"
     ai_enabled: true
     position: {x: 0, y: 0, z: 0}
@@ -65,7 +65,7 @@ ships:
 
   - id: "hostile01"
     name: "Marauder Alpha"
-    class: "fighter"
+    ship_class: "fighter"
     faction: "pirates"
     ai_enabled: true
     position: {x: 120000, y: -40000, z: 10000}  # ~127km away
@@ -94,7 +94,7 @@ ships:
 
   - id: "hostile02"
     name: "Marauder Beta"
-    class: "fighter"
+    ship_class: "fighter"
     faction: "pirates"
     ai_enabled: true
     position: {x: 115000, y: -45000, z: -8000}  # ~125km away
@@ -219,6 +219,8 @@ mission:
 
     The Canterbury was destroyed. Critical supplies have been lost.
     Families are waiting for those supplies...
+
+  next_scenario: "30_canterbury_run"
 
   hints:
     - trigger: "start"
