@@ -337,16 +337,26 @@ def execute_command(ship, command_type, command_data, all_ships=None):
         if sim_ref is not None:
             command_data_with_ship["_simulator"] = sim_ref
 
-        # Execute the command on the system
+        # Execute the command on the system, serialised per-ship so concurrent
+        # client threads (PvP) cannot race on the same ship's state.
+        lock = getattr(ship, "_command_lock", None)
         try:
-            result = ship.systems[system_name].command(action, command_data_with_ship)
+            if lock:
+                with lock:
+                    result = ship.systems[system_name].command(action, command_data_with_ship)
+            else:
+                result = ship.systems[system_name].command(action, command_data_with_ship)
             logger.debug(f"Command {command_type} -> {system_name}.{action} returned: {result}")
             return result
         except Exception as e:
             logger.error(f"Error executing {command_type} -> {system_name}.{action}: {e}", exc_info=True)
             return {"error": f"Command execution failed: {e}"}
-        
-    # Handle direct ship commands
+
+    # Handle direct ship commands — also serialised under the per-ship lock.
+    lock = getattr(ship, "_command_lock", None)
+    if lock:
+        with lock:
+            return ship.command(command_type, command_data)
     return ship.command(command_type, command_data)
 
 def format_response(response):

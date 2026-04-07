@@ -13,6 +13,7 @@ import math
 import time
 import copy
 import logging
+import threading
 from collections import deque
 
 logger = logging.getLogger(__name__)
@@ -176,6 +177,10 @@ class Ship:
                 self.ai_controller.engagement_range = (
                     self.ai_controller.profile.engagement_range
                 )
+
+        # Per-ship lock so concurrent client threads serialise system.command()
+        # calls — prevents last-write-wins races in PvP (two stations on same ship).
+        self._command_lock = threading.Lock()
 
         # Initialize command handler
         self.command_handlers = {
