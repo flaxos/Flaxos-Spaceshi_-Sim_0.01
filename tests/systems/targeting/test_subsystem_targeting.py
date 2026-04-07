@@ -352,24 +352,22 @@ class TestReactorCascadeKillsAllSystems:
         assert cm.get_cascade_factor("targeting") == 0.0
         assert dm.get_combined_factor("targeting") == pytest.approx(0.0)
 
-    def test_reactor_destroyed_cascade_skips_unregistered_targeting(self):
-        """Reactor cascade for targeting is silently skipped if targeting is not in damage model.
+    def test_reactor_destroyed_cascade_disables_targeting(self):
+        """Reactor destruction cascades to targeting — targeting computer has no power.
 
-        This documents a known configuration gap: the CASCADE_RULES declare a
-        reactor→targeting dependency, but SUBSYSTEM_HEALTH_SCHEMA has no 'targeting'
-        entry, so CascadeManager.tick() skips the rule. Ships using the default schema
-        do not receive the targeting cascade penalty. The default cascade factor
-        returned is 1.0 (no penalty).
+        Since PR #369 added 'targeting' to SUBSYSTEM_HEALTH_SCHEMA, the cascade
+        rule reactor→targeting is now active. Destroying the reactor should drop
+        the targeting cascade factor to 0.0.
         """
         dm, cm = _make_damage_model_with_cascade()
-        # Do NOT register targeting — use the default schema
-        assert "targeting" not in dm.subsystems
+        # Targeting is now in the default schema (added by PR #369)
+        assert "targeting" in dm.subsystems
 
         dm.subsystems["reactor"].health = 0.0
         cm.tick(dm)
 
-        # No registered subsystem → cascade rule skipped → factor defaults to 1.0
-        assert cm.get_cascade_factor("targeting") == pytest.approx(1.0)
+        # Reactor destroyed → targeting cascade factor = 0.0 (no power)
+        assert cm.get_cascade_factor("targeting") == pytest.approx(0.0)
 
     def test_healthy_reactor_produces_no_cascade(self):
         """A fully healthy reactor should produce cascade_factor = 1.0 on dependents."""
@@ -612,7 +610,7 @@ class TestSubsystemStateTransitions:
         # Drive from ONLINE to DAMAGED
         dm.apply_damage("sensors", 23.0)
 
-        events_with_change = [e for e in dm.damage_history if e.get("status_change")]
+        events_with_change = [e for e in dm.damage_history if e.get("status_changed")]
         assert len(events_with_change) >= 1
         transition = events_with_change[0]
         assert transition["prev_status"] == SubsystemStatus.ONLINE.value
