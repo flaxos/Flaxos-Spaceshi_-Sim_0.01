@@ -12,6 +12,7 @@
 
 import { stateManager } from "../js/state-manager.js";
 import { wsClient } from "../js/ws-client.js";
+import { getDegradation } from "../js/minigame-difficulty.js";
 
 // Zone boundaries (percent of reactor output)
 const GREEN_MIN = 60;
@@ -257,8 +258,12 @@ class ReactorBalanceGame extends HTMLElement {
     const netRate = this._heatGen - this._heatRad;
     const tempPct = (this._hullTemp / this._maxTemp) * 100;
 
-    heatEl.textContent = `${this._heatGen.toFixed(0)} W`;
-    netEl.textContent = `${netRate >= 0 ? "+" : ""}${netRate.toFixed(0)} W/s`;
+    // Reactor damage adds display noise to readouts
+    const dmg = getDegradation("reactor");
+    const displayNoise = (Math.random() - 0.5) * dmg * 20;
+
+    heatEl.textContent = `${(this._heatGen + displayNoise).toFixed(0)} W`;
+    netEl.textContent = `${netRate >= 0 ? "+" : ""}${(netRate + displayNoise).toFixed(0)} W/s`;
     tempEl.textContent = `${this._hullTemp.toFixed(0)} K`;
 
     // Color coding

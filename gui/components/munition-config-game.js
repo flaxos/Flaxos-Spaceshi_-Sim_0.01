@@ -16,6 +16,7 @@
 
 import { wsClient } from "../js/ws-client.js";
 import { stateManager } from "../js/state-manager.js";
+import { getDegradation } from "../js/minigame-difficulty.js";
 
 // Default configuration
 const DEFAULTS = {
@@ -260,6 +261,9 @@ class MunitionConfigGame extends HTMLElement {
       const group = btn.dataset.group;
       const value = btn.dataset.option;
 
+      // Don't allow selecting disabled options
+      if (btn.disabled) return;
+
       if (group === "warhead") {
         this._warhead = value;
       } else if (group === "guidance") {
@@ -277,17 +281,33 @@ class MunitionConfigGame extends HTMLElement {
     const root = this.shadowRoot;
     if (!root) return;
 
+    // Weapon damage restricts available options
+    const dmg = getDegradation("weapons");
+
     // Update active states for all option buttons
     root.querySelectorAll("[data-option]").forEach((btn) => {
       const group = btn.dataset.group;
       const value = btn.dataset.option;
       let isActive = false;
+      let isDisabled = false;
 
       if (group === "warhead") isActive = value === this._warhead;
-      else if (group === "guidance") isActive = value === this._guidance;
-      else if (group === "profile") isActive = value === this._profile;
+      else if (group === "guidance") {
+        isActive = value === this._guidance;
+        // >50% damage: disable "smart" guidance
+        if (dmg > 0.5 && value === "smart") isDisabled = true;
+        // >75% damage: only "dumb" guidance available
+        if (dmg > 0.75 && value !== "dumb") isDisabled = true;
+      } else if (group === "profile") {
+        isActive = value === this._profile;
+        // >75% damage: only "direct" flight profile available
+        if (dmg > 0.75 && value !== "direct") isDisabled = true;
+      }
 
-      btn.classList.toggle("active", isActive);
+      btn.classList.toggle("active", isActive && !isDisabled);
+      btn.disabled = isDisabled;
+      btn.style.opacity = isDisabled ? "0.3" : "";
+      btn.title = isDisabled ? "Weapons too damaged" : "";
     });
   }
 

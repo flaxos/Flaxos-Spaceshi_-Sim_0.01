@@ -15,6 +15,7 @@
 
 import { wsClient } from "../js/ws-client.js";
 import { stateManager } from "../js/state-manager.js";
+import { getDegradation } from "../js/minigame-difficulty.js";
 
 // Tuning thresholds
 const FREQ_RANGE = 999;          // 0-999 MHz
@@ -222,8 +223,9 @@ class HailFrequencyGame extends HTMLElement {
     const w = canvas.width;
     const h = canvas.height;
 
-    // Noise intensity: inverse of signal strength
-    const noiseLevel = 1 - this._signalStrength * 0.85;
+    // Comms damage amplifies noise
+    const dmg = getDegradation("comms");
+    const noiseLevel = (1 - this._signalStrength * 0.85) * (1 + dmg * 2);
 
     ctx.fillStyle = "#080812";
     ctx.fillRect(0, 0, w, h);

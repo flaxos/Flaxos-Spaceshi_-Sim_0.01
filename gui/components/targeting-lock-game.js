@@ -17,6 +17,7 @@
 
 import { stateManager } from "../js/state-manager.js";
 import { wsClient } from "../js/ws-client.js";
+import { getDegradation } from "../js/minigame-difficulty.js";
 
 const CANVAS_W = 200;
 const CANVAS_H = 200;
@@ -215,6 +216,13 @@ class TargetingLockGame extends HTMLElement {
       this._targetX += (Math.random() - 0.5) * jitterScale;
       this._targetY += (Math.random() - 0.5) * jitterScale;
 
+      // Sensor damage adds positional jitter to reticle
+      const sensorDmg = getDegradation("sensors");
+      if (sensorDmg > 0) {
+        this._targetX += (Math.random() - 0.5) * sensorDmg * 3;
+        this._targetY += (Math.random() - 0.5) * sensorDmg * 3;
+      }
+
       // Bounce off edges with padding
       const pad = RETICLE_RADIUS + 10;
       if (this._targetX < pad) { this._targetX = pad; this._targetVelX = Math.abs(this._targetVelX); }
@@ -262,9 +270,13 @@ class TargetingLockGame extends HTMLElement {
     // Base speed 20-60 px/s, scaled by accel (higher accel = faster reticle)
     const speed = 20 + Math.min(40, accelMag / 3);
 
+    // Sensor damage makes reticle faster and harder to track
+    const dmg = getDegradation("sensors");
+    const adjustedSpeed = speed * (1 + dmg * 0.8);
+
     const angle = Math.random() * Math.PI * 2;
-    this._targetVelX = Math.cos(angle) * speed;
-    this._targetVelY = Math.sin(angle) * speed;
+    this._targetVelX = Math.cos(angle) * adjustedSpeed;
+    this._targetVelY = Math.sin(angle) * adjustedSpeed;
   }
 
   // --- Drawing ---

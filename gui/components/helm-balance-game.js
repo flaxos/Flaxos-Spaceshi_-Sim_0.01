@@ -14,6 +14,7 @@
  */
 
 import { stateManager } from "../js/state-manager.js";
+import { getDegradation } from "../js/minigame-difficulty.js";
 
 // Zone thresholds (fraction of radius, 0 = center, 1 = edge)
 const SMOOTH_THRESHOLD = 0.30;
@@ -182,17 +183,22 @@ class HelmBalanceGame extends HTMLElement {
       forceY += (Math.random() - 0.5) * thrustG * 0.08;
     }
 
+    // RCS damage weakens spring return and damping
+    const dmg = getDegradation("rcs");
+    const effectiveSpring = SPRING_K * (1 - dmg * 0.7);
+    const effectiveDamping = DAMPING * (1 - dmg * 0.5);
+
     // Spring force pulling ball back to center
-    const springFX = -this._ballX * SPRING_K;
-    const springFY = -this._ballY * SPRING_K;
+    const springFX = -this._ballX * effectiveSpring;
+    const springFY = -this._ballY * effectiveSpring;
 
     // Apply forces
     this._ballVX += (forceX + springFX) * dt;
     this._ballVY += (forceY + springFY) * dt;
 
     // Damping
-    this._ballVX *= DAMPING;
-    this._ballVY *= DAMPING;
+    this._ballVX *= effectiveDamping;
+    this._ballVY *= effectiveDamping;
 
     // Integrate position
     this._ballX += this._ballVX * dt;

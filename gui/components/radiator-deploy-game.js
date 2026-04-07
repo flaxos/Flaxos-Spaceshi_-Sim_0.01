@@ -17,6 +17,7 @@
 
 import { stateManager } from "../js/state-manager.js";
 import { wsClient } from "../js/ws-client.js";
+import { getDegradation } from "../js/minigame-difficulty.js";
 
 // Canvas dimensions
 const CANVAS_W = 480;
@@ -472,6 +473,15 @@ class RadiatorDeployGame extends HTMLElement {
 
     // Draw ship body (angular top-down silhouette)
     this._drawShipBody(ctx);
+
+    // Radiator damage randomly jams panels (deterministic per-panel)
+    const radDmg = getDegradation("radiators");
+    for (let i = 0; i < PANELS.length; i++) {
+      const isStuck = radDmg > 0 && (i * 7 + 3) % 10 < radDmg * 10;
+      if (isStuck) {
+        this._panelStates[PANELS[i].id].deployed = false;
+      }
+    }
 
     // Draw radiator panels
     for (const panel of PANELS) {

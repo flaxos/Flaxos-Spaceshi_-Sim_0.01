@@ -22,6 +22,7 @@
 
 import { stateManager } from "../js/state-manager.js";
 import { wsClient } from "../js/ws-client.js";
+import { getDegradation } from "../js/minigame-difficulty.js";
 
 // Canvas dimensions
 const CANVAS_W = 400;
@@ -352,6 +353,12 @@ class MassEstimationGame extends HTMLElement {
     const col1 = 30;
     const col2 = CANVAS_W / 2 + 20;
 
+    // Sensor damage adds display jitter to measurement values
+    const dmg = getDegradation("sensors");
+    const jitter = (Math.random() - 0.5) * dmg * 15;
+    const displayThrust = this._thrustF + jitter * this._thrustF * 0.01;
+    const displayAccel = this._accelA + jitter * this._accelA * 0.01;
+
     // Thrust readout (left)
     ctx.font = "bold 8px 'JetBrains Mono', monospace";
     ctx.textAlign = "left";
@@ -360,7 +367,7 @@ class MassEstimationGame extends HTMLElement {
 
     ctx.font = "bold 16px 'JetBrains Mono', monospace";
     ctx.fillStyle = FORCE_COLOR;
-    ctx.fillText(this._formatForce(this._thrustF), col1, y + 18);
+    ctx.fillText(this._formatForce(displayThrust), col1, y + 18);
 
     // Thrust bar
     const barW = 140;
@@ -381,7 +388,7 @@ class MassEstimationGame extends HTMLElement {
 
     ctx.font = "bold 16px 'JetBrains Mono', monospace";
     ctx.fillStyle = ACCEL_COLOR;
-    ctx.fillText(`${this._accelA.toFixed(1)} m/s\u00B2`, col2, y + 18);
+    ctx.fillText(`${displayAccel.toFixed(1)} m/s\u00B2`, col2, y + 18);
 
     // Accel indicator bar
     ctx.fillStyle = "#0d0d1a";
