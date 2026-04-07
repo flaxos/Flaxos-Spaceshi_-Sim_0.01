@@ -131,6 +131,8 @@ import "../components/munition-config-game.js";
 import "../components/munition-programming-panel.js";
 // Target damage assessment
 import "../components/target-assessment.js";
+// MANUAL tier weapon aiming reticle
+import "../components/weapon-aiming-panel.js";
 // Damage visualization
 import { damageStateManager } from "./damage-state-manager.js";
 // Ship Class Editor
