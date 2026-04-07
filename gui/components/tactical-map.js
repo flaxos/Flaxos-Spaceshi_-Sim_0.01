@@ -54,6 +54,14 @@ class TacticalMap extends HTMLElement {
   connectedCallback() {
     this.render();
     this._setupCanvas();
+
+    // Passive instances skip subscriptions and interaction to avoid redundant
+    // processing when the same component appears in multiple views.
+    // The primary (non-passive) instance in Tactical view does the real work.
+    if (this.hasAttribute("passive")) {
+      return;
+    }
+
     this._subscribe();
     this._setupInteraction();
     // Listen for tier changes — MANUAL tier forces velocity vectors on

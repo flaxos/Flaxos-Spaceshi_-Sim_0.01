@@ -704,7 +704,7 @@
         <!-- LEFT: SITUATIONAL AWARENESS — "Where am I? What's around?" -->
         <div class="panel-group" data-label="// SITUATIONAL AWARENESS">
           <flaxos-panel title="Contacts" collapsible priority="primary" domain="sensor" class="helm-contacts-panel">
-            <sensor-contacts id="sensor-contacts"></sensor-contacts>
+            <sensor-contacts id="sensor-contacts" passive></sensor-contacts>
           </flaxos-panel>
 
           <flaxos-panel title="Flight Data" collapsible priority="secondary" domain="nav" class="helm-flight-data-panel">
@@ -991,7 +991,7 @@
           </flaxos-panel>
 
           <flaxos-panel title="Event Log" collapsible priority="tertiary" domain="power" class="eng-log-panel">
-            <event-log id="event-log"></event-log>
+            <event-log id="event-log" passive></event-log>
           </flaxos-panel>
         </div>
 
@@ -1014,7 +1014,7 @@
       <div class="view-grid">
         <!-- Full sensor contacts display -->
         <flaxos-panel title="Sensor Contacts" collapsible domain="sensor" class="sci-sensors-panel">
-          <sensor-contacts></sensor-contacts>
+          <sensor-contacts passive></sensor-contacts>
         </flaxos-panel>
 
         <!-- Science Analysis Panel -->
@@ -1024,7 +1024,7 @@
 
         <!-- Sensor Event Log -->
         <flaxos-panel title="Sensor Log" collapsible domain="sensor" class="sci-log-panel">
-          <event-log></event-log>
+          <event-log passive></event-log>
         </flaxos-panel>
 
         <!-- ARCADE: Spectral Analysis mini-game -->
@@ -1054,12 +1054,12 @@
 
         <!-- Sensor Contacts (comms officer needs contact list for hailing) -->
         <flaxos-panel title="Contacts" collapsible domain="comms" class="comms-contacts-panel">
-          <sensor-contacts></sensor-contacts>
+          <sensor-contacts passive></sensor-contacts>
         </flaxos-panel>
 
         <!-- Tactical Map (situational awareness) -->
         <flaxos-panel title="Tactical Map" collapsible domain="comms" class="comms-map-panel">
-          <tactical-map></tactical-map>
+          <tactical-map passive></tactical-map>
         </flaxos-panel>
 
         <!-- Inter-Station Chat -->
@@ -1074,7 +1074,7 @@
 
         <!-- Event Log (comms events) -->
         <flaxos-panel title="Comms Log" collapsible domain="comms" class="comms-log-panel">
-          <event-log></event-log>
+          <event-log passive></event-log>
         </flaxos-panel>
       </div>
     </div>
@@ -1154,7 +1154,7 @@
 
         <!-- Event Log (mission events) -->
         <flaxos-panel title="Event Log" collapsible domain="ops" class="mis-log-panel">
-          <event-log></event-log>
+          <event-log passive></event-log>
         </flaxos-panel>
       </div>
     </div>
