@@ -50,6 +50,7 @@ class AIBehavior(Enum):
     HOLD_POSITION = "hold"        # Station-keeping at position
     DEFEND_AREA = "defend"        # Defend a specific area
     FORMATION = "formation"       # Maintain fleet formation
+    SURRENDERED = "surrendered"   # Yielded: weapons safe, accept capture
 
 
 class AIController:
@@ -133,6 +134,15 @@ class AIController:
         # evading and re-approach after a salvo.  None = not evading.
         self._disengage_until: Optional[float] = None
 
+        # Surrender state: weapons-safe flag used by _behavior_surrendered
+        # to prevent firing after yielding.
+        self._firing_authorized: bool = True
+
+        # Subscribe to capture events so faction updates propagate
+        # immediately when the boarding system takes control.
+        if hasattr(ship, "event_bus"):
+            ship.event_bus.subscribe("ship_captured", self._on_ship_captured)
+
         logger.info(
             "AI Controller initialized for %s (role=%s)",
             ship.id, self.profile.role,
@@ -151,6 +161,11 @@ class AIController:
         if behavior != AIBehavior.ATTACK:
             self.current_target = None
         self._autopilot_set_for_target = None
+        # Weapons-safe on surrender, re-enable on any other behavior
+        if behavior == AIBehavior.SURRENDERED:
+            self._firing_authorized = False
+        else:
+            self._firing_authorized = True
         logger.info("AI behavior set to %s for %s", behavior.value, self.ship.id)
 
     def update(self, dt: float, sim_time: float):
@@ -170,6 +185,12 @@ class AIController:
             return
 
         self.last_decision_time = sim_time
+
+        # Surrender check runs first -- a surrendered ship does not
+        # re-evaluate threats or react to damage.  It stays yielded.
+        if self._check_surrender():
+            self._behavior_surrendered(dt)
+            return  # Surrendered, skip all other logic
 
         # Check hull damage before normal behavior -- profile thresholds
         # can override the current behavior (flee/evade).
@@ -207,6 +228,88 @@ class AIController:
             self._behavior_flee()
         elif self.behavior == AIBehavior.DEFEND_AREA:
             self._behavior_defend_area()
+        elif self.behavior == AIBehavior.SURRENDERED:
+            self._behavior_surrendered(dt)
+
+    # ── Surrender mechanics ──────────────────────────────────────────
+
+    def _check_surrender(self) -> bool:
+        """Check if NPC should surrender.
+
+        Surrender triggers when hull is below flee_threshold AND the
+        ship has suffered a mobility kill (propulsion or RCS destroyed).
+        A ship that cannot flee has no choice but to yield.
+
+        Returns:
+            True if the ship is surrendered (already or just now).
+        """
+        if self.behavior == AIBehavior.SURRENDERED:
+            return True  # Already surrendered
+
+        hull_pct = self._get_hull_fraction()
+        if hull_pct > self.profile.flee_threshold:
+            return False  # Not damaged enough to consider surrender
+
+        # Mobility kill = can't flee = must surrender
+        damage_model = getattr(self.ship, "damage_model", None)
+        if damage_model and damage_model.is_mobility_kill():
+            self.behavior = AIBehavior.SURRENDERED
+            self._firing_authorized = False
+            self.current_target = None
+            logger.info(
+                "AI %s: SURRENDERING — hull %.0f%%, mobility kill",
+                self.ship.id, hull_pct * 100,
+            )
+            if hasattr(self.ship, "event_bus"):
+                self.ship.event_bus.publish("ship_surrendering", {
+                    "ship_id": self.ship.id,
+                    "hull_percent": hull_pct * 100,
+                })
+            return True
+
+        return False
+
+    def _behavior_surrendered(self, dt: float) -> None:
+        """Surrendered: hold position, weapons safe, accept docking.
+
+        The ship kills thrust and clears all targeting.  It remains
+        in this state until a ship_captured event changes its faction.
+
+        Args:
+            dt: Time delta (unused, kept for signature consistency).
+        """
+        # Weapons safe -- don't fire, clear targeting
+        self._firing_authorized = False
+        self.current_target = None
+
+        # Kill thrust -- stop maneuvering
+        propulsion = self.ship.systems.get("propulsion")
+        if propulsion and hasattr(propulsion, "command"):
+            propulsion.command("set_thrust", {"thrust": 0.0})
+
+        # Hold position (if autopilot is available)
+        self._ensure_autopilot("hold")
+
+    def _on_ship_captured(self, event_data: dict) -> None:
+        """Handle ship capture -- update faction.
+
+        Called via event_bus when the boarding system completes a
+        capture action.  Updates the ship's faction and locks the
+        AI into SURRENDERED so it doesn't re-engage its new allies.
+
+        Args:
+            event_data: Must contain ship_id; optionally new_faction.
+        """
+        if event_data.get("ship_id") != self.ship.id:
+            return  # Not for us
+        new_faction = event_data.get("new_faction")
+        if new_faction:
+            self.ship.faction = new_faction
+            logger.info(
+                "AI %s: Captured — faction changed to %s",
+                self.ship.id, new_faction,
+            )
+        self.behavior = AIBehavior.SURRENDERED
 
     # ── Damage & fuel reactions ──────────────────────────────────────
 
@@ -842,6 +945,10 @@ class AIController:
             contact_id: Stable contact ID.
             contact: ContactData instance.
         """
+        # Surrendered ships never fire -- weapons safe
+        if not self._firing_authorized:
+            return
+
         # Freighter-class ships never fire (threshold 1.0 is unreachable)
         if self.profile.weapon_confidence_threshold >= 1.0:
             return
@@ -1446,4 +1553,6 @@ class AIController:
                 "jink_count": self._evasion_state.jink_count,
                 "salvo_coordinated": self._salvo_coordinator is not None,
             },
+            "surrendered": self.behavior == AIBehavior.SURRENDERED,
+            "firing_authorized": self._firing_authorized,
         }
