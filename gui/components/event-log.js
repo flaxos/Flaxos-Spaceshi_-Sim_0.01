@@ -29,6 +29,14 @@ class EventLog extends HTMLElement {
 
   connectedCallback() {
     this.render();
+
+    // Passive instances skip event binding to avoid redundant processing
+    // when the same component appears in multiple views.
+    // The primary (non-passive) instance in Ops view does the real work.
+    if (this.hasAttribute("passive")) {
+      return;
+    }
+
     this._bindEvents();
   }
 

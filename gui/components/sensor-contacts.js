@@ -31,6 +31,14 @@ class SensorContacts extends HTMLElement {
 
   connectedCallback() {
     this.render();
+
+    // Passive instances skip subscriptions and timers to avoid redundant
+    // processing when the same component appears in multiple views.
+    // The primary (non-passive) instance in Tactical view does the real work.
+    if (this.hasAttribute("passive")) {
+      return;
+    }
+
     this._subscribe();
     // Listen for tier changes
     this._tierHandler = () => {
