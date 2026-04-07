@@ -222,8 +222,13 @@ body.tier-manual .tac-map-panel {
   grid-column: span 6;
 }
 
+/* Weapon aiming reticle — MANUAL-only, sits beside fire control */
+body.tier-manual .tac-aiming-panel {
+  grid-column: span 4;
+}
+
 body.tier-manual .tac-fire-ctrl-panel {
-  grid-column: span 6;
+  grid-column: span 8;
 }
 
 body.tier-manual .tac-targeting-panel {
@@ -408,7 +413,8 @@ body.tier-raw .tac-ecm-game-panel,
 body.tier-raw .tac-sweep-game-panel,
 body.tier-raw .tac-pdc-threat-panel,
 body.tier-raw .tac-munition-config-panel,
-body.tier-raw .tac-munition-program-panel {
+body.tier-raw .tac-munition-program-panel,
+body.tier-raw .tac-aiming-panel {
   display: none;
 }
 
@@ -433,7 +439,8 @@ body.tier-raw .tac-sensor-analysis-panel {
 /* Hidden panels */
 body.tier-arcade .tac-ecm-panel,
 body.tier-arcade .tac-sensor-analysis-panel,
-body.tier-arcade .tac-munition-program-panel {
+body.tier-arcade .tac-munition-program-panel,
+body.tier-arcade .tac-aiming-panel {
   display: none;
 }
 
@@ -496,7 +503,8 @@ body.tier-cpu-assist .tac-sweep-game-panel,
 body.tier-cpu-assist .tac-pdc-threat-panel,
 body.tier-cpu-assist .tac-sensor-analysis-panel,
 body.tier-cpu-assist .tac-munition-config-panel,
-body.tier-cpu-assist .tac-munition-program-panel {
+body.tier-cpu-assist .tac-munition-program-panel,
+body.tier-cpu-assist .tac-aiming-panel {
   display: none;
 }
 
