@@ -11,16 +11,59 @@ class StatusBar extends HTMLElement {
     super();
     this.attachShadow({ mode: "open" });
     this._unsubscribe = null;
+    this._gamepadConnected = false;
+    this._gamepadName = "";
+    this._onGamepadConnect = null;
+    this._onGamepadDisconnect = null;
   }
 
   connectedCallback() {
     this.render();
     this._subscribe();
+    this._listenGamepad();
   }
 
   disconnectedCallback() {
     if (this._unsubscribe) {
       this._unsubscribe();
+      this._unsubscribe = null;
+    }
+    if (this._onGamepadConnect) {
+      document.removeEventListener("gamepad-connected", this._onGamepadConnect);
+      this._onGamepadConnect = null;
+    }
+    if (this._onGamepadDisconnect) {
+      document.removeEventListener("gamepad-disconnected", this._onGamepadDisconnect);
+      this._onGamepadDisconnect = null;
+    }
+  }
+
+  /** Listen for gamepad connect/disconnect events from GamepadInput. */
+  _listenGamepad() {
+    this._onGamepadConnect = (e) => {
+      this._gamepadConnected = true;
+      this._gamepadName = e.detail?.name || "Controller";
+      this._updateGamepadIndicator();
+    };
+    this._onGamepadDisconnect = () => {
+      this._gamepadConnected = false;
+      this._gamepadName = "";
+      this._updateGamepadIndicator();
+    };
+    document.addEventListener("gamepad-connected", this._onGamepadConnect);
+    document.addEventListener("gamepad-disconnected", this._onGamepadDisconnect);
+  }
+
+  /** Update just the gamepad indicator without re-rendering the entire bar. */
+  _updateGamepadIndicator() {
+    const el = this.shadowRoot.getElementById("gamepad-indicator");
+    if (!el) return;
+    if (this._gamepadConnected) {
+      el.classList.remove("hidden");
+      el.title = this._gamepadName;
+    } else {
+      el.classList.add("hidden");
+      el.title = "";
     }
   }
 
@@ -209,6 +252,53 @@ class StatusBar extends HTMLElement {
         @media (prefers-reduced-motion: reduce) {
           .proposal-badge { animation: none; }
         }
+
+        /* Gamepad indicator — small icon that appears when a controller is connected */
+        .gamepad-indicator {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+          font-size: 0.65rem;
+          font-weight: 600;
+          color: var(--status-nominal, #00ff88);
+          letter-spacing: 0.03em;
+          cursor: help;
+        }
+
+        .gamepad-indicator.hidden {
+          display: none;
+        }
+
+        .gamepad-icon {
+          width: 14px;
+          height: 10px;
+          border: 1.5px solid currentColor;
+          border-radius: 3px;
+          position: relative;
+          display: inline-block;
+        }
+
+        /* Two small dots inside the icon to suggest joysticks */
+        .gamepad-icon::before,
+        .gamepad-icon::after {
+          content: "";
+          position: absolute;
+          width: 3px;
+          height: 3px;
+          border-radius: 50%;
+          background: currentColor;
+          top: 50%;
+          transform: translateY(-50%);
+        }
+
+        .gamepad-icon::before {
+          left: 2px;
+        }
+
+        .gamepad-icon::after {
+          right: 2px;
+        }
       </style>
 
       <div class="status-bar" id="bar">
@@ -298,6 +388,7 @@ class StatusBar extends HTMLElement {
       ${this._getCommsHtml(ship)}
       ${this._getFleetHtml(ship)}
       ${this._getProposalBadgeHtml(ship)}
+      ${this._getGamepadHtml()}
     `;
   }
 
@@ -571,6 +662,20 @@ class StatusBar extends HTMLElement {
         <span class="proposal-badge">
           <span class="badge-dot"></span>
           <span class="badge-num">${total}</span> PENDING
+        </span>
+      </div>
+    `;
+  }
+
+  _getGamepadHtml() {
+    const hiddenClass = this._gamepadConnected ? "" : " hidden";
+    return `
+      <div class="separator"></div>
+      <div class="status-group">
+        <span class="gamepad-indicator${hiddenClass}" id="gamepad-indicator"
+              title="${this._gamepadName || ""}">
+          <span class="gamepad-icon"></span>
+          GP
         </span>
       </div>
     `;
