@@ -11,6 +11,7 @@ from hybrid.core.event_bus import EventBus
 from hybrid.systems.combat.projectile_manager import ProjectileManager
 from hybrid.systems.combat.torpedo_manager import TorpedoManager
 from hybrid.environment.environment_manager import EnvironmentManager
+from hybrid.spatial_index import SpatialGrid
 
 logger = logging.getLogger(__name__)
 
@@ -86,6 +87,10 @@ class Simulator:
         self.event_log = EventLogBuffer(maxlen=1000)
         self._event_bus = EventBus.get_instance()
         self._event_bus.subscribe_all(self._record_event)
+
+        # Spatial index: grid-based partitioning for O(n*k) sensor queries
+        # instead of O(n^2). 100km cells match typical passive sensor ranges.
+        self._spatial_grid = SpatialGrid(cell_size=100_000.0)
 
         # Combat feedback log (causal chain narratives)
         from hybrid.systems.combat.combat_log import get_combat_log
@@ -235,9 +240,16 @@ class Simulator:
         # Update all ships
         all_ships = list(self.ships.values())
 
+        # Rebuild spatial index: O(n) insert so sensor queries become O(n*k)
+        # instead of O(n^2). Cleared each tick because ships move.
+        self._spatial_grid.clear()
+        for ship in all_ships:
+            self._spatial_grid.insert(ship, ship.position)
+
         for ship in all_ships:
             try:
                 ship._all_ships_ref = all_ships
+                ship._spatial_grid = self._spatial_grid
                 ship._environment_manager_ref = self.environment_manager
                 ship._simulator_ref = self
                 # Inject projectile_manager and torpedo_manager into combat system
