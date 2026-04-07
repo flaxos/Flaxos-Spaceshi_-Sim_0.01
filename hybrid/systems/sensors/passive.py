@@ -108,10 +108,21 @@ class PassiveSensor:
         initial_scan = self.last_update_tick < 0
         self.last_update_tick = current_tick
 
-        # Scan for contacts
+        # Scan for contacts.
+        # Use spatial grid if available for O(n*k) instead of O(n^2).
+        # The grid returns candidates in nearby cells; exact distance
+        # checks still happen below, so correctness is unchanged.
+        spatial_grid = getattr(observer_ship, '_spatial_grid', None)
+        if spatial_grid is not None:
+            candidates = spatial_grid.query_radius(
+                observer_ship.position, self.range
+            )
+        else:
+            candidates = all_ships
+
         detected = {}
 
-        for target_ship in all_ships:
+        for target_ship in candidates:
             # Don't detect self
             if target_ship.id == observer_ship.id:
                 continue
