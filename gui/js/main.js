@@ -143,6 +143,8 @@ import "../components/ship-editor.js";
 import "../components/rcs-thruster-display.js";
 // Keyboard flight controls (MANUAL tier)
 import * as keyboardFlight from "./keyboard-flight.js";
+// Gamepad/controller input (works across all tiers)
+import { gamepadInput } from "./gamepad-input.js";
 // Phase 6: Mobile optimization
 import { mobileManager } from "./mobile-manager.js";
 import "../components/touch-throttle.js";
@@ -219,6 +221,9 @@ async function init() {
 
   // Initialize keyboard flight controls (activates in MANUAL tier)
   keyboardFlight.init();
+
+  // Initialize gamepad/controller input (always active when controller connected)
+  gamepadInput.start();
 
   // Debug mode logging
   if (app.config.debugMode) {
@@ -749,6 +754,7 @@ window.flaxosApp = {
   stateManager,
   helmRequests,
   mobileManager,
+  gamepadInput,
   sendCommand,
   showSystemMessage,
   setGameState,
