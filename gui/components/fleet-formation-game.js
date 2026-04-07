@@ -14,6 +14,7 @@
 
 import { wsClient } from "../js/ws-client.js";
 import { stateManager } from "../js/state-manager.js";
+import { getDegradation } from "../js/minigame-difficulty.js";
 
 // Formation templates (positions as fractions of grid, relative to center)
 // Each position is [x, y] where 0,0 is center
@@ -485,6 +486,10 @@ class FleetFormationGame extends HTMLElement {
       const pos = this._shipPositions[shipIdx];
       this._draggingShipIndex = null;
 
+      // Comms damage adds a snap delay before placement registers
+      const dmg = getDegradation("comms");
+      const snapDelay = dmg * 200; // 0-200ms
+
       // Check if near any unoccupied slot
       let snapped = false;
       for (let i = 0; i < this._slots.length; i++) {
@@ -493,12 +498,19 @@ class FleetFormationGame extends HTMLElement {
         const dx = pos.x - slot.x;
         const dy = pos.y - slot.y;
         if (dx * dx + dy * dy < SNAP_DISTANCE * SNAP_DISTANCE) {
-          // Snap into slot
-          this._shipPositions[shipIdx] = { x: slot.x, y: slot.y };
-          slot.occupied = true;
-          slot.shipIndex = shipIdx;
-          this._fleetShips[shipIdx].placed = true;
-          this._fleetShips[shipIdx].slotIndex = i;
+          const commitSnap = () => {
+            this._shipPositions[shipIdx] = { x: slot.x, y: slot.y };
+            slot.occupied = true;
+            slot.shipIndex = shipIdx;
+            this._fleetShips[shipIdx].placed = true;
+            this._fleetShips[shipIdx].slotIndex = i;
+            this._checkComplete();
+          };
+          if (snapDelay > 0) {
+            setTimeout(commitSnap, snapDelay);
+          } else {
+            commitSnap();
+          }
           snapped = true;
           break;
         }

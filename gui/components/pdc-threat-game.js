@@ -15,6 +15,7 @@
 
 import { wsClient } from "../js/ws-client.js";
 import { stateManager } from "../js/state-manager.js";
+import { getDegradation } from "../js/minigame-difficulty.js";
 
 // Visual constants
 const SHIP_RADIUS = 8;            // Center ship pip size
@@ -162,6 +163,10 @@ class PdcThreatGame extends HTMLElement {
     const cy = this._canvasHeight / 2;
     const maxR = Math.min(cx, cy) - 12;
 
+    // Weapon damage shrinks the click target area
+    const dmg = getDegradation("weapons");
+    const effectiveHitRadius = HIT_RADIUS * (1 - dmg * 0.7);
+
     // Find closest threat to click point
     let closest = null;
     let closestDist = Infinity;
@@ -174,7 +179,7 @@ class PdcThreatGame extends HTMLElement {
       const tx = cx + r * Math.cos(angle);
       const ty = cy + r * Math.sin(angle);
       const d = Math.hypot(x - tx, y - ty);
-      if (d < HIT_RADIUS && d < closestDist) {
+      if (d < effectiveHitRadius && d < closestDist) {
         closest = threat;
         closestDist = d;
       }

@@ -22,6 +22,7 @@
 
 import { stateManager } from "../js/state-manager.js";
 import { wsClient } from "../js/ws-client.js";
+import { getDegradation } from "../js/minigame-difficulty.js";
 
 // Canvas dimensions
 const CANVAS_W = 400;
@@ -290,6 +291,15 @@ class SpectralAnalysisGame extends HTMLElement {
     const dt = Math.min((timestamp - this._lastFrameTime) / 1000, 0.1);
     this._lastFrameTime = timestamp;
     this._pulsePhase += dt * 2.0;
+
+    // Sensor damage causes target waveform drift
+    const dmg = getDegradation("sensors");
+    if (dmg > 0 && this._targetWave) {
+      this._targetDrift = (this._targetDrift || 0) + (Math.random() - 0.5) * dmg * 0.02;
+      for (let i = 0; i < this._targetWave.length; i++) {
+        this._targetWave[i] += this._targetDrift * 0.01;
+      }
+    }
 
     // Build player waveform from current slider values
     const playerWave = this._buildPlayerWave();

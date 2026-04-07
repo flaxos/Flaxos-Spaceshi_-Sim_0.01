@@ -11,6 +11,7 @@
 
 import { stateManager } from "../js/state-manager.js";
 import { wsClient } from "../js/ws-client.js";
+import { getDegradation } from "../js/minigame-difficulty.js";
 
 const SWEET_SPOT_MIN = 0.75;
 const SWEET_SPOT_MAX = 0.90;
@@ -432,11 +433,16 @@ class WeaponsChargeGame extends HTMLElement {
     marker.style.left = `${widthPct}%`;
     pct.textContent = `${Math.round(chargeProgress * 100)}%`;
 
+    // Subsystem damage narrows the sweet spot
+    const dmg = getDegradation("weapons");
+    const sweetMin = SWEET_SPOT_MIN + dmg * 0.1;
+    const sweetMax = SWEET_SPOT_MAX - dmg * 0.05;
+
     // Determine color zone
     let zone = "low";
-    if (chargeProgress >= SWEET_SPOT_MAX) {
+    if (chargeProgress >= sweetMax) {
       zone = "overheat";
-    } else if (chargeProgress >= SWEET_SPOT_MIN) {
+    } else if (chargeProgress >= sweetMin) {
       zone = "sweet";
     } else if (chargeProgress >= GOOD_ZONE_MIN) {
       zone = "good";
@@ -482,10 +488,15 @@ class WeaponsChargeGame extends HTMLElement {
   _onFire() {
     const progress = this._chargeProgress;
 
+    // Subsystem damage narrows the sweet spot for feedback too
+    const dmg = getDegradation("weapons");
+    const sweetMin = SWEET_SPOT_MIN + dmg * 0.1;
+    const sweetMax = SWEET_SPOT_MAX - dmg * 0.05;
+
     // Determine feedback based on charge timing
-    if (progress >= SWEET_SPOT_MIN && progress <= SWEET_SPOT_MAX) {
+    if (progress >= sweetMin && progress <= sweetMax) {
       this._showFeedback("PERFECT");
-    } else if (progress >= GOOD_ZONE_MIN && progress < SWEET_SPOT_MIN) {
+    } else if (progress >= GOOD_ZONE_MIN && progress < sweetMin) {
       this._showFeedback("GOOD");
     } else if (progress < GOOD_ZONE_MIN) {
       this._showFeedback("WEAK");

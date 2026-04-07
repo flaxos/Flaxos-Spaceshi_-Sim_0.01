@@ -18,6 +18,7 @@
 
 import { wsClient } from "../js/ws-client.js";
 import { stateManager } from "../js/state-manager.js";
+import { getDegradation } from "../js/minigame-difficulty.js";
 
 // Timing constants
 const PING_FADE_MS = 8000;         // How long a contact ping stays bright (ms)
@@ -241,7 +242,11 @@ class SensorSweepGame extends HTMLElement {
       const focusing = this._focusSector && (now - this._focusSector.startTime) < FOCUS_DURATION_MS;
 
       if (!focusing) {
-        this._sweepAngle += this._sweepSpeed * this._sweepDirection * dt;
+        // Sensor damage slows the sweep
+        const dmg = getDegradation("sensors");
+        const effectiveSweepSpeed = this._sweepSpeed * (1 - dmg * 0.5);
+
+        this._sweepAngle += effectiveSweepSpeed * this._sweepDirection * dt;
         this._sweepAngle = this._sweepAngle % (Math.PI * 2);
         if (this._sweepAngle < 0) this._sweepAngle += Math.PI * 2;
 
@@ -287,8 +292,30 @@ class SensorSweepGame extends HTMLElement {
       }
     }
 
-    // Prune contacts that no longer exist on server
-    for (const [id] of this._contactPings) {
+    // Sensor damage creates transient false blips
+    const sweepDmg = getDegradation("sensors");
+    if (sweepDmg > 0 && Math.random() < sweepDmg * 0.2) {
+      const ghostId = `ghost_${Math.floor(now)}`;
+      this._contactPings.set(ghostId, {
+        bearing: Math.random() * 360,
+        range: Math.random() * 50000,
+        name: "?",
+        classification: "unknown",
+        confidence: 0,
+        lastPingTime: now,
+        peakBrightness: 0.4,
+      });
+    }
+
+    // Prune contacts that no longer exist on server (skip ghost blips, they fade naturally)
+    for (const [id, ping] of this._contactPings) {
+      if (id.startsWith("ghost_")) {
+        // Ghost blips auto-expire after PING_FADE_MS
+        if (now - ping.lastPingTime > PING_FADE_MS) {
+          this._contactPings.delete(id);
+        }
+        continue;
+      }
       const stillExists = this._serverContacts.some(
         (c) => (c.id || c.contact_id || `${c.bearing}-${c.range}`) === id
       );
