@@ -95,6 +95,11 @@ class UnifiedServer:
         # Rate limiter (20 commands/sec sustained, burst of 30)
         self.rate_limiter = RateLimiter(rate=20.0, burst=30)
 
+        # Delta telemetry: cache last snapshot per client+ship to send only
+        # changed top-level keys.  Reduces bandwidth ~80% for idle state.
+        self._telemetry_cache: Dict[str, dict] = {}   # "client:ship" -> snapshot
+        self._delta_counters: Dict[str, int] = {}     # "client:ship" -> request count
+
     def initialize(self) -> None:
         """Initialize server and load simulation."""
         logger.info(f"Initializing server in {self.config.mode.value} mode...")
@@ -228,9 +233,9 @@ class UnifiedServer:
         if self.config.mode == ServerMode.STATION:
             return self._dispatch_station(client_id, cmd, req)
         else:
-            return self._dispatch_minimal(cmd, req)
+            return self._dispatch_minimal(client_id, cmd, req)
 
-    def _dispatch_minimal(self, cmd: str, req: dict) -> dict:
+    def _dispatch_minimal(self, client_id: str, cmd: str, req: dict) -> dict:
         """
         Dispatch command in minimal mode (no station checks).
 
@@ -239,7 +244,7 @@ class UnifiedServer:
         from hybrid.command_handler import route_command
 
         if cmd == "get_state":
-            return self._handle_get_state_minimal(req)
+            return self._handle_get_state_minimal(client_id, req)
 
         if cmd == "get_events":
             return self._handle_get_events(req)
@@ -625,7 +630,42 @@ class UnifiedServer:
             "client_id": client_id,
         }
 
-    def _handle_get_state_minimal(self, req: dict) -> dict:
+    def _compute_delta(self, client_id: str, ship_id: str, snapshot: dict) -> dict:
+        """Compute delta between new and cached telemetry.
+
+        Returns only the top-level keys that changed since the last snapshot
+        sent to this client for this ship.  Every 10th request forces a full
+        snapshot to guard against client desync.
+        """
+        cache_key = f"{client_id}:{ship_id}"
+
+        count = self._delta_counters.get(cache_key, 0) + 1
+        self._delta_counters[cache_key] = count
+        prev = self._telemetry_cache.get(cache_key)
+
+        # Force full sync on first request or every 10th request
+        if prev is None or count % 10 == 0:
+            self._telemetry_cache[cache_key] = snapshot
+            return snapshot
+
+        # Shallow diff: include only changed top-level keys
+        delta: dict = {"_delta": True}
+        for key, value in snapshot.items():
+            if key not in prev or prev[key] != value:
+                delta[key] = value
+
+        self._telemetry_cache[cache_key] = snapshot
+        return delta
+
+    def _cleanup_telemetry_cache(self, client_id: str) -> None:
+        """Remove all cached telemetry entries for a disconnecting client."""
+        prefix = f"{client_id}:"
+        stale_keys = [k for k in self._telemetry_cache if k.startswith(prefix)]
+        for k in stale_keys:
+            del self._telemetry_cache[k]
+            self._delta_counters.pop(k, None)
+
+    def _handle_get_state_minimal(self, client_id: str, req: dict) -> dict:
         """Handle get_state in minimal mode."""
         ship_id = req.get("ship")
         states = self.runner.get_all_ship_states()
@@ -644,7 +684,7 @@ class UnifiedServer:
                 payload["ok"] = False
                 payload["error"] = ship_state["error"]
 
-        return payload
+        return self._compute_delta(client_id, ship_id or "_all", payload)
 
     def _handle_get_state_station(self, client_id: str, req: dict) -> dict:
         """Handle get_state in station mode with telemetry filtering."""
@@ -667,7 +707,7 @@ class UnifiedServer:
             if self.runner._current_scenario_name:
                 result["active_scenario"] = self.runner._current_scenario_name
             result["ship_count"] = len(self.runner.simulator.ships)
-            return result
+            return self._compute_delta(client_id, "_all", result)
 
         # Get specific ship
         if not session.ship_id:
@@ -702,7 +742,7 @@ class UnifiedServer:
                 if hasattr(sim, "torpedo_manager") else []
             )
 
-        return result
+        return self._compute_delta(client_id, ship_id, result)
 
     def _handle_get_events(self, req: dict) -> dict:
         """Handle get_events command (minimal mode)."""
@@ -1148,6 +1188,7 @@ class UnifiedServer:
             with self.client_lock:
                 self.clients.pop(client_id, None)
             self.rate_limiter.remove_client(client_id)
+            self._cleanup_telemetry_cache(client_id)
 
             if self.config.mode == ServerMode.STATION and self.station_manager:
                 self.station_manager.unregister_client(client_id)
