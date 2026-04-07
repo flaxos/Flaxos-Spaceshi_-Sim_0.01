@@ -233,7 +233,7 @@ class RCSSystem(BaseSystem):
         from hybrid.systems.crew_binding_system import CrewBindingSystem
         from server.stations.station_types import StationType
         self.total_torque *= CrewBindingSystem.get_multiplier(
-            ship.id, StationType.HELM
+            ship.id, StationType.HELM, ship=ship
         )
 
         # Apply torque to ship angular velocity

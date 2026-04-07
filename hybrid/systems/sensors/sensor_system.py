@@ -101,7 +101,7 @@ class SensorSystem(BaseSystem):
         # unmanned stations run at reduced AI-backup capability.
         from hybrid.systems.crew_binding_system import CrewBindingSystem
         from server.stations.station_types import StationType
-        crew_factor = CrewBindingSystem.get_multiplier(ship.id, StationType.SCIENCE)
+        crew_factor = CrewBindingSystem.get_multiplier(ship.id, StationType.SCIENCE, ship=ship)
         effective_factor = damage_factor * crew_factor
 
         self.passive.set_range_multiplier(effective_factor)
