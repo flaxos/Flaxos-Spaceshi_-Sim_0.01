@@ -227,6 +227,12 @@ mission:
   briefing: |
     MISSION BRIEFING: RING GATE APPROACH
 
+    VESSEL ASSIGNMENT: The science vessel UNSV Kepler has been
+    assigned for the Ring Gate survey. No weapons, minimal fuel --
+    this is pure navigation. Combat ships are too conspicuous near
+    the Ring, and the Kepler's sensor suite is purpose-built for
+    anomalous signal characterization. Every burn counts.
+
     The UNSV Kepler has been tasked with surveying a chain of anomalous
     signal beacons detected along the approach vector to the Ring Gate.
     Each beacon must be scanned at close range to characterize the
