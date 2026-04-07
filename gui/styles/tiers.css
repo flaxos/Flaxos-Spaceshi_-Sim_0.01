@@ -181,6 +181,11 @@ body.tier-manual .helm-balance-game-panel {
   display: none;
 }
 
+/* MANUAL: Flight Data — wider for raw vector readouts */
+body.tier-manual .view-grid .helm-flight-data-panel {
+  grid-column: span 4;
+}
+
 body.tier-manual .helm-manual-flight-panel {
   grid-column: span 8;
 }
@@ -270,6 +275,31 @@ body.tier-manual .ops-log-panel {
   display: none;
 }
 
+/* MANUAL: Profiles hidden — has manual sliders, not presets */
+body.tier-manual .view-grid .ops-profiles-panel {
+  display: none;
+}
+
+/* MANUAL: Boarding hidden — too high-level for stick-and-rudder */
+body.tier-manual .view-grid .ops-boarding-panel {
+  display: none;
+}
+
+/* MANUAL: Crew binding hidden — no crew micro in stick-and-rudder mode */
+body.tier-manual .view-grid .ops-crew-binding-panel {
+  display: none;
+}
+
+/* MANUAL: Crew roster hidden — no crew management */
+body.tier-manual .view-grid .ops-crew-roster-panel {
+  display: none;
+}
+
+/* MANUAL: Drones hidden — too automated for manual tier */
+body.tier-manual .view-grid .ops-drone-panel {
+  display: none;
+}
+
 /* =========================================================================
    3E. ENGINEERING PANEL VISIBILITY — MANUAL TIER
    "Stick and rudder" (~2 panels)
@@ -311,6 +341,11 @@ body.tier-raw .helm-balance-game-panel {
   display: none;
 }
 
+/* RAW: Flight Data — extra wide for full vector/delta-v readouts */
+body.tier-raw .view-grid .helm-flight-data-panel {
+  grid-column: span 6;
+}
+
 /* RAW: Flight Computer is a tool you understand, not a crutch.
  * Fully accessible but visually distinguished as computer-assisted. */
 body.tier-raw .helm-fc-panel {
@@ -341,6 +376,11 @@ body.tier-arcade .helm-maneuver-panel,
 body.tier-arcade .helm-queue-panel,
 body.tier-arcade .helm-rcs-thruster-panel {
   display: none;
+}
+
+/* ARCADE: Flight Data — standard width beside flight computer */
+body.tier-arcade .view-grid .helm-flight-data-panel {
+  grid-column: span 4;
 }
 
 /* Disabled: RCS — visible but inert */
@@ -376,6 +416,16 @@ body.tier-cpu-assist .helm-rcs-panel,
 body.tier-cpu-assist .helm-maneuver-panel,
 body.tier-cpu-assist .helm-rcs-thruster-panel,
 body.tier-cpu-assist .helm-balance-game-panel {
+  display: none;
+}
+
+/* CPU-ASSIST: Contacts widens — captain's situational awareness */
+body.tier-cpu-assist .view-grid .helm-contacts-panel {
+  grid-column: span 3;
+}
+
+/* CPU-ASSIST: Flight Data hidden — autopilot handles flight */
+body.tier-cpu-assist .view-grid .helm-flight-data-panel {
   display: none;
 }
 
@@ -531,6 +581,10 @@ body.tier-raw .ops-subsystem-panel {
   grid-column: span 8;
 }
 
+/* RAW: Crew binding visible — RAW is the only tier with crew station assignment */
+/* RAW: Crew roster visible — full crew management is a RAW-tier concern */
+/* (No display:none needed — RAW shows all ops panels by default) */
+
 
 /* =========================================================================
    12. OPS PANEL VISIBILITY — ARCADE TIER
@@ -544,6 +598,21 @@ body.tier-raw .ops-subsystem-panel {
 /* Hidden panels */
 body.tier-arcade .ops-crew-panel {
   display: none;
+}
+
+/* ARCADE: Crew binding hidden — no crew station assignment */
+body.tier-arcade .view-grid .ops-crew-binding-panel {
+  display: none;
+}
+
+/* ARCADE: Crew roster hidden — no crew management */
+body.tier-arcade .view-grid .ops-crew-roster-panel {
+  display: none;
+}
+
+/* ARCADE: Drones — standard width for drone control */
+body.tier-arcade .view-grid .ops-drone-panel {
+  grid-column: span 4;
 }
 
 /* Hero: Subsystem Status */
@@ -572,6 +641,31 @@ body.tier-cpu-assist .ops-power-panel {
 /* Hero: Subsystem Status — summary view dominates */
 body.tier-cpu-assist .ops-subsystem-panel {
   grid-column: span 8;
+}
+
+/* CPU-ASSIST: Profiles hidden — auto-ops manages power allocation */
+body.tier-cpu-assist .view-grid .ops-profiles-panel {
+  display: none;
+}
+
+/* CPU-ASSIST: Boarding wider — captain approves boarding ops */
+body.tier-cpu-assist .view-grid .ops-boarding-panel {
+  grid-column: span 4;
+}
+
+/* CPU-ASSIST: Crew binding hidden — auto-crew handles station assignment */
+body.tier-cpu-assist .view-grid .ops-crew-binding-panel {
+  display: none;
+}
+
+/* CPU-ASSIST: Crew roster hidden — auto-crew handles management */
+body.tier-cpu-assist .view-grid .ops-crew-roster-panel {
+  display: none;
+}
+
+/* CPU-ASSIST: Drones — auto-managed with captain oversight */
+body.tier-cpu-assist .view-grid .ops-drone-panel {
+  grid-column: span 4;
 }
 
 
@@ -1084,7 +1178,37 @@ body.tier-arcade .fleet-formation-game-panel {
 
 
 /* =========================================================================
-   30. REDUCED MOTION
+   30. MISSION PANEL VISIBILITY
+   Scenario, Command, Chat, and Log panels across tiers.
+   ========================================================================= */
+
+/* RAW: Scenario panel full width — raw mission data exposed */
+body.tier-raw .view-grid .mis-scenario-panel {
+  grid-column: span 12;
+}
+
+/* Command panel: full width in all tiers — mission commands always prominent */
+body.tier-manual .view-grid .mis-command-panel { grid-column: span 12; }
+body.tier-raw .view-grid .mis-command-panel { grid-column: span 12; }
+body.tier-arcade .view-grid .mis-command-panel { grid-column: span 12; }
+body.tier-cpu-assist .view-grid .mis-command-panel { grid-column: span 12; }
+
+/* Chat panel: hidden in ARCADE/CPU-ASSIST — too low-level for those tiers */
+body.tier-arcade .view-grid .mis-chat-panel {
+  display: none;
+}
+body.tier-cpu-assist .view-grid .mis-chat-panel {
+  display: none;
+}
+
+/* RAW: Log panel wider — full audit trail */
+body.tier-raw .view-grid .mis-log-panel {
+  grid-column: span 6;
+}
+
+
+/* =========================================================================
+   31. REDUCED MOTION
    ========================================================================= */
 
 @media (prefers-reduced-motion: reduce) {
