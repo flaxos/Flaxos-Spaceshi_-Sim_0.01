@@ -25,7 +25,7 @@ class WeaponsStatus extends HTMLElement {
   }
 
   _subscribe() {
-    this._unsubscribe = stateManager.subscribe("*", () => {
+    this._unsubscribe = stateManager.subscribe("weapons", () => {
       this._updateDisplay();
     });
   }

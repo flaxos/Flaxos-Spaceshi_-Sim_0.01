@@ -44,7 +44,7 @@ class FiringSolutionDisplay extends HTMLElement {
   }
 
   _subscribe() {
-    this._unsubscribe = stateManager.subscribe("*", () => {
+    this._unsubscribe = stateManager.subscribe("targeting", () => {
       this._checkForFeedback();
       this._updateDisplay();
     });

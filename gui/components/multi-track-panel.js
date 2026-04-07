@@ -59,9 +59,13 @@ class MultiTrackPanel extends HTMLElement {
   }
 
   disconnectedCallback() {
-    if (this._unsubscribe) {
-      this._unsubscribe();
-      this._unsubscribe = null;
+    if (this._unsubTargeting) {
+      this._unsubTargeting();
+      this._unsubTargeting = null;
+    }
+    if (this._unsubWeapons) {
+      this._unsubWeapons();
+      this._unsubWeapons = null;
     }
     if (this._contactSelectedHandler) {
       document.removeEventListener("contact-selected", this._contactSelectedHandler);
@@ -74,7 +78,7 @@ class MultiTrackPanel extends HTMLElement {
   }
 
   _subscribe() {
-    this._unsubscribe = stateManager.subscribe("*", () => {
+    const throttledUpdate = () => {
       const now = performance.now();
       if (now - this._lastUpdateTime < 200) {
         if (!this._updatePending) {
@@ -89,7 +93,9 @@ class MultiTrackPanel extends HTMLElement {
       }
       this._lastUpdateTime = now;
       this._updateDisplay();
-    });
+    };
+    this._unsubTargeting = stateManager.subscribe("targeting", throttledUpdate);
+    this._unsubWeapons = stateManager.subscribe("weapons", throttledUpdate);
   }
 
   render() {
