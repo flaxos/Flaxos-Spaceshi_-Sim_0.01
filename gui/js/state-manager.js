@@ -99,7 +99,10 @@ class StateManager extends EventTarget {
   }
 
   /**
-   * Fetch current state from server
+   * Fetch current state from server.
+   * Supports delta telemetry: when the server sends `_delta: true`, only
+   * changed top-level keys are included.  We merge them into the previous
+   * full snapshot before passing to _updateState.
    */
   async _fetchState() {
     try {
@@ -127,7 +130,19 @@ class StateManager extends EventTarget {
             console.log("Auto-detected player ship ID:", this._playerShipId);
           }
         }
-        this._updateState(response);
+
+        // Delta merge: server sends only changed keys when _delta is set
+        let merged;
+        if (response._delta) {
+          const prev = this._lastFullState || {};
+          merged = { ...prev, ...response };
+          delete merged._delta;
+        } else {
+          merged = response;
+        }
+        this._lastFullState = merged;
+
+        this._updateState(merged);
       }
     } catch (error) {
       // Ignore polling errors
