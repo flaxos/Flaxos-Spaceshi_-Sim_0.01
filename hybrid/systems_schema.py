@@ -127,6 +127,20 @@ SUBSYSTEM_HEALTH_SCHEMA = {
         "overheat_threshold": 0.90,
         "overheat_penalty": 0.7,
     },
+    "targeting": {
+        # Targeting computer — fire control processor
+        # Cascaded from reactor (power), sensors (data), and RCS (aim).
+        # Without this in the schema, cascade rules for targeting are dead
+        # code and reactor destruction doesn't disable the targeting pipeline.
+        "max_health": 90.0,
+        "criticality": 4.0,
+        "failure_threshold": 0.2,
+        "max_heat": 60.0,
+        "heat_generation": 0.3,
+        "heat_dissipation": 1.5,
+        "overheat_threshold": 0.85,
+        "overheat_penalty": 0.5,
+    },
 }
 
 # v0.6.0: Default heat values for subsystems not in schema
