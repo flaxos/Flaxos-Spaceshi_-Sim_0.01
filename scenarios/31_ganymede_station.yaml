@@ -341,6 +341,16 @@ ships:
 
 # -- Fleets ---------------------------------------------------------------
 
+  # -- Observer ship (civilian press, not involved in combat) --
+  - id: "observer_press"
+    name: "Press Ship Razorback"
+    ship_class: "razorback"
+    faction: "civilian"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: -30000, y: 30000, z: 10000}
+    velocity: {x: 0, y: 0, z: 0}
+
   # -- Navigation buoys for spatial orientation --
   - id: "nav_station_ref"
     name: "Station-Ref"

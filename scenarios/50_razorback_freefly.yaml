@@ -1,0 +1,126 @@
+name: "Razorback Free Flight"
+description: "Open space sandbox in the Razorback. Fly, scan, observe -- no objectives required."
+difficulty: tutorial
+player_count: "1"
+category: sandbox
+dt: 0.1
+
+briefing: |
+  RAZORBACK FREE FLIGHT
+
+  You're in the cockpit of a Razorback -- the fastest civilian ship in the
+  system. 250 kilograms of hull wrapped around an Epstein drive that pulls
+  32G. No weapons, no armor. Just speed and sensors.
+
+  Two corvettes are engaged in a training exercise at range. Observe their
+  combat, scan contacts, practice high-G maneuvers. A station is available
+  for docking and resupply.
+
+  This is your playground. Fly.
+
+ships:
+  - id: "player"
+    name: "Razorback"
+    ship_class: "razorback"
+    faction: "civilian"
+    player_controlled: true
+    ai_enabled: false
+    position: {x: 0, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+
+  - id: "sparring_alpha"
+    name: "UNS Sparring Alpha"
+    ship_class: "corvette"
+    faction: "unsa"
+    ai_enabled: true
+    ai_behavior:
+      role: "combat"
+      aggression: 0.5
+      engagement_range: 50000
+    position: {x: 100000, y: 20000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+
+  - id: "sparring_beta"
+    name: "UNS Sparring Beta"
+    ship_class: "corvette"
+    faction: "hostile"
+    ai_enabled: true
+    ai_behavior:
+      role: "combat"
+      aggression: 0.5
+      engagement_range: 50000
+    position: {x: 120000, y: -10000, z: 5000}
+    velocity: {x: 0, y: 0, z: 0}
+
+  - id: "station"
+    name: "Tycho Station"
+    ship_class: "station"
+    faction: "civilian"
+    ai_enabled: false
+    position: {x: -50000, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+
+  - id: "nav_north"
+    name: "Nav-North"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 0, y: 200000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+
+  - id: "nav_south"
+    name: "Nav-South"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 0, y: -200000, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+
+  - id: "nav_east"
+    name: "Nav-East"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 200000, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+
+  - id: "nav_west"
+    name: "Nav-West"
+    ship_class: "beacon"
+    faction: "navigation"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: -200000, y: 0, z: 0}
+    velocity: {x: 0, y: 0, z: 0}
+
+mission:
+  name: "Free Flight"
+  description: "Open sandbox -- fly, scan, observe."
+
+  objectives:
+    - id: "scan_all"
+      type: "scan_target"
+      description: "Scan all contacts (optional)"
+      required: false
+      params:
+        target: "sparring_alpha"
+
+    - id: "visit_station"
+      type: "reach_range"
+      description: "Visit Tycho Station (optional)"
+      required: false
+      params:
+        target: "station"
+        range: 1000
+
+  success_message: |
+    Free flight complete. All optional objectives achieved.
+
+  failure_message: |
+    Ship destroyed.
+
+config:
+  player_ship_id: "player"
