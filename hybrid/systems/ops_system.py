@@ -344,7 +344,7 @@ class OpsSystem(BaseSystem):
                 from hybrid.systems.crew_binding_system import CrewBindingSystem
                 from server.stations.station_types import StationType
                 crew_repair_mult = CrewBindingSystem.get_multiplier(
-                    ship.id, StationType.OPS
+                    ship.id, StationType.OPS, ship=ship
                 )
                 raw_repair = team.repair_rate * dt * crew_repair_mult
                 actual_repair, pause_reason = (

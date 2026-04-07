@@ -334,7 +334,7 @@ class TargetingSystem(BaseSystem):
             # Skilled gunners acquire locks faster; unmanned stations lock slower.
             from hybrid.systems.crew_binding_system import CrewBindingSystem
             from server.stations.station_types import StationType
-            lock_rate *= CrewBindingSystem.get_multiplier(ship.id, StationType.TACTICAL)
+            lock_rate *= CrewBindingSystem.get_multiplier(ship.id, StationType.TACTICAL, ship=ship)
 
             self.lock_progress = min(1.0, self.lock_progress + lock_rate * dt)
 

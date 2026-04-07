@@ -50,19 +50,41 @@ class CrewBindingSystem(BaseSystem):
         cls._shared_binder = binder
 
     @classmethod
-    def get_multiplier(cls, ship_id: str, station: StationType) -> float:
+    def get_multiplier(cls, ship_id: str, station: StationType, ship=None) -> float:
         """Get crew performance multiplier for a station on a ship.
+
+        Combines two independent crew factors:
+        1. Skill-based: crew member competence at this station (from CrewStationBinder)
+        2. Fatigue-based: g-load, combat stress, blackout (from CrewFatigueSystem)
 
         Returns 1.0 (no effect) when crew binding is not initialized,
         so gameplay systems degrade gracefully without crew assignments.
+
+        Args:
+            ship_id: Ship identifier for crew slot lookup.
+            station: Which station's multiplier to retrieve.
+            ship: Optional ship object. When provided, fatigue effects
+                  from crew_fatigue system are folded into the result.
         """
         binder = cls._shared_binder
         if binder is None:
-            return 1.0
-        # Only apply multiplier if the ship has crew slots registered
-        if ship_id not in binder._slots:
-            return 1.0
-        return binder.get_station_multiplier(ship_id, station)
+            base = 1.0
+        elif ship_id not in binder._slots:
+            base = 1.0
+        else:
+            base = binder.get_station_multiplier(ship_id, station)
+
+        # Apply ship-level crew fatigue (g-load, combat stress, blackout).
+        # Without a ship reference we return skill-only -- backward compatible
+        # with callers that don't have a ship handy.
+        # Guard: ship.systems must be a real dict, not a MagicMock that
+        # auto-creates attributes (test mocks hit this path).
+        if ship is not None and isinstance(getattr(ship, 'systems', None), dict):
+            fatigue_sys = ship.systems.get("crew_fatigue")
+            if fatigue_sys is not None and hasattr(fatigue_sys, 'get_station_performance'):
+                base *= fatigue_sys.get_station_performance(station.value)
+
+        return base
 
     def tick(self, dt: float, ship: Any = None, event_bus: Any = None) -> None:
         """No per-tick work needed for crew assignments."""
