@@ -54,6 +54,15 @@ class WSClient extends EventTarget {
     "weapon_status",
     "_ping",
     "heartbeat",
+    "rcon_auth",
+    "rcon_reload",
+    "rcon_load",
+    "rcon_pause",
+    "rcon_timescale",
+    "rcon_kick",
+    "rcon_status",
+    "rcon_restart",
+    "rcon_list",
   ]);
 
   /**
@@ -464,6 +473,32 @@ class WSClient extends EventTarget {
       tcpPort: this.tcpPort,
       latency: this.latency
     };
+  }
+
+  /**
+   * Authenticate with RCON password.
+   * @param {string} password - RCON password
+   * @returns {Promise<object>} Auth result with token
+   */
+  async rconAuth(password) {
+    const resp = await this.send("rcon_auth", { password });
+    if (resp && resp.ok) {
+      this._rconToken = resp.token;
+    }
+    return resp;
+  }
+
+  /**
+   * Send an RCON command (must rconAuth first).
+   * @param {string} cmd - RCON command name (e.g. "rcon_reload")
+   * @param {object} args - Command arguments
+   * @returns {Promise<object>} Command result
+   */
+  async rcon(cmd, args = {}) {
+    if (!this._rconToken) {
+      return { ok: false, error: "Not authenticated -- call rconAuth() first" };
+    }
+    return this.send(cmd, { ...args, token: this._rconToken });
   }
 
   /**

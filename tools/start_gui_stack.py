@@ -41,9 +41,14 @@ def _ensure_websockets() -> None:
         sys.exit(1)
 
 
-def _start_process(label: str, cmd: list[str], cwd: str) -> subprocess.Popen:
+def _start_process(
+    label: str,
+    cmd: list[str],
+    cwd: str,
+    env: dict[str, str] | None = None,
+) -> subprocess.Popen:
     print(f"[start] {label}: {' '.join(cmd)}")
-    return subprocess.Popen(cmd, cwd=cwd)
+    return subprocess.Popen(cmd, cwd=cwd, env=env)
 
 
 def _terminate_processes(processes: list[subprocess.Popen]) -> None:
@@ -96,6 +101,11 @@ def main() -> int:
         "--game-code",
         default=None,
         help="Shared secret for WS authentication (omit for open access)",
+    )
+    parser.add_argument(
+        "--rcon-password",
+        default="admin",
+        help="RCON password for admin commands (default: admin)",
     )
     args = parser.parse_args()
 
@@ -151,9 +161,15 @@ def main() -> int:
         str(args.http_port),
     ]
 
+    # RCON password warning and environment setup
+    if args.rcon_password == "admin":
+        print("[warn] Using default RCON password 'admin' -- change with --rcon-password")
+    env = os.environ.copy()
+    env["FLAXOS_RCON_PASSWORD"] = args.rcon_password
+
     processes: list[subprocess.Popen] = []
     try:
-        processes.append(_start_process("TCP server", server_cmd, ROOT_DIR))
+        processes.append(_start_process("TCP server", server_cmd, ROOT_DIR, env=env))
         processes.append(_start_process("WebSocket bridge", ws_bridge_cmd, ROOT_DIR))
         processes.append(_start_process("GUI server", http_cmd, os.path.join(ROOT_DIR, "gui")))
 

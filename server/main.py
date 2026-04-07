@@ -23,6 +23,7 @@ import os
 import socket
 import sys
 import threading
+import time
 from typing import Dict, Optional, Callable
 
 # Ensure project root is on sys.path
@@ -94,6 +95,10 @@ class UnifiedServer:
 
         # Rate limiter (20 commands/sec sustained, burst of 30)
         self.rate_limiter = RateLimiter(rate=20.0, burst=30)
+
+        # RCON (Remote Console) state
+        self._rcon_tokens: Dict[str, str] = {}  # client_id -> auth token
+        self._start_time: float = time.time()
 
         # Delta telemetry: cache last snapshot per client+ship to send only
         # changed top-level keys.  Reduces bandwidth ~80% for idle state.
@@ -205,6 +210,10 @@ class UnifiedServer:
             if self.station_manager:
                 self.station_manager.update_activity(client_id)
             return {"ok": True}
+
+        # RCON commands bypass normal dispatch and rate limiting
+        if cmd.startswith("rcon_"):
+            return self._handle_rcon(client_id, cmd, req)
 
         # Rate limiting (skip meta/setup commands, only limit gameplay commands)
         if cmd not in RATE_LIMIT_EXEMPT:
@@ -629,6 +638,151 @@ class UnifiedServer:
             "message": "No previous session to resume",
             "client_id": client_id,
         }
+
+    def _handle_rcon(self, client_id: str, cmd: str, req: dict) -> dict:
+        """Handle RCON (remote console) commands.
+
+        RCON provides admin-level server control (reload, pause, kick, etc.).
+        Requires authentication via rcon_auth with the configured password.
+        All commands except rcon_auth and rcon_list require a valid token.
+
+        Args:
+            client_id: Client identifier
+            cmd: RCON command name (e.g. "rcon_auth", "rcon_status")
+            req: Request dictionary with command parameters
+
+        Returns:
+            Response dictionary
+        """
+        import uuid
+
+        # Auth command -- no token needed
+        if cmd == "rcon_auth":
+            password = req.get("password", "")
+            expected = self.config.rcon_password
+            if not expected:
+                return {"ok": False, "error": "RCON not enabled (no password configured)"}
+            if password != expected:
+                logger.warning(f"RCON auth failed from {client_id}")
+                return {"ok": False, "error": "Invalid RCON password"}
+            token = str(uuid.uuid4())
+            self._rcon_tokens[client_id] = token
+            logger.info(f"RCON authenticated: {client_id}")
+            return {"ok": True, "token": token, "message": "RCON authenticated"}
+
+        if cmd == "rcon_list":
+            return {"ok": True, "commands": [
+                "rcon_auth", "rcon_reload", "rcon_load", "rcon_pause",
+                "rcon_timescale", "rcon_kick", "rcon_status", "rcon_restart",
+                "rcon_list",
+            ]}
+
+        # All other rcon commands require valid token
+        token = req.get("token", "")
+        if not token or self._rcon_tokens.get(client_id) != token:
+            return {"ok": False, "error": "RCON not authenticated"}
+
+        if cmd == "rcon_reload":
+            scenario = (
+                self.runner._current_scenario_name
+                or self.runner._current_scenario_path
+            )
+            if not scenario:
+                return {"ok": False, "error": "No scenario loaded to reload"}
+            return self._handle_load_scenario({"scenario": scenario})
+
+        elif cmd == "rcon_load":
+            scenario = req.get("scenario")
+            if not scenario:
+                return {"ok": False, "error": "Missing 'scenario' parameter"}
+            result = self._handle_load_scenario({"scenario": scenario})
+            # Auto-assign rcon client as captain
+            if result.get("ok") and result.get("player_ship_id"):
+                from server.stations.station_types import StationType
+                if self.station_manager:
+                    self.station_manager.assign_to_ship(
+                        client_id, result["player_ship_id"],
+                    )
+                    self.station_manager.claim_station(
+                        client_id,
+                        result["player_ship_id"],
+                        StationType.CAPTAIN,
+                    )
+            return result
+
+        elif cmd == "rcon_pause":
+            on = req.get("on")
+            if on is None:
+                # Toggle: running -> paused, stopped -> started
+                on = self.runner.running
+            if bool(on):
+                self.runner.stop()
+            else:
+                self.runner.start()
+            return {"ok": True, "paused": not self.runner.running}
+
+        elif cmd == "rcon_timescale":
+            scale = float(req.get("scale", 1.0))
+            scale = max(0.1, min(10.0, scale))
+            self.runner.simulator.time_scale = scale
+            return {"ok": True, "time_scale": scale}
+
+        elif cmd == "rcon_kick":
+            target_id = req.get("client_id")
+            if not target_id:
+                return {"ok": False, "error": "Missing 'client_id'"}
+            if (
+                self.station_manager
+                and target_id in self.station_manager.sessions
+            ):
+                self.station_manager.unregister_client(target_id)
+                return {"ok": True, "kicked": target_id}
+            return {"ok": False, "error": f"Client {target_id} not found"}
+
+        elif cmd == "rcon_status":
+            sessions: Dict[str, dict] = {}
+            if self.station_manager:
+                for cid, sess in self.station_manager.sessions.items():
+                    sessions[cid] = {
+                        "ship": getattr(sess, "ship_id", None),
+                        "station": (
+                            sess.station.value
+                            if getattr(sess, "station", None)
+                            else None
+                        ),
+                        "name": getattr(sess, "player_name", None),
+                    }
+            return {
+                "ok": True,
+                "clients": sessions,
+                "client_count": len(sessions),
+                "ships": list(self.runner.simulator.ships.keys()),
+                "ship_count": len(self.runner.simulator.ships),
+                "scenario": self.runner._current_scenario_name,
+                "tick": self.runner.simulator.tick_count,
+                "sim_time": round(self.runner.simulator.time, 1),
+                "paused": not self.runner.running,
+                "time_scale": getattr(
+                    self.runner.simulator, "time_scale", 1.0,
+                ),
+                "uptime": round(time.time() - self._start_time, 0),
+            }
+
+        elif cmd == "rcon_restart":
+            # Reload the current scenario from scratch
+            scenario = (
+                self.runner._current_scenario_name
+                or self.runner._current_scenario_path
+            )
+            if scenario:
+                return self._handle_load_scenario({"scenario": scenario})
+            # No scenario loaded -- just reset the runner
+            self.runner.stop()
+            self.runner.load_ships()
+            self.runner.start()
+            return {"ok": True, "message": "Simulation reset"}
+
+        return {"ok": False, "error": f"Unknown RCON command: {cmd}"}
 
     def _compute_delta(self, client_id: str, ship_id: str, snapshot: dict) -> dict:
         """Compute delta between new and cached telemetry.
@@ -1189,6 +1343,7 @@ class UnifiedServer:
                 self.clients.pop(client_id, None)
             self.rate_limiter.remove_client(client_id)
             self._cleanup_telemetry_cache(client_id)
+            self._rcon_tokens.pop(client_id, None)
 
             if self.config.mode == ServerMode.STATION and self.station_manager:
                 self.station_manager.unregister_client(client_id)
@@ -1328,6 +1483,10 @@ Examples:
         "--campaign", default=None, metavar="SAVE.json",
         help="Load a campaign save file at startup (enables campaign mode)",
     )
+    ap.add_argument(
+        "--rcon-password", default=None,
+        help="RCON password for admin commands (env: FLAXOS_RCON_PASSWORD)",
+    )
     return ap
 
 
@@ -1341,7 +1500,12 @@ def main() -> None:
     if log_path:
         logger.info(f"Logging to file: {log_path}")
 
-    # Build config
+    # Build config (CLI --rcon-password takes precedence over env var)
+    rcon_password = (
+        args.rcon_password
+        or os.environ.get("FLAXOS_RCON_PASSWORD")
+    )
+
     config = ServerConfig(
         mode=ServerMode(args.mode),
         host=args.host,
@@ -1351,15 +1515,20 @@ def main() -> None:
         fleet_dir=args.fleet_dir,
         log_file=args.log_file,
         lan_mode=args.lan,
+        rcon_password=rcon_password,
     )
 
     # Start server
     server = UnifiedServer(config)
 
+    if config.rcon_password:
+        logger.info("RCON enabled")
+    else:
+        logger.info("RCON disabled (no password configured)")
+
     # Load campaign save if specified on the command line
     if args.campaign:
         from hybrid.campaign.campaign_state import CampaignState
-        import os
         campaign_path = args.campaign
         if not os.path.isabs(campaign_path):
             campaign_path = os.path.join(ROOT_DIR, campaign_path)
