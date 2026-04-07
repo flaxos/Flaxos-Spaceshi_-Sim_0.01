@@ -756,6 +756,33 @@ body.tier-cpu-assist .eng-log-panel {
 
 
 /* =========================================================================
+   ENGINEERING POWER ALLOCATION PANEL
+   Per-bus power allocation with live draw feedback.
+
+   MANUAL: Full-width hero (span-12) — kW sliders + per-system consumers.
+   RAW:    Full-width (span-12) — percentage + kW annotation.
+   ARCADE: Wide (span-8) — percentage sliders + auto-balance.
+   CPU-ASSIST: Hidden (auto-ops manages allocation via power-management).
+   ========================================================================= */
+
+body.tier-manual .eng-power-alloc-panel {
+  grid-column: span 12;
+}
+
+body.tier-raw .eng-power-alloc-panel {
+  grid-column: span 12;
+}
+
+body.tier-arcade .eng-power-alloc-panel {
+  grid-column: span 8;
+}
+
+body.tier-cpu-assist .eng-power-alloc-panel {
+  display: none;
+}
+
+
+/* =========================================================================
    ENGINEERING ARCADE MINI-GAMES
    Reactor Balance and Radiator Control — only visible in ARCADE tier.
    ========================================================================= */
