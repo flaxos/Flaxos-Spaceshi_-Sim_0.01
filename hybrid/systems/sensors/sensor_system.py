@@ -26,7 +26,7 @@ from hybrid.systems.sensors.sensor_probe import (
     SensorProbe, MAX_PROBES_PER_SHIP, bearing_to_unit_vector,
     _next_probe_id, PROBE_DELTA_V,
 )
-from hybrid.utils.math_utils import add_vectors, scale_vector
+from hybrid.utils.math_utils import add_vectors, scale_vector, calculate_distance
 from hybrid.utils.errors import success_dict, error_dict
 
 logger = logging.getLogger(__name__)
@@ -154,6 +154,12 @@ class SensorSystem(BaseSystem):
         # rewritten to "probe" so the operator knows the source.
         self._tick_probes(dt, self.sim_time)
 
+        # Home-on-jam: when HoJ is active, scan all ships for active
+        # jammer emissions and create bearing-only ghost contacts.
+        # This gives the player a direction to the jammer but NOT a
+        # lockable track — they must FCR paint the ghost to upgrade it.
+        self._tick_home_on_jam(ship)
+
         # Prune stale contacts periodically, preserving contacts whose
         # source ships still exist in the simulation
         if self.current_tick % 100 == 0:  # Every 100 ticks
@@ -250,6 +256,62 @@ class SensorSystem(BaseSystem):
         # This is stored as a transient attribute that the emission model
         # can pick up.  Value is in watts (matches IR signature scale).
         ship._fcr_ir_bonus = 5000.0  # ~5 kW active emission
+
+    def _tick_home_on_jam(self, ship) -> None:
+        """Scan for enemy jammer emissions and create bearing-only contacts.
+
+        When Home-on-Jam is active, each tick we check every other ship
+        for active jammer emissions. If check_home_on_jam() returns a
+        result, we create a low-confidence GHOST contact with bearing
+        data only (no velocity track). This gives the player a direction
+        to the jammer source without a weapons-grade track.
+
+        We deliberately do NOT overwrite contacts that already have
+        higher confidence from passive/active sensors — HoJ is a
+        fallback, not a replacement for real sensor data.
+
+        Args:
+            ship: The ship that owns this sensor system.
+        """
+        if not self.eccm.hoj_active or not self.all_ships:
+            return
+
+        from hybrid.systems.sensors.contact import ContactData
+
+        for target in self.all_ships:
+            if not hasattr(target, "id") or target.id == ship.id:
+                continue
+
+            distance = calculate_distance(ship.position, target.position)
+            hoj_result = self.eccm.check_home_on_jam(
+                target, ship.position, distance
+            )
+            if hoj_result is None:
+                continue
+
+            # Don't overwrite a contact that already has better data.
+            # HoJ confidence is always < 0.3 (GHOST tier), so any
+            # existing unconfirmed or confirmed track is superior.
+            existing = self.contact_tracker.get_contact(target.id)
+            if existing and existing.confidence >= hoj_result["bearing_quality"] * 0.25:
+                continue
+
+            # Build a bearing-only ghost contact. No position or velocity
+            # — just "something is jamming from THAT direction".
+            confidence = hoj_result["bearing_quality"] * 0.25
+            contact = ContactData(
+                id=target.id,
+                position=target.position,  # will be nulled by ghost masking in telemetry
+                velocity={"x": 0, "y": 0, "z": 0},
+                confidence=confidence,
+                last_update=self.sim_time,
+                detection_method="home_on_jam",
+                bearing=hoj_result["bearing"],
+                distance=distance,
+                signature=hoj_result.get("signal_strength", 0.0),
+            )
+
+            self.contact_tracker.update_contact(target.id, contact, self.sim_time)
 
     def _resolve_target_ship(self, contact_id: str):
         """Resolve a contact ID to the actual ship object.

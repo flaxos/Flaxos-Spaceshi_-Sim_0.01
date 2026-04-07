@@ -761,6 +761,13 @@ def _mask_contact_by_state(contact_dict: Dict[str, Any]) -> Dict[str, Any]:
         contact_dict["faction"] = None
         contact_dict["diplomatic_state"] = "unknown"
 
+        # HoJ contacts: the jammer emission is the detection source,
+        # so label the ghost with a meaningful classification instead
+        # of the generic None. This tells the player WHY this ghost
+        # appeared and WHERE the detection came from.
+        if contact_dict.get("detection_method") == "home_on_jam":
+            contact_dict["classification"] = "Jammer Source"
+
     elif state == "unconfirmed":
         # Position is available (multi-scan triangulation).
         # Classification is coarse size class only — thermal cross-section
