@@ -48,7 +48,8 @@ def apply_damage_to_crew(
     Apply potential injury to the crew member at a station.
 
     Injury chance scales with severity: light hits (0.1) rarely injure,
-    catastrophic hits (1.0) almost always do.
+    catastrophic hits (1.0) almost always do. Each hit escalates the
+    crew member's injury state one step: healthy->wounded->critical->dead.
 
     Args:
         binder: The crew-station binder (to access slots)
@@ -58,8 +59,10 @@ def apply_damage_to_crew(
         severity: 0.0 (scratch) to 1.0 (catastrophic)
 
     Returns:
-        Dict with injury details, or None if no crew at station.
+        Dict with injury details, or None if no crew at station / crew is dead.
     """
+    from .crew_progression import InjuryState
+
     slots = binder._slots.get(ship_id)
     if slots is None:
         return None
@@ -69,7 +72,11 @@ def apply_damage_to_crew(
         return None
 
     crew = crew_manager.get_crew_member(ship_id, slot.crew_id)
-    if crew is None or crew.health <= 0.0:
+    if crew is None:
+        return None
+
+    # Dead crew are not processed -- they are already gone
+    if crew.injury_state == InjuryState.DEAD:
         return None
 
     # Injury chance: severity * 0.8 means light hits rarely hurt,
@@ -85,26 +92,58 @@ def apply_damage_to_crew(
     # Stress spike from being hit
     crew.stress = min(1.0, crew.stress + severity * 0.5)
 
-    killed = crew.health <= 0.0
-    if killed:
+    # Escalate injury state one step along the severity ladder.
+    # However, if health reaches zero the crew member is dead outright
+    # regardless of their current injury state -- a catastrophic hit
+    # on a healthy person can still kill them.
+    old_state = crew.injury_state
+    if crew.health <= 0.0:
+        new_state = InjuryState.DEAD
+    else:
+        new_state = _escalate_injury(crew.injury_state)
+    crew.injury_state = new_state
+
+    if new_state == InjuryState.DEAD:
         # Dead crew: station falls back to AI
         slot.crew_id = None
         slot.is_ai_backup = True
         logger.warning(f"{crew.name} killed at {station.value} on {ship_id}")
+    elif new_state == InjuryState.CRITICAL:
+        # Critical crew are removed from their station
+        slot.crew_id = None
+        slot.is_ai_backup = True
+        logger.warning(
+            f"{crew.name} critically injured at {station.value} on {ship_id}"
+        )
     else:
         logger.info(
             f"{crew.name} injured at {station.value} on {ship_id} "
-            f"(health: {crew.health:.0%})"
+            f"({old_state} -> {new_state}, health: {crew.health:.0%})"
         )
 
     return {
         "crew_name": crew.name,
         "injured": True,
-        "killed": killed,
+        "killed": new_state == InjuryState.DEAD,
+        "old_state": old_state,
+        "new_state": new_state,
         "health_remaining": round(crew.health, 2),
         "health_lost": round(health_loss, 2),
         "severity": severity,
     }
+
+
+# Injury escalation ladder: each hit moves one step up
+_INJURY_ESCALATION: Dict[str, str] = {
+    "healthy": "wounded",
+    "wounded": "critical",
+    "critical": "dead",
+}
+
+
+def _escalate_injury(current_state: str) -> str:
+    """Advance to the next injury state. Dead is terminal."""
+    return _INJURY_ESCALATION.get(current_state, current_state)
 
 
 def on_subsystem_damaged(

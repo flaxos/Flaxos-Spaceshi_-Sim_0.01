@@ -74,7 +74,14 @@ class CrewStationBinder:
     # -- Assignment --------------------------------------------------------
 
     def assign_crew(self, ship_id: str, crew_id: str, station: StationType) -> Tuple[bool, str]:
-        """Assign a crew member to a station. Returns (success, message)."""
+        """Assign a crew member to a station. Returns (success, message).
+
+        Critical and dead crew cannot be assigned -- they must recover
+        (between missions for wounded->healthy, medical facility for
+        critical->wounded) before returning to duty.
+        """
+        from .crew_progression import InjuryState
+
         slots = self._slots.get(ship_id)
         if slots is None:
             return False, f"Ship {ship_id} has no crew slots registered"
@@ -82,6 +89,12 @@ class CrewStationBinder:
         crew = self.crew_manager.get_crew_member(ship_id, crew_id)
         if crew is None:
             return False, f"Crew member {crew_id} not found on ship {ship_id}"
+
+        # Injury-based assignment blocks
+        if crew.injury_state == InjuryState.DEAD:
+            return False, f"{crew.name} is dead and cannot be assigned"
+        if crew.injury_state == InjuryState.CRITICAL:
+            return False, f"{crew.name} is critically injured and cannot be assigned"
         if crew.health <= 0.0:
             return False, f"{crew.name} is dead and cannot be assigned"
 
