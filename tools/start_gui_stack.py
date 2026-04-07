@@ -85,6 +85,11 @@ def main() -> int:
     )
     parser.add_argument("--lan", action="store_true", help="Enable LAN mode (bind to 0.0.0.0)")
     parser.add_argument("--no-browser", action="store_true", help="Do not open browser")
+    parser.add_argument(
+        "--razorback",
+        action="store_true",
+        help="Open the Razorback cockpit client instead of the standard bridge UI",
+    )
     parser.add_argument("--editor-port", type=int, default=3200, help="(deprecated, asset editor removed)")
     parser.add_argument("--no-editor", action="store_true", help="(deprecated, asset editor removed)")
     parser.add_argument(
@@ -153,15 +158,18 @@ def main() -> int:
         processes.append(_start_process("GUI server", http_cmd, os.path.join(ROOT_DIR, "gui")))
 
         gui_url = f"http://localhost:{args.http_port}/"
+        razorback_url = f"http://localhost:{args.http_port}/razorback.html"
         print(f"[ready] Mode: {mode}")
         print(f"[ready] GUI: {gui_url}")
+        print(f"[ready] Razorback cockpit: {razorback_url}")
         print(f"[ready] WS bridge: ws://localhost:{args.ws_port}")
         print(f"[ready] TCP server: {args.host}:{args.tcp_port}")
         print("Press Ctrl+C to stop all services.")
 
         if not args.no_browser:
             time.sleep(1.0)
-            webbrowser.open(gui_url)
+            open_url = razorback_url if args.razorback else gui_url
+            webbrowser.open(open_url)
 
         while True:
             time.sleep(1.0)
