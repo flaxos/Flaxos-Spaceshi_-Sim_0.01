@@ -29,6 +29,49 @@ class WSClient extends EventTarget {
     // Request tracking for concurrent command handling
     this._pendingRequests = new Map();
     this._requestIdCounter = 0;
+
+    // Per-command throttle: maps command name -> last send timestamp (ms).
+    // Prevents spamming the same command faster than _THROTTLE_MS apart.
+    this._commandThrottle = new Map();
+  }
+
+  /**
+   * Minimum milliseconds between duplicate commands.
+   */
+  static _THROTTLE_MS = 50;
+
+  /**
+   * Commands exempt from throttling (read-only queries that should
+   * always go through immediately).
+   */
+  static _THROTTLE_EXEMPT = new Set([
+    "get_state",
+    "get_mission",
+    "get_events",
+    "get_comms_choices",
+    "helm_queue_status",
+    "combat_status",
+    "weapon_status",
+    "_ping",
+    "heartbeat",
+  ]);
+
+  /**
+   * Check whether a command should be silently dropped due to throttling.
+   * Returns true if the same command was sent within _THROTTLE_MS.
+   * Side-effect: records the timestamp when returning false (allowed).
+   * @param {string} command - Command name
+   * @returns {boolean} true = drop this send, false = allow
+   */
+  _shouldThrottle(command) {
+    if (WSClient._THROTTLE_EXEMPT.has(command)) return false;
+
+    const now = Date.now();
+    const lastSent = this._commandThrottle.get(command) || 0;
+    if (now - lastSent < WSClient._THROTTLE_MS) return true;
+
+    this._commandThrottle.set(command, now);
+    return false;
   }
 
   /**
@@ -150,6 +193,10 @@ class WSClient extends EventTarget {
    * @returns {Promise<object>} Server response
    */
   send(cmd, args = {}) {
+    if (this._shouldThrottle(cmd)) {
+      return Promise.resolve({ ok: false, reason: "throttled" });
+    }
+
     return new Promise((resolve, reject) => {
       if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
         reject(new Error("Not connected"));
@@ -234,6 +281,8 @@ class WSClient extends EventTarget {
    * @param {object} args - Command arguments
    */
   sendAsync(cmd, args = {}) {
+    if (this._shouldThrottle(cmd)) return;
+
     if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
       return;
     }
@@ -425,6 +474,10 @@ class WSClient extends EventTarget {
    * @returns {Promise<object>} Server response
    */
   sendShipCommand(cmd, args = {}) {
+    if (this._shouldThrottle(cmd)) {
+      return Promise.resolve({ ok: false, reason: "throttled" });
+    }
+
     // Import stateManager dynamically to avoid circular dependency
     const { stateManager } = window._flaxosModules || {};
     const shipId = stateManager?.getPlayerShipId?.();
@@ -445,6 +498,8 @@ class WSClient extends EventTarget {
    * @returns {boolean} True if command was sent, false if no ship ID
    */
   sendShipCommandAsync(cmd, args = {}) {
+    if (this._shouldThrottle(cmd)) return false;
+
     const { stateManager } = window._flaxosModules || {};
     const shipId = stateManager?.getPlayerShipId?.();
     
