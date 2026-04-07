@@ -123,6 +123,8 @@ import "../components/damage-control-game.js";
 import "../components/reactor-balance-game.js";
 // ARCADE tier radiator deploy game
 import "../components/radiator-deploy-game.js";
+// Per-bus power allocation with draw feedback
+import "../components/power-allocation-panel.js";
 // ARCADE tier PDC threat triage radial game
 import "../components/pdc-threat-game.js";
 // ARCADE tier munition configuration loadout panel
