@@ -295,7 +295,7 @@ class DamageModel:
             "source": source,
             "health_before": prev_health,
             "health_after": data.health,
-            "status_change": status_changed,
+            "status_changed": status_changed,
             "prev_status": prev_status.value,
             "new_status": new_status.value,
         })
