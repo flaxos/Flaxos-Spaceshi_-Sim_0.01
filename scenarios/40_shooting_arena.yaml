@@ -151,6 +151,16 @@ ships:
     position: {x: 60000, y: -5000, z: 0}
     velocity: {x: 0, y: 0, z: 0}
 
+  # -- Range safety observer (civilian, not a target) --
+  - id: "range_safety"
+    name: "Range Safety Observer"
+    ship_class: "razorback"
+    faction: "civilian"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: 0, y: 20000, z: 5000}
+    velocity: {x: 0, y: 0, z: 0}
+
   # -- Navigation buoys for spatial orientation --
   - id: "nav_firing_line"
     name: "Firing-Line"

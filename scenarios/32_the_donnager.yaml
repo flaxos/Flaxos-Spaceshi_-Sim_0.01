@@ -357,6 +357,16 @@ ships:
 
 # -- Fleets ---------------------------------------------------------------
 
+  # -- Observer ship (civilian reporter, not involved in combat) --
+  - id: "observer_reporter"
+    name: "Reporter Ship"
+    ship_class: "razorback"
+    faction: "civilian"
+    player_controlled: false
+    ai_enabled: false
+    position: {x: -40000, y: 40000, z: 15000}
+    velocity: {x: 0, y: 0, z: 0}
+
   # -- Navigation buoys for spatial orientation --
   - id: "nav_origin"
     name: "Nav-Origin"
