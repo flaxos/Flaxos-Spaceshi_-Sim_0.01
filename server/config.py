@@ -62,6 +62,7 @@ class ServerConfig:
     # Optional overrides
     log_file: Optional[str] = None
     lan_mode: bool = False
+    rcon_password: Optional[str] = None
 
     def __post_init__(self):
         """Apply LAN mode settings if enabled."""
@@ -81,6 +82,7 @@ class ServerConfig:
             fleet_dir=os.environ.get("FLAXOS_FLEET_DIR", DEFAULT_FLEET_DIR),
             log_file=os.environ.get("FLAXOS_LOG_FILE"),
             lan_mode=os.environ.get("FLAXOS_LAN", "").lower() in ("1", "true", "yes"),
+            rcon_password=os.environ.get("FLAXOS_RCON_PASSWORD"),
         )
 
     def to_discovery_info(self) -> dict:

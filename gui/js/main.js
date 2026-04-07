@@ -145,6 +145,7 @@ import "../components/rcs-thruster-display.js";
 import * as keyboardFlight from "./keyboard-flight.js";
 // Gamepad/controller input (works across all tiers)
 import { gamepadInput } from "./gamepad-input.js";
+import "../components/rcon-panel.js";
 // Phase 6: Mobile optimization
 import { mobileManager } from "./mobile-manager.js";
 import "../components/touch-throttle.js";
