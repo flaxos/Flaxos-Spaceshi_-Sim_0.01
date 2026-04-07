@@ -79,9 +79,13 @@ ships:
 
   - id: "pirate01"
     name: "Black Pearl"
-    class: "frigate"
+    ship_class: "frigate"
     faction: "pirates"
     ai_enabled: true
+    ai_behavior:
+      role: "combat"
+      aggression: 0.8
+      engagement_range: 80000
     position: {x: 80000, y: -30000, z: 5000}  # ~86km away
     velocity: {x: -100, y: 50, z: 0}  # Moving
     mass: 8000
