@@ -295,8 +295,8 @@ class FleetManager:
         if not flagship:
             return []
 
-        flagship_pos = np.array([flagship.x, flagship.y, flagship.z])
-        flagship_vel = np.array([flagship.vx, flagship.vy, flagship.vz])
+        flagship_pos = np.array([flagship.position["x"], flagship.position["y"], flagship.position["z"]])
+        flagship_vel = np.array([flagship.velocity["x"], flagship.velocity["y"], flagship.velocity["z"]])
 
         return self.formation_manager.calculate_positions(
             fleet.formation_id,
@@ -568,8 +568,8 @@ class FleetManager:
             if ship:
                 ships_status.append({
                     "ship_id": ship_id,
-                    "position": [ship.x, ship.y, ship.z],
-                    "velocity": [ship.vx, ship.vy, ship.vz],
+                    "position": [ship.position["x"], ship.position["y"], ship.position["z"]],
+                    "velocity": [ship.velocity["x"], ship.velocity["y"], ship.velocity["z"]],
                     "systems_online": self._get_ship_systems_status(ship),
                     "is_flagship": ship_id == fleet.flagship_id,
                     "is_ai_controlled": ship_id in self.ai_controlled_ships
@@ -669,7 +669,7 @@ class FleetManager:
     def _get_ship_orientation(self, ship) -> np.ndarray:
         """Get ship's orientation vector."""
         # If ship has velocity, use velocity direction
-        velocity = np.array([ship.vx, ship.vy, ship.vz])
+        velocity = np.array([ship.velocity["x"], ship.velocity["y"], ship.velocity["z"]])
         speed = np.linalg.norm(velocity)
 
         if speed > 1.0:  # Moving significantly
@@ -707,19 +707,133 @@ class FleetManager:
         for coordinator in self._salvo_coordinators.values():
             coordinator.cleanup(current_time)
 
-        # Update fleet statuses based on formation adherence
+        # Update fleet statuses and drive formation autopilots
         for fleet_id, fleet in self.fleets.items():
             if fleet.formation_id and fleet.status == FleetStatus.FORMING:
-                # Check if ships are in position (simplified check)
+                # Check if ships have reached their formation slots
                 if self._check_formation_adherence(fleet_id):
                     fleet.status = FleetStatus.IN_FORMATION
 
+            # Engage/update formation autopilots for ships that need to
+            # maneuver into (or hold) their assigned positions.
+            if fleet.status in (FleetStatus.FORMING, FleetStatus.IN_FORMATION):
+                self._maintain_formation(fleet, dt)
+
+    def _maintain_formation(self, fleet: FleetGroup, dt: float) -> None:
+        """Engage/update formation autopilots for fleet members.
+
+        For each non-flagship ship in the fleet, either:
+        - Update the existing formation autopilot's target position if one
+          is already running for this fleet, OR
+        - Engage a new formation autopilot via the navigation system.
+
+        This is the critical wiring that turns the fleet manager's position
+        calculations into actual ship movement -- without it, positions are
+        computed and broadcast but no ship ever maneuvers.
+
+        Args:
+            fleet: FleetGroup to maintain formation for.
+            dt: Time delta (unused currently, reserved for future throttling).
+        """
+        if not fleet.formation_id:
+            return
+        flagship = self._get_ship(fleet.flagship_id)
+        if not flagship:
+            return
+
+        # Calculate formation positions relative to flagship
+        positions = self.formation_manager.calculate_positions(
+            fleet.formation_id,
+            np.array([flagship.position["x"], flagship.position["y"], flagship.position["z"]]),
+            np.array([flagship.velocity["x"], flagship.velocity["y"], flagship.velocity["z"]]),
+        )
+
+        for fp in positions:
+            if fp.ship_id == fleet.flagship_id:
+                continue
+            ship = self._get_ship(fp.ship_id)
+            if not ship:
+                continue
+            nav = ship.systems.get("navigation")
+            if not nav:
+                continue
+
+            # Check if already running formation autopilot for this fleet.
+            # The autopilot lives on the NavController, which stores both
+            # the instance and the program name string.
+            controller = getattr(nav, 'controller', None)
+            ap = getattr(controller, 'autopilot', None) if controller else None
+            prog = getattr(controller, 'autopilot_program_name', None) if controller else None
+            if (ap and prog == 'formation'
+                    and getattr(ap, 'flagship_id', None) == fleet.flagship_id):
+                # Already in formation -- just update target position
+                if hasattr(ap, 'update_formation_position'):
+                    ap.update_formation_position(fp.relative_position)
+                continue
+
+            # Engage formation autopilot via the navigation system's
+            # set_autopilot interface.  This routes through the standard
+            # command path so the NavController state stays consistent.
+            if hasattr(nav, 'set_autopilot'):
+                nav.set_autopilot({
+                    "program": "formation",
+                    "target": fleet.flagship_id,
+                    "formation_position": (
+                        fp.relative_position.tolist()
+                        if hasattr(fp.relative_position, 'tolist')
+                        else list(fp.relative_position)
+                    ),
+                    "flagship_id": fleet.flagship_id,
+                })
+
     def _check_formation_adherence(self, fleet_id: str) -> bool:
-        """Check if fleet is adhering to formation (simplified)."""
-        # This would check actual ship positions vs formation positions
-        # For now, just return True after a delay
-        fleet = self.fleets[fleet_id]
-        return fleet.status == FleetStatus.FORMING
+        """Check if all fleet members are within formation tolerance.
+
+        Compares each ship's actual position against its calculated formation
+        position.  Returns True only when every ship is within 200m of its
+        assigned slot -- this prevents the fleet from transitioning to
+        IN_FORMATION while ships are still maneuvering into place.
+
+        Args:
+            fleet_id: Fleet to check.
+
+        Returns:
+            True if all ships are within 200m of their formation positions.
+        """
+        tolerance_m = 200.0
+        fleet = self.fleets.get(fleet_id)
+        if not fleet or not fleet.formation_id:
+            return False
+
+        flagship = self._get_ship(fleet.flagship_id)
+        if not flagship:
+            return False
+
+        positions = self.formation_manager.calculate_positions(
+            fleet.formation_id,
+            np.array([flagship.position["x"], flagship.position["y"], flagship.position["z"]]),
+            np.array([flagship.velocity["x"], flagship.velocity["y"], flagship.velocity["z"]]),
+        )
+
+        for fp in positions:
+            if fp.ship_id == fleet.flagship_id:
+                continue
+            ship = self._get_ship(fp.ship_id)
+            if not ship:
+                return False  # Missing ship can't be in formation
+            ship_pos = np.array([
+                ship.position["x"], ship.position["y"], ship.position["z"]
+            ])
+            flagship_pos = np.array([
+                flagship.position["x"], flagship.position["y"], flagship.position["z"]
+            ])
+            # Formation positions are relative to flagship
+            desired_pos = flagship_pos + fp.relative_position
+            error = float(np.linalg.norm(ship_pos - desired_pos))
+            if error > tolerance_m:
+                return False
+
+        return True
 
     def _distribute_salvo_coordinator(
         self, fleet_id: str, coordinator: SalvoCoordinator,
