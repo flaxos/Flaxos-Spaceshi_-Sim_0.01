@@ -1,0 +1,373 @@
+/*
+ * Razorback Cockpit Stylesheet
+ * Minimalist dark cockpit theme — high contrast, monospace, no panel chrome.
+ * Civilian racer: no weapons, focused on flying and scanning.
+ */
+
+/* ── Reset & Base ─────────────────────────────────────────── */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  background: #0a0a0a;
+  color: #e0e0e0;
+  font-family: "JetBrains Mono", "Fira Code", "Consolas", monospace;
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── CSS Variables ────────────────────────────────────────── */
+
+:root {
+  --rz-bg: #0a0a0a;
+  --rz-bg-panel: #0f0f12;
+  --rz-bg-input: #141418;
+  --rz-border: #1e1e28;
+
+  --rz-cyan: #00e5ff;
+  --rz-cyan-dim: rgba(0, 229, 255, 0.15);
+  --rz-amber: #ffab00;
+  --rz-amber-dim: rgba(255, 171, 0, 0.12);
+  --rz-red: #ff1744;
+  --rz-red-dim: rgba(255, 23, 68, 0.12);
+  --rz-green: #00e676;
+  --rz-text: #e0e0e0;
+  --rz-text-dim: #666680;
+
+  /* Map to existing component CSS variables so reused components render correctly */
+  --bg-primary: #0a0a0a;
+  --bg-panel: #0f0f12;
+  --bg-panel-deep: #0a0a0e;
+  --bg-input: #141418;
+  --bg-hover: #1a1a24;
+  --border-default: #1e1e28;
+  --border-active: #2a2a3a;
+  --text-primary: #e0e0e0;
+  --text-secondary: #8888aa;
+  --text-dim: #555566;
+  --text-bright: #ffffff;
+  --status-nominal: #00e676;
+  --status-warning: #ffab00;
+  --status-critical: #ff1744;
+  --status-info: #00e5ff;
+  --status-offline: #555566;
+  --font-mono: "JetBrains Mono", "Fira Code", "Consolas", monospace;
+  --font-sans: "JetBrains Mono", "Fira Code", monospace; /* all-mono for cockpit */
+  --radius-sm: 2px;
+  --radius-md: 4px;
+}
+
+/* ── HUD Top Bar ──────────────────────────────────────────── */
+
+#hud-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 32px;
+  height: 48px;
+  padding: 0 24px;
+  background: linear-gradient(180deg, rgba(0, 229, 255, 0.06) 0%, transparent 100%);
+  border-bottom: 1px solid var(--rz-border);
+  user-select: none;
+}
+
+.hud-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--rz-text-dim);
+}
+
+.hud-value {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--rz-cyan);
+  font-variant-numeric: tabular-nums;
+  min-width: 5em;
+}
+
+#rcs-indicator {
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+#rcs-indicator.nominal { color: var(--rz-green); }
+#rcs-indicator.impaired { color: var(--rz-amber); }
+#rcs-indicator.destroyed { color: var(--rz-red); }
+
+/* Fuel bar in HUD */
+#fuel-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#fuel-bar {
+  position: relative;
+  width: 120px;
+  height: 10px;
+  background: var(--rz-bg-input);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+#fuel-fill {
+  height: 100%;
+  width: 100%;
+  border-radius: 2px;
+  transition: width 0.5s ease, background 0.5s ease;
+  background: var(--rz-green);
+}
+
+#fuel-fill.warn { background: var(--rz-amber); }
+#fuel-fill.crit {
+  background: var(--rz-red);
+  animation: fuel-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes fuel-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+#fuel-pct {
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--rz-text);
+  min-width: 3.5em;
+  text-align: right;
+}
+
+/* Connection indicator */
+#conn-indicator {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--rz-red);
+  transition: background 0.3s;
+}
+
+#conn-indicator.connected { background: var(--rz-green); }
+
+/* ── Main Grid ────────────────────────────────────────────── */
+
+#cockpit-grid {
+  display: grid;
+  grid-template-columns: 20% 1fr 25%;
+  height: calc(100vh - 48px - 56px); /* minus HUD bar and control bar */
+  gap: 1px;
+  background: var(--rz-border);
+}
+
+#contacts-column,
+#map-column,
+#data-column {
+  background: var(--rz-bg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Contact list column */
+#contacts-column {
+  border-right: 1px solid var(--rz-border);
+}
+
+#contacts-column .column-header,
+#data-column .column-header {
+  padding: 8px 12px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--rz-text-dim);
+  border-bottom: 1px solid var(--rz-border);
+  background: var(--rz-bg-panel);
+}
+
+#contacts-column sensor-contacts,
+#data-column flight-data-panel {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+/* Map column — fill available space */
+#map-column {
+  position: relative;
+}
+
+#map-column tactical-map {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Data column */
+#data-column {
+  border-left: 1px solid var(--rz-border);
+}
+
+/* ── Bottom Control Bar ───────────────────────────────────── */
+
+#control-bar {
+  display: flex;
+  align-items: center;
+  height: 56px;
+  padding: 0 16px;
+  gap: 12px;
+  background: var(--rz-bg-panel);
+  border-top: 1px solid var(--rz-border);
+}
+
+/* Give the manual-flight-panel most of the space */
+#control-bar manual-flight-panel {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Cockpit action buttons */
+.cockpit-btn {
+  height: 36px;
+  padding: 0 18px;
+  background: var(--rz-bg-input);
+  border: 1px solid var(--rz-border);
+  border-radius: 2px;
+  color: var(--rz-cyan);
+  font-family: var(--rz-font, monospace);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.cockpit-btn:hover {
+  background: var(--rz-cyan-dim);
+  border-color: var(--rz-cyan);
+}
+
+.cockpit-btn:active {
+  transform: scale(0.97);
+}
+
+.cockpit-btn.active {
+  background: var(--rz-cyan-dim);
+  border-color: var(--rz-cyan);
+  box-shadow: 0 0 8px rgba(0, 229, 255, 0.2);
+}
+
+/* Keyboard shortcut hints */
+.cockpit-btn .key-hint {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 4px;
+  font-size: 0.6rem;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+  color: var(--rz-text-dim);
+}
+
+/* ── Scrollbar styling ────────────────────────────────────── */
+
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--rz-border);
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--rz-text-dim);
+}
+
+/* ── Responsive: tablet / narrow ──────────────────────────── */
+
+@media (max-width: 900px) {
+  #cockpit-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr auto;
+  }
+
+  #contacts-column {
+    max-height: 25vh;
+    border-right: none;
+    border-bottom: 1px solid var(--rz-border);
+  }
+
+  #data-column {
+    max-height: 25vh;
+    border-left: none;
+    border-top: 1px solid var(--rz-border);
+  }
+
+  #hud-bar {
+    gap: 16px;
+    padding: 0 12px;
+    flex-wrap: wrap;
+    height: auto;
+    min-height: 40px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+
+  .hud-value {
+    font-size: 0.95rem;
+  }
+
+  #fuel-bar {
+    width: 80px;
+  }
+}
+
+/* ── Responsive: phone ────────────────────────────────────── */
+
+@media (max-width: 600px) {
+  #hud-bar {
+    gap: 8px;
+    font-size: 0.65rem;
+  }
+
+  .hud-value {
+    font-size: 0.85rem;
+    min-width: 4em;
+  }
+
+  #fuel-bar {
+    width: 60px;
+  }
+
+  #control-bar {
+    flex-wrap: wrap;
+    height: auto;
+    padding: 8px;
+    gap: 6px;
+  }
+
+  .cockpit-btn {
+    flex: 1;
+    min-width: 60px;
+  }
+}

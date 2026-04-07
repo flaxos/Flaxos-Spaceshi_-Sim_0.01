@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0a0a0a">
+  <title>Razorback Cockpit</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Cockpit-specific styles (maps component CSS vars to match) -->
+  <link rel="stylesheet" href="styles/razorback.css">
+</head>
+<body>
+
+  <!-- HUD top bar: heading / speed / fuel / RCS status -->
+  <div id="hud-bar">
+    <div class="hud-item">
+      <span>HDG</span>
+      <span class="hud-value" id="heading-value">---&deg;</span>
+    </div>
+    <div class="hud-item">
+      <span>SPD</span>
+      <span class="hud-value" id="speed-value">--- m/s</span>
+    </div>
+    <div id="fuel-container" class="hud-item">
+      <span>FUEL</span>
+      <div id="fuel-bar"><div id="fuel-fill"></div></div>
+      <span id="fuel-pct">---%</span>
+    </div>
+    <div class="hud-item">
+      <span id="rcs-indicator" class="nominal">RCS OK</span>
+    </div>
+    <div id="conn-indicator" title="Disconnected"></div>
+  </div>
+
+  <!-- Main 3-column cockpit layout -->
+  <div id="cockpit-grid">
+
+    <!-- Left: sensor contact list -->
+    <div id="contacts-column">
+      <div class="column-header">Contacts</div>
+      <sensor-contacts></sensor-contacts>
+    </div>
+
+    <!-- Center: tactical map (largest area) -->
+    <div id="map-column">
+      <tactical-map></tactical-map>
+    </div>
+
+    <!-- Right: flight data (vectors, delta-v, PONR) -->
+    <div id="data-column">
+      <div class="column-header">Flight Data</div>
+      <flight-data-panel></flight-data-panel>
+    </div>
+
+  </div>
+
+  <!-- Bottom control bar: throttle strip + action buttons -->
+  <div id="control-bar">
+    <manual-flight-panel></manual-flight-panel>
+    <button id="scan-btn" class="cockpit-btn" title="Ping active sensors (S)">
+      SCAN <span class="key-hint">S</span>
+    </button>
+    <button id="dock-btn" class="cockpit-btn" title="Request docking (D)">
+      DOCK <span class="key-hint">D</span>
+    </button>
+  </div>
+
+  <script type="module">
+    // Import only the modules we need -- no main.js, no full station UI
+    import { wsClient } from "./js/ws-client.js";
+    import { stateManager } from "./js/state-manager.js";
+
+    // Register modules so wsClient.sendShipCommand can resolve player ship ID
+    window._flaxosModules = { wsClient, stateManager };
+
+    // Set tier to "raw" -- Razorback is a bare-bones cockpit
+    window.controlTier = "raw";
+
+    // Import only the components this cockpit uses
+    import "./components/sensor-contacts.js";
+    import "./components/tactical-map.js";
+    import "./components/flight-data-panel.js";
+    import "./components/manual-flight-panel.js";
+    // panel.js is needed since some components may render inside <flaxos-panel>
+    import "./components/panel.js";
+
+    // ── HUD References ──────────────────────────────────────
+    const headingEl = document.getElementById("heading-value");
+    const speedEl = document.getElementById("speed-value");
+    const fuelPctEl = document.getElementById("fuel-pct");
+    const fuelFillEl = document.getElementById("fuel-fill");
+    const rcsEl = document.getElementById("rcs-indicator");
+    const connEl = document.getElementById("conn-indicator");
+    const scanBtn = document.getElementById("scan-btn");
+    const dockBtn = document.getElementById("dock-btn");
+
+    // ── Format helpers ──────────────────────────────────────
+
+    /** Format heading degrees with zero-padding (e.g. 045) */
+    function fmtHeading(deg) {
+      const d = ((Math.round(deg) % 360) + 360) % 360;
+      return String(d).padStart(3, "0") + "\u00B0";
+    }
+
+    /** Format speed with appropriate units (m/s or km/s) */
+    function fmtSpeed(ms) {
+      if (ms >= 10000) return (ms / 1000).toFixed(1) + " km/s";
+      if (ms >= 100) return Math.round(ms) + " m/s";
+      return ms.toFixed(1) + " m/s";
+    }
+
+    // ── HUD Update ──────────────────────────────────────────
+
+    stateManager.subscribe("*", () => {
+      const nav = stateManager.getNavigation();
+      if (!nav) return;
+
+      // Heading: use yaw from orientation
+      const yaw = nav.heading?.yaw ?? 0;
+      headingEl.textContent = fmtHeading(yaw);
+
+      // Speed: magnitude of velocity vector
+      const vx = nav.velocity?.[0] ?? 0;
+      const vy = nav.velocity?.[1] ?? 0;
+      const vz = nav.velocity?.[2] ?? 0;
+      const speed = Math.sqrt(vx * vx + vy * vy + vz * vz);
+      speedEl.textContent = fmtSpeed(speed);
+
+      // Fuel: from propulsion system or ship fuel object
+      const ship = stateManager.getShipState();
+      const prop = ship?.systems?.propulsion || {};
+      const fuel = ship?.fuel || {};
+      const fm = prop.fuel_mass ?? fuel.level ?? fuel.current ?? 0;
+      const fc = prop.fuel_capacity ?? fuel.max ?? fuel.capacity ?? 1;
+      const pct = fc > 0 ? Math.round((fm / fc) * 100) : 0;
+
+      fuelPctEl.textContent = pct + "%";
+      fuelFillEl.style.width = pct + "%";
+      // Color thresholds: green > 50%, amber > 25%, red <= 25%
+      fuelFillEl.classList.toggle("warn", pct <= 50 && pct > 25);
+      fuelFillEl.classList.toggle("crit", pct <= 25);
+
+      // RCS status
+      const systems = stateManager.getSystems();
+      const rcsStatus = systems?.rcs;
+      if (typeof rcsStatus === "string") {
+        const s = rcsStatus.toLowerCase();
+        rcsEl.textContent = "RCS " + rcsStatus.toUpperCase();
+        rcsEl.className = s.includes("destroy") ? "destroyed"
+          : s.includes("impair") || s.includes("degrad") ? "impaired"
+          : "nominal";
+      }
+    });
+
+    // ── Connection status ───────────────────────────────────
+
+    wsClient.addEventListener("status_change", (e) => {
+      const st = e.detail?.status;
+      connEl.className = st === "connected" ? "connected" : "";
+      connEl.title = st === "connected" ? "Connected" : "Disconnected";
+    });
+
+    // ── Button actions ──────────────────────────────────────
+
+    scanBtn.addEventListener("click", () => {
+      wsClient.sendShipCommand("ping_sensors", {});
+      scanBtn.classList.add("active");
+      setTimeout(() => scanBtn.classList.remove("active"), 600);
+    });
+
+    dockBtn.addEventListener("click", () => {
+      wsClient.sendShipCommand("request_docking", {});
+    });
+
+    // ── Keyboard shortcuts ──────────────────────────────────
+
+    document.addEventListener("keydown", (e) => {
+      // Skip if user is typing in an input/textarea
+      if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+
+      switch (e.key.toLowerCase()) {
+        case "s":
+          scanBtn.click();
+          break;
+        case "d":
+          dockBtn.click();
+          break;
+      }
+    });
+
+    // ── Bootstrap ───────────────────────────────────────────
+
+    stateManager.init();
+    wsClient.connect();
+  </script>
+
+</body>
+</html>
