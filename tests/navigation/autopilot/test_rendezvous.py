@@ -656,49 +656,6 @@ class TestApproachThrustBehaviour:
             "Approach phase must command positive thrust to close distance"
         )
 
-    @pytest.mark.skip(reason="approach_drift uses fixed gentle pulses, not proportional P-control")
-    def test_approach_thrust_proportional_closer_range_gives_less_thrust(self):
-        """Proportional thrust: a ship at 10 km should use less thrust than at 40 km.
-
-        This is the core property that prevents oscillation — thrust tapers
-        as the ship converges so it does not overshoot into another burn cycle.
-
-        Both ranges are outside STATIONKEEP_RANGE (5000 m).  We use a very
-        large approach_range override (5000 km) to keep both ranges well below
-        the P-controller saturation point, so the proportional relationship
-        is visible in the thrust values rather than being masked by the cap.
-        """
-        def _ap_with_large_approach_range(range_m):
-            target = _make_target({"x": range_m, "y": 0.0, "z": 0.0})
-            ship = _make_ship(
-                position={"x": 0.0, "y": 0.0, "z": 0.0},
-                velocity={"x": 0.0, "y": 0.0, "z": 0.0},
-                target=target,
-            )
-            # Large approach_range keeps desired_closing below the saturation
-            # threshold so the proportional control law is directly observable.
-            ap = RendezvousAutopilot(
-                ship, target_id="T001",
-                params={"profile": "balanced", "approach_range": 5_000_000.0},
-            )
-            ap.phase = "approach_coast"
-            return ap
-
-        ap_far = _ap_with_large_approach_range(range_m=40000.0)
-        ap_near = _ap_with_large_approach_range(range_m=10000.0)
-
-        result_far = ap_far.compute(0.1, 0.0)
-        result_near = ap_near.compute(0.1, 0.0)
-
-        assert result_far is not None and result_near is not None
-        thrust_far = result_far.get("thrust", 0.0)
-        thrust_near = result_near.get("thrust", 0.0)
-
-        assert thrust_far > thrust_near, (
-            f"Expected lower thrust at close range: far={thrust_far:.4f}, "
-            f"near={thrust_near:.4f}"
-        )
-
     def test_approach_thrust_capped_below_max_thrust(self):
         """Approach thrust must be strictly below the profile max_thrust.
 
@@ -1036,63 +993,6 @@ class TestAggressiveConvergence:
         assert approach_phases & set(result["phase_history"]), (
             "Phase history did not contain any approach phase. "
             f"Distinct phases seen: {sorted(set(result['phase_history']))}"
-        )
-
-    @pytest.mark.skip(reason="1D sim cannot model approach_brake/creep heading changes")
-    def test_long_range_convergence_balanced(self):
-        """Balanced profile must converge from 400 km (Mission 1 distances).
-
-        This is the primary regression test for the oscillation bug where the
-        autopilot cycled BURN->FLIP->BRAKE->BURN indefinitely at long range.
-        The fix uses rel_speed for BRAKE exit and snapshot headings for FLIP.
-
-        Uses dt=0.5 for better RCS rotation resolution during the approach
-        phase (the ship must rotate from retrograde back to prograde after
-        braking, and coarse 1s ticks make this sluggish).
-        """
-        result = self._run_sim(
-            profile="balanced",
-            start_range_m=400_000.0,
-            max_ticks=30000,
-            dt=0.5,
-        )
-
-        assert result["converged"], (
-            f"Balanced profile did NOT converge from 400 km in 15000 sim-seconds. "
-            f"Final phase: {result['final_phase']!r}, "
-            f"final range: {result['final_range_m']:.1f} m, "
-            f"oscillations: {result['oscillation_count']}"
-        )
-
-        # Should converge in at most 2 burn-brake cycles (one main
-        # deceleration plus possibly one correction).  The old bug
-        # caused 10+ oscillations.
-        assert result["oscillation_count"] <= 2, (
-            f"Balanced profile oscillated {result['oscillation_count']} times "
-            f"between burn/brake from 400 km -- should be at most 2. "
-            f"Phase sequence (last 40): {result['phase_history'][-40:]}"
-        )
-
-    @pytest.mark.skip(reason="1D sim cannot model approach_brake/creep heading changes")
-    def test_long_range_convergence_aggressive(self):
-        """Aggressive profile must converge from 400 km without excessive oscillation."""
-        result = self._run_sim(
-            profile="aggressive",
-            start_range_m=400_000.0,
-            max_ticks=30000,
-            dt=0.5,
-        )
-
-        assert result["converged"], (
-            f"Aggressive profile did NOT converge from 400 km in 15000 sim-seconds. "
-            f"Final phase: {result['final_phase']!r}, "
-            f"final range: {result['final_range_m']:.1f} m, "
-            f"oscillations: {result['oscillation_count']}"
-        )
-
-        assert result["oscillation_count"] <= 2, (
-            f"Aggressive profile oscillated {result['oscillation_count']} times "
-            f"from 400 km -- should be at most 2."
         )
 
 
