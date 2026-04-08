@@ -407,9 +407,14 @@ class ThreatBoard extends HTMLElement {
       const result = await wsClient.sendShipCommand("lock_target", {
         contact_id: contactId,
       });
+      if (result && result.reason === "throttled") return;
+
       if (result && result.ok === false) {
-        console.error("Lock target failed:", result.message || result.error);
-        this._showMessage(`Lock failed: ${result.message || result.error}`, "error");
+        console.error("Lock target failed:", result.message || result.error || "Unknown error");
+        this._showMessage(`Lock failed: ${result.message || result.error || "Unknown error"}`, "error");
+      } else if (result && result.error) {
+        console.error("Lock target error:", result.error);
+        this._showMessage(`Lock failed: ${result.error}`, "error");
       } else {
         this._showMessage(`Target locked: ${contactId}`, "info");
       }
