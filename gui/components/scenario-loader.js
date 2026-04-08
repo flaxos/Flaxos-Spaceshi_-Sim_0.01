@@ -522,9 +522,18 @@ class ScenarioLoader extends HTMLElement {
     // Launch button
     const launchBtn = card.querySelector(".btn-launch");
     if (launchBtn) {
-      launchBtn.addEventListener("click", (e) => {
+      const doLaunch = (e) => {
+        e.preventDefault();
         e.stopPropagation();
-        this._loadScenario(sc.id);
+        if (this._launching) return;  // Guard against double-fire
+        this._launching = true;
+        this._loadScenario(sc.id).finally(() => { this._launching = false; });
+      };
+      // Use pointerdown for immediate response and unified handling
+      launchBtn.addEventListener("pointerdown", doLaunch);
+      launchBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
       });
     }
 
@@ -761,12 +770,25 @@ class ScenarioLoader extends HTMLElement {
 
   async _loadScenario(scenarioId) {
     if (!scenarioId) return;
+    console.log("[scenario-loader] Loading scenario:", scenarioId, "ws status:", wsClient.status);
+
+    // Visual feedback — disable all launch buttons while loading
+    const btns = this.shadowRoot.querySelectorAll(".btn-launch");
+    btns.forEach(b => { b.textContent = "LOADING..."; b.disabled = true; });
 
     try {
+      // Ensure WS is connected before sending
+      if (wsClient.status !== "connected") {
+        console.warn("[scenario-loader] WS not connected, attempting reconnect");
+        try { await wsClient.connect(); } catch (e) { /* continue anyway */ }
+      }
+
       const response = await wsClient.send("load_scenario", { scenario: scenarioId });
+      console.log("[scenario-loader] Response:", JSON.stringify(response));
 
       if (response && response.ok === false) {
         console.error("Load scenario failed:", response.error);
+        btns.forEach(b => { b.textContent = "LAUNCH"; b.disabled = false; });
         return;
       }
 
@@ -784,7 +806,9 @@ class ScenarioLoader extends HTMLElement {
         await this._fetchAndRenderLobby();
       }
     } catch (error) {
-      console.error("Error loading scenario:", error.message);
+      console.error("Error loading scenario:", error.message || error);
+      const btns2 = this.shadowRoot.querySelectorAll(".btn-launch");
+      btns2.forEach(b => { b.textContent = "LAUNCH"; b.disabled = false; });
     }
   }
 
