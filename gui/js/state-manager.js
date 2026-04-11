@@ -35,7 +35,7 @@ class StateManager extends EventTarget {
     if (this._playerShipId === shipId) return;
     this._playerShipId = shipId;
     console.log("[StateManager] Player ship ID set to:", shipId);
-    this._fetchState();
+    this._fetchState(this._pollGeneration);
   }
 
   getPlayerShipId() {
@@ -227,7 +227,7 @@ class StateManager extends EventTarget {
     const allKeys = new Set([...Object.keys(oldState || {}), ...Object.keys(newState || {})]);
     
     for (const key of allKeys) {
-      if (oldState?.[key] !== newState?.[key]) {
+      if (JSON.stringify(oldState?.[key]) !== JSON.stringify(newState?.[key])) {
         changes.push(key);
       }
     }
