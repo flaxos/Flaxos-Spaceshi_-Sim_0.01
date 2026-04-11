@@ -247,6 +247,12 @@ async function init() {
   // Set initial game state to lobby (dims game panels until scenario loads)
   setGameState("lobby");
 
+  // Auto-switch to mission view so the scenario loader is visible on startup
+  const viewTabs = document.getElementById("view-tabs");
+  if (viewTabs) {
+    viewTabs.activeView = "mission";
+  }
+
   // Dispatch ready event
   window.dispatchEvent(new CustomEvent("app:ready", { detail: app }));
 }
