@@ -62,6 +62,7 @@ class CrewRosterPanel extends HTMLElement {
   }
 
   _onState() {
+    if (!this.offsetParent) return;
     const state = stateManager.getState();
     const prog = state?.crew_progression;
     if (!prog || !prog.available) return;

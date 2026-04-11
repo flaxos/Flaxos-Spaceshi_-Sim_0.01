@@ -74,6 +74,7 @@ class RcsThrusterDisplay extends HTMLElement {
 
   /** Rate-limit state updates to ~5 Hz */
   _throttledUpdate() {
+    if (!this.offsetParent) return;
     const now = performance.now();
     if (now - this._lastUpdate < this._updateInterval) return;
     this._lastUpdate = now;

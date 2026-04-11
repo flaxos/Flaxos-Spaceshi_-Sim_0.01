@@ -365,6 +365,7 @@ class WeaponsChargeGame extends HTMLElement {
    * Read weapon telemetry and update the charge bar UI.
    */
   _updateDisplay() {
+    if (!this.offsetParent) return;
     const weapons = stateManager.getWeapons();
     const truthWeapons = weapons?.truth_weapons || {};
 

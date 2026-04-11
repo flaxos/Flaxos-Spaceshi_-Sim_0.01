@@ -203,6 +203,7 @@ class DroneControlPanel extends HTMLElement {
   }
 
   _updateDisplay() {
+    if (!this.offsetParent) return;
     const status = this._lastStatus;
     if (!status) return;
 

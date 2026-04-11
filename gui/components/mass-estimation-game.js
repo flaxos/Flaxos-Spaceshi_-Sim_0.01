@@ -149,6 +149,7 @@ class MassEstimationGame extends HTMLElement {
   // --- State ---
 
   _onStateUpdate() {
+    if (!this.offsetParent) return;
     this._updateVisibility();
     this._updateContactData();
   }

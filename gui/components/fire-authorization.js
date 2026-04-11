@@ -529,7 +529,9 @@ class FireAuthorization extends HTMLElement {
           </div>
         </div>`;
     }
-    container.innerHTML = html;
+    if (container.innerHTML !== html) {
+      container.innerHTML = html;
+    }
   }
 }
 

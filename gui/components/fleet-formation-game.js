@@ -122,6 +122,7 @@ class FleetFormationGame extends HTMLElement {
 
   /** Read fleet state from server telemetry */
   _readState() {
+    if (!this.offsetParent) return;
     const ship = stateManager.getShipState();
     if (!ship) return;
 

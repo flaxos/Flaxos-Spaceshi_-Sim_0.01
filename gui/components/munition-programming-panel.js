@@ -384,6 +384,7 @@ class MunitionProgrammingPanel extends HTMLElement {
    * telemetry; if not, we show last locally-sent program.
    */
   _updateStatus() {
+    if (!this.offsetParent) return;
     const combat = stateManager.getCombat();
     const programEl = this.shadowRoot.getElementById("current-program");
     if (!programEl) return;

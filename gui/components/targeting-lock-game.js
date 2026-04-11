@@ -139,6 +139,7 @@ class TargetingLockGame extends HTMLElement {
   // --- State Management ---
 
   _onStateUpdate() {
+    if (!this.offsetParent) return;
     const targeting = stateManager.getTargeting();
     const lockState = targeting?.lock_state || "none";
     const hasTarget = !!(targeting?.locked_target || targeting?.designated_target || targeting?.target_id);

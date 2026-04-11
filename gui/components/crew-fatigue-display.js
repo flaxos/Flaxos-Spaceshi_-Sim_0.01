@@ -268,6 +268,7 @@ class CrewFatigueDisplay extends HTMLElement {
   }
 
   _update() {
+    if (!this.offsetParent) return;
     const ship = stateManager.getShipState();
     const el = this.shadowRoot.getElementById("content");
     if (!ship) return;

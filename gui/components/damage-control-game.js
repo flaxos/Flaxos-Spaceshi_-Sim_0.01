@@ -116,6 +116,7 @@ class DamageControlGame extends HTMLElement {
 
   /** Check subsystem health and trigger puzzles on damage transitions */
   _onStateUpdate() {
+    if (!this.offsetParent) return;
     const ship = stateManager.getShipState();
     if (!ship?.subsystem_health?.subsystems) return;
 

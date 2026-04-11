@@ -180,6 +180,7 @@ class SensorAnalysisManual extends HTMLElement {
 
   /** Throttle state updates to 5 Hz */
   _onStateUpdate() {
+    if (!this.offsetParent) return;
     const now = performance.now();
     if (now - this._lastUpdate < 200) return;
     this._lastUpdate = now;

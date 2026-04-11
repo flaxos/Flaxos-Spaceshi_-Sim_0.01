@@ -106,6 +106,7 @@ class HelmBalanceGame extends HTMLElement {
   }
 
   _updateFromState() {
+    if (!this.offsetParent) return;
     const ship = stateManager.getShipState();
     if (!ship) return;
 

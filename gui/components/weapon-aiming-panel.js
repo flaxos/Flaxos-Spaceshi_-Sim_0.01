@@ -149,6 +149,7 @@ class WeaponAimingPanel extends HTMLElement {
   }
 
   _updateReticle() {
+    if (!this.offsetParent) return; // Skip when hidden (display: none)
     const content = this.shadowRoot.getElementById("content");
     if (!content) return;
 
