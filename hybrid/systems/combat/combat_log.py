@@ -136,7 +136,7 @@ class CombatLog:
             type_prefixes = [t.strip() for t in event_type.split(",") if t.strip()]
 
         result = []
-        for entry in reversed(self._entries):
+        for entry in reversed(list(self._entries)):
             if entry.id <= since_id:
                 break
             if type_prefixes:

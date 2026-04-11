@@ -522,18 +522,19 @@ class ScenarioLoader extends HTMLElement {
     // Launch button
     const launchBtn = card.querySelector(".btn-launch");
     if (launchBtn) {
-      const doLaunch = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (this._launching) return;  // Guard against double-fire
-        this._launching = true;
-        this._loadScenario(sc.id).finally(() => { this._launching = false; });
-      };
-      // Use pointerdown for immediate response and unified handling
-      launchBtn.addEventListener("pointerdown", doLaunch);
       launchBtn.addEventListener("click", (e) => {
         e.preventDefault();
         e.stopPropagation();
+        if (this._launching) {
+            console.warn("[scenario-loader] Already launching, ignoring click");
+            return;
+        }
+        console.log("[scenario-loader] Launch button clicked for:", sc.id);
+        this._launching = true;
+        this._loadScenario(sc.id).finally(() => { 
+            this._launching = false; 
+            console.log("[scenario-loader] Launch sequence completed for:", sc.id);
+        });
       });
     }
 
@@ -714,6 +715,16 @@ class ScenarioLoader extends HTMLElement {
   }
 
   async _fetchAndRenderLobby() {
+    // Guard against re-entry: the previous call may still be in-flight when
+    // a status_change reconnect fires, causing a second full fetch cycle.
+    if (this._isLoading) return;
+
+    // Debounce: ignore calls within 2s of the last successful fetch —
+    // prevents double-load when _loadScenario's call to this method
+    // finishes right before a status_change event re-triggers it.
+    const now = Date.now();
+    if (this._lastLobbyFetch && (now - this._lastLobbyFetch) < 2000) return;
+
     this._isLoading = true;
     await this._ensureConnected();
 
@@ -730,15 +741,20 @@ class ScenarioLoader extends HTMLElement {
       const stateResp = await wsClient.send("get_state", {});
       this._activeScenario = stateResp?.active_scenario || null;
 
-      // Fetch station status per ship
-      for (const ship of this._ships) {
-        const sResp = await wsClient.send("station_status", { ship: ship.id });
-        ship.stations = sResp?.success ? sResp.data.stations : [];
-      }
+      // Fetch station status per ship (PARALLEL)
+      await Promise.all(this._ships.map(async (ship) => {
+        try {
+          const sResp = await wsClient.send("station_status", { ship: ship.id });
+          ship.stations = sResp?.success ? sResp.data.stations : [];
+        } catch (e) {
+          ship.stations = [];
+        }
+      }));
     } catch (e) {
       // leave ships empty
     }
 
+    this._lastLobbyFetch = Date.now();
     this._isLoading = false;
     this._setMenuState(MENU_STATE.LOBBY);
   }

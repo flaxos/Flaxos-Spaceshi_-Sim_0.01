@@ -11,44 +11,38 @@ class StateManager extends EventTarget {
     this._state = {};
     this._events = [];
     this._subscribers = new Map();
-    this._pollInterval = null;
-    this._eventPollInterval = null;
+    this._lastFullState = null;
     this._lastStateUpdate = 0;
-    this._lastEventUpdate = 0;
-    this._playerShipId = null;  // Track player's ship ID
+    this._lastEventTime = 0;
+    this._playerShipId = null;
 
     // Configuration
     this.config = {
-      statePollMs: 200,      // Poll state every 200ms
-      eventPollMs: 500,      // Poll events every 500ms
+      statePollMs: 200,      // Poll state every 200ms (5Hz)
+      eventPollMs: 1000,     // Poll events every 1s
       autoPoll: true,        // Start polling on connect
     };
+
+    // Update Throttling
+    this._updateQueued = false;
+    this._pendingState = null;
+    this._pollTimer = null;
+    this._eventTimer = null;
+    this._pollGeneration = 0;
   }
 
-  /**
-   * Set the player ship ID (called after scenario load or initial state)
-   * @param {string} shipId - The player's ship ID
-   */
   setPlayerShipId(shipId) {
+    if (this._playerShipId === shipId) return;
     this._playerShipId = shipId;
-    console.log("Player ship ID set to:", shipId);
-    // Re-fetch state immediately with ship ID
+    console.log("[StateManager] Player ship ID set to:", shipId);
     this._fetchState();
   }
 
-  /**
-   * Get the current player ship ID
-   * @returns {string|null}
-   */
   getPlayerShipId() {
     return this._playerShipId;
   }
 
-  /**
-   * Initialize the state manager
-   */
   init() {
-    // Listen for connection changes
     wsClient.addEventListener("status_change", (e) => {
       if (e.detail.status === "connected" && this.config.autoPoll) {
         this.startPolling();
@@ -57,254 +51,235 @@ class StateManager extends EventTarget {
       }
     });
 
-    // Start polling if already connected
     if (wsClient.status === "connected" && this.config.autoPoll) {
       this.startPolling();
     }
   }
 
-  /**
-   * Start polling for state and events
-   */
   startPolling() {
-    this.stopPolling();
-
-    // Poll state
-    this._pollInterval = setInterval(() => {
-      this._fetchState();
-    }, this.config.statePollMs);
-
-    // Poll events
-    this._eventPollInterval = setInterval(() => {
-      this._fetchEvents();
-    }, this.config.eventPollMs);
-
-    // Immediate first fetch
-    this._fetchState();
-    this._fetchEvents();
+    this.config.autoPoll = true;
+    this._pollGeneration++;
+    if (this._pollTimer) clearTimeout(this._pollTimer);
+    if (this._eventTimer) clearTimeout(this._eventTimer);
+    const gen = this._pollGeneration;
+    this._fetchState(gen);
+    this._fetchEvents(gen);
   }
 
-  /**
-   * Stop polling
-   */
   stopPolling() {
-    if (this._pollInterval) {
-      clearInterval(this._pollInterval);
-      this._pollInterval = null;
-    }
-    if (this._eventPollInterval) {
-      clearInterval(this._eventPollInterval);
-      this._eventPollInterval = null;
-    }
+    this.config.autoPoll = false;
+    if (this._pollTimer) clearTimeout(this._pollTimer);
+    if (this._eventTimer) clearTimeout(this._eventTimer);
+    this._pollTimer = null;
+    this._eventTimer = null;
   }
 
-  /**
-   * Fetch current state from server.
-   * Supports delta telemetry: when the server sends `_delta: true`, only
-   * changed top-level keys are included.  We merge them into the previous
-   * full snapshot before passing to _updateState.
-   */
-  async _fetchState() {
+  async _fetchState(gen) {
+    if (!this.config.autoPoll || gen !== this._pollGeneration) return;
     try {
-      // Include ship parameter if we have a player ship ID to get detailed state
       const params = {};
-      if (this._playerShipId) {
-        params.ship = this._playerShipId;
-      }
+      if (this._playerShipId) params.ship = this._playerShipId;
+
       const response = await wsClient.send("get_state", params);
+
       if (response && response.ok !== false) {
-        // Auto-detect player ship ID from first ship if not set
+        // Auto-detect player ship if not set
         if (!this._playerShipId) {
           if (response.ship) {
             this._playerShipId = response.ship;
           } else if (Array.isArray(response.ships) && response.ships.length > 0) {
             this._playerShipId = response.ships[0]?.id;
-          } else if (response.ships && typeof response.ships === "object") {
-            const [firstShipId] = Object.keys(response.ships);
-            if (firstShipId) {
-              this._playerShipId = firstShipId;
-            }
-          }
-
-          if (this._playerShipId) {
-            console.log("Auto-detected player ship ID:", this._playerShipId);
           }
         }
 
-        // Delta merge: server sends only changed keys when _delta is set
         let merged;
+        const prev = this._lastFullState || {};
+
         if (response._delta) {
-          const prev = this._lastFullState || {};
           merged = { ...prev, ...response };
+          ["state", "projectiles", "torpedoes", "ships"].forEach(key => {
+            if (response[key] && prev[key]) {
+               if (Array.isArray(response[key])) {
+                 merged[key] = response[key];
+               } else if (typeof response[key] === "object" && typeof prev[key] === "object") {
+                 merged[key] = { ...prev[key], ...response[key] };
+               }
+            }
+          });
           delete merged._delta;
         } else {
           merged = response;
         }
-        this._lastFullState = merged;
 
+        this._lastFullState = merged;
         this._updateState(merged);
       }
     } catch (error) {
       // Ignore polling errors
+    } finally {
+      if (this.config.autoPoll && gen === this._pollGeneration) {
+        this._pollTimer = setTimeout(() => this._fetchState(gen), this.config.statePollMs);
+      }
     }
   }
 
-  /**
-   * Fetch events from server
-   */
-  async _fetchEvents() {
+  async _fetchEvents(gen) {
+    if (!this.config.autoPoll || gen !== this._pollGeneration) return;
     try {
-      const response = await wsClient.send("get_events", {});
-      if (response && response.ok !== false && Array.isArray(response.events)) {
-        this._processEvents(response.events);
+      const response = await wsClient.send("get_events", { since: this._lastEventTime });
+      if (response && response.ok && Array.isArray(response.events)) {
+        for (const event of response.events) {
+          if (event.t > this._lastEventTime) {
+            this._lastEventTime = event.t;
+          }
+          this._handleEvent(event);
+        }
       }
     } catch (error) {
-      // Ignore polling errors
-    }
-  }
-
-  /**
-   * Deep-freeze an object to prevent client-side mutations.
-   * Server state is authoritative -- clients must not modify it.
-   */
-  _deepFreeze(obj) {
-    if (obj === null || typeof obj !== "object") return obj;
-    Object.freeze(obj);
-    for (const value of Object.values(obj)) {
-      if (value !== null && typeof value === "object" && !Object.isFrozen(value)) {
-        this._deepFreeze(value);
-      }
-    }
-    return obj;
-  }
-
-  /**
-   * Update internal state and notify subscribers.
-   * State is frozen to enforce server-authoritative read-only access.
-   */
-  _updateState(newState) {
-    const oldState = this._state;
-    this._state = this._deepFreeze(newState);
-    this._lastStateUpdate = Date.now();
-
-    // Determine what changed
-    const changes = this._detectChanges(oldState, newState);
-
-    // Notify global listeners
-    this.dispatchEvent(new CustomEvent("state_update", {
-      detail: { state: newState, changes }
-    }));
-
-    // Notify specific subscribers
-    for (const [key, callbacks] of this._subscribers) {
-      if (changes.includes(key) || key === "*") {
-        const value = this._getNestedValue(newState, key);
-        callbacks.forEach(cb => {
-          try {
-            cb(value, key, newState);
-          } catch (error) {
-            console.error(`State subscriber error for ${key}:`, error);
-          }
-        });
+      // Silently fail events
+    } finally {
+      if (this.config.autoPoll && gen === this._pollGeneration) {
+        this._eventTimer = setTimeout(() => this._fetchEvents(gen), this.config.eventPollMs);
       }
     }
   }
 
-  /**
-   * Process incoming events
-   */
-  _processEvents(events) {
-    for (const event of events) {
-      this._events.push(event);
-      this.dispatchEvent(new CustomEvent("event", { detail: event }));
-    }
-
-    // Limit stored events
+  _handleEvent(event) {
+    this._events.push(event);
+    this.dispatchEvent(new CustomEvent("event", { detail: event }));
     while (this._events.length > 1000) {
       this._events.shift();
     }
-
-    this._lastEventUpdate = Date.now();
   }
 
-  /**
-   * Detect which top-level keys changed.
-   * Also reports sub-key changes inside the "state" envelope so that
-   * components can subscribe to e.g. "weapons" or "sensors" instead of "*".
-   * The server wraps ship telemetry as {ok, ship, state: {weapons, sensors, ...}},
-   * so without this expansion subscribe("weapons") would never fire.
-   */
+  _shallowFreeze(obj) {
+    if (obj === null || typeof obj !== "object") return obj;
+    return Object.freeze(obj);
+  }
+
+  _updateState(newState) {
+    this._pendingState = newState;
+    if (this._updateQueued) return;
+
+    this._updateQueued = true;
+    requestAnimationFrame(() => {
+      const startTime = performance.now();
+      const oldState = this._state;
+      const state = this._pendingState;
+      
+      this._state = this._shallowFreeze(state);
+      this._updateQueued = false;
+      this._pendingState = null;
+      this._lastStateUpdate = Date.now();
+
+      // Detect which top-level keys changed for surgical updates
+      const changes = this._detectChanges(oldState, state);
+      if (changes.length === 0) return;
+
+      // Global event
+      this.dispatchEvent(new CustomEvent("state_update", { 
+        detail: { state, changes } 
+      }));
+
+      // Notify targeted subscribers
+      // Use a Map to deduplicate callbacks if they subscribe to multiple changed keys
+      const callbacksToNotify = new Map();
+      
+      for (const key of changes) {
+        const subs = this._subscribers.get(key);
+        if (subs) {
+          for (const cb of subs) {
+            if (!callbacksToNotify.has(cb)) {
+              callbacksToNotify.set(cb, key);
+            }
+          }
+        }
+      }
+
+      // Handle glob subscribers
+      const globSubs = this._subscribers.get("*");
+      if (globSubs) {
+        for (const cb of globSubs) {
+          if (!callbacksToNotify.has(cb)) {
+            callbacksToNotify.set(cb, "*");
+          }
+        }
+      }
+
+      // Fire notifications
+      for (const [cb, key] of callbacksToNotify) {
+        try {
+          cb(this._getNestedValue(state, key), key, state);
+        } catch (error) {
+          console.error(`[StateManager] Subscriber error for ${key}:`, error);
+        }
+      }
+
+      const duration = performance.now() - startTime;
+      if (duration > 32) {
+        console.warn(`[StateManager] Slow frame: ${duration.toFixed(1)}ms. UI stutter possible.`);
+      }
+    });
+  }
+
   _detectChanges(oldState, newState) {
     const changes = [];
-    const allKeys = new Set([
-      ...Object.keys(oldState || {}),
-      ...Object.keys(newState || {})
-    ]);
-
+    const allKeys = new Set([...Object.keys(oldState || {}), ...Object.keys(newState || {})]);
+    
     for (const key of allKeys) {
-      if (JSON.stringify(oldState?.[key]) !== JSON.stringify(newState?.[key])) {
+      if (oldState?.[key] !== newState?.[key]) {
         changes.push(key);
       }
     }
 
-    // Expand "state" sub-keys so components can subscribe to specific
-    // telemetry domains (e.g. "weapons", "targeting", "sensors") without "*".
+    // Surgical check for "state" envelope (most common)
     if (changes.includes("state")) {
       const oldSub = oldState?.state || {};
       const newSub = newState?.state || {};
-      if (typeof oldSub === "object" && typeof newSub === "object") {
-        const subKeys = new Set([
-          ...Object.keys(oldSub),
-          ...Object.keys(newSub)
-        ]);
+      if (typeof oldSub === "object" && typeof newSub === "object" && !Array.isArray(oldSub) && !Array.isArray(newSub)) {
+        const subKeys = new Set([...Object.keys(oldSub), ...Object.keys(newSub)]);
         for (const sk of subKeys) {
-          if (!changes.includes(sk) &&
-              JSON.stringify(oldSub[sk]) !== JSON.stringify(newSub[sk])) {
+          if (!changes.includes(sk) && oldSub[sk] !== newSub[sk]) {
             changes.push(sk);
           }
         }
       }
     }
-
+    
     return changes;
   }
 
-  /**
-   * Get nested value from state.
-   * Falls back to obj.state[path] when the key isn't found at the top level,
-   * since ship telemetry is wrapped inside a "state" envelope by the server.
-   */
   _getNestedValue(obj, path) {
     if (path === "*") return obj;
-    const direct = path.split(".").reduce((o, k) => o?.[k], obj);
-    if (direct !== undefined) return direct;
-    // Fallback: look inside the "state" envelope for ship telemetry keys
-    if (obj?.state && typeof obj.state === "object") {
-      return path.split(".").reduce((o, k) => o?.[k], obj.state);
+    let val = path.split(".").reduce((o, k) => o?.[k], obj);
+    
+    // Fallback to "state" envelope
+    if (val === undefined && obj?.state && typeof obj.state === "object") {
+      val = path.split(".").reduce((o, k) => o?.[k], obj.state);
     }
-    return undefined;
+
+    // NORMALIZE VECTORS: If the value looks like a vector object {x,y,z}, convert to array [x,y,z]
+    if (val && typeof val === "object" && !Array.isArray(val)) {
+      if (val.x !== undefined || val.y !== undefined || val.z !== undefined) {
+        return [val.x || 0, val.y || 0, val.z || 0];
+      }
+    }
+
+    return val;
   }
 
-  /**
-   * Subscribe to state changes
-   * @param {string} key - State key to watch (use "*" for all changes)
-   * @param {function} callback - Callback(value, key, fullState)
-   * @returns {function} Unsubscribe function
-   */
   subscribe(key, callback) {
     if (!this._subscribers.has(key)) {
       this._subscribers.set(key, new Set());
     }
     this._subscribers.get(key).add(callback);
 
-    // Immediately call with current value
+    // Initial value
     const value = this._getNestedValue(this._state, key);
     if (value !== undefined) {
       try {
         callback(value, key, this._state);
-      } catch (error) {
-        console.error(`Initial subscriber call error for ${key}:`, error);
-      }
+      } catch (e) {}
     }
 
     return () => {
@@ -312,229 +287,112 @@ class StateManager extends EventTarget {
     };
   }
 
-  /**
-   * Get current state value
-   * @param {string} key - Optional key for nested value
-   */
   getState(key = null) {
     if (key === null) return this._state;
     return this._getNestedValue(this._state, key);
   }
 
-  /**
-   * Get ship state (convenience)
-   */
   getShipState() {
-    // Handle different state structures
     const state = this._state;
-    
-    // If we have a detailed state response with "state" key (from get_state with ship param)
     if (state.state) return state.state;
-    
-    // If we have a "ship" key
     if (state.ship) return state.ship;
     
-    // If we have a ships array, find player ship or use first
-    if (Array.isArray(state.ships) && state.ships.length > 0) {
+    const ships = state.ships;
+    if (Array.isArray(ships) && ships.length > 0) {
       if (this._playerShipId) {
-        const playerShip = state.ships.find(s => s.id === this._playerShipId);
+        const playerShip = ships.find(s => s.id === this._playerShipId);
         if (playerShip) return playerShip;
       }
-      return state.ships[0];
-    }
-
-    // If we have a ships object (station telemetry), find player ship or use first key
-    if (state.ships && typeof state.ships === "object") {
-      if (this._playerShipId && state.ships[this._playerShipId]) {
-        const ship = state.ships[this._playerShipId];
-        return ship?.id ? ship : { id: this._playerShipId, ...ship };
-      }
-      const [firstShipId] = Object.keys(state.ships);
-      if (firstShipId) {
-        const ship = state.ships[firstShipId];
-        return ship?.id ? ship : { id: firstShipId, ...ship };
-      }
+      return ships[0];
+    } else if (ships && typeof ships === "object") {
+      if (this._playerShipId && ships[this._playerShipId]) return ships[this._playerShipId];
+      const keys = Object.keys(ships);
+      if (keys.length > 0) return ships[keys[0]];
     }
     
-    return state;
+    return state; // Final fallback
   }
 
-  /**
-   * Get contacts (convenience)
-   */
   getContacts() {
     const ship = this.getShipState();
-    
-    // Try systems.sensors.contacts first (standard location)
-    if (ship?.systems?.sensors?.contacts) {
-      return ship.systems.sensors.contacts;
-    }
-    
-    // Try active/passive sensor contacts
-    if (ship?.systems?.sensors?.active?.contacts) {
-      return ship.systems.sensors.active.contacts;
-    }
-    if (ship?.systems?.sensors?.passive?.contacts) {
-      return ship.systems.sensors.passive.contacts;
-    }
-    
-    // Fallback to older formats
+    if (ship?.systems?.sensors?.contacts) return ship.systems.sensors.contacts;
+    if (ship?.systems?.sensors?.active?.contacts) return ship.systems.sensors.active.contacts;
+    if (ship?.systems?.sensors?.passive?.contacts) return ship.systems.sensors.passive.contacts;
     return ship?.sensors?.contacts || ship?.contacts || [];
   }
 
-  /**
-   * Get sensor system state (convenience)
-   */
   getSensors() {
     const ship = this.getShipState();
-    // ship.systems.sensors is a status STRING, not the full sensor object.
     const sysSensors = ship?.systems?.sensors;
-    if (sysSensors && typeof sysSensors === "object") {
-      return sysSensors;
-    }
+    if (sysSensors && typeof sysSensors === "object") return sysSensors;
     return ship?.sensors || {};
   }
 
-  /**
-   * Get targeting info (convenience).
-   * Returns the full targeting pipeline state including lock_state,
-   * track_quality, lock_progress, and per-weapon firing solutions.
-   */
   getTargeting() {
     const ship = this.getShipState();
-    // Prefer the dedicated targeting telemetry (includes full pipeline state)
-    const targeting = ship?.targeting || ship?.systems?.targeting || ship?.target || null;
-    if (!targeting) return null;
-
-    // Normalize: ensure common fields are accessible at top level
-    // so components can check targeting.locked_target or targeting.lock_state
-    return targeting;
+    return ship?.targeting || ship?.systems?.targeting || ship?.target || null;
   }
 
-  /**
-   * Get weapons info (convenience)
-   */
   getWeapons() {
     const ship = this.getShipState();
-    // ship.systems.weapons is a status STRING ("online"/"offline"), not the
-    // full weapons object.  Always prefer ship.weapons which contains the
-    // complete weapons telemetry (truth_weapons, torpedoes, pdc_mode, etc.).
     const sysWeapons = ship?.systems?.weapons;
-    if (sysWeapons && typeof sysWeapons === "object") {
-      return sysWeapons;
-    }
+    if (sysWeapons && typeof sysWeapons === "object") return sysWeapons;
     return ship?.weapons || {};
   }
 
-  /**
-   * Get combat system info including truth weapons (convenience).
-   * Combat data (truth_weapons, pdc_mode, torpedoes) lives inside the
-   * weapons telemetry -- there is no separate ship.combat key.
-   */
   getCombat() {
     const ship = this.getShipState();
     const sysCombat = ship?.systems?.combat;
     if (sysCombat && typeof sysCombat === "object") return sysCombat;
-    // Combat data is merged into weapons telemetry by the server
+    
     const weapons = this.getWeapons();
-    if (weapons && typeof weapons === "object" && weapons.truth_weapons) {
-      return weapons;
-    }
+    if (weapons?.truth_weapons) return weapons;
+    
     return ship?.combat || null;
   }
 
-  /**
-   * Get thermal system state (convenience)
-   */
-  getThermal() {
-    const ship = this.getShipState();
-    return ship?.thermal || null;
-  }
-
-  /**
-   * Get navigation info (convenience)
-   */
   getNavigation() {
     const ship = this.getShipState();
 
-    // Handle position - could be object {x,y,z} or array
-    let position = [0, 0, 0];
-    if (ship?.position) {
-      if (Array.isArray(ship.position)) {
-        position = ship.position;
-      } else if (typeof ship.position === "object") {
-        position = [ship.position.x || 0, ship.position.y || 0, ship.position.z || 0];
-      }
-    }
+    // Normalize position/velocity via _getNestedValue (handles {x,y,z} → [x,y,z])
+    const position = this._getNestedValue(ship, "position") || [0, 0, 0];
+    const velocity = this._getNestedValue(ship, "velocity") || [0, 0, 0];
 
-    // Handle velocity - could be object {x,y,z} or array
-    let velocity = [0, 0, 0];
-    if (ship?.velocity) {
-      if (Array.isArray(ship.velocity)) {
-        velocity = ship.velocity;
-      } else if (typeof ship.velocity === "object") {
-        velocity = [ship.velocity.x || 0, ship.velocity.y || 0, ship.velocity.z || 0];
-      }
-    }
+    // Heading with roll
+    const heading = ship?.orientation
+      ? { pitch: ship.orientation.pitch || 0, yaw: ship.orientation.yaw || 0, roll: ship.orientation.roll || 0 }
+      : ship?.heading || { pitch: 0, yaw: 0 };
 
-    // Handle heading/orientation
-    let heading = { pitch: 0, yaw: 0 };
-    if (ship?.orientation) {
-      heading = {
-        pitch: ship.orientation.pitch || 0,
-        yaw: ship.orientation.yaw || 0,
-        roll: ship.orientation.roll || 0
-      };
-    } else if (ship?.heading) {
-      heading = ship.heading;
-    }
-
-    // Handle thrust - prioritize propulsion system throttle (0-1 scalar)
-    let thrust = 0;
+    // Thrust: normalize to 0-1
     const propulsion = ship?.systems?.propulsion;
-    
-    // First, try to get throttle directly from propulsion system (most accurate)
+    let thrust = 0;
     if (propulsion?.throttle !== undefined) {
       thrust = propulsion.throttle;
     } else if (ship?.thrust_level !== undefined) {
       thrust = ship.thrust_level;
-    } else if (ship?.thrust !== undefined) {
-      if (typeof ship.thrust === "number") {
-        thrust = ship.thrust;
-      } else if (typeof ship.thrust === "object") {
-        // Calculate thrust magnitude from vector as fallback
-        const tx = ship.thrust.x || 0;
-        const ty = ship.thrust.y || 0;
-        const tz = ship.thrust.z || 0;
-        const magnitude = Math.sqrt(tx*tx + ty*ty + tz*tz);
-        // Normalize to 0-1 range if we have max_thrust from propulsion system
-        if (propulsion?.max_thrust && propulsion.max_thrust > 0) {
-          thrust = magnitude / propulsion.max_thrust;
-        } else if (magnitude > 1) {
-          thrust = magnitude / 100; // Assume percentage if over 1
-        } else {
-          thrust = magnitude;
-        }
-      }
+    } else if (typeof ship?.thrust === "number") {
+      thrust = ship.thrust;
+    } else if (ship?.thrust && typeof ship.thrust === "object") {
+      const tx = ship.thrust.x || 0, ty = ship.thrust.y || 0, tz = ship.thrust.z || 0;
+      const mag = Math.sqrt(tx*tx + ty*ty + tz*tz);
+      thrust = (propulsion?.max_thrust > 0) ? mag / propulsion.max_thrust : (mag > 1 ? mag / 100 : mag);
     }
-    
-    // Clamp to valid range
     thrust = Math.max(0, Math.min(1, thrust));
 
-    // Get autopilot from navigation system
+    // Autopilot with detail fields
     let autopilot = null;
     if (ship?.systems?.navigation) {
       const nav = ship.systems.navigation;
-      const autopilotState = nav.autopilot_state || nav.autopilotState || null;
+      const apState = nav.autopilot_state || nav.autopilotState || null;
       autopilot = {
         mode: nav.mode || "manual",
         enabled: nav.autopilot_enabled || false,
         target: nav.target || null,
-        phase: nav.phase || null,
-        range: autopilotState?.distance ?? nav.target_range ?? null,
-        distance: autopilotState?.distance ?? null,
-        closingSpeed: autopilotState?.closing_speed ?? null,
-        eta: autopilotState?.eta ?? null,
+        phase: nav.phase || (typeof apState === "string" ? apState : apState?.phase) || null,
+        range: apState?.distance ?? nav.target_range ?? null,
+        distance: apState?.distance ?? null,
+        closingSpeed: apState?.closing_speed ?? null,
+        eta: apState?.eta ?? null,
       };
     } else if (ship?.autopilot) {
       autopilot = ship.autopilot;
@@ -543,59 +401,33 @@ class StateManager extends EventTarget {
     return { position, velocity, heading, thrust, autopilot };
   }
 
-  /**
-   * Get systems info (convenience)
-   */
   getSystems() {
     const ship = this.getShipState();
     return ship?.systems || ship?.power_system?.systems || {};
   }
 
-  /**
-   * Get projectiles (convenience).
-   * Projectile data is available at the top level of the state response
-   * for TACTICAL and CAPTAIN stations.
-   */
+  getThermal() {
+    const ship = this.getShipState();
+    return ship?.thermal || ship?.systems?.thermal || null;
+  }
+
   getProjectiles() {
     return this._state?.projectiles || [];
   }
 
-  /**
-   * Get active torpedoes (convenience).
-   * Torpedo data is available at the top level of the state response
-   * for TACTICAL and CAPTAIN stations.
-   */
   getTorpedoes() {
     return this._state?.torpedoes || [];
   }
 
-  /**
-   * Get power info (convenience).
-   * Power data is served under ship.ops by the station telemetry --
-   * there is no dedicated ship.power or ship.power_system key.
-   */
   getPower() {
     const ship = this.getShipState();
-    const sysPower = ship?.systems?.power;
-    if (sysPower && typeof sysPower === "object") return sysPower;
-    return ship?.power || ship?.ops || {};
+    return ship?.systems?.power || ship?.power || ship?.ops || {};
   }
 
-  /**
-   * Time since last state update
-   */
   getStateAge() {
     return Date.now() - this._lastStateUpdate;
   }
-
-  /**
-   * Check if state is fresh (< 1 second old)
-   */
-  isStateFresh() {
-    return this.getStateAge() < 1000;
-  }
 }
 
-// Export singleton
 const stateManager = new StateManager();
 export { StateManager, stateManager };

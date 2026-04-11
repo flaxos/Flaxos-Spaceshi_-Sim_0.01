@@ -338,6 +338,7 @@ class ManualFlightPanel extends HTMLElement {
   }
 
   _updateVelStrip() {
+    if (!Array.isArray(this._velocity) || this._velocity.length < 3) return;
     const [vx, vy, vz] = this._velocity;
     const mag = Math.sqrt(vx*vx + vy*vy + vz*vz);
     const vm = this.shadowRoot.getElementById("vm");
@@ -345,7 +346,7 @@ class ManualFlightPanel extends HTMLElement {
     const vh = this.shadowRoot.getElementById("vh");
     if (vh) vh.textContent = mag > 0.1 ? `${((Math.atan2(vx,vz)*180/Math.PI+360)%360).toFixed(0).padStart(3,"0")}` : "---";
     const ag = this.shadowRoot.getElementById("ag");
-    if (ag) ag.textContent = this._currentG.toFixed(1);
+    if (ag) ag.textContent = (this._currentG || 0).toFixed(1);
   }
 
   // ── Interaction ─────────────────────────────────────────────────────

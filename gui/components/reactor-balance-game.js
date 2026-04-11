@@ -203,7 +203,7 @@ class ReactorBalanceGame extends HTMLElement {
     slider.addEventListener("input", (e) => {
       const val = parseInt(e.target.value, 10);
       this._sliderValue = val;
-      valueDisplay.textContent = `${val}%`;
+      if (valueDisplay) valueDisplay.textContent = `${val}%`;
     });
 
     // Send command on change (mouseup / touchend) to avoid spamming
@@ -231,7 +231,7 @@ class ReactorBalanceGame extends HTMLElement {
       if (!this._dragging) {
         const slider = this.shadowRoot.querySelector('input[type="range"]');
         const valueDisplay = this.shadowRoot.querySelector(".slider-value");
-        if (slider && Math.abs(this._sliderValue - this._reactorPercent) > 2) {
+        if (slider && valueDisplay && Math.abs(this._sliderValue - this._reactorPercent) > 2) {
           this._sliderValue = Math.round(this._reactorPercent);
           slider.value = this._sliderValue;
           valueDisplay.textContent = `${this._sliderValue}%`;
@@ -253,7 +253,7 @@ class ReactorBalanceGame extends HTMLElement {
     const heatEl = this.shadowRoot.querySelector(".heat-status");
     const netEl = this.shadowRoot.querySelector(".net-status");
     const tempEl = this.shadowRoot.querySelector(".temp-status");
-    if (!heatEl) return;
+    if (!heatEl || !netEl || !tempEl) return;
 
     const netRate = this._heatGen - this._heatRad;
     const tempPct = (this._hullTemp / this._maxTemp) * 100;

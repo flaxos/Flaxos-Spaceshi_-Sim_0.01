@@ -27,6 +27,7 @@ class SensorContacts extends HTMLElement {
     // Map of contactId -> { contact, lostAt } for contacts that disappeared from server data
     this._staleContacts = new Map();
     this._staleTimer = null;
+    this._lastContactsHtml = "";
   }
 
   connectedCallback() {
@@ -807,14 +808,19 @@ class SensorContacts extends HTMLElement {
       return rangeA - rangeB;
     });
 
-    list.innerHTML = sorted
+    const html = sorted
       .map(contact => {
         const cId = contact.contact_id || contact.id;
         const isStale = this._staleContacts.has(cId);
         return this._renderContactRow(contact, isStale);
       })
       .join("");
-    this._updateContactSelection();
+
+    if (this._lastContactsHtml !== html) {
+      list.innerHTML = html;
+      this._lastContactsHtml = html;
+      this._updateContactSelection();
+    }
   }
 
   /**

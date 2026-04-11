@@ -529,8 +529,9 @@ class Ship:
         
         cutoff_time = max(0, current_sim_time - max_age_seconds)
         
+        snapshot = list(self._flight_path_history)
         return [
-            entry["pos"] for entry in self._flight_path_history
+            entry["pos"] for entry in snapshot
             if entry["t"] >= cutoff_time
         ]
 

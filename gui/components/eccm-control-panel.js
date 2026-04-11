@@ -28,6 +28,7 @@ class ECCMControlPanel extends HTMLElement {
     this._unsubscribe = null;
     this._analysisResult = null;
     this._tier = window.controlTier || "arcade";
+    this._lastDisplayHtml = "";
   }
 
   connectedCallback() {
@@ -408,11 +409,8 @@ class ECCMControlPanel extends HTMLElement {
     // dropdown menu, making it impossible to pick a value.  When the
     // dropdown is open, skip the full rebuild and do a targeted in-place
     // update of just the select options and status values.
-    const analyzeSelect = this.shadowRoot.getElementById("analyze-target");
-    const dropdownOpen = analyzeSelect &&
-      this.shadowRoot.activeElement === analyzeSelect;
-
-    if (dropdownOpen) {
+    const activeSelect = this.shadowRoot.activeElement;
+    if (activeSelect && activeSelect.id === "analyze-target") {
       this._updateInPlace(eccm);
       return;
     }
