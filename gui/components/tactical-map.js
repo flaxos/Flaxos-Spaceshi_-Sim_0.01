@@ -89,6 +89,13 @@ class TacticalMap extends HTMLElement {
 
   _subscribe() {
     this._unsubscribe = stateManager.subscribe("*", () => {
+      if (this._autoFit) {
+        const contacts = stateManager.getContacts();
+        const ship = stateManager.getShipState();
+        if (contacts && ship?.position) {
+          this._autoFitScale(contacts, ship.position);
+        }
+      }
       this._draw();
     });
   }
@@ -411,9 +418,16 @@ class TacticalMap extends HTMLElement {
    * but reconstructs from distance + bearing relative to the player if missing.
    */
   _resolveContactPosition(contact, playerPos) {
-    // If telemetry includes the actual position, use it directly
-    if (contact.position && (contact.position.x !== undefined || contact.position.y !== undefined)) {
-      return contact.position;
+    const pos = contact.position;
+    if (pos) {
+      // Handle object format {x,y,z}
+      if (pos.x !== undefined || pos.y !== undefined) {
+        return pos;
+      }
+      // Handle array format [x,y,z]
+      if (Array.isArray(pos) && pos.length >= 2) {
+        return { x: pos[0], y: pos[1], z: pos[2] || 0 };
+      }
     }
 
     // Reconstruct from distance + bearing.
@@ -565,16 +579,6 @@ class TacticalMap extends HTMLElement {
         // Keep for a bit so explosions can still reference it, then clean
         // (the explosion already captured the position, so this is just housekeeping)
         this._lastContactPositions.delete(id);
-      }
-    }
-
-    // Auto-fit scale to show all contacts before rendering.
-    if (this._autoFit && contacts.length > 0) {
-      const prevIndex = this._scaleIndex;
-      this._autoFitScale(contacts, playerPos);
-      if (this._scaleIndex !== prevIndex) {
-        this._draw();
-        return;
       }
     }
 

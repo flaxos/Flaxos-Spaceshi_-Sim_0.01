@@ -518,9 +518,14 @@ class WSClient extends EventTarget {
     const shipId = stateManager?.getPlayerShipId?.();
     
     if (!shipId) {
-      const error = new Error(`No player ship ID set. Cannot send ship command: ${cmd}`);
-      console.error(error.message);
-      return Promise.reject(error);
+      const msg = `No player ship ID set. Skipping command: ${cmd}`;
+      const isTelemetry = ["crew_status", "fleet_status", "get_power_profiles", "get_draw_profile", "helm_queue_status"].includes(cmd);
+      if (isTelemetry) {
+        // console.debug(msg);
+      } else {
+        console.warn(msg);
+      }
+      return Promise.resolve({ ok: false, error: "no_ship_id" });
     }
     
     return this.send(cmd, { ship: shipId, ...args });
