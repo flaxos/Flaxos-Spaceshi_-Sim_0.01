@@ -1,0 +1,94 @@
+/* Flaxos GUI — Per-tier visual identity
+ * Sets body class tier-manual / tier-raw / tier-arcade / tier-cpu-assist.
+ * Mirrors gui/styles/tiers.css.
+ */
+
+/* ── Tier accent tokens ── */
+body.tier-manual     { --tier-accent: #ff8800; --tier-accent-rgb: 255, 136, 0; }
+body.tier-raw        { --tier-accent: #ff4444; --tier-accent-rgb: 255, 68, 68; }
+body.tier-arcade     { --tier-accent: #4488ff; --tier-accent-rgb: 68, 136, 255; }
+body.tier-cpu-assist { --tier-accent: #c0a0ff; --tier-accent-rgb: 192, 160, 255; }
+
+/* ── MANUAL: Amber flight-sim HUD ── */
+body.tier-manual {
+  font-family: var(--font-mono);
+  --text-primary: #ffe0b0;
+  --scanline-opacity: 0.015;
+}
+
+body.tier-manual::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0px,
+    transparent 2px,
+    rgba(255, 136, 0, var(--scanline-opacity, 0.015)) 2px,
+    rgba(255, 136, 0, var(--scanline-opacity, 0.015)) 4px
+  );
+  mix-blend-mode: overlay;
+}
+
+/* ── RAW: Terminal green, monospace, sharp ── */
+body.tier-raw {
+  font-family: var(--font-mono);
+  --text-primary: #c0ffc0;
+  --scanline-opacity: 0.022;
+}
+
+body.tier-raw::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0px,
+    transparent 2px,
+    rgba(0, 255, 100, var(--scanline-opacity, 0.022)) 2px,
+    rgba(0, 255, 100, var(--scanline-opacity, 0.022)) 4px
+  );
+  mix-blend-mode: overlay;
+}
+
+/* ── ARCADE: Blue HUD, rounded, guided ── */
+body.tier-arcade {
+  --text-primary: #d0e8ff;
+}
+
+/* ── CPU-ASSIST: Purple/white, clean sans-serif ── */
+body.tier-cpu-assist {
+  font-family: var(--font-sans);
+  --text-primary: #e0d8f0;
+}
+
+/* ── Tier visibility helpers ── */
+
+/* Show only in specific tiers */
+.tier-manual-only,
+.tier-raw-only,
+.tier-arcade-only,
+.tier-cpu-assist-only {
+  display: none !important;
+}
+
+body.tier-manual    .tier-manual-only    { display: revert !important; }
+body.tier-raw       .tier-raw-only       { display: revert !important; }
+body.tier-arcade    .tier-arcade-only    { display: revert !important; }
+body.tier-cpu-assist .tier-cpu-assist-only { display: revert !important; }
+
+/* Hide in specific tiers */
+body.tier-manual    .tier-hide-manual    { display: none !important; }
+body.tier-raw       .tier-hide-raw       { display: none !important; }
+body.tier-arcade    .tier-hide-arcade    { display: none !important; }
+body.tier-cpu-assist .tier-hide-cpu-assist { display: none !important; }
+
+/* Show in manual + raw (expert tiers) */
+body.tier-manual .tier-expert,
+body.tier-raw    .tier-expert {
+  display: revert !important;
+}

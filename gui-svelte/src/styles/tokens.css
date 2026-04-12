@@ -1,0 +1,103 @@
+/* Flaxos Spaceship Sim — Design Tokens
+ * Mirrors gui/styles/main.css — keep variable names in sync.
+ */
+
+:root {
+  /* ── Core backgrounds ── */
+  --bg-primary:       #0a0a0f;
+  --bg-panel:         #12121a;
+  --bg-input:         #1a1a24;
+  --bg-hover:         #22222e;
+  --bg-void:          #050508;
+  --bg-panel-deep:    #0d0d14;
+  --bg-glass:         rgba(22, 22, 34, 0.85);
+  --bg-panel-raised:  #161622;
+  --bg-active:        #2a2a3a;
+
+  /* ── Borders ── */
+  --border-default:   #2a2a3a;
+  --border-active:    #3a3a4a;
+  --border-focus:     #4a4a5a;
+  --border-subtle:    #1e1e2e;
+
+  /* ── Text ── */
+  --text-primary:     #e0e0e0;
+  --text-secondary:   #888899;
+  --text-dim:         #555566;
+  --text-bright:      #f0f0f4;
+
+  /* ── Status ── */
+  --status-nominal:   #00ff88;
+  --status-warning:   #ffaa00;
+  --status-critical:  #ff4444;
+  --status-info:      #00aaff;
+  --status-offline:   #555566;
+
+  /* ── Alert levels ── */
+  --alert-advisory:   #4488ff;
+  --alert-caution:    #ffaa00;
+  --alert-warning:    #ff6600;
+  --alert-critical:   #ff2222;
+
+  /* ── Category colors (event log) ── */
+  --cat-nav:   #00aaff;
+  --cat-sen:   #00ff88;
+  --cat-wpn:   #ff4444;
+  --cat-sys:   #ffaa00;
+  --cat-com:   #aa88ff;
+  --cat-err:   #ff4444;
+
+  /* ── Domain accent colors ── */
+  --domain-nav:     #3399ff;
+  --domain-sensor:  #00ccaa;
+  --domain-weapons: #cc4444;
+  --domain-power:   #cc8800;
+  --domain-comms:   #9977dd;
+  --domain-helm:    #6699cc;
+
+  /* ── HUD ── */
+  --hud-primary: #4a9eff;
+
+  /* ── Typography ── */
+  --font-mono:       "JetBrains Mono", "Fira Code", "Consolas", monospace;
+  --font-sans:       "Inter", "Segoe UI", system-ui, sans-serif;
+  --font-size-xs:    0.7rem;
+  --font-size-sm:    0.8rem;
+  --font-size-base:  0.9rem;
+  --font-size-lg:    1rem;
+  --font-size-xl:    1.1rem;
+
+  /* ── Spacing ── */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+
+  /* ── Border radius ── */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  /* ── Touch targets (mobile) ── */
+  --touch-min: 44px;
+
+  /* ── Transitions ── */
+  --transition-fast: 0.1s ease;
+  --transition-base: 0.2s ease;
+
+  /* ── Glows ── */
+  --glow-nominal:  0 0 8px rgba(0, 255, 136, 0.35);
+  --glow-warning:  0 0 8px rgba(255, 170, 0, 0.35);
+  --glow-critical: 0 0 12px rgba(255, 68, 68, 0.5);
+  --glow-info:     0 0 8px rgba(0, 170, 255, 0.3);
+  --glow-tier:     0 0 10px rgba(var(--tier-accent-rgb, 68, 136, 255), 0.25);
+
+  /* ── Noise / scanlines ── */
+  --noise-opacity:    0.018;
+  --scanline-opacity: 0.022;
+
+  /* ── Tier accent (default: arcade blue) ── */
+  --tier-accent:     #4488ff;
+  --tier-accent-rgb: 68, 136, 255;
+}
