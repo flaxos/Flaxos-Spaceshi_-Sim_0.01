@@ -1,0 +1,34 @@
+/* Flaxos GUI — Damage state visual overrides
+ * Applied when subsystems are impaired or destroyed.
+ */
+
+.damage-impaired {
+  --status-color: var(--status-warning);
+  border-color: var(--status-warning) !important;
+  opacity: 0.85;
+}
+
+.damage-destroyed {
+  --status-color: var(--status-critical);
+  border-color: var(--status-critical) !important;
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+/* Health bar fills */
+.health-bar-fill {
+  height: 100%;
+  border-radius: inherit;
+  transition: width 0.3s ease, background-color 0.3s ease;
+}
+
+.health-bar-fill.nominal  { background: var(--status-nominal); }
+.health-bar-fill.impaired { background: var(--status-warning); }
+.health-bar-fill.critical { background: var(--status-critical);
+  animation: damage-pulse 1.5s ease-in-out infinite; }
+.health-bar-fill.destroyed { background: var(--status-offline); }
+
+@keyframes damage-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
+}

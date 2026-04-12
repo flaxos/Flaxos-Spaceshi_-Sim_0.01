@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import signal
 import subprocess
 import sys
 import time
@@ -66,11 +67,18 @@ def _terminate_processes(processes: list[subprocess.Popen]) -> None:
                 proc.kill()
 
 
+def _handle_shutdown_signal(signum, _frame) -> None:
+    raise KeyboardInterrupt(f"signal {signum}")
+
+
 def main() -> int:
+    signal.signal(signal.SIGTERM, _handle_shutdown_signal)
+    signal.signal(signal.SIGINT, _handle_shutdown_signal)
+
     parser = argparse.ArgumentParser(description="Start Flaxos GUI stack")
     parser.add_argument("--host", default=DEFAULT_HOST, help="TCP server host")
     parser.add_argument("--tcp-port", type=int, default=DEFAULT_TCP_PORT, help="TCP server port")
-    parser.add_argument("--ws-host", default="0.0.0.0", help="WebSocket bind host")
+    parser.add_argument("--ws-host", default="127.0.0.1", help="WebSocket bind host (use --lan for 0.0.0.0)")
     parser.add_argument("--ws-port", type=int, default=DEFAULT_WS_PORT, help="WebSocket port")
     parser.add_argument("--http-port", type=int, default=DEFAULT_HTTP_PORT, help="GUI HTTP port")
     parser.add_argument("--dt", type=float, default=DEFAULT_DT, help="Simulation timestep")
@@ -89,6 +97,17 @@ def main() -> int:
         help="(deprecated) Use --mode instead. run=minimal, station=station",
     )
     parser.add_argument("--lan", action="store_true", help="Enable LAN mode (bind to 0.0.0.0)")
+    parser.add_argument(
+        "--ui",
+        choices=["legacy", "svelte", "dev"],
+        default="legacy",
+        help=(
+            "Frontend to serve: "
+            "legacy (default, serves gui/), "
+            "svelte (builds gui-svelte/ then serves dist/), "
+            "dev (starts vite dev server on :5173 alongside the game servers)"
+        ),
+    )
     parser.add_argument("--no-browser", action="store_true", help="Do not open browser")
     parser.add_argument(
         "--razorback",
@@ -154,10 +173,60 @@ def main() -> int:
     if args.game_code:
         ws_bridge_cmd.extend(["--game-code", args.game_code])
 
+    http_bind = "0.0.0.0" if args.lan else "127.0.0.1"
+    ui_mode = args.ui  # legacy | svelte | dev
+
+    # Resolve which directory to serve for HTTP
+    if ui_mode == "svelte":
+        # Build the Svelte project first
+        svelte_dir = os.path.join(ROOT_DIR, "gui-svelte")
+        dist_dir = os.path.join(svelte_dir, "dist")
+        print("[build] Building Svelte frontend...")
+        try:
+            node_paths = [
+                os.path.expanduser("~/.nvm/versions/node/v24.14.0/bin"),
+                os.path.expanduser("~/.nvm/versions/node/v22.22.1/bin"),
+                "/usr/local/bin",
+                "/usr/bin",
+            ]
+            npm_bin = None
+            for p in node_paths:
+                candidate = os.path.join(p, "npm")
+                if os.path.isfile(candidate):
+                    npm_bin = candidate
+                    break
+            if not npm_bin:
+                import shutil
+                npm_bin = shutil.which("npm")
+            if not npm_bin:
+                raise RuntimeError("npm not found; install Node.js to use --ui svelte")
+            build_env = os.environ.copy()
+            build_env["PATH"] = os.path.dirname(npm_bin) + ":" + build_env.get("PATH", "")
+            result = subprocess.run(
+                [npm_bin, "run", "build"],
+                cwd=svelte_dir,
+                env=build_env,
+                capture_output=True,
+                text=True,
+            )
+            if result.returncode != 0:
+                print(f"[error] Svelte build failed:\n{result.stderr}")
+                return 1
+            print("[build] Svelte build complete.")
+        except Exception as exc:
+            print(f"[error] Svelte build error: {exc}")
+            return 1
+        gui_dir = dist_dir
+    else:
+        gui_dir = os.path.join(ROOT_DIR, "gui")
+
     http_cmd = [
         python,
-        "-m",
-        "http.server",
+        os.path.join(ROOT_DIR, "tools", "gui_http_server.py"),
+        "--bind",
+        http_bind,
+        "--directory",
+        gui_dir,
         str(args.http_port),
     ]
 
@@ -171,20 +240,53 @@ def main() -> int:
     try:
         processes.append(_start_process("TCP server", server_cmd, ROOT_DIR, env=env))
         processes.append(_start_process("WebSocket bridge", ws_bridge_cmd, ROOT_DIR))
-        processes.append(_start_process("GUI server", http_cmd, os.path.join(ROOT_DIR, "gui")))
 
-        gui_url = f"http://localhost:{args.http_port}/"
-        razorback_url = f"http://localhost:{args.http_port}/razorback.html"
-        print(f"[ready] Mode: {mode}")
+        if ui_mode == "dev":
+            # Launch vite dev server instead of static file server
+            svelte_dir = os.path.join(ROOT_DIR, "gui-svelte")
+            node_paths = [
+                os.path.expanduser("~/.nvm/versions/node/v24.14.0/bin"),
+                os.path.expanduser("~/.nvm/versions/node/v22.22.1/bin"),
+                "/usr/local/bin",
+                "/usr/bin",
+            ]
+            npm_bin = None
+            for p in node_paths:
+                candidate = os.path.join(p, "npm")
+                if os.path.isfile(candidate):
+                    npm_bin = candidate
+                    break
+            if not npm_bin:
+                import shutil as _shutil
+                npm_bin = _shutil.which("npm") or "npm"
+            dev_env = os.environ.copy()
+            dev_env["PATH"] = os.path.dirname(npm_bin) + ":" + dev_env.get("PATH", "")
+            processes.append(_start_process(
+                "Vite dev server",
+                [npm_bin, "run", "dev"],
+                svelte_dir,
+                env=dev_env,
+            ))
+            gui_url = "http://localhost:5174/"
+            razorback_url = gui_url
+        else:
+            processes.append(_start_process("GUI server", http_cmd, ROOT_DIR))
+            gui_url = f"http://localhost:{args.http_port}/"
+            razorback_url = f"http://localhost:{args.http_port}/razorback.html"
+
+        print(f"[ready] Mode: {mode} | UI: {ui_mode}")
         print(f"[ready] GUI: {gui_url}")
-        print(f"[ready] Razorback cockpit: {razorback_url}")
+        if ui_mode == "legacy":
+            print(f"[ready] Razorback cockpit: {razorback_url}")
+        if ui_mode == "dev":
+            print(f"[ready] Vite dev server: {gui_url} (hot reload)")
         print(f"[ready] WS bridge: ws://localhost:{args.ws_port}")
         print(f"[ready] TCP server: {args.host}:{args.tcp_port}")
         print("Press Ctrl+C to stop all services.")
 
         if not args.no_browser:
             time.sleep(1.0)
-            open_url = razorback_url if args.razorback else gui_url
+            open_url = razorback_url if (args.razorback and ui_mode == "legacy") else gui_url
             webbrowser.open(open_url)
 
         while True:

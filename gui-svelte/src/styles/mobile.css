@@ -1,0 +1,43 @@
+/* Flaxos GUI — Mobile / small-screen overrides */
+
+@media (max-width: 768px) {
+  .view-grid {
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+    height: auto;
+    min-height: 100%;
+  }
+
+  .view-tabs .tab-label {
+    display: none;
+  }
+
+  .view-tabs .tab-key {
+    display: block;
+  }
+
+  .bridge-controls {
+    flex-wrap: wrap;
+    height: auto;
+    min-height: 40px;
+    padding: var(--space-xs);
+  }
+
+  button {
+    min-height: var(--touch-min);
+    min-width: var(--touch-min);
+  }
+
+  /* Hide secondary / tertiary panels on mobile to reduce clutter */
+  .panel-priority-secondary,
+  .panel-priority-tertiary {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .status-bar {
+    font-size: 0.65rem;
+    gap: var(--space-xs);
+  }
+}
