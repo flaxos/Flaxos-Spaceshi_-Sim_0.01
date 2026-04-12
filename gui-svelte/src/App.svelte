@@ -25,11 +25,11 @@
 
   // Station → allowed views mapping (mirrors index.html logic)
   const STATION_VIEWS: Record<string, string[]> = {
-    captain:         ["mission", "tactical", "fleet", "comms"],
-    helm:            ["helm", "mission"],
-    tactical:        ["tactical", "mission"],
-    ops:             ["ops", "mission"],
-    engineering:     ["engineering", "mission"],
+    captain:         ["helm", "tactical", "fleet", "comms", "ops", "mission"],
+    helm:            ["helm", "tactical", "mission"],
+    tactical:        ["tactical", "helm", "mission"],
+    ops:             ["ops", "engineering", "mission"],
+    engineering:     ["engineering", "ops", "mission"],
     comms:           ["comms", "mission"],
     science:         ["science", "tactical", "mission"],
     fleet_commander: ["fleet", "tactical", "mission"],
