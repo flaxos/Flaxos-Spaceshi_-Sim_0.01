@@ -250,8 +250,11 @@
   }
 
   function _dispatchScenarioLoaded(detail: Record<string, unknown>) {
-    dispatch("scenario-loaded", { ship_id: detail.ship_id as string | undefined });
-    document.dispatchEvent(new CustomEvent("scenario-loaded", { detail }));
+    // Server returns player_ship_id and assigned_ship — check all keys
+    const shipId = (detail.ship_id ?? detail.player_ship_id ?? detail.assigned_ship ?? detail.assignedShip) as string | undefined;
+    const station = (detail.station ?? detail.auto_station) as string | undefined;
+    dispatch("scenario-loaded", { ship_id: shipId, station });
+    document.dispatchEvent(new CustomEvent("scenario-loaded", { detail: { ...detail, ship_id: shipId } }));
   }
 
   // ── Post-mission ────────────────────────────────────────────────
