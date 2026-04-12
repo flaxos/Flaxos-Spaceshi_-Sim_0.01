@@ -6,7 +6,7 @@
   const STEPS = {
     manual: ["PLAN", "ORIENT", "BURN", "CHECK"],
     raw: ["PLAN", "ORIENT", "BURN", "CHECK"],
-    arcade: ["SENSE", "AIM", "FIRE"],
+    arcade: ["SENSE", "LOCK", "NAV"],
     "cpu-assist": ["ASSESS", "ORDER", "QUEUE", "MONITOR"],
   } as const;
 
