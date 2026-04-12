@@ -12,6 +12,7 @@
   import DockingPanel from "../components/helm/DockingPanel.svelte";
   import ManeuverPlanner from "../components/helm/ManeuverPlanner.svelte";
   import HelmBalanceGame from "../components/games/HelmBalanceGame.svelte";
+  import SensorContacts from "../components/tactical/SensorContacts.svelte";
 
   $: manualTier = $tier === "manual";
   $: rawTier = $tier === "raw";
@@ -27,6 +28,7 @@
   <section class="column awareness">
     <div class="column-title">Awareness</div>
     <FlightDataPanel />
+    <SensorContacts />
     {#if arcadeTier}
       <HelmBalanceGame />
     {/if}

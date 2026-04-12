@@ -66,7 +66,7 @@
     if (assignedShipId === shipId) return;
     setStatus(`Assigning to ship ${shipId}...`, "info");
     try {
-      const resp = await wsClient.send("assign_ship", { ship_id: shipId }) as { ok?: boolean; error?: string };
+      const resp = await wsClient.send("assign_ship", { ship: shipId }) as { ok?: boolean; error?: string };
       if (resp && resp.ok !== false) {
         assignedShipId = shipId;
         setStatus("Assigned. Select a station.", "success");
@@ -127,8 +127,16 @@
     try {
       const resp = await wsClient.send("my_status", {}) as { ok?: boolean; station?: string; ship_id?: string };
       if (resp?.ok !== false) {
-        if (resp.station !== undefined && resp.station !== claimedStation) claimedStation = resp.station ?? null;
         if (resp.ship_id && resp.ship_id !== assignedShipId) assignedShipId = resp.ship_id;
+        // Detect server-side station assignment (e.g. auto-captain on load_scenario)
+        if (resp.station !== undefined && resp.station !== claimedStation) {
+          const prev = claimedStation;
+          claimedStation = resp.station ?? null;
+          // Emit station-claimed so App.svelte can apply view restrictions
+          if (claimedStation && claimedStation !== prev) {
+            dispatch("station-claimed", { station: claimedStation });
+          }
+        }
       }
     } catch { /* non-critical */ }
   }

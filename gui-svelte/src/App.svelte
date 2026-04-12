@@ -25,11 +25,11 @@
 
   // Station → allowed views mapping (mirrors index.html logic)
   const STATION_VIEWS: Record<string, string[]> = {
-    captain:         ["mission", "tactical", "fleet", "comms"],
-    helm:            ["helm", "mission"],
-    tactical:        ["tactical", "mission"],
-    ops:             ["ops", "mission"],
-    engineering:     ["engineering", "mission"],
+    captain:         ["helm", "tactical", "fleet", "comms", "ops", "mission"],
+    helm:            ["helm", "tactical", "mission"],
+    tactical:        ["tactical", "helm", "mission"],
+    ops:             ["ops", "engineering", "mission"],
+    engineering:     ["engineering", "ops", "mission"],
     comms:           ["comms", "mission"],
     science:         ["science", "tactical", "mission"],
     fleet_commander: ["fleet", "tactical", "mission"],
@@ -58,8 +58,18 @@
 
   // Listen for scenario-loaded to switch to helm/mission view
   function onScenarioLoaded(e: Event) {
-    const detail = (e as CustomEvent<{ ship_id?: string }>).detail;
-    if (detail?.ship_id) playerShipId.set(detail.ship_id);
+    // Server returns player_ship_id / assigned_ship — check all possible keys
+    type ScenarioDetail = Record<string, string | undefined>;
+    const detail = (e as CustomEvent<ScenarioDetail>).detail ?? {};
+    const shipId = detail.ship_id ?? detail.player_ship_id ?? detail.assigned_ship ?? detail.assignedShip;
+    if (shipId) playerShipId.set(shipId);
+
+    // If the server auto-assigned a station (e.g. captain), apply view restrictions
+    const station = detail.station ?? detail.auto_station;
+    if (station && STATION_VIEWS[station]) {
+      allowedViews = STATION_VIEWS[station];
+    }
+
     if (allowedViews?.includes("helm")) activeView = "helm";
     else if (allowedViews) activeView = allowedViews[0];
     else activeView = "helm";
