@@ -97,11 +97,13 @@ class ShipClassRegistry:
 
         If the ship definition contains a ``ship_class`` field, the class
         template is loaded and the ship definition is deep-merged on top.
+        For backward compatibility, ``class`` is also accepted as a ship-class
+        alias when it matches a known hull definition.
         Instance-specific fields (id, name, position, velocity, orientation,
         ai_enabled, faction) always come from the ship definition.
 
-        If no ``ship_class`` is specified, the ship definition is returned
-        unchanged for backward compatibility.
+        If neither ``ship_class`` nor a resolvable ``class`` alias is
+        specified, the ship definition is returned unchanged.
 
         Args:
             ship_def: Ship definition from a scenario file
@@ -110,6 +112,10 @@ class ShipClassRegistry:
             Fully resolved ship config dict ready for Ship constructor
         """
         class_id = ship_def.get("ship_class")
+        if not class_id:
+            class_alias = ship_def.get("class")
+            if isinstance(class_alias, str) and class_alias in self._classes:
+                class_id = class_alias
         if not class_id:
             return ship_def
 

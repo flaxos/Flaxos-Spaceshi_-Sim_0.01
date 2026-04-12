@@ -36,6 +36,17 @@
 
   interface SkirmishShip { class: string; count?: number; }
 
+  type CommandEnvelope = {
+    ok?: boolean;
+    success?: boolean;
+    message?: string;
+    error?: string;
+    reason?: string;
+    response?: Record<string, unknown>;
+    data?: Record<string, unknown>;
+    [key: string]: unknown;
+  };
+
   // ── State ─────────────────────────────────────────────────────────
   let menuState: MenuState = "title";
   let scenarios: Scenario[] = [];
@@ -73,6 +84,29 @@
     tutorial: "TUTORIAL", combat: "COMBAT", stealth: "STEALTH", fleet: "FLEET", campaign: "CAMPAIGN",
   };
   const CATEGORIES = ["all", "tutorial", "combat", "stealth", "fleet", "campaign"];
+
+  function commandSucceeded(resp: CommandEnvelope | null | undefined): boolean {
+    if (!resp) return false;
+    return resp.ok !== false && resp.success !== false;
+  }
+
+  function unwrapCommandData<T extends Record<string, unknown>>(resp: CommandEnvelope | null | undefined): T {
+    const response = resp?.response;
+    if (response && typeof response === "object" && !Array.isArray(response)) {
+      return response as T;
+    }
+
+    const data = resp?.data;
+    if (data && typeof data === "object" && !Array.isArray(data)) {
+      return data as T;
+    }
+
+    return (resp ?? {}) as T;
+  }
+
+  function commandError(resp: CommandEnvelope | null | undefined, fallback: string): string {
+    return String(resp?.message ?? resp?.error ?? resp?.reason ?? fallback);
+  }
 
   // ── Derived ───────────────────────────────────────────────────────
   $: filteredScenarios = [...scenarios]
@@ -136,19 +170,22 @@
         try { await wsClient.connect(); } catch { /* continue */ }
       }
 
-      const shipsResp = await wsClient.send("list_ships", {}) as { success?: boolean; data?: { ships: LobbyShip[] } };
-      ships = (shipsResp?.success && shipsResp?.data?.ships) ? shipsResp.data.ships : [];
+      const shipsResp = await wsClient.send("list_ships", {}) as CommandEnvelope;
+      const shipsData = unwrapCommandData<{ ships?: LobbyShip[] }>(shipsResp);
+      ships = commandSucceeded(shipsResp) && Array.isArray(shipsData.ships) ? shipsData.ships : [];
 
-      const statusResp = await wsClient.send("my_status", {}) as { success?: boolean; data?: { station?: string } };
-      isCaptain = !!(statusResp?.success && statusResp?.data?.station === "captain");
+      const statusResp = await wsClient.send("my_status", {}) as CommandEnvelope;
+      const statusData = unwrapCommandData<{ station?: string }>(statusResp);
+      isCaptain = commandSucceeded(statusResp) && statusData.station === "captain";
 
       const stateResp = await wsClient.send("get_state", {}) as { active_scenario?: string };
       activeScenario = stateResp?.active_scenario ?? null;
 
       await Promise.all(ships.map(async (ship) => {
         try {
-          const sResp = await wsClient.send("station_status", { ship: ship.id }) as { success?: boolean; data?: { stations: ShipStation[] } };
-          ship.stations = sResp?.success ? (sResp.data?.stations ?? []) : [];
+          const sResp = await wsClient.send("station_status", { ship: ship.id }) as CommandEnvelope;
+          const stationData = unwrapCommandData<{ stations?: ShipStation[] }>(sResp);
+          ship.stations = commandSucceeded(sResp) ? (stationData.stations ?? []) : [];
         } catch { ship.stations = []; }
       }));
       ships = [...ships]; // trigger reactivity
@@ -175,10 +212,10 @@
         try { await wsClient.connect(); } catch { /* continue */ }
       }
 
-      const resp = await wsClient.send("load_scenario", { scenario: scenarioId }) as Record<string, unknown>;
+      const resp = await wsClient.send("load_scenario", { scenario: scenarioId }) as CommandEnvelope;
 
-      if (resp?.ok === false) {
-        errorMsg = (resp.error as string) ?? "Failed to load scenario.";
+      if (!commandSucceeded(resp)) {
+        errorMsg = commandError(resp, "Failed to load scenario.");
         return;
       }
 
@@ -210,10 +247,10 @@
       };
       if (skirmishTimeLimit) params.time_limit_seconds = skirmishTimeLimit;
 
-      const resp = await wsClient.send("generate_skirmish", params) as Record<string, unknown>;
+      const resp = await wsClient.send("generate_skirmish", params) as CommandEnvelope;
 
-      if (resp?.ok === false) {
-        errorMsg = (resp.error as string) ?? "Skirmish generation failed.";
+      if (!commandSucceeded(resp)) {
+        errorMsg = commandError(resp, "Skirmish generation failed.");
         return;
       }
 
@@ -227,11 +264,11 @@
   async function joinStation(shipId: string, stationName: string) {
     errorMsg = "";
     try {
-      const assignResp = await wsClient.send("assign_ship", { ship: shipId }) as { success?: boolean; message?: string };
-      if (!assignResp?.success) throw new Error(assignResp?.message ?? "assign failed");
+      const assignResp = await wsClient.send("assign_ship", { ship: shipId }) as CommandEnvelope;
+      if (!commandSucceeded(assignResp)) throw new Error(commandError(assignResp, "assign failed"));
 
-      const claimResp = await wsClient.send("claim_station", { station: stationName, ship: shipId }) as { success?: boolean; message?: string };
-      if (!claimResp?.success) throw new Error(claimResp?.message ?? "claim failed");
+      const claimResp = await wsClient.send("claim_station", { station: stationName, ship: shipId }) as CommandEnvelope;
+      if (!commandSucceeded(claimResp)) throw new Error(commandError(claimResp, "claim failed"));
 
       const detail = { assignedShip: shipId, station: stationName };
       dispatch("scenario-loaded", detail);

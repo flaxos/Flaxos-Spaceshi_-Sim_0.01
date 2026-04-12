@@ -155,7 +155,13 @@ class PropulsionSystem(BaseSystem):
 
         # Power check — only when actually thrusting (idle ships skip this)
         if thrust_magnitude > 0:
-            total_power = self.power_draw + (self.power_draw_per_thrust * thrust_magnitude * dt)
+            # The ship power bus feeds drive control electronics, pumps, and
+            # support systems. It does not provide the propulsive energy of the
+            # exhaust plume itself, which is already modeled through fuel burn
+            # and ISP. Scale the variable draw by commanded throttle, then
+            # convert the kW request into per-tick energy.
+            throttle_load = clamp(self.throttle, 0.0, 1.0)
+            total_power = (self.power_draw + (self.power_draw_per_thrust * throttle_load)) * dt
             power_system = ship.systems.get("power_management") or ship.systems.get("power")
             if power_system and not power_system.request_power(total_power, "propulsion"):
                 thrust_world_x = thrust_world_y = thrust_world_z = 0.0
