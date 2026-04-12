@@ -231,6 +231,17 @@
     {/if}
 
     {#if arcadeTier}
+      {#if activeTargetId}
+        <div class="target-indicator locked">
+          <span class="target-dot"></span>
+          TARGET LOCKED: {contacts.find(c => c.id === activeTargetId)?.name || activeTargetId}
+        </div>
+      {:else}
+        <div class="target-indicator none">
+          <span class="target-dot empty"></span>
+          NO TARGET — ping sensors and lock a contact
+        </div>
+      {/if}
       <div class="command-grid arcade">
         <button disabled={busy || !activeTargetId} on:click={() => engageCommand("rendezvous")}>RENDEZVOUS</button>
         <button disabled={busy || !activeTargetId} on:click={() => engageCommand("intercept")}>INTERCEPT</button>
@@ -369,6 +380,50 @@
     min-height: 74px;
     font-family: var(--font-mono);
     letter-spacing: 0.08em;
+  }
+
+  .target-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+
+  .target-indicator.locked {
+    background: rgba(0, 255, 136, 0.08);
+    border: 1px solid var(--status-nominal);
+    color: var(--status-nominal);
+  }
+
+  .target-indicator.none {
+    background: rgba(255, 170, 0, 0.06);
+    border: 1px solid var(--status-warning);
+    color: var(--status-warning);
+  }
+
+  .target-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--status-nominal);
+    flex-shrink: 0;
+    animation: pulse-lock 1.5s ease-in-out infinite;
+  }
+
+  .target-dot.empty {
+    background: transparent;
+    border: 2px solid var(--status-warning);
+    animation: none;
+  }
+
+  @keyframes pulse-lock {
+    0%, 100% { opacity: 1; box-shadow: 0 0 4px var(--status-nominal); }
+    50% { opacity: 0.6; box-shadow: none; }
   }
 
   .command-grid .wide {
