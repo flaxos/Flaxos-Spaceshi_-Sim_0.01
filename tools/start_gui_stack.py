@@ -100,15 +100,16 @@ def main() -> int:
     parser.add_argument(
         "--ui",
         choices=["legacy", "svelte", "dev"],
-        default="legacy",
+        default="svelte",
         help=(
             "Frontend to serve: "
-            "legacy (default, serves gui/), "
-            "svelte (builds gui-svelte/ then serves dist/), "
-            "dev (starts vite dev server on :5173 alongside the game servers)"
+            "svelte (default, builds gui-svelte/ then serves dist/), "
+            "legacy (serves gui/), "
+            "dev (starts vite dev server on :5174 alongside the game servers)"
         ),
     )
-    parser.add_argument("--no-browser", action="store_true", help="Do not open browser")
+    parser.add_argument("--no-browser", action="store_true", default=True, help="Do not open browser (default)")
+    parser.add_argument("--browser", action="store_true", help="Open browser on start")
     parser.add_argument(
         "--razorback",
         action="store_true",
@@ -284,7 +285,7 @@ def main() -> int:
         print(f"[ready] TCP server: {args.host}:{args.tcp_port}")
         print("Press Ctrl+C to stop all services.")
 
-        if not args.no_browser:
+        if args.browser:
             time.sleep(1.0)
             open_url = razorback_url if (args.razorback and ui_mode == "legacy") else gui_url
             webbrowser.open(open_url)
