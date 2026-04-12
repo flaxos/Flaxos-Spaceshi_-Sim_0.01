@@ -20,11 +20,11 @@
   $: selectedTarget = $selectedTacticalTargetId || lockedTargetId;
 
   async function fire() {
-    const command = $selectedLauncherType === "torpedo" ? "launch_torpedo" : "launch_missile";
-    await wsClient.sendShipCommand(command, {
+    await wsClient.sendShipCommand("launch_salvo", {
+      munition_type: $selectedLauncherType,
       target: selectedTarget || undefined,
+      count: salvoSize,
       profile,
-      salvo_size: salvoSize,
       guidance_mode: guidanceMode,
       warhead_type: warheadType,
     });

@@ -52,7 +52,7 @@
     try {
       await wsClient.sendShipCommand("fleet_add_ship", {
         fleet_id: fleetId,
-        target_ship: shipToAdd.trim(),
+        ship: shipToAdd.trim(),
       });
       shipToAdd = "";
       feedback = "Ship added to fleet";
