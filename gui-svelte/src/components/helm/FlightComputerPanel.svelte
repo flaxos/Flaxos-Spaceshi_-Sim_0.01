@@ -99,6 +99,23 @@
     return sorted[0];
   }
 
+  function describeCommandFailure(resp: {
+    message?: string;
+    error?: string;
+    reason?: string;
+    response?: { message?: string; error?: string; reason?: string };
+  } | null | undefined): string {
+    return String(
+      resp?.message
+      ?? resp?.error
+      ?? resp?.reason
+      ?? resp?.response?.message
+      ?? resp?.response?.error
+      ?? resp?.response?.reason
+      ?? "Command rejected"
+    );
+  }
+
   async function refreshSolutions() {
     if (!canSolve) {
       navSolutions = [];
@@ -124,23 +141,37 @@
     feedback = "";
 
     try {
+      type CmdResp = {
+        ok?: boolean;
+        message?: string;
+        error?: string;
+        reason?: string;
+        response?: { ok?: boolean; message?: string; error?: string; reason?: string };
+      };
+      let resp: CmdResp;
+
       if (program === "hold") {
-        await wsClient.sendShipCommand("autopilot", { enable: true, program: "hold" });
-        feedback = "Hold position engaged";
+        resp = await wsClient.sendShipCommand("autopilot", { enable: true, program: "hold" }) as CmdResp;
       } else {
         if (!activeTargetId) {
           feedback = "Select a target first";
           return;
         }
-
-        await wsClient.sendShipCommand("autopilot", {
+        resp = await wsClient.sendShipCommand("autopilot", {
           enable: true,
           program,
           target: activeTargetId,
           profile,
-        });
-        feedback = `${program.toUpperCase()} engaged`;
+        }) as CmdResp;
       }
+
+      // Surface server-side rejections (returned as resolved { ok: false } not thrown)
+      const serverOk = resp?.ok !== false && resp?.response?.ok !== false;
+      if (!serverOk) {
+        feedback = `Error: ${describeCommandFailure(resp)}`;
+        return;
+      }
+      feedback = program === "hold" ? "Hold position engaged" : `${program.toUpperCase()} engaged`;
     } catch (error) {
       feedback = error instanceof Error ? error.message : "Flight computer command failed";
     } finally {

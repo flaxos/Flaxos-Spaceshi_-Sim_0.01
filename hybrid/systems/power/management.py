@@ -76,10 +76,14 @@ class PowerManagementSystem:
             base = Reactor(layer_name)
             # D6: Support "output" as alias for "capacity" for backward compatibility
             capacity = params.get("capacity") or params.get("output", base.capacity)
+            # Power buses model max continuous output in kW. When no explicit
+            # ramp is provided, refill from cold to max in roughly 10 ticks,
+            # matching the project power-management design notes.
+            default_output_rate = float(capacity)
             self.reactors[layer_name] = Reactor(
                 name=layer_name,
                 capacity=capacity,
-                output_rate=params.get("output_rate", base.output_rate),
+                output_rate=params.get("output_rate", default_output_rate),
                 thermal_limit=params.get("thermal_limit", base.thermal_limit),
                 fuel_capacity=params.get("fuel_capacity"),
                 fuel_level=params.get("fuel_level"),
