@@ -15,8 +15,8 @@
   // Reference to ScenarioLoader so we can call showPostMission()
   let loaderRef: ScenarioLoader | undefined;
 
-  // Which in-game panel is active
-  let activePanel: "objectives" | "campaign" | "console" | "server" = "objectives";
+  // Which config panel is active
+  let activePanel: "objectives" | "campaign" | "console" | "server" = "server";
 
   // ── Event wiring ─────────────────────────────────────────────────
   function onScenarioLoaded(e: Event) {
@@ -90,88 +90,79 @@
 </script>
 
 <div class="mission-view">
-  {#if phase === "lobby" || phase === "ended"}
-    <!-- ── Full-screen scenario loader ── -->
-    <div class="loader-fullscreen">
-      <ScenarioLoader
-        bind:this={loaderRef}
-        on:scenario-loaded={(e) => onScenarioLoaded(e)}
-        on:next-mission={() => onNextMission()}
-      />
+  <div class="config-layout" class:mission-live={phase === "playing"}>
+    <!-- Left: mission loader / scenario controls -->
+    <div class="loader-sidebar">
+      <Panel
+        title={phase === "ended" ? "Mission Results" : "Mission Select"}
+        domain="nav"
+        priority={phase === "playing" ? "tertiary" : "primary"}
+        collapsible={phase === "playing"}
+      >
+        <div class="loader-wrap" class:compact={phase === "playing"}>
+          <ScenarioLoader
+            bind:this={loaderRef}
+            on:scenario-loaded={(e) => onScenarioLoaded(e)}
+            on:next-mission={() => onNextMission()}
+          />
+        </div>
+      </Panel>
     </div>
 
-  {:else if phase === "playing"}
-    <!-- ── In-mission layout ── -->
-    <div class="playing-layout">
-      <!-- Left: compact scenario loader (collapsed) -->
-      <div class="loader-sidebar">
-        <Panel title="Mission Select" domain="nav" priority="tertiary" collapsible={true}>
-          <div class="loader-collapsed-wrap">
-            <ScenarioLoader
-              bind:this={loaderRef}
-              on:scenario-loaded={(e) => onScenarioLoaded(e)}
-              on:next-mission={() => onNextMission()}
-            />
-          </div>
-        </Panel>
+    <!-- Right: always-available config/admin panels -->
+    <div class="mission-panels">
+      <div class="panel-tabs" role="tablist">
+        <button
+          class="tab-btn"
+          class:active={activePanel === "server"}
+          role="tab"
+          aria-selected={activePanel === "server"}
+          on:click={() => activePanel = "server"}
+        >SERVER</button>
+        <button
+          class="tab-btn"
+          class:active={activePanel === "console"}
+          role="tab"
+          aria-selected={activePanel === "console"}
+          on:click={() => activePanel = "console"}
+        >CONSOLE</button>
+        <button
+          class="tab-btn"
+          class:active={activePanel === "campaign"}
+          role="tab"
+          aria-selected={activePanel === "campaign"}
+          on:click={() => activePanel = "campaign"}
+        >CAMPAIGN</button>
+        <button
+          class="tab-btn"
+          class:active={activePanel === "objectives"}
+          role="tab"
+          aria-selected={activePanel === "objectives"}
+          on:click={() => activePanel = "objectives"}
+        >OBJECTIVES</button>
       </div>
 
-      <!-- Right: in-mission panels -->
-      <div class="mission-panels">
-        <!-- Panel tabs -->
-        <div class="panel-tabs" role="tablist">
-          <button
-            class="tab-btn"
-            class:active={activePanel === "objectives"}
-            role="tab"
-            aria-selected={activePanel === "objectives"}
-            on:click={() => activePanel = "objectives"}
-          >OBJECTIVES</button>
-          <button
-            class="tab-btn"
-            class:active={activePanel === "campaign"}
-            role="tab"
-            aria-selected={activePanel === "campaign"}
-            on:click={() => activePanel = "campaign"}
-          >CAMPAIGN</button>
-          <button
-            class="tab-btn"
-            class:active={activePanel === "console"}
-            role="tab"
-            aria-selected={activePanel === "console"}
-            on:click={() => activePanel = "console"}
-          >CONSOLE</button>
-          <button
-            class="tab-btn"
-            class:active={activePanel === "server"}
-            role="tab"
-            aria-selected={activePanel === "server"}
-            on:click={() => activePanel = "server"}
-          >SERVER</button>
-        </div>
-
-        <div class="panel-body">
-          {#if activePanel === "objectives"}
-            <Panel title="Mission Objectives" domain="nav" priority="primary" collapsible={false}>
-              <MissionObjectives />
-            </Panel>
-          {:else if activePanel === "campaign"}
-            <Panel title="Campaign" domain="comms" priority="secondary" collapsible={false}>
-              <CampaignHub />
-            </Panel>
-          {:else if activePanel === "console"}
-            <Panel title="Command Console" domain="" priority="tertiary" collapsible={false}>
-              <CommandPrompt />
-            </Panel>
-          {:else if activePanel === "server"}
-            <Panel title="Server Admin" domain="" priority="secondary" collapsible={false}>
-              <ServerAdminPanel />
-            </Panel>
-          {/if}
-        </div>
+      <div class="panel-body">
+        {#if activePanel === "objectives"}
+          <Panel title="Mission Objectives" domain="nav" priority="primary" collapsible={false}>
+            <MissionObjectives />
+          </Panel>
+        {:else if activePanel === "campaign"}
+          <Panel title="Campaign" domain="comms" priority="secondary" collapsible={false}>
+            <CampaignHub />
+          </Panel>
+        {:else if activePanel === "console"}
+          <Panel title="Command Console" domain="" priority="tertiary" collapsible={false}>
+            <CommandPrompt />
+          </Panel>
+        {:else if activePanel === "server"}
+          <Panel title="Server Admin" domain="" priority="secondary" collapsible={false}>
+            <ServerAdminPanel />
+          </Panel>
+        {/if}
       </div>
     </div>
-  {/if}
+  </div>
 </div>
 
 <style>
@@ -183,14 +174,7 @@
     flex-direction: column;
   }
 
-  /* ── Full-screen loader (lobby / ended) ── */
-  .loader-fullscreen {
-    flex: 1;
-    overflow-y: auto;
-  }
-
-  /* ── Playing layout ── */
-  .playing-layout {
+  .config-layout {
     display: grid;
     grid-template-columns: 340px 1fr;
     gap: var(--space-xs);
@@ -206,7 +190,12 @@
     gap: var(--space-xs);
   }
 
-  .loader-collapsed-wrap {
+  .loader-wrap {
+    height: 100%;
+    overflow-y: auto;
+  }
+
+  .loader-wrap.compact {
     max-height: 300px;
     overflow-y: auto;
   }
@@ -269,5 +258,16 @@
 
   .panel-body :global(.panel-body) {
     overflow-y: auto;
+  }
+
+  @media (max-width: 960px) {
+    .config-layout {
+      grid-template-columns: 1fr;
+      grid-template-rows: minmax(220px, auto) 1fr;
+    }
+
+    .loader-wrap.compact {
+      max-height: none;
+    }
   }
 </style>

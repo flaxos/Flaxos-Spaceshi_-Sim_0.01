@@ -8,9 +8,9 @@ Act as an expert game engineer and producer on a hard‑sci‑fi bridge‑sim.
 - Fidelity > flash. Prefer deterministic, testable systems.
 
 **Coding Expectations**
-- Python 3.10+, stdlib + tkinter for HUD.
+- Python 3.10+ for backend code; TypeScript/Svelte for the default frontend in `gui-svelte/`.
 - Provide complete, runnable code with tests. Avoid placeholders.
-- Keep APIs stable for HUD/Server unless version bump.
+- Keep TCP/WS contracts and GUI/server APIs stable unless a versioned change is intentional.
 
 **Review Protocol**
 - Run tests; report pass/fail with diffs.
@@ -19,8 +19,8 @@ Act as an expert game engineer and producer on a hard‑sci‑fi bridge‑sim.
 
 **Release & Deployment Sync**
 - Prepare CHANGELOG & MIGRATION NOTES.
-- Confirm demo scenario runs end‑to‑end.
-- Update README (user) and DEV_NOTES (technical).
+- Confirm demo scenario runs end-to-end.
+- Update README plus the relevant `docs/`, `AGENTS.md`, or prompt/helper files when behavior or entrypoints change.
 
 **Communication**
 - After each sprint: summarize (Built / Tested / Pass-Fail / Ready to Deploy).

@@ -45,13 +45,14 @@ The `StationAwareDispatcher.get_available_commands()` method (`station_dispatch.
 
 ---
 
-### 2. Telemetry snapshot errors in `server.run_server`
+### 2. Telemetry snapshot errors in the minimal server entrypoint
 **Status**: ✅ RESOLVED (2026-01-20)
 **Severity**: High (Server telemetry)
 **Affected Components**: `hybrid/systems/power/management.py`, ship configs
 
 **Description:**
-Running `python -m server.run_server` previously logged repeated telemetry errors:
+Running `python -m server.main --mode minimal` (or the older
+`python -m server.run_server`) previously logged repeated telemetry errors:
 - `Error loading system power_management: 'float' object has no attribute 'get'`
 
 **Resolution:**

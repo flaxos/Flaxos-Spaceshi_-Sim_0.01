@@ -3,7 +3,7 @@
 
   const dispatch = createEventDispatcher<{ "view-change": { view: string } }>();
 
-  export let activeView = "mission";
+  export let activeView = "config";
   export let allowedViews: string[] | null = null; // null = all allowed
 
   const VIEWS: { id: string; label: string; key: string }[] = [
@@ -14,7 +14,7 @@
     { id: "science",     label: "SCIENCE",     key: "5" },
     { id: "comms",       label: "COMMS",       key: "6" },
     { id: "fleet",       label: "FLEET",       key: "7" },
-    { id: "mission",     label: "MISSION",     key: "8" },
+    { id: "config",      label: "CONFIG",      key: "8" },
     { id: "editor",      label: "EDITOR",      key: "9" },
   ];
 

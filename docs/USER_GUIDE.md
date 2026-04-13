@@ -1,7 +1,8 @@
 # User Guide (Player)
 
-## Controls (Tk HUD)
-This section applies to the legacy desktop HUD (`python hybrid/gui/gui.py`).
+## Controls (Legacy Desktop Reference)
+This section is only for older desktop-control layouts kept for historical
+reference. The default supported interface is the browser GUI.
 
 - Click a contact to select as **target**
 - **F** — Fire weapon (if in FOV + turret arc, power & cooldown OK)
@@ -13,10 +14,10 @@ This section applies to the legacy desktop HUD (`python hybrid/gui/gui.py`).
 - Use the **Sensors** panel to select a contact, then **Lock Target**
 - Use **Autopilot** panel to engage programs (intercept/match/hold/hold_velocity)
 - Use **Weapons** panel to fire (via `fire_weapon` commands)
-- Use **Mission > Server** for authenticated admin/UAT controls such as pause/resume, mission reset, server reset, connected-client inspection, and runtime RCON password rotation
+- Use **Config > Server** for authenticated admin/UAT controls such as pause/resume, mission reset, server reset, connected-client inspection, and runtime RCON password rotation
 
 ## Tips
 - Stay within the **weapon arc** wedge on the radar to enable firing.
 - Targets with **ECM** degrade missile lock; fire closer or use ECCM‑capable missiles.
 - PDC will auto‑engage the nearest inbound missile if within arc/range.
-- For repeatable UAT, launch with `python tools/start_gui_stack.py --browser --rcon-password 'replace-this'` and authenticate inside `Mission > Server`.
+- For repeatable UAT, launch with `python tools/start_gui_stack.py --browser --rcon-password 'replace-this'` and authenticate inside `Config > Server`.

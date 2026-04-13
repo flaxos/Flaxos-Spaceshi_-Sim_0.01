@@ -135,7 +135,7 @@ This allows GUI clients to auto-configure connection settings.
 
 ## Admin / RCON
 
-The default Svelte GUI exposes authenticated admin controls in `Mission > Server`.
+The default Svelte GUI exposes authenticated admin controls in `Config > Server`.
 Start the stack with `--rcon-password` or set `FLAXOS_RCON_PASSWORD` to enable them.
 For secure remote browser access, pair RCON with `--game-code` on the WebSocket bridge and, ideally, `--allowed-origin-host`.
 

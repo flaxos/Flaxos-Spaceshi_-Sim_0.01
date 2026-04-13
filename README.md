@@ -59,7 +59,7 @@ python tools/start_gui_stack.py --tcp-port 9000 --ws-port 9001 --http-port 3200
 # Open a browser automatically
 python tools/start_gui_stack.py --browser
 
-# Set an explicit RCON password for Mission > Server admin controls
+# Set an explicit RCON password for Config > Server admin controls
 python tools/start_gui_stack.py --rcon-password 'replace-this'
 
 # Secure remote/LAN use: restrict browser origin, require WS auth, and set RCON
@@ -88,7 +88,7 @@ For repeatable UAT runs, start the stack with a non-default RCON password and us
 
 1. Launch with `python tools/start_gui_stack.py --browser --rcon-password 'replace-this'`
 2. Load a scenario and claim a station
-3. Open `Mission > Server`
+3. Open `Config > Server`
 4. Authenticate with the RCON password
 5. Use the panel for:
    - server uptime and mission uptime visibility
@@ -104,7 +104,7 @@ Password rotation is runtime-only. If you restart the stack, the server returns 
 For remote browser access over ZeroTier, use all three controls together:
 
 1. `--game-code` to gate the WebSocket bridge
-2. `--rcon-password` for admin actions in `Mission > Server`
+2. `--rcon-password` for admin actions in `Config > Server`
 3. `--allowed-origin-host <zerotier-ip-or-hostname>` to restrict browser origins hitting the bridge
 
 Recommended example:
@@ -494,7 +494,7 @@ Key test areas:
 - Scenario system (JSON-defined ships, objectives, win/fail conditions)
 - Web GUI: Helm, Tactical, OPS, Engineering, Fleet, Mission views
 - Tier system (RAW / ARCADE / CPU-ASSIST complexity levels)
-- Asset editor REST API
+- Ship-class editor commands and Svelte Editor view
 
 ### In Progress
 

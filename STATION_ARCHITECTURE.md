@@ -321,9 +321,13 @@ All existing commands automatically mapped to stations:
 
 ## Running the System
 
+The canonical entrypoint is `server.main`. The old `server.station_server`
+module from the original implementation has been folded into the unified
+server entrypoint.
+
 ### Start Station-Enabled Server
 ```bash
-python -m server.station_server --host 0.0.0.0 --port 8765 --dt 0.1 --fleet-dir hybrid_fleet
+python -m server.main --mode station --host 0.0.0.0 --port 8765 --dt 0.1 --fleet-dir hybrid_fleet
 ```
 
 ### Test Client
@@ -345,6 +349,7 @@ nc localhost 8765
 
 ```
 server/
+├── main.py                     # Canonical TCP server entrypoint (--mode station)
 ├── stations/
 │   ├── __init__.py              # Package exports
 │   ├── station_types.py         # Station definitions (267 lines)
@@ -353,7 +358,6 @@ server/
 │   ├── station_telemetry.py     # Telemetry filtering (287 lines)
 │   ├── station_commands.py      # Management commands (315 lines)
 │   └── README.md                # User documentation
-├── station_server.py            # Enhanced TCP server (339 lines)
 test_station_client.py           # Test client (283 lines)
 STATION_ARCHITECTURE.md          # This document
 ```
@@ -366,7 +370,7 @@ STATION_ARCHITECTURE.md          # This document
 ✅ **Station manager**: Client registration, ship assignment, station claims working
 ✅ **Command routing**: Permission checks functioning correctly
 ✅ **Telemetry filtering**: Filtered output generated correctly
-✅ **Server startup**: Station server initializes and listens
+✅ **Server startup**: Station mode initializes and listens
 
 ## Next Steps (Phase 2)
 

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Spaceship Sim (Secure Launch)
+Comment=Prompt for an RCON password and launch Flaxos Spaceship Sim
+Icon=applications-games
+Exec=xfce4-terminal --hold -e "bash -c '/home/flax/games/spaceship-sim/tools/launch-spacesim-passworded.sh'"
+Terminal=false
+Categories=Game;Simulation;
+StartupNotify=true

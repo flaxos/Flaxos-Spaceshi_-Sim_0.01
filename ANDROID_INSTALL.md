@@ -146,11 +146,11 @@ To connect mobile device to desktop server:
 
 1. **Start server on desktop**:
    ```bash
-   # Recommended: station-aware server (multi-crew / permissions)
-   python -m server.station_server --host 0.0.0.0 --port 8765
+   # Recommended: unified station server entrypoint (multi-crew / permissions)
+   python -m server.main --lan --port 8765
 
    # Minimal server (no stations)
-   # python -m server.run_server --host 0.0.0.0 --port 8765
+   # python -m server.main --mode minimal --lan --port 8765
    ```
 
 2. **Find desktop IP address**:

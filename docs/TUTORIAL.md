@@ -25,16 +25,28 @@ Welcome to the Flaxos Spaceship Sim! This tutorial will guide you through the ba
 ### Prerequisites
 
 **Required:**
-- Python 3.8+
+- Python 3.10+
 - PyYAML (`pip install pyyaml`)
 - Flask (`pip install flask`)
+- websockets (`pip install websockets`)
+
+**Recommended for the default browser UI:**
+- Node.js + npm (used by `tools/start_gui_stack.py` to build `gui-svelte/`)
 
 **Optional:**
 - NumPy (`pip install numpy`) - Required for fleet formations
 
 ### Starting the Server
 
-From your project directory:
+Recommended all-in-one startup:
+
+```bash
+python tools/start_gui_stack.py --browser
+```
+
+That launches the TCP server, WS bridge, and browser GUI together.
+
+Manual server-only startup (useful for direct TCP/mobile clients):
 
 ```bash
 # Terminal 1: Start the unified server (station-aware / multi-crew)
@@ -48,10 +60,11 @@ The server will:
 
 ### Connecting Your First Client
 
-**Option 1: Desktop HUD (Recommended for Learning)**
+**Option 1: Browser GUI (Recommended)**
 ```bash
-# Terminal 2: Start the HUD
-python hybrid/gui/gui.py
+# If you used the all-in-one startup above, the browser opens automatically.
+# Otherwise launch the full browser stack in a fresh terminal:
+python tools/start_gui_stack.py --browser
 ```
 
 **Option 2: Mobile UI (Android/Pydroid)**
