@@ -205,6 +205,7 @@ def get_ship_telemetry(ship, sim_time: float = None) -> Dict[str, Any]:
     auto_engineering_state = _get_auto_system_state(ship, "auto_engineering")
     auto_science_state = _get_auto_system_state(ship, "auto_science")
     auto_comms_state = _get_auto_system_state(ship, "auto_comms")
+    auto_fleet_state = _get_auto_system_state(ship, "auto_fleet")
 
     # Drift state: moving with no thrust applied
     is_drifting = acceleration_magnitude < 0.001 and velocity_magnitude > 0.01
@@ -283,6 +284,7 @@ def get_ship_telemetry(ship, sim_time: float = None) -> Dict[str, Any]:
         "auto_engineering": auto_engineering_state,
         "auto_science": auto_science_state,
         "auto_comms": auto_comms_state,
+        "auto_fleet": auto_fleet_state,
         "hull_integrity": getattr(ship, "hull_integrity", 0.0),
         "max_hull_integrity": getattr(ship, "max_hull_integrity", 0.0),
         "hull_percent": (

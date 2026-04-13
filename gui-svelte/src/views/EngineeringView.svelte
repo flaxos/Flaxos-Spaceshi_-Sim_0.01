@@ -1,5 +1,7 @@
 <script lang="ts">
   import { tier } from "../lib/stores/tier.js";
+  import { wsClient } from "../lib/ws/wsClient.js";
+  import { proposals, autoSystems } from "../lib/stores/proposals.js";
 
   import ThermalDisplay from "../components/engineering/ThermalDisplay.svelte";
   import EngineeringControlPanel from "../components/engineering/EngineeringControlPanel.svelte";
@@ -9,6 +11,7 @@
   import SystemToggles from "../components/engineering/SystemToggles.svelte";
 
   import EventLog from "../components/shared/EventLog.svelte";
+  import ProposalQueue from "../components/shared/ProposalQueue.svelte";
   import ReactorBalanceGame from "../components/games/ReactorBalanceGame.svelte";
   import RadiatorDeployGame from "../components/games/RadiatorDeployGame.svelte";
 
@@ -29,6 +32,13 @@
     "cascade",
     "engineering_proposal",
   ];
+
+  async function toggleAutoEngineering() {
+    await wsClient.sendShipCommand(
+      $autoSystems.engineering.enabled ? "disable_auto_engineering" : "enable_auto_engineering",
+      {}
+    );
+  }
 </script>
 
 <div class="engineering-root" class:arcade={arcadeTier} class:manual={manualTier} class:cpu={cpuAssistTier}>
@@ -54,10 +64,25 @@
     <SystemToggles />
   </section>
 
-  <section class="column monitoring">
-    <div class="column-title">Monitoring</div>
-    <EventLog title="Engineering Log" domain="power" filter={ENGINEERING_EVENT_FILTER} priority={cpuAssistTier ? "primary" : "secondary"} />
-  </section>
+  {#if cpuAssistTier}
+    <section class="column cpu-proposals">
+      <div class="column-title">Auto-Engineering</div>
+      <button
+        class="auto-toggle"
+        class:active={$autoSystems.engineering.enabled}
+        type="button"
+        on:click={toggleAutoEngineering}
+      >
+        AUTO-ENG: {$autoSystems.engineering.enabled ? "ENABLED" : "DISABLED"}
+      </button>
+      <ProposalQueue proposals={$proposals.engineering} station="engineering" />
+    </section>
+  {:else}
+    <section class="column monitoring">
+      <div class="column-title">Monitoring</div>
+      <EventLog title="Engineering Log" domain="power" filter={ENGINEERING_EVENT_FILTER} priority="secondary" />
+    </section>
+  {/if}
 </div>
 
 <style>
@@ -76,7 +101,7 @@
   }
 
   .engineering-root.cpu {
-    grid-template-columns: minmax(360px, 1.25fr) minmax(280px, 0.95fr) minmax(260px, 0.9fr) minmax(280px, 0.95fr);
+    grid-template-columns: minmax(320px, 1.1fr) minmax(270px, 0.9fr) minmax(250px, 0.85fr) minmax(300px, 1.05fr);
   }
 
   .engineering-root.manual {
@@ -105,6 +130,26 @@
     letter-spacing: 0.12em;
     text-transform: uppercase;
     color: var(--text-secondary);
+  }
+
+  .auto-toggle {
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-default);
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+  }
+
+  .auto-toggle.active {
+    border-color: rgba(var(--tier-accent-rgb), 0.6);
+    background: rgba(var(--tier-accent-rgb), 0.12);
+    color: var(--text-primary);
   }
 
   @media (max-width: 1420px) {

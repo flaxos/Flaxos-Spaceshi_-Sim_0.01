@@ -2,9 +2,9 @@
   import { derived } from "svelte/store";
   import { shipState } from "../../lib/stores/gameState.js";
   import { tier } from "../../lib/stores/tier.js";
+  import { proposals, type Proposal } from "../../lib/stores/proposals.js";
   import ConnectionStatus from "./ConnectionStatus.svelte";
 
-  // Derive display values from ship state
   const hull = derived(shipState, ($s) => {
     if (!$s) return null;
     const h = $s?.systems?.hull?.integrity ?? $s?.hull_integrity ?? $s?.hull ?? null;
@@ -24,10 +24,6 @@
     return $s?.systems?.propulsion?.status ?? $s?.drive_status ?? "nominal";
   });
 
-  const autoTactical = derived(shipState, ($s) => {
-    return $s?.auto_tactical?.enabled ?? false;
-  });
-
   function hullColor(pct: number | null): string {
     if (pct === null) return "var(--text-dim)";
     if (pct > 70) return "var(--status-nominal)";
@@ -36,15 +32,31 @@
   }
 
   const TIER_LABELS: Record<string, string> = {
-    manual:     "MANUAL",
-    raw:        "RAW",
-    arcade:     "ARCADE",
+    manual:       "MANUAL",
+    raw:          "RAW",
+    arcade:       "ARCADE",
     "cpu-assist": "CPU-ASSIST",
   };
+
+  // Per-station proposal counts (cpu-assist only)
+  const STATION_LABELS: Array<[keyof typeof $proposals, string]> = [
+    ["tactical", "TAC"],
+    ["engineering", "ENG"],
+    ["ops", "OPS"],
+    ["comms", "COM"],
+    ["fleet", "FLT"],
+  ];
+
+  $: proposalCounts = STATION_LABELS
+    .map(([key, label]) => ({ label, count: ($proposals[key] as Proposal[]).length }))
+    .filter((entry) => entry.count > 0);
+
+  $: anyUrgent = (Object.values($proposals) as Proposal[][])
+    .flat()
+    .some((p) => p.urgent);
 </script>
 
 <header class="status-bar">
-  <!-- Hull -->
   <span class="stat-item">
     HULL:
     <span style="color: {hullColor($hull)}">
@@ -52,29 +64,30 @@
     </span>
   </span>
 
-  <!-- Fuel -->
   <span class="stat-item">
     FUEL: <span class="stat-val">{$fuel !== null ? `${$fuel}%` : "—"}</span>
   </span>
 
-  <!-- Drive -->
   <span class="stat-item">
     DRIVE: <span class="stat-val">{$driveStatus}</span>
   </span>
 
   <span class="spacer"></span>
 
-  <!-- CPU-ASSIST auto-tactical indicator -->
   {#if $tier === "cpu-assist"}
-    <span class="auto-indicator" class:active={$autoTactical}>
-      AUTO-TACTICAL: {$autoTactical ? "ON" : "OFF"}
+    <span class="proposal-counts" class:urgent={anyUrgent}>
+      {#if proposalCounts.length === 0}
+        <span class="count-idle">AI IDLE</span>
+      {:else}
+        {#each proposalCounts as entry}
+          <span class="count-badge">{entry.label}:{entry.count}</span>
+        {/each}
+      {/if}
     </span>
   {/if}
 
-  <!-- Tier badge -->
   <span class="tier-badge tier-badge-{$tier}">{TIER_LABELS[$tier] ?? $tier}</span>
 
-  <!-- Connection status -->
   <ConnectionStatus />
 </header>
 
@@ -99,20 +112,35 @@
 
   .spacer { flex: 1; }
 
-  .auto-indicator {
+  .proposal-counts {
+    display: flex;
+    align-items: center;
+    gap: 6px;
     font-size: 0.65rem;
     font-weight: 700;
-    letter-spacing: 1px;
-    color: var(--text-dim);
-    padding: 2px 6px;
-    border: 1px solid var(--border-default);
-    border-radius: 3px;
+    letter-spacing: 0.5px;
   }
 
-  .auto-indicator.active {
+  .count-badge {
+    padding: 2px 6px;
+    border-radius: 3px;
+    border: 1px solid rgba(192, 160, 255, 0.45);
     color: #c0a0ff;
-    border-color: #c0a0ff;
-    box-shadow: 0 0 6px rgba(192, 160, 255, 0.3);
+    background: rgba(192, 160, 255, 0.1);
+  }
+
+  .count-idle {
+    padding: 2px 6px;
+    border-radius: 3px;
+    border: 1px solid var(--border-default);
+    color: var(--text-dim);
+  }
+
+  .proposal-counts.urgent .count-badge {
+    border-color: rgba(255, 170, 0, 0.6);
+    color: #ffaa00;
+    background: rgba(255, 170, 0, 0.1);
+    animation: urgentFlash 0.8s ease-in-out infinite;
   }
 
   .tier-badge {
@@ -123,5 +151,16 @@
     border-radius: 3px;
     border: 1px solid var(--tier-accent, var(--border-default));
     color: var(--tier-accent, var(--text-dim));
+  }
+
+  @keyframes urgentFlash {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.5; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .proposal-counts.urgent .count-badge {
+      animation: none;
+    }
   }
 </style>
