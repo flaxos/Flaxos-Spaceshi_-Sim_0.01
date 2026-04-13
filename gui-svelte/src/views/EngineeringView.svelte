@@ -87,34 +87,41 @@
 
 <style>
   .engineering-root {
+    --column-min: 20rem;
     width: 100%;
-    height: 100%;
+    min-height: 100%;
     display: grid;
-    grid-template-columns: minmax(340px, 1.2fr) minmax(290px, 1fr) minmax(280px, 0.95fr) minmax(280px, 0.95fr);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--column-min)), 1fr));
     gap: var(--space-xs);
     padding: var(--space-xs);
-    overflow: hidden;
+    align-content: start;
+    overflow: visible;
   }
 
   .engineering-root.arcade {
-    grid-template-columns: minmax(360px, 1.35fr) minmax(260px, 0.9fr) minmax(250px, 0.85fr) minmax(250px, 0.85fr);
+    --column-min: 18rem;
   }
 
   .engineering-root.cpu {
-    grid-template-columns: minmax(320px, 1.1fr) minmax(270px, 0.9fr) minmax(250px, 0.85fr) minmax(300px, 1.05fr);
+    --column-min: 19rem;
   }
 
   .engineering-root.manual {
-    grid-template-columns: minmax(360px, 1.25fr) minmax(320px, 1fr) minmax(280px, 0.95fr) minmax(280px, 0.95fr);
+    --column-min: 21rem;
   }
 
   .column {
     min-height: 0;
-    overflow: auto;
+    min-width: 0;
+    overflow: visible;
+    align-self: start;
     display: flex;
     flex-direction: column;
     gap: var(--space-xs);
-    padding-right: 2px;
+  }
+
+  .column.thermal {
+    grid-column: span 2;
   }
 
   .column-title {
@@ -152,28 +159,25 @@
     color: var(--text-primary);
   }
 
-  @media (max-width: 1420px) {
+  @media (max-width: 1500px) {
     .engineering-root,
     .engineering-root.arcade,
     .engineering-root.cpu,
     .engineering-root.manual {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      grid-auto-rows: minmax(0, 1fr);
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr));
+    }
+
+    .column.thermal {
+      grid-column: span 1;
     }
   }
 
-  @media (max-width: 860px) {
+  @media (max-width: 760px) {
     .engineering-root,
     .engineering-root.arcade,
     .engineering-root.cpu,
     .engineering-root.manual {
       grid-template-columns: 1fr;
-      height: auto;
-      overflow: auto;
-    }
-
-    .column {
-      overflow: visible;
     }
   }
 </style>

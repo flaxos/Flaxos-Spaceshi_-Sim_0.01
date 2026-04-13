@@ -30,14 +30,28 @@
   }
 
   function onKeydown(e: KeyboardEvent) {
-    // Ignore if focus is in an input
-    const tag = (e.target as HTMLElement)?.tagName;
-    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+    if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
+
+    const target = e.target as HTMLElement | null;
+    if (!target) return;
+    const tag = target.tagName;
+    if (
+      tag === "INPUT"
+      || tag === "TEXTAREA"
+      || tag === "SELECT"
+      || target.isContentEditable
+      || target.closest("[contenteditable='true'], [role='textbox']")
+    ) {
+      return;
+    }
 
     const idx = parseInt(e.key, 10);
     if (idx >= 1 && idx <= VIEWS.length) {
       const view = VIEWS[idx - 1];
-      if (isAllowed(view.id)) selectView(view.id);
+      if (isAllowed(view.id)) {
+        e.preventDefault();
+        selectView(view.id);
+      }
     }
   }
 

@@ -25,7 +25,7 @@
 
   // Station → allowed views mapping (mirrors index.html logic)
   const STATION_VIEWS: Record<string, string[]> = {
-    captain:         ["helm", "tactical", "fleet", "comms", "ops", "config"],
+    captain:         ["helm", "tactical", "engineering", "ops", "science", "comms", "fleet", "config"],
     helm:            ["helm", "tactical", "config"],
     tactical:        ["tactical", "helm", "config"],
     ops:             ["ops", "engineering", "config"],
@@ -185,5 +185,7 @@
 
   .view-container.active {
     display: block;
+    overflow: auto;
+    overscroll-behavior: contain;
   }
 </style>

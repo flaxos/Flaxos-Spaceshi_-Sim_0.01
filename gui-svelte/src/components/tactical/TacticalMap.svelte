@@ -1,172 +1,199 @@
 <script lang="ts">
-  import { onMount } from "svelte";
   import Panel from "../layout/Panel.svelte";
+  import SpatialMapCanvas from "../spatial/SpatialMapCanvas.svelte";
+  import type { SpatialLegendItem, SpatialLink, SpatialRing, SpatialTrack } from "../spatial/spatialMapTypes.js";
   import { gameState } from "../../lib/stores/gameState.js";
   import { wsClient } from "../../lib/ws/wsClient.js";
   import { selectedTacticalTargetId } from "../../lib/stores/tacticalUi.js";
-  import { extractShipState, getTacticalContacts, getWeaponMounts, type TacticalContact } from "./tacticalData.js";
+  import { extractShipState, getTacticalContacts, getWeaponMounts } from "./tacticalData.js";
+  import { getOrientation, getPosition, getVelocity, toStringValue, toVec3 } from "../helm/helmData.js";
 
-  let canvas: HTMLCanvasElement | null = null;
-  let dragging = false;
-  let lastX = 0;
-  let lastY = 0;
-  let offsetX = 0;
-  let offsetY = 0;
-  let zoom = 0.0015;
+  type CombatEntity = Record<string, unknown>;
+
+  const LEGEND: SpatialLegendItem[] = [
+    { label: "Own ship", color: "#8ef7ff", symbol: "▲" },
+    { label: "Threat", color: "#ff5a5a", symbol: "◆" },
+    { label: "Neutral", color: "#82b8ff", symbol: "●" },
+    { label: "Rail slug", color: "#f9f871", symbol: "•" },
+    { label: "Munition", color: "#ff9966", symbol: "◇" },
+  ];
+  const legendItems = LEGEND;
+
+  let lockBusy = false;
 
   $: ship = extractShipState($gameState);
   $: contacts = getTacticalContacts(ship);
   $: mounts = getWeaponMounts(ship);
-  $: maxRange = mounts.reduce((max, mount) => Math.max(max, mount.range), 50_000);
+  $: shipPosition = getPosition(ship);
+  $: shipVelocity = getVelocity(ship);
+  $: shipHeading = getOrientation(ship).yaw;
+  $: projectiles = Array.isArray(($gameState as Record<string, unknown>).projectiles) ? (($gameState as Record<string, unknown>).projectiles as CombatEntity[]) : [];
+  $: torpedoes = Array.isArray(($gameState as Record<string, unknown>).torpedoes) ? (($gameState as Record<string, unknown>).torpedoes as CombatEntity[]) : [];
 
-  onMount(() => {
-    if (!canvas) return undefined;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return undefined;
-    let raf = 0;
+  $: contactTracks = contacts.map((contact) => ({
+    id: contact.id,
+    label: contact.id,
+    position: contact.position,
+    velocity: contact.velocity,
+    kind: contact.diplomaticState.toLowerCase().includes("hostile") || contact.threatLevel === "red" || contact.threatLevel === "orange"
+      ? "hostile"
+      : "neutral",
+    confidence: contact.confidence,
+    annotation: `${contact.classification} · ${Math.round(contact.distance / 1000)} km`,
+    selectable: true,
+    elevationConnector: contact.id === $selectedTacticalTargetId ? "selected" : "none",
+  } satisfies SpatialTrack));
 
-    const draw = () => {
-      if (!canvas) return;
-      const width = canvas.width;
-      const height = canvas.height;
-      const cx = width / 2 + offsetX;
-      const cy = height / 2 + offsetY;
-      ctx.clearRect(0, 0, width, height);
-      ctx.fillStyle = "#081019";
-      ctx.fillRect(0, 0, width, height);
+  $: projectileTracks = projectiles
+    .map((entity) => {
+      const position = toVec3(entity.position);
+      const velocity = toVec3(entity.velocity);
+      return {
+        id: `proj:${toStringValue(entity.id, Math.random().toString(36).slice(2))}`,
+        label: toStringValue(entity.mount, toStringValue(entity.weapon, "slug")).toUpperCase(),
+        position,
+        velocity,
+        kind: "projectile",
+        annotation: toStringValue(entity.target),
+        selectable: false,
+        elevationConnector: "none",
+      } satisfies SpatialTrack;
+    });
 
-      ctx.strokeStyle = "rgba(255,255,255,0.08)";
-      ctx.beginPath();
-      ctx.moveTo(cx, 0);
-      ctx.lineTo(cx, height);
-      ctx.moveTo(0, cy);
-      ctx.lineTo(width, cy);
-      ctx.stroke();
+  $: munitionTracks = torpedoes
+    .map((entity) => {
+      const kind = toStringValue(entity.munition_type, "torpedo");
+      const target = toStringValue(entity.target);
+      return {
+        id: `mun:${toStringValue(entity.id, Math.random().toString(36).slice(2))}`,
+        label: toStringValue(entity.id, kind.toUpperCase()),
+        position: toVec3(entity.position),
+        velocity: toVec3(entity.velocity),
+        kind: "munition",
+        annotation: `${kind.toUpperCase()}${target ? ` → ${target}` : ""}`,
+        selectable: false,
+        elevationConnector: "none",
+      } satisfies SpatialTrack;
+    });
 
-      [maxRange * 0.3, maxRange * 0.6, maxRange].forEach((range, index) => {
-        ctx.beginPath();
-        ctx.strokeStyle = `rgba(0, 170, 255, ${0.1 + index * 0.06})`;
-        ctx.arc(cx, cy, range * zoom, 0, Math.PI * 2);
-        ctx.stroke();
-      });
+  $: tracks = [
+    {
+      id: "ownship",
+      label: toStringValue(ship.name, toStringValue(ship.id, "OWN SHIP")),
+      position: shipPosition,
+      velocity: shipVelocity,
+      headingDeg: shipHeading,
+      kind: "ownship",
+      selectable: false,
+      emphasis: true,
+      annotation: "Combat platform",
+      elevationConnector: "always",
+      elevationLabel: "OWN SHIP",
+    } satisfies SpatialTrack,
+    ...contactTracks,
+    ...munitionTracks,
+    ...projectileTracks,
+  ];
 
-      contacts.forEach((contact) => {
-        const x = cx + contact.position.x * zoom;
-        const y = cy - contact.position.y * zoom;
-        ctx.strokeStyle = "rgba(255,255,255,0.16)";
-        ctx.beginPath();
-        ctx.moveTo(cx, cy);
-        ctx.lineTo(x, y);
-        ctx.stroke();
+  $: selectedContact = contacts.find((contact) => contact.id === $selectedTacticalTargetId) ?? null;
 
-        if (contact.confidence < 0.95) {
-          ctx.strokeStyle = "rgba(255, 216, 77, 0.3)";
-          ctx.beginPath();
-          ctx.ellipse(x, y, 12 + (1 - contact.confidence) * 18, 8 + (1 - contact.confidence) * 12, 0, 0, Math.PI * 2);
-          ctx.stroke();
-        }
+  $: rings = buildRings(shipPosition, mounts);
+  $: links = buildLinks(shipPosition, selectedContact, torpedoes, contacts);
+  $: initialRadius = deriveInitialRadius(contacts, mounts);
 
-        ctx.fillStyle = contact.id === $selectedTacticalTargetId ? "#00ffaa" : "#74b9ff";
-        ctx.beginPath();
-        ctx.arc(x, y, 4 + contact.threatScore * 4, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.fillStyle = "rgba(255,255,255,0.9)";
-        ctx.font = "11px JetBrains Mono";
-        ctx.fillText(`${contact.id} ${contact.classification ?? ""}`, x + 8, y - 8);
-      });
-
-      raf = requestAnimationFrame(draw);
-    };
-
-    raf = requestAnimationFrame(draw);
-    return () => cancelAnimationFrame(raf);
-  });
-
-  async function lockNearest(event: MouseEvent) {
-    if (!canvas || contacts.length === 0) return;
-    const rect = canvas.getBoundingClientRect();
-    const x = ((event.clientX - rect.left) * canvas.width) / rect.width;
-    const y = ((event.clientY - rect.top) * canvas.height) / rect.height;
-    const cx = canvas.width / 2 + offsetX;
-    const cy = canvas.height / 2 + offsetY;
-    let best: TacticalContact | null = null;
-    let bestDistance = Number.POSITIVE_INFINITY;
-
-    for (const contact of contacts) {
-      const dotX = cx + contact.position.x * zoom;
-      const dotY = cy - contact.position.y * zoom;
-      const distance = Math.hypot(dotX - x, dotY - y);
-      if (distance < bestDistance) {
-        bestDistance = distance;
-        best = contact;
-      }
+  function buildRings(position: typeof shipPosition, weaponMounts: typeof mounts): SpatialRing[] {
+    const grouped = new Map<string, number>();
+    for (const mount of weaponMounts) {
+      if (!mount.range || mount.range <= 0) continue;
+      const key = mount.weaponType;
+      grouped.set(key, Math.max(grouped.get(key) ?? 0, mount.range));
     }
 
-    if (!best || bestDistance > 28) return;
-    selectedTacticalTargetId.set(best.id);
-    await wsClient.sendShipCommand("lock_target", { contact_id: best.id });
+    const palette: Record<string, { color: string; label: string }> = {
+      railgun: { color: "rgba(135, 196, 255, 0.34)", label: "Rail" },
+      pdc: { color: "rgba(98, 255, 201, 0.28)", label: "PDC" },
+      torpedo: { color: "rgba(255, 173, 91, 0.28)", label: "Torp" },
+      missile: { color: "rgba(255, 123, 123, 0.26)", label: "Missile" },
+      other: { color: "rgba(220, 220, 220, 0.2)", label: "Envelope" },
+    };
+
+    return Array.from(grouped.entries()).map(([weaponType, radius]) => ({
+      id: `ring:${weaponType}`,
+      center: position,
+      radius,
+      color: palette[weaponType]?.color ?? palette.other.color,
+      label: palette[weaponType]?.label ?? palette.other.label,
+      dashed: weaponType !== "railgun",
+    }));
   }
 
-  function startDrag(event: MouseEvent) {
-    dragging = true;
-    lastX = event.clientX;
-    lastY = event.clientY;
+  function buildLinks(
+    position: typeof shipPosition,
+    selected: typeof selectedContact,
+    munitions: CombatEntity[],
+    tacticalContacts: typeof contacts,
+  ): SpatialLink[] {
+    const result: SpatialLink[] = [];
+    if (selected) {
+      result.push({
+        id: "selected-track",
+        from: position,
+        to: selected.position,
+        color: "rgba(255, 90, 90, 0.6)",
+        label: "Current target",
+        arrow: true,
+      });
+    }
+
+    for (const munition of munitions) {
+      const targetId = toStringValue(munition.target);
+      const target = tacticalContacts.find((contact) => contact.id === targetId);
+      if (!target) continue;
+      result.push({
+        id: `munition:${toStringValue(munition.id, targetId)}`,
+        from: toVec3(munition.position),
+        to: target.position,
+        color: "rgba(255, 166, 102, 0.34)",
+        dashed: true,
+        faint: true,
+        arrow: true,
+      });
+    }
+    return result;
   }
 
-  function onMove(event: MouseEvent) {
-    if (!dragging) return;
-    offsetX += event.clientX - lastX;
-    offsetY += event.clientY - lastY;
-    lastX = event.clientX;
-    lastY = event.clientY;
+  function deriveInitialRadius(tacticalContacts: typeof contacts, weaponMounts: typeof mounts) {
+    const farthestContact = tacticalContacts.reduce((max, contact) => Math.max(max, contact.distance), 0);
+    const farthestRange = weaponMounts.reduce((max, mount) => Math.max(max, mount.range || 0), 0);
+    return Math.max(15_000, Math.min(500_000, Math.max(farthestContact, farthestRange) * 1.1 || 40_000));
   }
 
-  function endDrag() {
-    dragging = false;
-  }
-
-  function onWheel(event: WheelEvent) {
-    event.preventDefault();
-    zoom = Math.min(0.01, Math.max(0.0002, zoom * (event.deltaY > 0 ? 0.88 : 1.12)));
+  async function lockSelected(id = $selectedTacticalTargetId) {
+    if (!id) return;
+    lockBusy = true;
+    try {
+      selectedTacticalTargetId.set(id);
+      await wsClient.sendShipCommand("lock_target", { contact_id: id });
+    } finally {
+      lockBusy = false;
+    }
   }
 </script>
 
 <Panel title="Tactical Map" domain="sensor" priority="primary" className="tactical-map-panel">
-  <div class="shell">
-    <canvas
-      bind:this={canvas}
-      width="520"
-      height="360"
-      on:click={lockNearest}
-      on:mousedown={startDrag}
-      on:mousemove={onMove}
-      on:mouseup={endDrag}
-      on:mouseleave={endDrag}
-      on:wheel={onWheel}
-    ></canvas>
-    <div class="caption">Drag to pan. Scroll to zoom. Click a contact to lock.</div>
-  </div>
+  <SpatialMapCanvas
+    mode="tactical"
+    {tracks}
+    {rings}
+    {links}
+    {legendItems}
+    ownshipId="ownship"
+    selectedId={$selectedTacticalTargetId}
+    {initialRadius}
+    caption="Plan view emphasizes target geometry and weapon envelopes. The elevation strip now only mirrors ownship and focused tracks so Z cues stay readable. Wheel zooms on cursor; drag pans."
+    selectionActionLabel="Lock"
+    selectionActionDisabled={!$selectedTacticalTargetId || lockBusy}
+    on:select={(event) => selectedTacticalTargetId.set(event.detail.id)}
+    on:activate={(event) => lockSelected(event.detail.id)}
+  />
 </Panel>
-
-<style>
-  .shell {
-    display: grid;
-    gap: 8px;
-    padding: var(--space-sm);
-  }
-
-  canvas {
-    width: 100%;
-    height: auto;
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--border-subtle);
-    background: #081019;
-    cursor: crosshair;
-  }
-
-  .caption {
-    font-size: var(--font-size-xs);
-    color: var(--text-secondary);
-  }
-</style>
