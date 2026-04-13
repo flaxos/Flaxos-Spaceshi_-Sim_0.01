@@ -137,6 +137,7 @@ This allows GUI clients to auto-configure connection settings.
 
 The default Svelte GUI exposes authenticated admin controls in `Mission > Server`.
 Start the stack with `--rcon-password` or set `FLAXOS_RCON_PASSWORD` to enable them.
+For secure remote browser access, pair RCON with `--game-code` on the WebSocket bridge and, ideally, `--allowed-origin-host`.
 
 ### RCON Authentication
 
@@ -193,6 +194,22 @@ Authenticated clients can call:
 - `rcon_set_password`
 
 `rcon_set_password` rotates the password for the current server process only, clears all outstanding RCON tokens, and requires re-authentication.
+RCON tokens are time-limited and expire automatically.
+
+### Secure Remote Example
+
+```bash
+python tools/start_gui_stack.py \
+  --lan \
+  --allowed-origin-host '100.64.10.24' \
+  --game-code 'replace-this-with-a-long-random-secret' \
+  --rcon-password 'replace-this-with-a-long-random-secret'
+```
+
+Launcher behavior:
+- with `--lan`, missing `--game-code` is replaced with a generated shared secret
+- with `--lan`, the default `admin` RCON password is replaced with a generated secret
+- the printed/opened GUI URL includes `?game_code=...` so the browser can authenticate to the bridge
 
 ---
 

@@ -17,6 +17,7 @@ import logging
 import argparse
 import os
 import sys
+from urllib.parse import urlparse
 from typing import Dict, Optional, Set
 
 # Ensure project root is on sys.path for imports
@@ -40,6 +41,7 @@ from server.config import (
     DEFAULT_HOST,
     PROTOCOL_VERSION,
 )
+from server.rate_limiter import RateLimiter
 from server.protocol import WSEnvelope, MessageType
 
 logging.basicConfig(
@@ -47,6 +49,10 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+
+RCON_AUTH_RATE = 0.2
+RCON_AUTH_BURST = 3
 
 
 class TCPConnection:
@@ -196,16 +202,59 @@ class WSBridge:
 
     def __init__(self, ws_host: str = "0.0.0.0", ws_port: int = DEFAULT_WS_PORT,
                  tcp_host: str = DEFAULT_HOST, tcp_port: int = DEFAULT_TCP_PORT,
-                 game_code: Optional[str] = None):
+                 game_code: Optional[str] = None,
+                 allowed_origin_hosts: Optional[Set[str]] = None):
         self.ws_host = ws_host
         self.ws_port = ws_port
         self.tcp_host = tcp_host
         self.tcp_port = tcp_port
         self.game_code = game_code
+        self.allowed_origin_hosts = {
+            host.strip().lower()
+            for host in (allowed_origin_hosts or set())
+            if host and host.strip()
+        }
         # Per-WS-client TCP connections: websocket -> TCPConnection
         self._client_tcp: Dict[WebSocketServerProtocol, TCPConnection] = {}
         self.clients: Set[WebSocketServerProtocol] = set()
         self._running = False
+        self._rcon_auth_limiter = RateLimiter(
+            rate=RCON_AUTH_RATE,
+            burst=RCON_AUTH_BURST,
+        )
+
+    def _client_key(self, websocket: WebSocketServerProtocol) -> str:
+        """Return a stable remote identifier for bridge-side auth throttling."""
+        remote = getattr(websocket, "remote_address", None)
+        if isinstance(remote, tuple) and remote:
+            return str(remote[0])
+        return str(remote or "unknown")
+
+    def _origin_allowed(self, websocket: WebSocketServerProtocol) -> bool:
+        """Optionally enforce an Origin hostname allowlist for browser clients."""
+        if not self.allowed_origin_hosts:
+            return True
+
+        request = getattr(websocket, "request", None)
+        headers = getattr(request, "headers", None)
+        origin = headers.get("Origin") if headers else None
+        if not origin:
+            logger.warning(
+                "Bridge rejected connection from %s: missing Origin header",
+                self._client_key(websocket),
+            )
+            return False
+
+        origin_host = (urlparse(origin).hostname or "").lower()
+        if origin_host in self.allowed_origin_hosts:
+            return True
+
+        logger.warning(
+            "Bridge rejected connection from %s: origin %s not in allowlist",
+            self._client_key(websocket),
+            origin,
+        )
+        return False
 
     async def register(self, websocket: WebSocketServerProtocol):
         """Register a new WebSocket client with its own TCP connection."""
@@ -345,6 +394,15 @@ class WSBridge:
         message.  If authentication fails the connection is closed without
         registering the client.
         """
+        if not self._origin_allowed(websocket):
+            error_envelope = WSEnvelope.error("Origin not allowed")
+            try:
+                await websocket.send(error_envelope.to_wire())
+            except Exception:
+                pass
+            await websocket.close(4003, "Origin not allowed")
+            return
+
         if not await self._authenticate(websocket):
             await websocket.close(4001, "Authentication failed")
             return
@@ -389,6 +447,18 @@ class WSBridge:
         if cmd == "_discover":
             # Discovery request - forward to TCP server for full info
             pass  # Let it fall through to TCP forwarding
+
+        if cmd == "rcon_auth":
+            client_key = self._client_key(websocket)
+            if not self._rcon_auth_limiter.allow(client_key, "rcon_auth"):
+                error_data = {
+                    "ok": False,
+                    "error": "Too many authentication attempts",
+                }
+                if request_id is not None:
+                    error_data["_request_id"] = request_id
+                await websocket.send(WSEnvelope.response(error_data).to_wire())
+                return
 
         # Get this client's dedicated TCP connection
         tcp = self._client_tcp.get(websocket)
@@ -460,6 +530,7 @@ class WSBridge:
                             await ws.send(envelope.to_wire())
                         except Exception:
                             pass
+            self._rcon_auth_limiter.cleanup(max_age=600.0)
             await asyncio.sleep(5)
 
     async def start(self):
@@ -471,6 +542,11 @@ class WSBridge:
 
         if self.game_code:
             logger.info("Game code authentication enabled")
+        if self.allowed_origin_hosts:
+            logger.info(
+                "Origin allowlist enabled: %s",
+                ", ".join(sorted(self.allowed_origin_hosts)),
+            )
 
         async with websockets.asyncio.server.serve(
             self.handle_client,
@@ -504,6 +580,12 @@ async def main():
         default=None,
         help="Shared secret for WS authentication (omit to allow unauthenticated connections)",
     )
+    parser.add_argument(
+        "--allowed-origin-host",
+        action="append",
+        default=[],
+        help="Optional browser Origin hostname allowlist entry (repeatable)",
+    )
     args = parser.parse_args()
 
     logger.info(f"Protocol version: {PROTOCOL_VERSION}")
@@ -514,6 +596,7 @@ async def main():
         tcp_host=args.tcp_host,
         tcp_port=args.tcp_port,
         game_code=args.game_code,
+        allowed_origin_hosts=set(args.allowed_origin_host),
     )
 
     try:

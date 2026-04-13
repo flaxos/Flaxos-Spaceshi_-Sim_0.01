@@ -61,6 +61,9 @@ python tools/start_gui_stack.py --browser
 
 # Set an explicit RCON password for Mission > Server admin controls
 python tools/start_gui_stack.py --rcon-password 'replace-this'
+
+# Secure remote/LAN use: restrict browser origin, require WS auth, and set RCON
+python tools/start_gui_stack.py --lan --allowed-origin-host '<zerotier-ip-or-hostname>' --game-code 'replace-this' --rcon-password 'replace-this'
 ```
 
 ### Run the server only
@@ -95,6 +98,29 @@ For repeatable UAT runs, start the stack with a non-default RCON password and us
    - runtime RCON password rotation
 
 Password rotation is runtime-only. If you restart the stack, the server returns to the password provided at launch or via `FLAXOS_RCON_PASSWORD`.
+
+### Secure ZeroTier / Remote Access
+
+For remote browser access over ZeroTier, use all three controls together:
+
+1. `--game-code` to gate the WebSocket bridge
+2. `--rcon-password` for admin actions in `Mission > Server`
+3. `--allowed-origin-host <zerotier-ip-or-hostname>` to restrict browser origins hitting the bridge
+
+Recommended example:
+
+```bash
+python tools/start_gui_stack.py \
+  --lan \
+  --allowed-origin-host '100.64.10.24' \
+  --game-code 'replace-this-with-a-long-random-secret' \
+  --rcon-password 'replace-this-with-a-long-random-secret'
+```
+
+Notes:
+- If `--lan` is used without `--game-code`, the launcher now generates one and appends it to the printed/opened GUI URL.
+- If `--lan` is used with the default RCON password, the launcher now generates a strong replacement and prints it.
+- If you omit `--allowed-origin-host`, the bridge logs a warning and origin filtering stays open.
 
 ---
 

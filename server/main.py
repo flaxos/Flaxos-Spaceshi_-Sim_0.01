@@ -17,6 +17,7 @@ Examples:
 from __future__ import annotations
 
 import argparse
+import hmac
 import json
 import logging
 import os
@@ -54,6 +55,11 @@ from hybrid_runner import HybridRunner
 from utils.logger import setup_logging
 
 logger = logging.getLogger(__name__)
+
+
+RCON_AUTH_RATE = 0.2
+RCON_AUTH_BURST = 3
+RCON_TOKEN_TTL_SECONDS = 8 * 60 * 60
 
 
 class UnifiedServer:
@@ -95,9 +101,13 @@ class UnifiedServer:
 
         # Rate limiter (20 commands/sec sustained, burst of 30)
         self.rate_limiter = RateLimiter(rate=20.0, burst=30)
+        self._rcon_auth_limiter = RateLimiter(
+            rate=RCON_AUTH_RATE,
+            burst=RCON_AUTH_BURST,
+        )
 
         # RCON (Remote Console) state
-        self._rcon_tokens: Dict[str, str] = {}  # client_id -> auth token
+        self._rcon_tokens: Dict[str, tuple[str, float]] = {}
         self._start_time: float = time.time()
         self._mission_start_time: Optional[float] = None
 
@@ -131,6 +141,38 @@ class UnifiedServer:
     def _clear_mission_runtime(self) -> None:
         """Clear mission runtime tracking when no scenario is active."""
         self._mission_start_time = None
+
+    def _issue_rcon_token(self, client_id: str) -> tuple[str, int]:
+        """Issue a time-limited bearer token for RCON commands."""
+        import uuid
+
+        expires_at = time.time() + RCON_TOKEN_TTL_SECONDS
+        token = str(uuid.uuid4())
+        self._rcon_tokens[client_id] = (token, expires_at)
+        return token, int(RCON_TOKEN_TTL_SECONDS)
+
+    def _get_active_rcon_token(self, client_id: str) -> Optional[tuple[str, int]]:
+        """Return the active RCON token and remaining TTL, expiring stale entries."""
+        record = self._rcon_tokens.get(client_id)
+        if not record:
+            return None
+
+        token, expires_at = record
+        remaining = int(expires_at - time.time())
+        if remaining <= 0:
+            self._rcon_tokens.pop(client_id, None)
+            return None
+        return token, remaining
+
+    def _is_valid_rcon_token(self, client_id: str, token: object) -> bool:
+        """Validate a time-limited RCON bearer token using constant-time comparison."""
+        if not isinstance(token, str) or not token:
+            return False
+        record = self._get_active_rcon_token(client_id)
+        if not record:
+            return False
+        expected_token, _remaining = record
+        return hmac.compare_digest(token, expected_token)
 
     def _init_station_mode(self) -> None:
         """Initialize station-based multi-crew system."""
@@ -663,23 +705,36 @@ class UnifiedServer:
         Returns:
             Response dictionary
         """
-        import uuid
-
         # Auth command -- no token needed
         if cmd == "rcon_auth":
+            if not self._rcon_auth_limiter.allow(client_id, "rcon_auth"):
+                logger.warning(f"RCON auth throttled from {client_id}")
+                return {
+                    "ok": False,
+                    "error": "Too many authentication attempts",
+                }
+
             password = req.get("password", "")
             expected = self.config.rcon_password
-            if not expected or password != expected:
+            if (
+                not expected
+                or not isinstance(password, str)
+                or not hmac.compare_digest(password, expected)
+            ):
                 logger.warning(f"RCON auth failed from {client_id}")
                 return {"ok": False, "error": "Unauthorized"}
-            token = str(uuid.uuid4())
-            self._rcon_tokens[client_id] = token
+            token, expires_in = self._issue_rcon_token(client_id)
             logger.info(f"RCON authenticated: {client_id}")
-            return {"ok": True, "token": token, "message": "RCON authenticated"}
+            return {
+                "ok": True,
+                "token": token,
+                "message": "RCON authenticated",
+                "expires_in": expires_in,
+            }
 
         # All rcon commands except auth require valid token
-        token = req.get("token", "")
-        if not token or self._rcon_tokens.get(client_id) != token:
+        token = req.get("token")
+        if not self._is_valid_rcon_token(client_id, token):
             # Generic error — don't leak whether RCON exists or not
             return {"ok": False, "error": "Unauthorized"}
 
@@ -752,7 +807,11 @@ class UnifiedServer:
             new_password = req.get("new_password", "")
             expected = self.config.rcon_password or ""
 
-            if not expected or current_password != expected:
+            if (
+                not expected
+                or not isinstance(current_password, str)
+                or not hmac.compare_digest(current_password, expected)
+            ):
                 logger.warning(f"RCON password rotation denied from {client_id}")
                 return {"ok": False, "error": "Unauthorized"}
             if not isinstance(new_password, str) or len(new_password) < 8:
@@ -795,6 +854,7 @@ class UnifiedServer:
             mission_uptime = None
             if self._mission_start_time is not None:
                 mission_uptime = round(time.time() - self._mission_start_time, 0)
+            active_rcon = self._get_active_rcon_token(client_id)
             scenario = (
                 self.runner._current_scenario_name
                 or self.runner._current_scenario_path
@@ -817,6 +877,7 @@ class UnifiedServer:
                 "server_uptime": server_uptime,
                 "mission_uptime": mission_uptime,
                 "rcon_session_count": len(self._rcon_tokens),
+                "rcon_token_ttl": active_rcon[1] if active_rcon else 0,
             }
 
         elif cmd == "rcon_restart":
@@ -1179,20 +1240,7 @@ class UnifiedServer:
         if not scenario_id:
             return {"ok": False, "error": "Missing 'scenario' parameter"}
 
-        scenarios_dir = self.runner.scenarios_dir
-        # Try with and without .yaml extension
-        candidates = [
-            os.path.join(scenarios_dir, scenario_id + ".yaml"),
-            os.path.join(scenarios_dir, scenario_id + ".yml"),
-            os.path.join(scenarios_dir, scenario_id),
-        ]
-
-        filepath = None
-        for c in candidates:
-            if os.path.isfile(c):
-                filepath = c
-                break
-
+        filepath = self.runner._resolve_scenario_path(scenario_id)
         if not filepath:
             return {"ok": False, "error": f"Scenario not found: {scenario_id}"}
 
@@ -1401,6 +1449,7 @@ class UnifiedServer:
             with self.client_lock:
                 self.clients.pop(client_id, None)
             self.rate_limiter.remove_client(client_id)
+            self._rcon_auth_limiter.remove_client(client_id)
             self._cleanup_telemetry_cache(client_id)
             self._rcon_tokens.pop(client_id, None)
 

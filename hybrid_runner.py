@@ -140,16 +140,34 @@ class HybridRunner:
             return []
         return self.mission.get_hints(clear=clear)
 
+    def _scenario_path_within_root(self, candidate_path):
+        """Return a normalized scenario path if it stays inside scenarios_dir."""
+        try:
+            root = os.path.realpath(self.scenarios_dir)
+            candidate = os.path.realpath(candidate_path)
+            if os.path.commonpath([root, candidate]) != root:
+                return None
+            return candidate
+        except (OSError, ValueError):
+            return None
+
     def _resolve_scenario_path(self, scenario_name):
         if not scenario_name:
             return None
-        if os.path.isabs(scenario_name) and os.path.exists(scenario_name):
-            return scenario_name
-        if os.path.sep in scenario_name or "/" in scenario_name:
-            candidate = os.path.join(self.root_dir, scenario_name)
-            if os.path.exists(candidate):
-                return candidate
-        base = os.path.join(self.scenarios_dir, scenario_name)
+        scenario_name = str(scenario_name).strip()
+        if not scenario_name:
+            return None
+
+        if os.path.isabs(scenario_name):
+            candidate = self._scenario_path_within_root(scenario_name)
+            return candidate if candidate and os.path.exists(candidate) else None
+
+        base = self._scenario_path_within_root(
+            os.path.join(self.scenarios_dir, scenario_name)
+        )
+        if not base:
+            return None
+
         if os.path.splitext(base)[1]:
             return base if os.path.exists(base) else None
         for ext in (".json", ".yaml", ".yml"):
