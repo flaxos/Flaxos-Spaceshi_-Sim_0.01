@@ -2,6 +2,7 @@
   import { tier } from "../lib/stores/tier.js";
 
   import SensorContacts from "../components/tactical/SensorContacts.svelte";
+  import ScienceSensorMap from "../components/science/ScienceSensorMap.svelte";
   import ScienceAnalysisPanel from "../components/science/ScienceAnalysisPanel.svelte";
   import SensorAnalysisManual from "../components/science/SensorAnalysisManual.svelte";
   import SpectralAnalysisGame from "../components/games/SpectralAnalysisGame.svelte";
@@ -15,6 +16,7 @@
 <div class="science-root" class:arcade={arcadeTier}>
   <section class="group sensors">
     <div class="group-title">Sensors</div>
+    <ScienceSensorMap />
     <SensorContacts passive />
     {#if manualTier || rawTier}
       <SensorAnalysisManual />
@@ -37,21 +39,27 @@
 <style>
   .science-root {
     width: 100%;
-    height: 100%;
+    min-height: 100%;
     display: grid;
-    grid-template-columns: minmax(340px, 1fr) minmax(360px, 1.1fr);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr));
     gap: var(--space-xs);
     padding: var(--space-xs);
-    overflow: hidden;
+    align-content: start;
+    overflow: visible;
+  }
+
+  .science-root.arcade {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr));
   }
 
   .group {
     min-height: 0;
-    overflow: auto;
+    min-width: 0;
+    overflow: visible;
+    align-self: start;
     display: flex;
     flex-direction: column;
     gap: var(--space-xs);
-    padding-right: 2px;
   }
 
   .group-title {
@@ -69,15 +77,9 @@
     color: var(--text-secondary);
   }
 
-  @media (max-width: 960px) {
+  @media (max-width: 1180px) {
     .science-root {
       grid-template-columns: 1fr;
-      height: auto;
-      overflow: auto;
-    }
-
-    .group {
-      overflow: visible;
     }
   }
 </style>

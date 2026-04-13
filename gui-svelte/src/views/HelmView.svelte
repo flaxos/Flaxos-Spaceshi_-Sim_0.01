@@ -2,6 +2,7 @@
   import { tier } from "../lib/stores/tier.js";
 
   import HelmWorkflowStrip from "../components/helm/HelmWorkflowStrip.svelte";
+  import HelmNavMap from "../components/helm/HelmNavMap.svelte";
   import FlightDataPanel from "../components/helm/FlightDataPanel.svelte";
   import AutopilotStatus from "../components/helm/AutopilotStatus.svelte";
   import FlightComputerPanel from "../components/helm/FlightComputerPanel.svelte";
@@ -27,6 +28,7 @@
 
   <section class="column awareness">
     <div class="column-title">Awareness</div>
+    <HelmNavMap />
     <FlightDataPanel />
     <SensorContacts />
     {#if arcadeTier}
