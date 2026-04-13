@@ -1,6 +1,19 @@
-# Flaxos Spaceship Sim - GUI
+# Flaxos Spaceship Sim - Legacy GUI
 
-Web-based command interface for the Flaxos Spaceship Simulation.
+This directory contains the legacy web-components frontend.
+
+The default frontend is the Svelte client in `gui-svelte/`, typically launched
+with:
+
+```bash
+python tools/start_gui_stack.py --browser
+```
+
+Use the legacy UI only when you specifically want the old static client:
+
+```bash
+python tools/start_gui_stack.py --ui legacy --browser
+```
 
 ## Architecture
 
@@ -8,7 +21,8 @@ Web-based command interface for the Flaxos Spaceship Simulation.
 Browser (GUI)  ←WebSocket→  ws_bridge.py  ←TCP→  Simulation Server
 ```
 
-The GUI connects to a WebSocket bridge that forwards commands to the existing TCP simulation server.
+The legacy GUI connects to a WebSocket bridge that forwards commands to the
+unified TCP simulation server.
 
 ## Quick Start
 
@@ -17,10 +31,17 @@ The GUI connects to a WebSocket bridge that forwards commands to the existing TC
 From the repo root:
 
 ```bash
-python tools/start_gui_stack.py --server station
+python tools/start_gui_stack.py --browser
 ```
 
-This launches the TCP simulation server, WebSocket bridge, and GUI HTTP server.
+This launches the default Svelte UI, the TCP simulation server, the WebSocket
+bridge, and the GUI HTTP server.
+
+To launch this legacy frontend instead:
+
+```bash
+python tools/start_gui_stack.py --ui legacy --browser
+```
 
 ### Manual Setup
 
@@ -33,7 +54,7 @@ pip install websockets
 **2. Start the Simulation Server**
 
 ```bash
-python -m server.station_server --port 8765
+python -m server.main --mode station --port 8765
 ```
 
 **3. Start the WebSocket Bridge**
@@ -42,7 +63,7 @@ python -m server.station_server --port 8765
 python gui/ws_bridge.py --tcp-port 8765 --ws-port 8081
 ```
 
-**4. Open the GUI**
+**4. Open the Legacy GUI**
 
 ```bash
 cd gui
@@ -59,6 +80,8 @@ python -m http.server 3100
 --ws-port    WebSocket port (default: 8081)
 --tcp-host   TCP server host (default: 127.0.0.1)
 --tcp-port   TCP server port (default: 8765)
+--game-code  Shared secret for WS auth (recommended for remote access)
+--allowed-origin-host  Optional browser Origin hostname allowlist entry
 ```
 
 Default ports: TCP=8765, WS=8081, HTTP=3100

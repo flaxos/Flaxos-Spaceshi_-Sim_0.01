@@ -131,15 +131,19 @@ Use `get_state` to retrieve filtered telemetry:
 {"cmd": "get_state", "ship": "test_ship_001"}
 ```
 
-## Running the Station Server
+## Running the Station Server Mode
 
-### Start the server:
+The canonical entrypoint is `server.main`. The older `server.station_server`
+module has been removed.
+
+### Start the server
 
 ```bash
-python -m server.station_server --host 0.0.0.0 --port 8765 --dt 0.1 --fleet-dir hybrid_fleet
+python -m server.main --mode station --host 0.0.0.0 --port 8765 --dt 0.1 --fleet-dir hybrid_fleet
 ```
 
 Arguments:
+- `--mode station`: Enable multi-crew station routing (default)
 - `--host`: Host to bind to (default: 127.0.0.1)
 - `--port`: Port to bind to (default: 8765)
 - `--dt`: Simulation timestep in seconds (default: 0.1)
@@ -149,7 +153,7 @@ Arguments:
 
 ```bash
 # Terminal 1: Start server
-python -m server.station_server
+python -m server.main
 
 # Terminal 2: Helm station
 nc localhost 8765
