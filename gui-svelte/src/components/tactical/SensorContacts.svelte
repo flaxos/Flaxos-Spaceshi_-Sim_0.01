@@ -14,6 +14,7 @@
     getTacticalContacts,
     toNumber,
   } from "./tacticalData.js";
+  import { lockTarget } from "./tacticalActions.js";
 
   export let passive = false;
 
@@ -42,7 +43,7 @@
   async function lockContact(contactId: string) {
     selectedTacticalTargetId.set(contactId);
     if (passive) return;
-    await wsClient.sendShipCommand("lock_target", { contact_id: contactId });
+    await lockTarget(contactId);
   }
 </script>
 

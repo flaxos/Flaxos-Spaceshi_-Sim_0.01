@@ -2,9 +2,9 @@
   import Panel from "../layout/Panel.svelte";
   import { gameState } from "../../lib/stores/gameState.js";
   import { tier } from "../../lib/stores/tier.js";
-  import { wsClient } from "../../lib/ws/wsClient.js";
   import { selectedTacticalTargetId } from "../../lib/stores/tacticalUi.js";
   import { extractShipState, getLockedTargetId, getRailgunMounts } from "./tacticalData.js";
+  import { fireRailgun } from "./tacticalActions.js";
 
   $: ship = extractShipState($gameState);
   $: mounts = getRailgunMounts(ship);
@@ -12,9 +12,9 @@
   $: arcadeTier = $tier === "arcade";
 
   async function fireMount(mountId: string) {
-    await wsClient.sendShipCommand("fire_railgun", {
-      mount_id: mountId,
-      target: targetId || undefined,
+    await fireRailgun({
+      mountId,
+      targetId: targetId || undefined,
     });
   }
 </script>

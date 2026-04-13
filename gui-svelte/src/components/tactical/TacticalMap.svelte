@@ -3,9 +3,9 @@
   import SpatialMapCanvas from "../spatial/SpatialMapCanvas.svelte";
   import type { SpatialLegendItem, SpatialLink, SpatialRing, SpatialTrack } from "../spatial/spatialMapTypes.js";
   import { gameState } from "../../lib/stores/gameState.js";
-  import { wsClient } from "../../lib/ws/wsClient.js";
   import { selectedTacticalTargetId } from "../../lib/stores/tacticalUi.js";
   import { extractShipState, getTacticalContacts, getWeaponMounts } from "./tacticalData.js";
+  import { lockTarget } from "./tacticalActions.js";
   import { getOrientation, getPosition, getVelocity, toStringValue, toVec3 } from "../helm/helmData.js";
 
   type CombatEntity = Record<string, unknown>;
@@ -173,7 +173,7 @@
     lockBusy = true;
     try {
       selectedTacticalTargetId.set(id);
-      await wsClient.sendShipCommand("lock_target", { contact_id: id });
+      await lockTarget(id);
     } finally {
       lockBusy = false;
     }

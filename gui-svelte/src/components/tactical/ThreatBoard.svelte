@@ -1,16 +1,16 @@
 <script lang="ts">
   import Panel from "../layout/Panel.svelte";
   import { gameState } from "../../lib/stores/gameState.js";
-  import { wsClient } from "../../lib/ws/wsClient.js";
   import { selectedTacticalTargetId } from "../../lib/stores/tacticalUi.js";
   import { extractShipState, formatDistance, getThreatList } from "./tacticalData.js";
+  import { lockTarget } from "./tacticalActions.js";
 
   $: ship = extractShipState($gameState);
   $: threats = getThreatList(ship).slice(0, 8);
 
   async function lockThreat(contactId: string) {
     selectedTacticalTargetId.set(contactId);
-    await wsClient.sendShipCommand("lock_target", { contact_id: contactId });
+    await lockTarget(contactId);
   }
 </script>
 
