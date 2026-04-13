@@ -82,7 +82,7 @@ This document tracks the implementation status of all major features in the Flax
 - `server/stations/station_telemetry.py` - Data filtering per station
 - `server/telemetry/station_filter.py` - Station telemetry filter import path
 - `server/stations/station_commands.py` - Station-specific commands
-- `server/station_server.py` - TCP server with station support
+- `server/main.py` - Unified TCP server entrypoint with station support
 
 ### Fleet Management System ✅
 | Feature | Status | Tests | Notes |
@@ -141,8 +141,8 @@ This document tracks the implementation status of all major features in the Flax
 | Telemetry streaming | ✅ Complete | ✅ | Filtered state snapshots |
 
 **Files:**
-- `server/station_server.py` - Main server implementation
-- `server/run_server.py` - Server launcher
+- `server/main.py` - Main unified server implementation
+- `server/config.py` - Canonical server configuration
 
 ---
 

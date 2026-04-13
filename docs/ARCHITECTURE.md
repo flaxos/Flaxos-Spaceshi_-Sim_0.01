@@ -57,7 +57,7 @@ Flaxos Spaceship Simulator is a **hard sci-fi multiplayer space combat simulator
 ┌─────────────────────────────┼─────────────────────────────────┐
 │                    Server Layer                                │
 │  ┌──────────────────────────▼────────────────────────────┐   │
-│  │         StationServer (server/station_server.py)       │   │
+│  │            UnifiedServer (server/main.py)              │   │
 │  │  ┌─────────────────────────────────────────────────┐  │   │
 │  │  │  Station Manager    │  Telemetry Filter         │  │   │
 │  │  │  Command Dispatcher │  Event Filter             │  │   │
@@ -123,6 +123,7 @@ python -m server.main --lan
 - Filter telemetry/events by station (station mode)
 - Manage client sessions
 - Provide autodiscovery endpoint (`_discover` command)
+- Handle authenticated RCON admin operations for the `Mission > Server` UI
 
 **Key Components:**
 - `UnifiedServer` - Main server class with mode switching
@@ -137,8 +138,8 @@ python -m server.main --lan
 ```python
 # Default ports (canonical source of truth)
 DEFAULT_TCP_PORT = 8765      # Simulation server
-DEFAULT_WS_PORT = 8080       # WebSocket bridge
-DEFAULT_HTTP_PORT = 3000     # GUI static files
+DEFAULT_WS_PORT = 8081       # WebSocket bridge
+DEFAULT_HTTP_PORT = 3100     # GUI static files
 
 # Server modes
 ServerMode.MINIMAL  # Basic, no station management
@@ -493,8 +494,8 @@ Send `{"cmd": "_discover"}` to get connection info:
   "mode": "station",
   "endpoints": {
     "tcp": {"host": "127.0.0.1", "port": 8765},
-    "ws": {"host": "127.0.0.1", "port": 8080},
-    "http": {"host": "127.0.0.1", "port": 3000}
+    "ws": {"host": "127.0.0.1", "port": 8081},
+    "http": {"host": "127.0.0.1", "port": 3100}
   },
   "features": {
     "stations": true,
@@ -757,3 +758,6 @@ Flaxos-Spaceshi_-Sim_0.01/
 **Document Status**: Complete
 **Maintained By**: Development Team
 **Review Frequency**: After architectural changes
+The default browser operator workflow is the Svelte UI served on port `3100`,
+talking to the WebSocket bridge on port `8081`. Authenticated admin/UAT
+controls live in `Mission > Server` and are backed by `UnifiedServer._handle_rcon`.

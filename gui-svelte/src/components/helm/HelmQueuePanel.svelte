@@ -3,6 +3,7 @@
   import Panel from "../layout/Panel.svelte";
   import { gameState } from "../../lib/stores/gameState.js";
   import { wsClient } from "../../lib/ws/wsClient.js";
+  import { describeCommandFailure, isCommandRejected } from "../../lib/ws/commandResponse.js";
   import { asRecord, extractShipState, formatDuration, getQueueState, toNumber, toStringValue } from "./helmData.js";
 
   interface QueueEntry {
@@ -56,13 +57,21 @@
   }
 
   async function clearQueue() {
-    await wsClient.sendShipCommand("clear_helm_queue", {});
+    const response = await wsClient.sendShipCommand("clear_helm_queue", {});
+    if (isCommandRejected(response)) {
+      feedback = `Error: ${describeCommandFailure(response)}`;
+      return;
+    }
     feedback = "Queue cleared";
     await refreshQueue();
   }
 
   async function interruptQueue() {
-    await wsClient.sendShipCommand("interrupt_helm_queue", {});
+    const response = await wsClient.sendShipCommand("interrupt_helm_queue", {});
+    if (isCommandRejected(response)) {
+      feedback = `Error: ${describeCommandFailure(response)}`;
+      return;
+    }
     feedback = "Active command interrupted";
     await refreshQueue();
   }

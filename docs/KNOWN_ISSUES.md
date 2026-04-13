@@ -19,7 +19,7 @@ All critical bugs have been resolved as of Phase 2 completion.
 ### 1. Event streaming (`get_events`) - RESOLVED
 **Status**: ✅ RESOLVED (2026-01-26)
 **Severity**: Was High (UI/event log)
-**Affected Components**: `server/station_server.py`, `server/run_server.py`, `hybrid/simulator.py`
+**Affected Components**: `server/main.py` (legacy notes may reference `server/station_server.py`), `server/run_server.py`, `hybrid/simulator.py`
 
 **Resolution:**
 Event streaming IS fully wired. The simulator maintains `event_log` (EventLogBuffer) and subscribes to the event bus at startup (`simulator.py:65-67`). All major subsystems publish events including:

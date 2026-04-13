@@ -2,6 +2,7 @@
   import Panel from "../layout/Panel.svelte";
   import { gameState } from "../../lib/stores/gameState.js";
   import { wsClient } from "../../lib/ws/wsClient.js";
+  import { describeCommandFailure, isCommandRejected } from "../../lib/ws/commandResponse.js";
   import {
     asRecord,
     extractShipState,
@@ -31,25 +32,37 @@
 
     try {
       if (autopilot.active) {
-        await wsClient.sendShipCommand("autopilot", {
+        const response = await wsClient.sendShipCommand("autopilot", {
           enable: false,
           program: "off",
         });
+        if (isCommandRejected(response)) {
+          feedback = `Error: ${describeCommandFailure(response)}`;
+          return;
+        }
         feedback = "Autopilot disengaged";
       } else if (autopilot.program) {
-        await wsClient.sendShipCommand("autopilot", {
+        const response = await wsClient.sendShipCommand("autopilot", {
           enable: true,
           program: autopilot.program,
           target: autopilot.targetId || undefined,
         });
+        if (isCommandRejected(response)) {
+          feedback = `Error: ${describeCommandFailure(response)}`;
+          return;
+        }
         feedback = `Autopilot engaged: ${autopilot.program}`;
       } else if (courseDestination) {
-        await wsClient.sendShipCommand("set_course", {
+        const response = await wsClient.sendShipCommand("set_course", {
           x: courseDestination.x,
           y: courseDestination.y,
           z: courseDestination.z,
           stop: true,
         });
+        if (isCommandRejected(response)) {
+          feedback = `Error: ${describeCommandFailure(response)}`;
+          return;
+        }
         feedback = "Course resumed";
       }
     } catch (error) {

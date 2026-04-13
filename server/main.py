@@ -17,6 +17,7 @@ Examples:
 from __future__ import annotations
 
 import argparse
+import hmac
 import json
 import logging
 import os
@@ -54,6 +55,11 @@ from hybrid_runner import HybridRunner
 from utils.logger import setup_logging
 
 logger = logging.getLogger(__name__)
+
+
+RCON_AUTH_RATE = 0.2
+RCON_AUTH_BURST = 3
+RCON_TOKEN_TTL_SECONDS = 8 * 60 * 60
 
 
 class UnifiedServer:
@@ -95,10 +101,15 @@ class UnifiedServer:
 
         # Rate limiter (20 commands/sec sustained, burst of 30)
         self.rate_limiter = RateLimiter(rate=20.0, burst=30)
+        self._rcon_auth_limiter = RateLimiter(
+            rate=RCON_AUTH_RATE,
+            burst=RCON_AUTH_BURST,
+        )
 
         # RCON (Remote Console) state
-        self._rcon_tokens: Dict[str, str] = {}  # client_id -> auth token
+        self._rcon_tokens: Dict[str, tuple[str, float]] = {}
         self._start_time: float = time.time()
+        self._mission_start_time: Optional[float] = None
 
         # Delta telemetry: cache last snapshot per client+ship to send only
         # changed top-level keys.  Reduces bandwidth ~80% for idle state.
@@ -122,6 +133,46 @@ class UnifiedServer:
             self._init_station_mode()
 
         logger.info(f"Server initialized (protocol v{PROTOCOL_VERSION})")
+
+    def _mark_mission_loaded(self) -> None:
+        """Record when the active scenario/mission was last reloaded."""
+        self._mission_start_time = time.time()
+
+    def _clear_mission_runtime(self) -> None:
+        """Clear mission runtime tracking when no scenario is active."""
+        self._mission_start_time = None
+
+    def _issue_rcon_token(self, client_id: str) -> tuple[str, int]:
+        """Issue a time-limited bearer token for RCON commands."""
+        import uuid
+
+        expires_at = time.time() + RCON_TOKEN_TTL_SECONDS
+        token = str(uuid.uuid4())
+        self._rcon_tokens[client_id] = (token, expires_at)
+        return token, int(RCON_TOKEN_TTL_SECONDS)
+
+    def _get_active_rcon_token(self, client_id: str) -> Optional[tuple[str, int]]:
+        """Return the active RCON token and remaining TTL, expiring stale entries."""
+        record = self._rcon_tokens.get(client_id)
+        if not record:
+            return None
+
+        token, expires_at = record
+        remaining = int(expires_at - time.time())
+        if remaining <= 0:
+            self._rcon_tokens.pop(client_id, None)
+            return None
+        return token, remaining
+
+    def _is_valid_rcon_token(self, client_id: str, token: object) -> bool:
+        """Validate a time-limited RCON bearer token using constant-time comparison."""
+        if not isinstance(token, str) or not token:
+            return False
+        record = self._get_active_rcon_token(client_id)
+        if not record:
+            return False
+        expected_token, _remaining = record
+        return hmac.compare_digest(token, expected_token)
 
     def _init_station_mode(self) -> None:
         """Initialize station-based multi-crew system."""
@@ -644,7 +695,7 @@ class UnifiedServer:
 
         RCON provides admin-level server control (reload, pause, kick, etc.).
         Requires authentication via rcon_auth with the configured password.
-        All commands except rcon_auth and rcon_list require a valid token.
+        All RCON commands except rcon_auth require a valid token.
 
         Args:
             client_id: Client identifier
@@ -654,23 +705,36 @@ class UnifiedServer:
         Returns:
             Response dictionary
         """
-        import uuid
-
         # Auth command -- no token needed
         if cmd == "rcon_auth":
+            if not self._rcon_auth_limiter.allow(client_id, "rcon_auth"):
+                logger.warning(f"RCON auth throttled from {client_id}")
+                return {
+                    "ok": False,
+                    "error": "Too many authentication attempts",
+                }
+
             password = req.get("password", "")
             expected = self.config.rcon_password
-            if not expected or password != expected:
+            if (
+                not expected
+                or not isinstance(password, str)
+                or not hmac.compare_digest(password, expected)
+            ):
                 logger.warning(f"RCON auth failed from {client_id}")
                 return {"ok": False, "error": "Unauthorized"}
-            token = str(uuid.uuid4())
-            self._rcon_tokens[client_id] = token
+            token, expires_in = self._issue_rcon_token(client_id)
             logger.info(f"RCON authenticated: {client_id}")
-            return {"ok": True, "token": token, "message": "RCON authenticated"}
+            return {
+                "ok": True,
+                "token": token,
+                "message": "RCON authenticated",
+                "expires_in": expires_in,
+            }
 
         # All rcon commands except auth require valid token
-        token = req.get("token", "")
-        if not token or self._rcon_tokens.get(client_id) != token:
+        token = req.get("token")
+        if not self._is_valid_rcon_token(client_id, token):
             # Generic error — don't leak whether RCON exists or not
             return {"ok": False, "error": "Unauthorized"}
 
@@ -678,17 +742,17 @@ class UnifiedServer:
             return {"ok": True, "commands": [
                 "rcon_auth", "rcon_reload", "rcon_load", "rcon_pause",
                 "rcon_timescale", "rcon_kick", "rcon_status", "rcon_restart",
-                "rcon_list",
+                "rcon_set_password", "rcon_list",
             ]}
 
         if cmd == "rcon_reload":
             scenario = (
-                self.runner._current_scenario_name
-                or self.runner._current_scenario_path
+                self.runner._current_scenario_path
+                or self.runner._current_scenario_name
             )
             if not scenario:
                 return {"ok": False, "error": "No scenario loaded to reload"}
-            return self._handle_load_scenario({"scenario": scenario})
+            return self._handle_load_scenario({"scenario": scenario, "force": True})
 
         elif cmd == "rcon_load":
             scenario = req.get("scenario")
@@ -738,6 +802,41 @@ class UnifiedServer:
                 return {"ok": True, "kicked": target_id}
             return {"ok": False, "error": f"Client {target_id} not found"}
 
+        elif cmd == "rcon_set_password":
+            current_password = req.get("current_password", "")
+            new_password = req.get("new_password", "")
+            expected = self.config.rcon_password or ""
+
+            if (
+                not expected
+                or not isinstance(current_password, str)
+                or not hmac.compare_digest(current_password, expected)
+            ):
+                logger.warning(f"RCON password rotation denied from {client_id}")
+                return {"ok": False, "error": "Unauthorized"}
+            if not isinstance(new_password, str) or len(new_password) < 8:
+                return {
+                    "ok": False,
+                    "error": "New password must be at least 8 characters",
+                }
+            if not new_password.strip():
+                return {"ok": False, "error": "New password cannot be blank"}
+            if new_password == expected:
+                return {
+                    "ok": False,
+                    "error": "New password must differ from current password",
+                }
+
+            self.config.rcon_password = new_password
+            self._rcon_tokens.clear()
+            logger.info(f"RCON password rotated by {client_id}")
+            return {
+                "ok": True,
+                "message": "RCON password updated for this server process",
+                "reauth_required": True,
+                "persisted": False,
+            }
+
         elif cmd == "rcon_status":
             sessions: Dict[str, dict] = {}
             if self.station_manager:
@@ -751,34 +850,49 @@ class UnifiedServer:
                         ),
                         "name": getattr(sess, "player_name", None),
                     }
+            server_uptime = round(time.time() - self._start_time, 0)
+            mission_uptime = None
+            if self._mission_start_time is not None:
+                mission_uptime = round(time.time() - self._mission_start_time, 0)
+            active_rcon = self._get_active_rcon_token(client_id)
+            scenario = (
+                self.runner._current_scenario_name
+                or self.runner._current_scenario_path
+            )
             return {
                 "ok": True,
                 "clients": sessions,
                 "client_count": len(sessions),
                 "ships": list(self.runner.simulator.ships.keys()),
                 "ship_count": len(self.runner.simulator.ships),
-                "scenario": self.runner._current_scenario_name,
+                "scenario": scenario,
+                "mission": self.runner.get_mission_status(),
                 "tick": self.runner.simulator.tick_count,
                 "sim_time": round(self.runner.simulator.time, 1),
                 "paused": not self.runner.running,
                 "time_scale": getattr(
                     self.runner.simulator, "time_scale", 1.0,
                 ),
-                "uptime": round(time.time() - self._start_time, 0),
+                "uptime": server_uptime,
+                "server_uptime": server_uptime,
+                "mission_uptime": mission_uptime,
+                "rcon_session_count": len(self._rcon_tokens),
+                "rcon_token_ttl": active_rcon[1] if active_rcon else 0,
             }
 
         elif cmd == "rcon_restart":
             # Reload the current scenario from scratch
             scenario = (
-                self.runner._current_scenario_name
-                or self.runner._current_scenario_path
+                self.runner._current_scenario_path
+                or self.runner._current_scenario_name
             )
             if scenario:
-                return self._handle_load_scenario({"scenario": scenario})
+                return self._handle_load_scenario({"scenario": scenario, "force": True})
             # No scenario loaded -- just reset the runner
             self.runner.stop()
             self.runner.load_ships()
             self.runner.start()
+            self._clear_mission_runtime()
             return {"ok": True, "message": "Simulation reset"}
 
         return {"ok": False, "error": f"Unknown RCON command: {cmd}"}
@@ -1126,20 +1240,7 @@ class UnifiedServer:
         if not scenario_id:
             return {"ok": False, "error": "Missing 'scenario' parameter"}
 
-        scenarios_dir = self.runner.scenarios_dir
-        # Try with and without .yaml extension
-        candidates = [
-            os.path.join(scenarios_dir, scenario_id + ".yaml"),
-            os.path.join(scenarios_dir, scenario_id + ".yml"),
-            os.path.join(scenarios_dir, scenario_id),
-        ]
-
-        filepath = None
-        for c in candidates:
-            if os.path.isfile(c):
-                filepath = c
-                break
-
+        filepath = self.runner._resolve_scenario_path(scenario_id)
         if not filepath:
             return {"ok": False, "error": f"Scenario not found: {scenario_id}"}
 
@@ -1157,12 +1258,17 @@ class UnifiedServer:
         if not scenario_name:
             return Response.error("missing scenario", ErrorCode.MISSING_PARAM).to_dict()
 
-        loaded = self.runner.load_scenario(scenario_name)
+        loaded = self.runner.load_scenario(
+            scenario_name,
+            force=bool(req.get("force")),
+        )
         if loaded <= 0:
             return Response.error(
                 f"Failed to load scenario {scenario_name}",
                 ErrorCode.INTERNAL_ERROR
             ).to_dict()
+
+        self._mark_mission_loaded()
 
         return {
             "ok": True,
@@ -1198,6 +1304,8 @@ class UnifiedServer:
                 "Generated scenario produced no ships",
                 ErrorCode.INTERNAL_ERROR,
             ).to_dict()
+
+        self._mark_mission_loaded()
 
         return {
             "ok": True,
@@ -1341,6 +1449,7 @@ class UnifiedServer:
             with self.client_lock:
                 self.clients.pop(client_id, None)
             self.rate_limiter.remove_client(client_id)
+            self._rcon_auth_limiter.remove_client(client_id)
             self._cleanup_telemetry_cache(client_id)
             self._rcon_tokens.pop(client_id, None)
 

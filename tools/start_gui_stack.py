@@ -12,11 +12,13 @@ from __future__ import annotations
 
 import argparse
 import os
+import secrets
 import signal
 import subprocess
 import sys
 import time
 import webbrowser
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 # Add project root to path for imports
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -71,6 +73,27 @@ def _handle_shutdown_signal(signum, _frame) -> None:
     raise KeyboardInterrupt(f"signal {signum}")
 
 
+def _generate_secret(length: int = 24) -> str:
+    """Generate a URL-safe shared secret for WS/RCON auth."""
+    return secrets.token_urlsafe(length)
+
+
+def _append_query_param(url: str, key: str, value: str) -> str:
+    """Append or replace a query parameter on a URL."""
+    parts = urlsplit(url)
+    query = dict(parse_qsl(parts.query, keep_blank_values=True))
+    query[key] = value
+    return urlunsplit(
+        (
+            parts.scheme,
+            parts.netloc,
+            parts.path,
+            urlencode(query),
+            parts.fragment,
+        )
+    )
+
+
 def main() -> int:
     signal.signal(signal.SIGTERM, _handle_shutdown_signal)
     signal.signal(signal.SIGINT, _handle_shutdown_signal)
@@ -120,12 +143,18 @@ def main() -> int:
     parser.add_argument(
         "--game-code",
         default=None,
-        help="Shared secret for WS authentication (omit for open access)",
+        help="Shared secret for WS authentication (recommended for remote access)",
     )
     parser.add_argument(
         "--rcon-password",
         default="admin",
-        help="RCON password for admin commands (default: admin)",
+        help="RCON password for admin commands (default: admin for localhost-only use)",
+    )
+    parser.add_argument(
+        "--allowed-origin-host",
+        action="append",
+        default=[],
+        help="Optional browser Origin hostname allowlist entry for the WS bridge (repeatable)",
     )
     args = parser.parse_args()
 
@@ -158,6 +187,15 @@ def main() -> int:
 
     if args.lan:
         server_cmd.append("--lan")
+        args.ws_host = "0.0.0.0"
+        if not args.game_code:
+            args.game_code = _generate_secret(18)
+            print(f"[auth] Generated WS game code for remote access: {args.game_code}")
+        if args.rcon_password == "admin":
+            args.rcon_password = _generate_secret(18)
+            print(f"[auth] Generated RCON password for remote access: {args.rcon_password}")
+        if not args.allowed_origin_host:
+            print("[warn] No --allowed-origin-host provided; WS origin filtering remains open.")
 
     ws_bridge_cmd = [
         python,
@@ -173,6 +211,8 @@ def main() -> int:
     ]
     if args.game_code:
         ws_bridge_cmd.extend(["--game-code", args.game_code])
+    for origin_host in args.allowed_origin_host:
+        ws_bridge_cmd.extend(["--allowed-origin-host", origin_host])
 
     http_bind = "0.0.0.0" if args.lan else "127.0.0.1"
     ui_mode = args.ui  # legacy | svelte | dev
@@ -275,6 +315,14 @@ def main() -> int:
             gui_url = f"http://localhost:{args.http_port}/"
             razorback_url = f"http://localhost:{args.http_port}/razorback.html"
 
+        if args.game_code:
+            gui_url = _append_query_param(gui_url, "game_code", args.game_code)
+            razorback_url = _append_query_param(
+                razorback_url,
+                "game_code",
+                args.game_code,
+            )
+
         print(f"[ready] Mode: {mode} | UI: {ui_mode}")
         print(f"[ready] GUI: {gui_url}")
         if ui_mode == "legacy":
@@ -283,6 +331,15 @@ def main() -> int:
             print(f"[ready] Vite dev server: {gui_url} (hot reload)")
         print(f"[ready] WS bridge: ws://localhost:{args.ws_port}")
         print(f"[ready] TCP server: {args.host}:{args.tcp_port}")
+        if args.game_code:
+            print(f"[ready] WS game code: {args.game_code}")
+        if args.rcon_password:
+            print(f"[ready] RCON password: {args.rcon_password}")
+        if args.allowed_origin_host:
+            print(
+                "[ready] Allowed origin hosts: "
+                + ", ".join(args.allowed_origin_host)
+            )
         print("Press Ctrl+C to stop all services.")
 
         if args.browser:

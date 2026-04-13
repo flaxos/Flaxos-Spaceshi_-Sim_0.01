@@ -4,6 +4,7 @@
   import { gameState } from "../../lib/stores/gameState.js";
   import { tier } from "../../lib/stores/tier.js";
   import { wsClient } from "../../lib/ws/wsClient.js";
+  import { describeCommandFailure, isCommandRejected } from "../../lib/ws/commandResponse.js";
   import {
     POWER_CATEGORY_ORDER,
     POWER_CATEGORY_TO_BUS,
@@ -68,9 +69,13 @@
     dirty = true;
     feedback = "";
     try {
-      await wsClient.sendShipCommand("set_power_allocation", {
+      const response = await wsClient.sendShipCommand("set_power_allocation", {
         allocation: translateCategoryWeightsToBusAllocation(weights),
       });
+      if (isCommandRejected(response)) {
+        feedback = `Error: ${describeCommandFailure(response)}`;
+        return;
+      }
       feedback = `${category.replaceAll("_", " ")} allocation transmitted`;
       dirty = false;
       void refresh();

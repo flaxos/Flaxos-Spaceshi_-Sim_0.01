@@ -56,12 +56,13 @@ class HybridRunner:
         print(f"Loaded {ship_count} ships from {self.fleet_dir}")
         return ship_count
         
-    def load_scenario(self, scenario_name):
+    def load_scenario(self, scenario_name, force=False):
         """
         Load a predefined scenario with multiple ships
         
         Args:
             scenario_name (str): Name of the scenario file (without extension)
+            force (bool): Reload even if the same scenario is already active
             
         Returns:
             int: Number of ships loaded
@@ -71,7 +72,7 @@ class HybridRunner:
             print(f"Scenario file not found: {scenario_name}")
             return 0
 
-        return self._load_scenario_file(scenario_path)
+        return self._load_scenario_file(scenario_path, force=force)
 
     def list_scenarios(self):
         """List available scenarios with metadata.
@@ -139,16 +140,34 @@ class HybridRunner:
             return []
         return self.mission.get_hints(clear=clear)
 
+    def _scenario_path_within_root(self, candidate_path):
+        """Return a normalized scenario path if it stays inside scenarios_dir."""
+        try:
+            root = os.path.realpath(self.scenarios_dir)
+            candidate = os.path.realpath(candidate_path)
+            if os.path.commonpath([root, candidate]) != root:
+                return None
+            return candidate
+        except (OSError, ValueError):
+            return None
+
     def _resolve_scenario_path(self, scenario_name):
         if not scenario_name:
             return None
-        if os.path.isabs(scenario_name) and os.path.exists(scenario_name):
-            return scenario_name
-        if os.path.sep in scenario_name or "/" in scenario_name:
-            candidate = os.path.join(self.root_dir, scenario_name)
-            if os.path.exists(candidate):
-                return candidate
-        base = os.path.join(self.scenarios_dir, scenario_name)
+        scenario_name = str(scenario_name).strip()
+        if not scenario_name:
+            return None
+
+        if os.path.isabs(scenario_name):
+            candidate = self._scenario_path_within_root(scenario_name)
+            return candidate if candidate and os.path.exists(candidate) else None
+
+        base = self._scenario_path_within_root(
+            os.path.join(self.scenarios_dir, scenario_name)
+        )
+        if not base:
+            return None
+
         if os.path.splitext(base)[1]:
             return base if os.path.exists(base) else None
         for ext in (".json", ".yaml", ".yml"):
@@ -177,14 +196,14 @@ class HybridRunner:
                 return ship.get("id")
         return ships_data[0].get("id") if ships_data else None
 
-    def _load_scenario_file(self, scenario_path):
+    def _load_scenario_file(self, scenario_path, force=False):
         # Prevent concurrent scenario loads
         if self._loading_scenario:
             print(f"Scenario load already in progress, ignoring request for: {scenario_path}")
             return 0
 
         # Skip if same scenario is already loaded and simulation is running
-        if self._current_scenario_path == scenario_path and self.running:
+        if self._current_scenario_path == scenario_path and self.running and not force:
             print(f"Scenario already loaded: {scenario_path}")
             return len(self.simulator.ships)
 

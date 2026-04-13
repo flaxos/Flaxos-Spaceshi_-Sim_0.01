@@ -5,6 +5,7 @@
   import { tier } from "../../lib/stores/tier.js";
   import { selectedHelmTargetId } from "../../lib/stores/helmUi.js";
   import { wsClient } from "../../lib/ws/wsClient.js";
+  import { describeCommandFailure, isCommandRejected } from "../../lib/ws/commandResponse.js";
   import {
     asRecord,
     extractShipState,
@@ -99,23 +100,6 @@
     return sorted[0];
   }
 
-  function describeCommandFailure(resp: {
-    message?: string;
-    error?: string;
-    reason?: string;
-    response?: { message?: string; error?: string; reason?: string };
-  } | null | undefined): string {
-    return String(
-      resp?.message
-      ?? resp?.error
-      ?? resp?.reason
-      ?? resp?.response?.message
-      ?? resp?.response?.error
-      ?? resp?.response?.reason
-      ?? "Command rejected"
-    );
-  }
-
   async function refreshSolutions() {
     if (!canSolve) {
       navSolutions = [];
@@ -166,8 +150,7 @@
       }
 
       // Surface server-side rejections (returned as resolved { ok: false } not thrown)
-      const serverOk = resp?.ok !== false && resp?.response?.ok !== false;
-      if (!serverOk) {
+      if (isCommandRejected(resp)) {
         feedback = `Error: ${describeCommandFailure(resp)}`;
         return;
       }
@@ -189,13 +172,17 @@
     feedback = "";
 
     try {
-      await wsClient.sendShipCommand("set_course", {
+      const response = await wsClient.sendShipCommand("set_course", {
         x: Number(xInput),
         y: Number(yInput),
         z: Number(zInput),
         stop: true,
         profile,
       });
+      if (isCommandRejected(response)) {
+        feedback = `Error: ${describeCommandFailure(response)}`;
+        return;
+      }
       feedback = "Course uploaded";
     } catch (error) {
       feedback = error instanceof Error ? error.message : "Course upload failed";

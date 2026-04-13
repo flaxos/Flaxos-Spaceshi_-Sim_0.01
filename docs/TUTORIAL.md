@@ -37,11 +37,8 @@ Welcome to the Flaxos Spaceship Sim! This tutorial will guide you through the ba
 From your project directory:
 
 ```bash
-# Terminal 1: Start the server (recommended: station-aware / multi-crew)
-python -m server.station_server --fleet-dir hybrid_fleet --dt 0.1 --port 8765 --host 0.0.0.0
-
-# Unified entrypoint (defaults to station mode)
-# python -m server.main --fleet-dir hybrid_fleet --dt 0.1 --port 8765 --host 0.0.0.0
+# Terminal 1: Start the unified server (station-aware / multi-crew)
+python -m server.main --mode station --fleet-dir hybrid_fleet --dt 0.1 --port 8765 --host 0.0.0.0
 ```
 
 The server will:
@@ -73,7 +70,7 @@ import json
 sock = socket.create_connection(('localhost', 8765))
 f = sock.makefile("rwb")  # line-based framing (\n-delimited JSON)
 
-# station_server sends a welcome message immediately on connect:
+# station mode sends a welcome message immediately on connect:
 welcome = json.loads(f.readline().decode().strip())
 print("WELCOME:", welcome)
 
@@ -171,7 +168,7 @@ Run multiple clients (one per player) connected to the same ship.
 If you prefer the web GUI, start the full stack:
 
 ```bash
-python tools/start_gui_stack.py --server station
+python tools/start_gui_stack.py --mode station --browser
 ```
 Then connect to the GUI in your browser and claim stations inside the UI.
 

@@ -33,17 +33,16 @@ The simulation runs as a Python TCP server that manages physics at 10Hz. A WebSo
 
 ```bash
 cd /path/to/spaceship-sim
-python tools/start_gui_stack.py
+python tools/start_gui_stack.py --browser --rcon-password 'replace-this-with-a-strong-secret'
 ```
 
-This starts four processes simultaneously and opens a browser tab at `http://localhost:3100/`:
+This starts the current default Svelte stack and, with `--browser`, opens the GUI at `http://localhost:3100/`:
 
 | Process | Default Port |
 |---------|-------------|
 | TCP simulation server | 8765 |
 | WebSocket bridge | 8081 |
 | GUI HTTP server | 3100 |
-| Asset editor | 3200 |
 
 ### Flags
 
@@ -57,11 +56,14 @@ python tools/start_gui_stack.py --mode minimal
 # Custom ports
 python tools/start_gui_stack.py --tcp-port 9000 --ws-port 9001 --http-port 3200
 
-# Don't open a browser automatically
-python tools/start_gui_stack.py --no-browser
+# Open a browser automatically
+python tools/start_gui_stack.py --browser
 
-# Skip the asset editor server
-python tools/start_gui_stack.py --no-editor
+# Set an explicit RCON password for Mission > Server admin controls
+python tools/start_gui_stack.py --rcon-password 'replace-this'
+
+# Secure remote/LAN use: restrict browser origin, require WS auth, and set RCON
+python tools/start_gui_stack.py --lan --allowed-origin-host '<zerotier-ip-or-hostname>' --game-code 'replace-this' --rcon-password 'replace-this'
 ```
 
 ### Run the server only
@@ -79,6 +81,46 @@ python -m server.main --port 9000      # Custom port
 2. The GUI connects to the WebSocket bridge automatically
 3. Select a bridge station (Helm, Tactical, OPS, etc.)
 4. You are on the bridge
+
+### Server Admin / UAT
+
+For repeatable UAT runs, start the stack with a non-default RCON password and use the built-in admin panel:
+
+1. Launch with `python tools/start_gui_stack.py --browser --rcon-password 'replace-this'`
+2. Load a scenario and claim a station
+3. Open `Mission > Server`
+4. Authenticate with the RCON password
+5. Use the panel for:
+   - server uptime and mission uptime visibility
+   - pause/resume and time-scale changes
+   - `Reset Mission` and `Reset Server`
+   - connected-client visibility and kicking stale sessions
+   - runtime RCON password rotation
+
+Password rotation is runtime-only. If you restart the stack, the server returns to the password provided at launch or via `FLAXOS_RCON_PASSWORD`.
+
+### Secure ZeroTier / Remote Access
+
+For remote browser access over ZeroTier, use all three controls together:
+
+1. `--game-code` to gate the WebSocket bridge
+2. `--rcon-password` for admin actions in `Mission > Server`
+3. `--allowed-origin-host <zerotier-ip-or-hostname>` to restrict browser origins hitting the bridge
+
+Recommended example:
+
+```bash
+python tools/start_gui_stack.py \
+  --lan \
+  --allowed-origin-host '100.64.10.24' \
+  --game-code 'replace-this-with-a-long-random-secret' \
+  --rcon-password 'replace-this-with-a-long-random-secret'
+```
+
+Notes:
+- If `--lan` is used without `--game-code`, the launcher now generates one and appends it to the printed/opened GUI URL.
+- If `--lan` is used with the default RCON password, the launcher now generates a strong replacement and prints it.
+- If you omit `--allowed-origin-host`, the bridge logs a warning and origin filtering stays open.
 
 ---
 
