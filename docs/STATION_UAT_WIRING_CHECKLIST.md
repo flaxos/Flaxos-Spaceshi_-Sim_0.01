@@ -16,14 +16,14 @@ Use it to answer three questions in order:
 2. Open the Svelte GUI.
 3. Open browser devtools and run:
    `_flaxosDebugState()`
-4. Load a scenario, then open `Mission > Server` and authenticate with the same RCON password.
+4. Load a scenario, then open `Config > Server` and authenticate with the same RCON password.
 
 Expected before starting a mission:
 - `ws.isConnected` is `true`
 - `activeShipId` is `null`
 - `blockedCommandTotal` is `0`
 
-Expected after authenticating in `Mission > Server`:
+Expected after authenticating in `Config > Server`:
 - server uptime is visible
 - mission uptime becomes non-`n/a` after loading a mission
 - scenario name, pause state, sim time, and time scale refresh without reloading the page
@@ -48,7 +48,7 @@ If this fails, stop and fix backend/scenario wiring first. UI UAT will not be tr
 
 Run this once before the station-specific flows:
 
-1. In `Mission > Server`, click `Refresh`.
+1. In `Config > Server`, click `Refresh`.
 2. Toggle `Pause Simulation`, then resume.
 3. Set time scale to `2x`, then back to `1x`.
 
@@ -173,4 +173,4 @@ If a panel appears wired but nothing happens:
    `python3 tools/check_station_wiring.py`
 4. If headless passes but GUI fails, the issue is client binding or view wiring.
 5. If headless fails, the issue is scenario/backend command flow.
-6. If `Mission > Server` shows success but uptime/state does not change, treat it as a backend admin-command regression and stop UAT.
+6. If `Config > Server` shows success but uptime/state does not change, treat it as a backend admin-command regression and stop UAT.

@@ -6,8 +6,8 @@ Repository path provided. Perform a deep technical review and return:
 - Any local changes you had to make; propose PRs if needed.
 
 2) Architecture
-- Modules and responsibilities (hybrid/*, server, HUD).
-- Data flow between Server and HUD; coupling risks.
+- Modules and responsibilities (`hybrid/*`, `server/*`, `gui/ws_bridge.py`, `gui-svelte/*`).
+- Data flow between the TCP server, WS bridge, and browser GUI; coupling risks.
 - Physics/integration: dt stability, guidance math, ECM/ECCM model.
 
 3) Correctness & Risks

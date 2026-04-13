@@ -20,22 +20,22 @@
   import ScienceView from "./views/ScienceView.svelte";
   import CommsView from "./views/CommsView.svelte";
   import FleetView from "./views/FleetView.svelte";
-  import MissionView from "./views/MissionView.svelte";
+  import ConfigView from "./views/MissionView.svelte";
   import EditorView from "./views/EditorView.svelte";
 
   // Station → allowed views mapping (mirrors index.html logic)
   const STATION_VIEWS: Record<string, string[]> = {
-    captain:         ["helm", "tactical", "fleet", "comms", "ops", "mission"],
-    helm:            ["helm", "tactical", "mission"],
-    tactical:        ["tactical", "helm", "mission"],
-    ops:             ["ops", "engineering", "mission"],
-    engineering:     ["engineering", "ops", "mission"],
-    comms:           ["comms", "mission"],
-    science:         ["science", "tactical", "mission"],
-    fleet_commander: ["fleet", "tactical", "mission"],
+    captain:         ["helm", "tactical", "fleet", "comms", "ops", "config"],
+    helm:            ["helm", "tactical", "config"],
+    tactical:        ["tactical", "helm", "config"],
+    ops:             ["ops", "engineering", "config"],
+    engineering:     ["engineering", "ops", "config"],
+    comms:           ["comms", "config"],
+    science:         ["science", "tactical", "config"],
+    fleet_commander: ["fleet", "tactical", "config"],
   };
 
-  let activeView = "mission";
+  let activeView = "config";
   let allowedViews: string[] | null = null; // null = all (pre-station-claim)
 
   function onViewChange(e: CustomEvent<{ view: string }>) {
@@ -44,9 +44,9 @@
 
   function onStationClaimed(e: CustomEvent<{ station: string }>) {
     const station = e.detail.station;
-    allowedViews = STATION_VIEWS[station] ?? ["mission"];
-    // Auto-switch to first allowed view that isn't mission (if available)
-    const preferred = allowedViews.find((v) => v !== "mission") ?? allowedViews[0];
+    allowedViews = STATION_VIEWS[station] ?? ["config"];
+    // Auto-switch to first allowed view that isn't config (if available)
+    const preferred = allowedViews.find((v) => v !== "config") ?? allowedViews[0];
     if (preferred && !allowedViews.includes(activeView)) {
       activeView = preferred;
     }
@@ -56,7 +56,7 @@
     allowedViews = null; // unlock all views
   }
 
-  // Listen for scenario-loaded to switch to helm/mission view
+  // Listen for scenario-loaded to switch to helm/config view
   function onScenarioLoaded(e: Event) {
     // Server returns player_ship_id / assigned_ship — check all possible keys
     type ScenarioDetail = Record<string, string | undefined>;
@@ -124,8 +124,8 @@
     <div class="view-container" class:active={activeView === "fleet"}>
       <FleetView />
     </div>
-    <div class="view-container" class:active={activeView === "mission"}>
-      <MissionView />
+    <div class="view-container" class:active={activeView === "config"}>
+      <ConfigView />
     </div>
     <div class="view-container" class:active={activeView === "editor"}>
       <EditorView />

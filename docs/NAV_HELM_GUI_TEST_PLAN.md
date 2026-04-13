@@ -6,7 +6,7 @@ This plan captures repeatable GUI checks and supporting scripts for validating n
 - Start the GUI stack: `python tools/start_gui_stack.py --browser --rcon-password 'replace-this'`
 - Open the GUI: http://localhost:3100/
 - Ensure the scenario is loaded from the scenario panel (Tutorial: Intercept and Approach).
-- Optional but recommended: open `Mission > Server` once and confirm the scenario name and mission uptime are visible before switching to Helm.
+- Optional but recommended: open `Config > Server` once and confirm the scenario name and mission uptime are visible before switching to Helm.
 
 ## Manual GUI Test Cases
 

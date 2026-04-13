@@ -29,6 +29,10 @@ Flaxos Spaceship Simulator is a **hard sci-fi multiplayer space combat simulator
 - **Deterministic simulation** - Consistent physics with fixed timestep
 - **Client-server architecture** - TCP JSON protocol for network play
 
+The current default browser experience is the Svelte frontend in `gui-svelte/`,
+served through `gui/ws_bridge.py` and usually launched with
+`python tools/start_gui_stack.py`.
+
 ### Design Principles
 
 1. **Separation of Concerns**: Physics, networking, and UI are isolated
@@ -45,14 +49,16 @@ Flaxos Spaceship Simulator is a **hard sci-fi multiplayer space combat simulator
 ┌─────────────────────────────────────────────────────────────┐
 │                     Client Applications                      │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
-│  │ Mobile UI    │  │ Desktop GUI  │  │ Custom Client│      │
-│  │ (Flask/HTML) │  │ (Tkinter)    │  │ (TCP JSON)   │      │
+│  │ Mobile UI    │  │ Browser GUI  │  │ Custom Client│      │
+│  │ (Flask/HTML) │  │ (Svelte/Web) │  │ (TCP JSON)   │      │
 │  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘      │
 └─────────┼──────────────────┼──────────────────┼─────────────┘
           │                  │                  │
-          └──────────────────┴──────────────────┘
+          │         WebSocket bridge           │
+          │           (gui/ws_bridge.py)       │
+          └──────────────────┬──────────────────┘
                              │
-                    TCP JSON Protocol
+                      TCP JSON Protocol
                              │
 ┌─────────────────────────────┼─────────────────────────────────┐
 │                    Server Layer                                │
@@ -123,7 +129,7 @@ python -m server.main --lan
 - Filter telemetry/events by station (station mode)
 - Manage client sessions
 - Provide autodiscovery endpoint (`_discover` command)
-- Handle authenticated RCON admin operations for the `Mission > Server` UI
+- Handle authenticated RCON admin operations for the `Config > Server` UI
 
 **Key Components:**
 - `UnifiedServer` - Main server class with mode switching
@@ -760,4 +766,4 @@ Flaxos-Spaceshi_-Sim_0.01/
 **Review Frequency**: After architectural changes
 The default browser operator workflow is the Svelte UI served on port `3100`,
 talking to the WebSocket bridge on port `8081`. Authenticated admin/UAT
-controls live in `Mission > Server` and are backed by `UnifiedServer._handle_rcon`.
+controls live in `Config > Server` and are backed by `UnifiedServer._handle_rcon`.
