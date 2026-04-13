@@ -61,7 +61,7 @@
       <MunitionConfigGame />
       <PdcThreatGame />
     {:else if cpuAssistTier}
-      <LauncherControl />
+      <!-- CPU-ASSIST: proposal-based fire handled by FireAuthorization above -->
     {:else}
       <RailgunControl />
       <PdcControl />

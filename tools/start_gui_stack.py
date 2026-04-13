@@ -2,8 +2,7 @@
 Start the full GUI stack in a single terminal:
 - TCP simulation server (unified entrypoint)
 - WebSocket bridge
-- GUI static file server
-- Asset editor server (REST API + editor UI)
+- GUI frontend (`gui-svelte` build by default, legacy `gui/` on demand)
 
 Uses the unified server.main entrypoint with --mode flag.
 """
@@ -94,6 +93,33 @@ def _append_query_param(url: str, key: str, value: str) -> str:
     )
 
 
+def _resolve_rcon_password(cli_value: str | None) -> str:
+    """Resolve RCON password with CLI taking precedence over inherited env."""
+    env_value = os.environ.get("FLAXOS_RCON_PASSWORD")
+    if cli_value:
+        return cli_value
+    if env_value:
+        return env_value
+    return "admin"
+
+
+def _resolve_allowed_origin_hosts(hosts: list[str] | None) -> list[str]:
+    """Normalize allowlist entries and preserve loopback origins when enabled."""
+    normalized: set[str] = set()
+    for raw_value in hosts or []:
+        if not raw_value:
+            continue
+        for candidate in raw_value.split(","):
+            host = candidate.strip().lower()
+            if host:
+                normalized.add(host)
+
+    if normalized:
+        normalized.update({"localhost", "127.0.0.1", "::1"})
+
+    return sorted(normalized)
+
+
 def main() -> int:
     signal.signal(signal.SIGTERM, _handle_shutdown_signal)
     signal.signal(signal.SIGINT, _handle_shutdown_signal)
@@ -147,8 +173,8 @@ def main() -> int:
     )
     parser.add_argument(
         "--rcon-password",
-        default="admin",
-        help="RCON password for admin commands (default: admin for localhost-only use)",
+        default=None,
+        help="RCON password for admin commands (defaults to FLAXOS_RCON_PASSWORD or admin)",
     )
     parser.add_argument(
         "--allowed-origin-host",
@@ -165,6 +191,9 @@ def main() -> int:
     if args.server:
         mode = "minimal" if args.server == "run" else "station"
         print(f"[warn] --server is deprecated, use --mode {mode} instead")
+
+    args.rcon_password = _resolve_rcon_password(args.rcon_password)
+    args.allowed_origin_host = _resolve_allowed_origin_hosts(args.allowed_origin_host)
 
     python = sys.executable
 
