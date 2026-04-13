@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT_DIR"
+
+usage() {
+  cat <<'EOF'
+Usage:
+  tools/uat_commands.sh
+  tools/uat_commands.sh print
+  tools/uat_commands.sh start <rcon-password>
+  tools/uat_commands.sh smoke
+  tools/uat_commands.sh monitor
+
+Modes:
+  print    Print the standard UAT commands and mission docs
+  start    Launch the default Svelte stack with browser + RCON password
+  smoke    Run station wiring smoke checks
+  monitor  Tail the latest session log and fail on critical patterns
+EOF
+}
+
+print_commands() {
+  cat <<'EOF'
+Flaxos Spaceship Sim UAT Commands
+
+1. Start the stack
+python3 tools/start_gui_stack.py --browser --rcon-password 'replace-this'
+
+2. Run the fast bridge smoke
+python3 tools/check_station_wiring.py
+
+3. Watch logs during UAT in a second terminal
+python3 tools/uat_monitor.py --follow --fail-on-critical
+
+4. UAT docs
+docs/UAT_MASTER_PLAN.md
+docs/STATION_UAT_WIRING_CHECKLIST.md
+docs/MOBILE_GUI_TESTING.md
+docs/UAT_COMMANDS.md
+EOF
+}
+
+mode="${1:-print}"
+
+case "$mode" in
+  print)
+    print_commands
+    ;;
+  start)
+    if [[ $# -lt 2 ]]; then
+      echo "error: start mode requires an RCON password" >&2
+      usage >&2
+      exit 1
+    fi
+    exec python3 tools/start_gui_stack.py --browser --rcon-password "$2"
+    ;;
+  smoke)
+    exec python3 tools/check_station_wiring.py
+    ;;
+  monitor)
+    exec python3 tools/uat_monitor.py --follow --fail-on-critical
+    ;;
+  -h|--help|help)
+    usage
+    ;;
+  *)
+    echo "error: unknown mode: $mode" >&2
+    usage >&2
+    exit 1
+    ;;
+esac

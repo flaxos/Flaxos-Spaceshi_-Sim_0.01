@@ -1,5 +1,8 @@
 # Flaxos Spaceship Sim — GUI Development Plan v1.0
 
+> Historical note: this plan reflects the earlier web GUI build-out and references many legacy `gui/` files.
+> Keep it for design/reference history only. For the current default frontend and UAT path, prefer [README.md](/home/flax/games/spaceship-sim/README.md), [AGENTS.md](/home/flax/games/spaceship-sim/AGENTS.md), and [UAT_MASTER_PLAN.md](/home/flax/games/spaceship-sim/docs/UAT_MASTER_PLAN.md).
+
 ## Document Purpose
 
 This document defines a **structured, scope-locked GUI development roadmap** for AI agents to follow. The goal is a **1:1 feature-complete web interface** that exposes all existing simulation systems for practical testing of demo scenarios.

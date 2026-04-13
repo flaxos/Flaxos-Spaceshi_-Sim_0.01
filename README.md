@@ -99,6 +99,24 @@ For repeatable UAT runs, start the stack with a non-default RCON password and us
 
 Password rotation is runtime-only. If you restart the stack, the server returns to the password provided at launch or via `FLAXOS_RCON_PASSWORD`.
 
+### UAT Runbook
+
+Use the current docs set for regression and demo readiness:
+
+- [docs/UAT_MASTER_PLAN.md](/home/flax/games/spaceship-sim/docs/UAT_MASTER_PLAN.md)
+- [docs/UAT_COMMANDS.md](/home/flax/games/spaceship-sim/docs/UAT_COMMANDS.md)
+- [docs/STATION_UAT_WIRING_CHECKLIST.md](/home/flax/games/spaceship-sim/docs/STATION_UAT_WIRING_CHECKLIST.md)
+- [docs/MOBILE_GUI_TESTING.md](/home/flax/games/spaceship-sim/docs/MOBILE_GUI_TESTING.md)
+- [docs/README.md](/home/flax/games/spaceship-sim/docs/README.md)
+
+Recommended operator workflow:
+
+```bash
+python3 tools/start_gui_stack.py --browser --rcon-password 'replace-this'
+python3 tools/check_station_wiring.py
+python3 tools/uat_monitor.py --follow --fail-on-critical
+```
+
 ### Secure ZeroTier / Remote Access
 
 For remote browser access over ZeroTier, use all three controls together:

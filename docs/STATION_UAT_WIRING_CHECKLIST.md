@@ -1,5 +1,8 @@
 # Station UAT Wiring Checklist
 
+> Current role: fast smoke and wiring triage.
+> For the full mission ladder and mobile pass, use [UAT_MASTER_PLAN.md](/home/flax/games/spaceship-sim/docs/UAT_MASTER_PLAN.md).
+
 This checklist is for resuming UI UAT after station refactors. It is focused on
 deterministic bridge wiring, not balance tuning.
 
