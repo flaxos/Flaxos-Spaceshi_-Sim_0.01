@@ -6,6 +6,7 @@
   import MissionObjectives from "../components/mission/MissionObjectives.svelte";
   import CampaignHub from "../components/mission/CampaignHub.svelte";
   import CommandPrompt from "../components/mission/CommandPrompt.svelte";
+  import ServerAdminPanel from "../components/mission/ServerAdminPanel.svelte";
 
   // Game state: "lobby" | "playing" | "ended"
   type GamePhase = "lobby" | "playing" | "ended";
@@ -15,7 +16,7 @@
   let loaderRef: ScenarioLoader | undefined;
 
   // Which in-game panel is active
-  let activePanel: "objectives" | "campaign" | "console" = "objectives";
+  let activePanel: "objectives" | "campaign" | "console" | "server" = "objectives";
 
   // ── Event wiring ─────────────────────────────────────────────────
   function onScenarioLoaded(e: Event) {
@@ -140,6 +141,13 @@
             aria-selected={activePanel === "console"}
             on:click={() => activePanel = "console"}
           >CONSOLE</button>
+          <button
+            class="tab-btn"
+            class:active={activePanel === "server"}
+            role="tab"
+            aria-selected={activePanel === "server"}
+            on:click={() => activePanel = "server"}
+          >SERVER</button>
         </div>
 
         <div class="panel-body">
@@ -154,6 +162,10 @@
           {:else if activePanel === "console"}
             <Panel title="Command Console" domain="" priority="tertiary" collapsible={false}>
               <CommandPrompt />
+            </Panel>
+          {:else if activePanel === "server"}
+            <Panel title="Server Admin" domain="" priority="secondary" collapsible={false}>
+              <ServerAdminPanel />
             </Panel>
           {/if}
         </div>

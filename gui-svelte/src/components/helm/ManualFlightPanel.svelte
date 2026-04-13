@@ -3,6 +3,7 @@
   import { gameState } from "../../lib/stores/gameState.js";
   import { tier } from "../../lib/stores/tier.js";
   import { wsClient } from "../../lib/ws/wsClient.js";
+  import { describeCommandFailure, isCommandRejected } from "../../lib/ws/commandResponse.js";
   import {
     computeEta,
     distance,
@@ -51,11 +52,14 @@
   async function applyOrientation() {
     feedback = "";
     try {
-      await wsClient.sendShipCommand("set_orientation", {
+      const response = await wsClient.sendShipCommand("set_orientation", {
         pitch: draftPitch,
         yaw: draftYaw,
         roll: draftRoll,
       });
+      if (isCommandRejected(response)) {
+        feedback = `Error: ${describeCommandFailure(response)}`;
+      }
     } catch (error) {
       feedback = error instanceof Error ? error.message : "Heading command failed";
     }
@@ -68,12 +72,16 @@
     }
 
     try {
-      await wsClient.sendShipCommand("set_course", {
+      const response = await wsClient.sendShipCommand("set_course", {
         x: Number(courseX),
         y: Number(courseY),
         z: Number(courseZ),
         stop: true,
       });
+      if (isCommandRejected(response)) {
+        feedback = `Error: ${describeCommandFailure(response)}`;
+        return;
+      }
       feedback = "Waypoint uploaded";
     } catch (error) {
       feedback = error instanceof Error ? error.message : "Course upload failed";

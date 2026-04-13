@@ -21,12 +21,48 @@ const THROTTLE_EXEMPT = new Set([
   "get_state",
   "get_mission",
   "get_events",
+  "get_combat_log",
+  "get_mission_hints",
+  "get_tick_metrics",
+  "get_station_messages",
   "get_comms_choices",
+  "crew_status",
+  "fleet_status",
+  "fleet_tactical",
+  "auto_fleet_status",
+  "get_draw_profile",
+  "get_power_profiles",
+  "get_nav_solutions",
+  "get_target_solution",
+  "assess_damage",
   "helm_queue_status",
   "combat_status",
   "weapon_status",
   "_ping",
+  "_discover",
+  "_resume_session",
   "heartbeat",
+  "register_client",
+  "assign_ship",
+  "claim_station",
+  "release_station",
+  "my_status",
+  "station_status",
+  "list_scenarios",
+  "list_ships",
+  "list_ship_classes",
+  "get_ship_classes_full",
+  "save_ship_class",
+  "load_scenario",
+  "save_scenario",
+  "get_scenario_yaml",
+  "generate_skirmish",
+  "campaign_new",
+  "campaign_save",
+  "campaign_load",
+  "campaign_status",
+  "pause",
+  "set_time_scale",
   "rcon_auth",
   "rcon_reload",
   "rcon_load",
@@ -35,6 +71,7 @@ const THROTTLE_EXEMPT = new Set([
   "rcon_kick",
   "rcon_status",
   "rcon_restart",
+  "rcon_set_password",
   "rcon_list",
 ]);
 
@@ -218,8 +255,6 @@ class WSClient extends EventTarget {
   }
 
   sendShipCommand(cmd: string, args: Record<string, unknown> = {}): Promise<unknown> {
-    if (this._shouldThrottle(cmd)) return Promise.resolve({ ok: false, reason: "throttled" });
-
     const shipId = (args.ship as string | undefined) ?? this._activeShipId;
 
     if (!shipId) {
@@ -233,7 +268,6 @@ class WSClient extends EventTarget {
   }
 
   sendShipCommandAsync(cmd: string, args: Record<string, unknown> = {}): boolean {
-    if (this._shouldThrottle(cmd)) return false;
     const shipId = (args.ship as string | undefined) ?? this._activeShipId;
     if (!shipId) {
       const count = (this._blockedCommands.get(cmd) ?? 0) + 1;
@@ -251,9 +285,24 @@ class WSClient extends EventTarget {
     return resp;
   }
 
+  hasRconAuth(): boolean {
+    return Boolean(this._rconToken);
+  }
+
+  clearRconAuth(): void {
+    this._rconToken = null;
+  }
+
   async rcon(cmd: string, args: Record<string, unknown> = {}): Promise<unknown> {
     if (!this._rconToken) return { ok: false, error: "Not authenticated" };
-    return this.send(cmd, { ...args, token: this._rconToken });
+    const response = await this.send(cmd, { ...args, token: this._rconToken }) as {
+      ok?: boolean;
+      error?: string;
+    };
+    if (response?.ok === false && response.error === "Unauthorized") {
+      this.clearRconAuth();
+    }
+    return response;
   }
 
   getConnectionInfo() {

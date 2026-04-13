@@ -122,7 +122,7 @@ class WSBridge:
     Bridges WebSocket clients to TCP simulation server.
     
     Responsibilities:
-    - Accept WebSocket connections on configurable port (default: 8080)
+    - Accept WebSocket connections on configurable port (default: 8081)
     - Forward JSON messages to TCP server (default: localhost:8765)
     - Broadcast server responses to all connected WebSocket clients
     - Handle connection lifecycle (connect, disconnect, reconnect)

@@ -3,6 +3,7 @@
   import { gameState } from "../../lib/stores/gameState.js";
   import { selectedHelmTargetId } from "../../lib/stores/helmUi.js";
   import { wsClient } from "../../lib/ws/wsClient.js";
+  import { describeCommandFailure, isCommandRejected } from "../../lib/ws/commandResponse.js";
   import {
     clamp,
     extractShipState,
@@ -40,17 +41,29 @@
       feedback = "Select a contact first";
       return;
     }
-    await wsClient.sendShipCommand("request_docking", { target_id: currentTargetId });
+    const response = await wsClient.sendShipCommand("request_docking", { target_id: currentTargetId });
+    if (isCommandRejected(response)) {
+      feedback = `Error: ${describeCommandFailure(response)}`;
+      return;
+    }
     feedback = `Docking requested with ${currentTargetId}`;
   }
 
   async function cancelDocking() {
-    await wsClient.sendShipCommand("cancel_docking", {});
+    const response = await wsClient.sendShipCommand("cancel_docking", {});
+    if (isCommandRejected(response)) {
+      feedback = `Error: ${describeCommandFailure(response)}`;
+      return;
+    }
     feedback = "Docking cancelled";
   }
 
   async function undock() {
-    await wsClient.sendShipCommand("undock", {});
+    const response = await wsClient.sendShipCommand("undock", {});
+    if (isCommandRejected(response)) {
+      feedback = `Error: ${describeCommandFailure(response)}`;
+      return;
+    }
     feedback = "Undocked";
   }
 </script>

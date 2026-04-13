@@ -58,13 +58,13 @@ python -m server.main --port 9000
 | Service | Port | Description |
 |---------|------|-------------|
 | TCP Server | 8765 | Main simulation server |
-| WebSocket Bridge | 8080 | Browser client bridge |
-| HTTP GUI | 3000 | Static file server |
+| WebSocket Bridge | 8081 | Browser client bridge |
+| HTTP GUI | 3100 | Static file server for the default Svelte UI |
 
 ### Full GUI Stack
 ```bash
 # Start everything (server + WS bridge + HTTP server)
-python tools/start_gui_stack.py
+python tools/start_gui_stack.py --browser --rcon-password 'replace-this'
 
 # With options
 python tools/start_gui_stack.py --mode station --lan
@@ -118,8 +118,8 @@ Clients can query server configuration using the `_discover` command:
   "mode": "station",
   "endpoints": {
     "tcp": {"host": "127.0.0.1", "port": 8765},
-    "ws": {"host": "127.0.0.1", "port": 8080},
-    "http": {"host": "127.0.0.1", "port": 3000}
+    "ws": {"host": "127.0.0.1", "port": 8081},
+    "http": {"host": "127.0.0.1", "port": 3100}
   },
   "features": {
     "stations": true,
@@ -130,6 +130,69 @@ Clients can query server configuration using the `_discover` command:
 ```
 
 This allows GUI clients to auto-configure connection settings.
+
+---
+
+## Admin / RCON
+
+The default Svelte GUI exposes authenticated admin controls in `Mission > Server`.
+Start the stack with `--rcon-password` or set `FLAXOS_RCON_PASSWORD` to enable them.
+
+### RCON Authentication
+
+**Request:**
+```json
+{
+  "cmd": "rcon_auth",
+  "password": "replace-this"
+}
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "token": "uuid-token",
+  "message": "RCON authenticated"
+}
+```
+
+### RCON Status
+
+**Request:**
+```json
+{
+  "cmd": "rcon_status",
+  "token": "uuid-token"
+}
+```
+
+**Response fields include:**
+- `scenario`
+- `mission`
+- `paused`
+- `time_scale`
+- `tick`
+- `sim_time`
+- `server_uptime`
+- `mission_uptime`
+- `client_count`
+- `ship_count`
+- `clients`
+
+### RCON Control Commands
+
+Authenticated clients can call:
+- `rcon_reload`
+- `rcon_restart`
+- `rcon_pause`
+- `rcon_timescale`
+- `rcon_kick`
+- `rcon_status`
+- `rcon_load`
+- `rcon_set_password`
+
+`rcon_set_password` rotates the password for the current server process only, clears all outstanding RCON tokens, and requires re-authentication.
 
 ---
 
@@ -157,7 +220,7 @@ All commands follow this structure:
 
 Notes:
 - Some “direct” server handlers (notably `get_state`, `get_events`, `list_scenarios`, `load_scenario`, `get_mission`, `get_mission_hints`) may return a command-specific payload without a `message/response` wrapper.
-- The **basic server** (`server.run_server`) uses a different response shape for some commands (see `server/run_server.py`).
+- The legacy **minimal-mode** server path still has a few response-shape differences for older commands; prefer the unified entrypoint (`python -m server.main --mode minimal`) unless you are explicitly validating backwards compatibility.
 
 **Error Response:**
 ```json
@@ -175,7 +238,7 @@ Notes:
 ### register_client
 Register a new client with the server.
 
-> In `server.station_server`, clients are auto-registered on connect and receive a welcome message containing `client_id`. Calling `register_client` is optional (use it to set a display name).
+> In station mode (`python -m server.main`), clients are auto-registered on connect and receive a welcome message containing `client_id`. Calling `register_client` is optional and mainly useful for setting a display name.
 
 **Request:**
 ```json
@@ -1092,7 +1155,7 @@ def send_command(sock, cmd):
 # Connect
 sock = socket.create_connection(('192.168.1.20', 8765))
 
-# station_server sends a welcome message immediately on connect:
+# station mode sends a welcome message immediately on connect:
 welcome = json.loads(sock.recv(4096).decode().strip())
 print(f"WELCOME: {welcome}")
 

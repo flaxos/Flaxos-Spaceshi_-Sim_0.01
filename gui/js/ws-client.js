@@ -48,12 +48,48 @@ class WSClient extends EventTarget {
     "get_state",
     "get_mission",
     "get_events",
+    "get_combat_log",
+    "get_mission_hints",
+    "get_tick_metrics",
+    "get_station_messages",
     "get_comms_choices",
+    "crew_status",
+    "fleet_status",
+    "fleet_tactical",
+    "auto_fleet_status",
+    "get_draw_profile",
+    "get_power_profiles",
+    "get_nav_solutions",
+    "get_target_solution",
+    "assess_damage",
     "helm_queue_status",
     "combat_status",
     "weapon_status",
     "_ping",
+    "_discover",
+    "_resume_session",
     "heartbeat",
+    "register_client",
+    "assign_ship",
+    "claim_station",
+    "release_station",
+    "my_status",
+    "station_status",
+    "list_scenarios",
+    "list_ships",
+    "list_ship_classes",
+    "get_ship_classes_full",
+    "save_ship_class",
+    "load_scenario",
+    "save_scenario",
+    "get_scenario_yaml",
+    "generate_skirmish",
+    "campaign_new",
+    "campaign_save",
+    "campaign_load",
+    "campaign_status",
+    "pause",
+    "set_time_scale",
     "rcon_auth",
     "rcon_reload",
     "rcon_load",
@@ -62,6 +98,7 @@ class WSClient extends EventTarget {
     "rcon_kick",
     "rcon_status",
     "rcon_restart",
+    "rcon_set_password",
     "rcon_list",
   ]);
 
@@ -488,6 +525,14 @@ class WSClient extends EventTarget {
     return resp;
   }
 
+  hasRconAuth() {
+    return Boolean(this._rconToken);
+  }
+
+  clearRconAuth() {
+    this._rconToken = null;
+  }
+
   /**
    * Send an RCON command (must rconAuth first).
    * @param {string} cmd - RCON command name (e.g. "rcon_reload")
@@ -498,7 +543,11 @@ class WSClient extends EventTarget {
     if (!this._rconToken) {
       return { ok: false, error: "Not authenticated -- call rconAuth() first" };
     }
-    return this.send(cmd, { ...args, token: this._rconToken });
+    const resp = await this.send(cmd, { ...args, token: this._rconToken });
+    if (resp && resp.ok === false && resp.error === "Unauthorized") {
+      this.clearRconAuth();
+    }
+    return resp;
   }
 
   /**
@@ -509,10 +558,6 @@ class WSClient extends EventTarget {
    * @returns {Promise<object>} Server response
    */
   sendShipCommand(cmd, args = {}) {
-    if (this._shouldThrottle(cmd)) {
-      return Promise.resolve({ ok: false, reason: "throttled" });
-    }
-
     // Import stateManager dynamically to avoid circular dependency
     const { stateManager } = window._flaxosModules || {};
     const shipId = stateManager?.getPlayerShipId?.();
@@ -538,8 +583,6 @@ class WSClient extends EventTarget {
    * @returns {boolean} True if command was sent, false if no ship ID
    */
   sendShipCommandAsync(cmd, args = {}) {
-    if (this._shouldThrottle(cmd)) return false;
-
     const { stateManager } = window._flaxosModules || {};
     const shipId = stateManager?.getPlayerShipId?.();
     

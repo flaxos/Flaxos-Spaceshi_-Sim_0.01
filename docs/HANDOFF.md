@@ -24,8 +24,8 @@ Platform parity: Desktop ✅, Android ✅ (smoke tests verified)
 - `python tools/validate_d6_combat.py` — D6 combat resolution + mission success (ALL PASS)
 
 ### Server Operations
-- `python -m server.run_server --port 8765` — Basic TCP server (no stations)
-- `python -m server.station_server --port 8765` — Full station-aware server with multi-crew
+- `python -m server.main --mode minimal --port 8765` — Basic TCP server (no stations)
+- `python -m server.main --mode station --port 8765` — Full station-aware server with multi-crew
 
 ### Multi-Client Station Demo
 - Two clients can connect concurrently and issue commands safely

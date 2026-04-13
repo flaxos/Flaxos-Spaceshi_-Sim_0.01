@@ -11,7 +11,8 @@
     "helm_queue_status", "interrupt_helm_queue", "clear_helm_queue",
     "rotate", "set_angular_velocity", "point_at", "maneuver",
     "fleet_status", "fleet_form", "fleet_maneuver",
-    "rcon_auth", "rcon_status", "rcon_pause", "rcon_reload",
+    "rcon_auth", "rcon_status", "rcon_pause", "rcon_reload", "rcon_restart",
+    "rcon_timescale", "rcon_kick", "rcon_load", "rcon_set_password",
   ];
   const SHIP_COMMANDS = new Set([
     "set_thrust", "set_orientation", "autopilot", "set_course", "ping_sensors",

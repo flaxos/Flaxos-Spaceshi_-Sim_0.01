@@ -3,6 +3,7 @@
   import { gameState } from "../../lib/stores/gameState.js";
   import { selectedHelmTargetId } from "../../lib/stores/helmUi.js";
   import { wsClient } from "../../lib/ws/wsClient.js";
+  import { describeCommandFailure, isCommandRejected } from "../../lib/ws/commandResponse.js";
   import {
     asRecord,
     clamp,
@@ -84,28 +85,40 @@
           feedback = "Select a target for intercept autopilot";
           return;
         }
-        await wsClient.sendShipCommand("autopilot", {
+        const response = await wsClient.sendShipCommand("autopilot", {
           enable: true,
           program: "intercept",
           target: targetId,
         });
+        if (isCommandRejected(response)) {
+          feedback = `Error: ${describeCommandFailure(response)}`;
+          return;
+        }
         feedback = `Intercept autopilot engaged for ${targetId}`;
         return;
       }
 
       if (executionMode === "plan") {
-        await wsClient.sendShipCommand("set_plan", { plan: buildPlan() });
+        const response = await wsClient.sendShipCommand("set_plan", { plan: buildPlan() });
+        if (isCommandRejected(response)) {
+          feedback = `Error: ${describeCommandFailure(response)}`;
+          return;
+        }
         feedback = "Flight plan queued";
         return;
       }
 
       const retro = retrogradeHeading();
-      await wsClient.sendShipCommand("execute_burn", {
+      const response = await wsClient.sendShipCommand("execute_burn", {
         duration: burnDuration,
         throttle: burnThrottle,
         pitch: retro.pitch,
         yaw: retro.yaw,
       });
+      if (isCommandRejected(response)) {
+        feedback = `Error: ${describeCommandFailure(response)}`;
+        return;
+      }
       feedback = "Timed burn queued";
     } catch (error) {
       feedback = error instanceof Error ? error.message : "Planner execution failed";

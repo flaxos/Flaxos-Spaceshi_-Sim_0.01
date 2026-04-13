@@ -17,22 +17,22 @@ This document provides a testing checklist for validating the mobile GUI on Andr
 ### Server Setup
 1. Start the simulation server:
    ```bash
-   python -m server.station_server --fleet-dir hybrid_fleet --dt 0.1 --host 0.0.0.0 --port 8765
+   python -m server.main --mode station --fleet-dir hybrid_fleet --dt 0.1 --host 0.0.0.0 --port 8765
    ```
 
 2. Start the WebSocket bridge:
    ```bash
-   python gui/ws_bridge.py --host 0.0.0.0 --port 8080
+   python gui/ws_bridge.py --tcp-host 0.0.0.0 --tcp-port 8765 --ws-host 0.0.0.0 --ws-port 8081
    ```
 
 3. Serve the GUI (development):
    ```bash
-   python -m http.server 8000 --directory gui
+   python -m http.server 3100 --directory gui
    ```
 
 4. Or use the all-in-one launcher:
    ```bash
-   python tools/start_gui_stack.py --server station
+   python tools/start_gui_stack.py --mode station --lan
    ```
 
 ### Device Requirements

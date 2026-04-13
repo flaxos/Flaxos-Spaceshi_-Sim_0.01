@@ -99,6 +99,7 @@ class UnifiedServer:
         # RCON (Remote Console) state
         self._rcon_tokens: Dict[str, str] = {}  # client_id -> auth token
         self._start_time: float = time.time()
+        self._mission_start_time: Optional[float] = None
 
         # Delta telemetry: cache last snapshot per client+ship to send only
         # changed top-level keys.  Reduces bandwidth ~80% for idle state.
@@ -122,6 +123,14 @@ class UnifiedServer:
             self._init_station_mode()
 
         logger.info(f"Server initialized (protocol v{PROTOCOL_VERSION})")
+
+    def _mark_mission_loaded(self) -> None:
+        """Record when the active scenario/mission was last reloaded."""
+        self._mission_start_time = time.time()
+
+    def _clear_mission_runtime(self) -> None:
+        """Clear mission runtime tracking when no scenario is active."""
+        self._mission_start_time = None
 
     def _init_station_mode(self) -> None:
         """Initialize station-based multi-crew system."""
@@ -644,7 +653,7 @@ class UnifiedServer:
 
         RCON provides admin-level server control (reload, pause, kick, etc.).
         Requires authentication via rcon_auth with the configured password.
-        All commands except rcon_auth and rcon_list require a valid token.
+        All RCON commands except rcon_auth require a valid token.
 
         Args:
             client_id: Client identifier
@@ -678,17 +687,17 @@ class UnifiedServer:
             return {"ok": True, "commands": [
                 "rcon_auth", "rcon_reload", "rcon_load", "rcon_pause",
                 "rcon_timescale", "rcon_kick", "rcon_status", "rcon_restart",
-                "rcon_list",
+                "rcon_set_password", "rcon_list",
             ]}
 
         if cmd == "rcon_reload":
             scenario = (
-                self.runner._current_scenario_name
-                or self.runner._current_scenario_path
+                self.runner._current_scenario_path
+                or self.runner._current_scenario_name
             )
             if not scenario:
                 return {"ok": False, "error": "No scenario loaded to reload"}
-            return self._handle_load_scenario({"scenario": scenario})
+            return self._handle_load_scenario({"scenario": scenario, "force": True})
 
         elif cmd == "rcon_load":
             scenario = req.get("scenario")
@@ -738,6 +747,37 @@ class UnifiedServer:
                 return {"ok": True, "kicked": target_id}
             return {"ok": False, "error": f"Client {target_id} not found"}
 
+        elif cmd == "rcon_set_password":
+            current_password = req.get("current_password", "")
+            new_password = req.get("new_password", "")
+            expected = self.config.rcon_password or ""
+
+            if not expected or current_password != expected:
+                logger.warning(f"RCON password rotation denied from {client_id}")
+                return {"ok": False, "error": "Unauthorized"}
+            if not isinstance(new_password, str) or len(new_password) < 8:
+                return {
+                    "ok": False,
+                    "error": "New password must be at least 8 characters",
+                }
+            if not new_password.strip():
+                return {"ok": False, "error": "New password cannot be blank"}
+            if new_password == expected:
+                return {
+                    "ok": False,
+                    "error": "New password must differ from current password",
+                }
+
+            self.config.rcon_password = new_password
+            self._rcon_tokens.clear()
+            logger.info(f"RCON password rotated by {client_id}")
+            return {
+                "ok": True,
+                "message": "RCON password updated for this server process",
+                "reauth_required": True,
+                "persisted": False,
+            }
+
         elif cmd == "rcon_status":
             sessions: Dict[str, dict] = {}
             if self.station_manager:
@@ -751,34 +791,47 @@ class UnifiedServer:
                         ),
                         "name": getattr(sess, "player_name", None),
                     }
+            server_uptime = round(time.time() - self._start_time, 0)
+            mission_uptime = None
+            if self._mission_start_time is not None:
+                mission_uptime = round(time.time() - self._mission_start_time, 0)
+            scenario = (
+                self.runner._current_scenario_name
+                or self.runner._current_scenario_path
+            )
             return {
                 "ok": True,
                 "clients": sessions,
                 "client_count": len(sessions),
                 "ships": list(self.runner.simulator.ships.keys()),
                 "ship_count": len(self.runner.simulator.ships),
-                "scenario": self.runner._current_scenario_name,
+                "scenario": scenario,
+                "mission": self.runner.get_mission_status(),
                 "tick": self.runner.simulator.tick_count,
                 "sim_time": round(self.runner.simulator.time, 1),
                 "paused": not self.runner.running,
                 "time_scale": getattr(
                     self.runner.simulator, "time_scale", 1.0,
                 ),
-                "uptime": round(time.time() - self._start_time, 0),
+                "uptime": server_uptime,
+                "server_uptime": server_uptime,
+                "mission_uptime": mission_uptime,
+                "rcon_session_count": len(self._rcon_tokens),
             }
 
         elif cmd == "rcon_restart":
             # Reload the current scenario from scratch
             scenario = (
-                self.runner._current_scenario_name
-                or self.runner._current_scenario_path
+                self.runner._current_scenario_path
+                or self.runner._current_scenario_name
             )
             if scenario:
-                return self._handle_load_scenario({"scenario": scenario})
+                return self._handle_load_scenario({"scenario": scenario, "force": True})
             # No scenario loaded -- just reset the runner
             self.runner.stop()
             self.runner.load_ships()
             self.runner.start()
+            self._clear_mission_runtime()
             return {"ok": True, "message": "Simulation reset"}
 
         return {"ok": False, "error": f"Unknown RCON command: {cmd}"}
@@ -1157,12 +1210,17 @@ class UnifiedServer:
         if not scenario_name:
             return Response.error("missing scenario", ErrorCode.MISSING_PARAM).to_dict()
 
-        loaded = self.runner.load_scenario(scenario_name)
+        loaded = self.runner.load_scenario(
+            scenario_name,
+            force=bool(req.get("force")),
+        )
         if loaded <= 0:
             return Response.error(
                 f"Failed to load scenario {scenario_name}",
                 ErrorCode.INTERNAL_ERROR
             ).to_dict()
+
+        self._mark_mission_loaded()
 
         return {
             "ok": True,
@@ -1198,6 +1256,8 @@ class UnifiedServer:
                 "Generated scenario produced no ships",
                 ErrorCode.INTERNAL_ERROR,
             ).to_dict()
+
+        self._mark_mission_loaded()
 
         return {
             "ok": True,
