@@ -28,13 +28,13 @@ These recommendations address outstanding TODOs and improve system quality with 
 **Priority**: HIGH
 
 #### Problem
-The `get_events` command in `server/station_server.py` had a TODO placeholder returning empty event lists. Clients couldn't receive relevant event notifications based on their station role.
+The legacy `get_events` command path in `server/station_server.py` had a TODO placeholder returning empty event lists. In the current unified server layout, the equivalent logic lives in `server/main.py`.
 
 #### Solution
 Implemented comprehensive station-based event filtering:
 
 **Files Modified:**
-- `server/station_server.py` - Added `_handle_get_events()` and `_filter_events_for_station()` methods
+- `server/station_server.py` (legacy path; current equivalent is `server/main.py`) - Added `_handle_get_events()` and `_filter_events_for_station()` methods
 
 **Features:**
 - Station-aware event filtering based on permission displays
@@ -442,7 +442,7 @@ All three implemented features include validation:
 ## Code Metrics
 
 ### Lines Changed
-- `server/station_server.py`: +158 lines (event filtering)
+- `server/station_server.py` (legacy path; current equivalent is `server/main.py`): +158 lines (event filtering)
 - `server/stations/fleet_telemetry.py`: +69 lines (status reporting)
 - `hybrid/scenarios/mission.py`: +58 lines (hint system)
 - `docs/SPRINT_RECOMMENDATIONS.md`: +800 lines (this document)
