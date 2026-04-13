@@ -3,7 +3,6 @@
   import ProposalQueue from "../shared/ProposalQueue.svelte";
   import { gameState } from "../../lib/stores/gameState.js";
   import { tier } from "../../lib/stores/tier.js";
-  import { wsClient } from "../../lib/ws/wsClient.js";
   import { selectedTacticalTargetId } from "../../lib/stores/tacticalUi.js";
   import {
     extractShipState,
@@ -12,6 +11,12 @@
     getLauncherInventory,
     getLockedTargetId,
   } from "./tacticalData.js";
+  import {
+    fireArcadeWeapon,
+    setEngagementRules,
+    toggleAutoTactical as setAutoTacticalEnabled,
+    toggleWeaponAuthorization,
+  } from "./tacticalActions.js";
   import { proposals } from "../../lib/stores/proposals.js";
 
   $: ship = extractShipState($gameState);
@@ -27,30 +32,16 @@
   $: autoTacticalEnabled = Boolean(autoTactical.enabled);
   $: engagementMode = String(autoTactical.engagement_mode ?? "weapons_hold");
 
-  async function fireNow(command: "fire_railgun" | "launch_torpedo" | "launch_missile") {
-    const params: Record<string, unknown> = {};
-    if (activeTargetId) params.target = activeTargetId;
-    if (command !== "fire_railgun") params.profile = "direct";
-    await wsClient.sendShipCommand(command, params);
+  async function fireNow(weaponType: "railgun" | "torpedo" | "missile") {
+    await fireArcadeWeapon(weaponType, activeTargetId || undefined);
   }
 
   async function toggleAuthorization(kind: "railgun" | "torpedo" | "missile") {
-    const enabled = authorized[kind];
-    await wsClient.sendShipCommand(enabled ? "deauthorize_weapon" : "authorize_weapon", {
-      weapon_type: kind,
-      profile: "direct",
-    });
+    await toggleWeaponAuthorization(kind, authorized[kind], { profile: "direct" });
   }
 
   async function toggleAutoTactical() {
-    await wsClient.sendShipCommand(
-      autoTacticalEnabled ? "disable_auto_tactical" : "enable_auto_tactical",
-      {}
-    );
-  }
-
-  async function setEngagementRules(mode: string) {
-    await wsClient.sendShipCommand("set_engagement_rules", { mode });
+    await setAutoTacticalEnabled(autoTacticalEnabled);
   }
 
   function ammoPercent(loaded: unknown, capacity: unknown): string {
@@ -71,14 +62,14 @@
   <div class="shell">
     {#if arcadeTier}
       <div class="arcade-grid">
-        <button class="arcade-btn railgun" on:click={() => fireNow("fire_railgun")}>
+        <button class="arcade-btn railgun" on:click={() => fireNow("railgun")}>
           <span>RAILGUN</span>
         </button>
-        <button class="arcade-btn torpedo" on:click={() => fireNow("launch_torpedo")}>
+        <button class="arcade-btn torpedo" on:click={() => fireNow("torpedo")}>
           <span>TORPEDO</span>
           <strong>{ammoPercent(inventory.torpedoes.loaded, inventory.torpedoes.capacity)}</strong>
         </button>
-        <button class="arcade-btn missile" on:click={() => fireNow("launch_missile")}>
+        <button class="arcade-btn missile" on:click={() => fireNow("missile")}>
           <span>MISSILE</span>
           <strong>{ammoPercent(inventory.missiles.loaded, inventory.missiles.capacity)}</strong>
         </button>

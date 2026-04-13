@@ -50,6 +50,19 @@ export interface WeaponMountState {
   range: number;
 }
 
+export interface ActiveMunitionState {
+  id: string;
+  munitionType: "torpedo" | "missile";
+  shooter: string;
+  target: string;
+  distance: number;
+  eta: number | null;
+  profile: string;
+  guidanceMode: string;
+  warheadType: string;
+  state: string;
+}
+
 const ZERO_VEC: Vec3 = { x: 0, y: 0, z: 0 };
 
 function textIncludes(source: string, values: string[]): boolean {
@@ -145,7 +158,7 @@ export function getTargetingState(ship: JsonMap): JsonMap {
 }
 
 export function getCombatState(ship: JsonMap): JsonMap {
-  return asRecord(ship.weapons) ?? asRecord(ship.combat) ?? getSystem(ship, "combat");
+  return asRecord(ship.combat) ?? getSystem(ship, "combat") ?? asRecord(ship.weapons) ?? {};
 }
 
 export function getECMState(ship: JsonMap): JsonMap {
@@ -240,6 +253,40 @@ export function getLauncherInventory(ship: JsonMap): { torpedoes: JsonMap; missi
     torpedoes: asRecord(combat.torpedoes) ?? {},
     missiles: asRecord(combat.missiles) ?? {},
   };
+}
+
+export function getIncomingMunitions(gameState: JsonMap, ship: JsonMap): ActiveMunitionState[] {
+  const shipId = toStringValue(ship.id);
+  const active = Array.isArray(gameState.torpedoes) ? gameState.torpedoes : [];
+
+  return active
+    .map((item) => asRecord(item))
+    .filter((item): item is JsonMap => Boolean(item))
+    .filter((item) => toStringValue(item.target) === shipId && toStringValue(item.shooter) !== shipId)
+    .map((item) => {
+      const munitionType: ActiveMunitionState["munitionType"] =
+        toStringValue(item.munition_type, "torpedo") === "missile"
+          ? "missile"
+          : "torpedo";
+      return {
+        id: toStringValue(item.id),
+        munitionType,
+        shooter: toStringValue(item.shooter),
+        target: toStringValue(item.target),
+        distance: toNumber(item.distance),
+        eta: item.eta == null ? null : toNumber(item.eta),
+        profile: toStringValue(item.profile, "direct"),
+        guidanceMode: toStringValue(item.guidance_mode, "guided"),
+        warheadType: toStringValue(item.warhead_type, "fragmentation"),
+        state: toStringValue(item.state, "unknown"),
+      };
+    })
+    .sort((a, b) => {
+      const etaA = a.eta ?? Number.POSITIVE_INFINITY;
+      const etaB = b.eta ?? Number.POSITIVE_INFINITY;
+      if (etaA !== etaB) return etaA - etaB;
+      return a.distance - b.distance;
+    });
 }
 
 export function getBestWeaponSolution(ship: JsonMap): JsonMap {

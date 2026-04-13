@@ -1,7 +1,12 @@
 <script lang="ts">
   import Panel from "../layout/Panel.svelte";
-  import { wsClient } from "../../lib/ws/wsClient.js";
   import { selectedLauncherType } from "../../lib/stores/tacticalUi.js";
+  import {
+    getMunitionProfileOptions,
+    GUIDANCE_OPTIONS,
+    programMunition,
+    WARHEAD_OPTIONS,
+  } from "../tactical/tacticalActions.js";
 
   let guidanceMode = "guided";
   let warheadType = "fragmentation";
@@ -11,17 +16,21 @@
   let terminalRange = "4000";
   let boostDuration = "6";
   let datalink = true;
+  $: profileOptions = getMunitionProfileOptions($selectedLauncherType);
+  $: if (!profileOptions.includes(flightProfile)) {
+    flightProfile = profileOptions[0] ?? "direct";
+  }
 
   async function program() {
-    await wsClient.sendShipCommand("program_munition", {
-      munition_type: $selectedLauncherType,
-      guidance_mode: guidanceMode,
-      warhead_type: warheadType,
-      flight_profile: flightProfile,
-      pn_gain: Number(pnGain),
-      fuse_distance: Number(fuseDistance),
-      terminal_range: Number(terminalRange),
-      boost_duration: Number(boostDuration),
+    await programMunition({
+      munitionType: $selectedLauncherType,
+      guidanceMode,
+      warheadType,
+      flightProfile,
+      pnGain: Number(pnGain),
+      fuseDistance: Number(fuseDistance),
+      terminalRange: Number(terminalRange),
+      boostDuration: Number(boostDuration),
       datalink,
     });
   }
@@ -30,9 +39,30 @@
 <Panel title="Munition Programming" domain="weapons" priority="secondary" className="munition-programming-panel">
   <div class="shell">
     <div class="grid">
-      <label><span>Guidance</span><input bind:value={guidanceMode} /></label>
-      <label><span>Warhead</span><input bind:value={warheadType} /></label>
-      <label><span>Profile</span><input bind:value={flightProfile} /></label>
+      <label>
+        <span>Guidance</span>
+        <select bind:value={guidanceMode}>
+          {#each GUIDANCE_OPTIONS as option}
+            <option value={option}>{option}</option>
+          {/each}
+        </select>
+      </label>
+      <label>
+        <span>Warhead</span>
+        <select bind:value={warheadType}>
+          {#each WARHEAD_OPTIONS as option}
+            <option value={option}>{option}</option>
+          {/each}
+        </select>
+      </label>
+      <label>
+        <span>Profile</span>
+        <select bind:value={flightProfile}>
+          {#each profileOptions as option}
+            <option value={option}>{option}</option>
+          {/each}
+        </select>
+      </label>
       <label><span>PN gain</span><input bind:value={pnGain} /></label>
       <label><span>Fuse distance</span><input bind:value={fuseDistance} /></label>
       <label><span>Terminal range</span><input bind:value={terminalRange} /></label>

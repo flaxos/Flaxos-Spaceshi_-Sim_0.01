@@ -140,40 +140,7 @@ def cmd_set_pdc_mode(combat, ship, params):
     Returns:
         dict: Mode change confirmation with affected PDC mounts
     """
-    valid_modes = ("auto", "manual", "hold_fire", "priority", "network")
-    mode = params.get("mode")
-    if mode not in valid_modes:
-        return error_dict("INVALID_MODE", f"PDC mode must be one of {valid_modes}, got '{mode}'")
-
-    affected = []
-    for mount_id, weapon in combat.truth_weapons.items():
-        if mount_id.startswith("pdc"):
-            weapon.pdc_mode = mode
-            if mode == "hold_fire":
-                weapon.enabled = False
-            else:
-                weapon.enabled = True
-            affected.append(mount_id)
-
-    # Clear stale network engagements when switching modes
-    combat._pdc_engagements.clear()
-
-    if not affected:
-        return error_dict("NO_PDC", "No PDC mounts available on this ship")
-
-    # Publish event
-    if hasattr(ship, "event_bus") and ship.event_bus:
-        ship.event_bus.publish("pdc_mode_changed", {
-            "ship_id": ship.id,
-            "mode": mode,
-            "mounts": affected,
-        })
-
-    return success_dict(
-        f"PDC mode set to {mode.upper()}",
-        mode=mode,
-        affected_mounts=affected,
-    )
+    return combat.command("set_pdc_mode", params)
 
 
 def cmd_launch_torpedo(combat, ship, params):
@@ -212,16 +179,11 @@ def cmd_launch_torpedo(combat, ship, params):
     if not target_id:
         return error_dict("NO_TARGET", "No target designated for torpedo launch")
 
-    # Route through legacy weapons system for torpedo
-    weapons = ship.systems.get("weapons")
-    if weapons and hasattr(weapons, "fire"):
-        return weapons.fire({
-            "weapon_type": "torpedo",
-            "target": target_id,
-            "profile": profile,
-        })
-
-    return error_dict("NO_TORPEDO", "No torpedo system available")
+    all_ships = params.get("all_ships", {})
+    return combat.launch_torpedo(
+        target_id, profile, all_ships,
+        warhead_type=warhead_type, guidance_mode=guidance_mode,
+    )
 
 
 def cmd_launch_missile(combat, ship, params):
@@ -516,24 +478,7 @@ def cmd_set_pdc_priority(combat, ship, params):
     Returns:
         dict: Confirmation with the accepted priority list
     """
-    torpedo_ids = params.get("torpedo_ids")
-    if not isinstance(torpedo_ids, list):
-        return error_dict(
-            "INVALID_PARAMETER",
-            "torpedo_ids must be a list of torpedo IDs in priority order"
-        )
-    combat.pdc_priority_targets = list(torpedo_ids)
-
-    if hasattr(ship, "event_bus") and ship.event_bus:
-        ship.event_bus.publish("pdc_priority_set", {
-            "ship_id": ship.id,
-            "torpedo_ids": combat.pdc_priority_targets,
-        })
-
-    return success_dict(
-        f"PDC priority queue set ({len(torpedo_ids)} targets)",
-        torpedo_ids=combat.pdc_priority_targets,
-    )
+    return combat.command("set_pdc_priority", params)
 
 
 def cmd_authorize_weapon(combat, ship, params):

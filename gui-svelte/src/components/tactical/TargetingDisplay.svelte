@@ -14,6 +14,7 @@
     toNumber,
     toStringValue,
   } from "./tacticalData.js";
+  import { lockTarget, unlockTarget } from "./tacticalActions.js";
 
   const stages = ["Acquisition", "Weapons Lock", "Solution", "Ready to Fire"];
 
@@ -49,14 +50,14 @@
     }
   }
 
-  async function designateTarget() {
+  async function lockSelectedTarget() {
     if (!targetId) return;
-    await wsClient.sendShipCommand("designate_target", { contact_id: targetId });
+    await lockTarget(targetId);
     await refreshSolution();
   }
 
-  async function unlockTarget() {
-    await wsClient.sendShipCommand("unlock_target", {});
+  async function clearTargetLock() {
+    await unlockTarget();
     solution = {};
   }
 </script>
@@ -91,8 +92,8 @@
     </div>
 
     <div class="actions">
-      <button disabled={!targetId} on:click={designateTarget}>DESIGNATE</button>
-      <button disabled={!lockedTargetId} on:click={unlockTarget}>UNLOCK</button>
+      <button disabled={!targetId} on:click={lockSelectedTarget}>LOCK TARGET</button>
+      <button disabled={!lockedTargetId} on:click={clearTargetLock}>CLEAR LOCK</button>
     </div>
   </div>
 </Panel>

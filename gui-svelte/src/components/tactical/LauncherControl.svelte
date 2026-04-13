@@ -1,11 +1,16 @@
 <script lang="ts">
   import Panel from "../layout/Panel.svelte";
   import { gameState } from "../../lib/stores/gameState.js";
-  import { wsClient } from "../../lib/ws/wsClient.js";
   import { selectedLauncherType, selectedTacticalTargetId } from "../../lib/stores/tacticalUi.js";
   import { extractShipState, getLockedTargetId, getTacticalContacts } from "./tacticalData.js";
+  import {
+    getMunitionProfileOptions,
+    GUIDANCE_OPTIONS,
+    launchSalvo,
+    programMunition,
+    WARHEAD_OPTIONS,
+  } from "./tacticalActions.js";
 
-  const profiles = ["direct", "evasive", "terminal_pop", "bracket"];
   const salvoOptions = [1, 2, 4];
 
   let salvoSize = 1;
@@ -18,26 +23,28 @@
   $: contacts = getTacticalContacts(ship);
   $: lockedTargetId = getLockedTargetId(ship);
   $: selectedTarget = $selectedTacticalTargetId || lockedTargetId;
+  $: profileOptions = getMunitionProfileOptions($selectedLauncherType);
+  $: if (!profileOptions.includes(profile)) {
+    profile = profileOptions[0] ?? "direct";
+  }
 
   async function fire() {
-    await wsClient.sendShipCommand("launch_salvo", {
-      munition_type: $selectedLauncherType,
-      target: selectedTarget || undefined,
+    await launchSalvo({
+      munitionType: $selectedLauncherType,
+      targetId: selectedTarget || undefined,
       count: salvoSize,
       profile,
-      guidance_mode: guidanceMode,
-      warhead_type: warheadType,
+      guidanceMode,
+      warheadType,
     });
   }
 
   async function program() {
-    await wsClient.sendShipCommand("program_munition", {
-      munition_type: $selectedLauncherType,
-      flight_profile: profile,
-      guidance_mode: guidanceMode,
-      warhead_type: warheadType,
-      salvo_size: salvoSize,
-      target: selectedTarget || undefined,
+    await programMunition({
+      munitionType: $selectedLauncherType,
+      flightProfile: profile,
+      guidanceMode,
+      warheadType,
     });
   }
 
@@ -76,7 +83,7 @@
       <label>
         <span>Profile</span>
         <select bind:value={profile}>
-          {#each profiles as option}
+          {#each profileOptions as option}
             <option value={option}>{option}</option>
           {/each}
         </select>
@@ -84,8 +91,22 @@
     </div>
 
     <div class="option-grid">
-      <label><span>Guidance</span><input bind:value={guidanceMode} /></label>
-      <label><span>Warhead</span><input bind:value={warheadType} /></label>
+      <label>
+        <span>Guidance</span>
+        <select bind:value={guidanceMode}>
+          {#each GUIDANCE_OPTIONS as option}
+            <option value={option}>{option}</option>
+          {/each}
+        </select>
+      </label>
+      <label>
+        <span>Warhead</span>
+        <select bind:value={warheadType}>
+          {#each WARHEAD_OPTIONS as option}
+            <option value={option}>{option}</option>
+          {/each}
+        </select>
+      </label>
     </div>
 
     <div class="actions">

@@ -1,34 +1,39 @@
 <script lang="ts">
   import Panel from "../layout/Panel.svelte";
   import { gameState } from "../../lib/stores/gameState.js";
-  import { wsClient } from "../../lib/ws/wsClient.js";
-  import { selectedTacticalTargetId } from "../../lib/stores/tacticalUi.js";
-  import { extractShipState, getCombatState, getThreatList, toStringValue } from "./tacticalData.js";
+  import {
+    extractShipState,
+    formatDistance,
+    getCombatState,
+    getIncomingMunitions,
+    toStringValue,
+  } from "./tacticalData.js";
+  import { setPdcMode, setPdcPriority } from "./tacticalActions.js";
 
   const modes = [
     { label: "AUTO", value: "auto" },
     { label: "MANUAL", value: "manual" },
+    { label: "NETWORK", value: "network" },
     { label: "PRIORITY", value: "priority" },
     { label: "HOLD", value: "hold_fire" },
   ];
 
   $: ship = extractShipState($gameState);
   $: combat = getCombatState(ship);
-  $: threats = getThreatList(ship);
+  $: incomingMunitions = getIncomingMunitions($gameState, ship);
   $: mode = toStringValue(combat.pdc_mode, "auto");
-  $: priorityTarget = $selectedTacticalTargetId;
+  $: priorityTarget = Array.isArray(combat.pdc_priority_targets)
+    ? toStringValue(combat.pdc_priority_targets[0])
+    : "";
 
   async function setMode(next: string) {
-    await wsClient.sendShipCommand("set_pdc_mode", { mode: next });
+    await setPdcMode(next);
   }
 
   async function applyPriority(event: Event) {
     const targetId = (event.currentTarget as HTMLSelectElement).value;
     if (!targetId) return;
-    await wsClient.sendShipCommand("set_pdc_priority", {
-      torpedo_ids: [targetId],
-      target_id: targetId,
-    });
+    await setPdcPriority([targetId]);
   }
 </script>
 
@@ -41,11 +46,13 @@
     </div>
 
     <label>
-      <span>Priority target</span>
+      <span>Priority munition</span>
       <select value={priorityTarget} on:change={applyPriority}>
-        <option value="">Select track</option>
-        {#each threats as threat}
-          <option value={threat.id}>{threat.id} · {threat.classification}</option>
+        <option value="">Select incoming threat</option>
+        {#each incomingMunitions as munition}
+          <option value={munition.id}>
+            {munition.id} · {munition.munitionType.toUpperCase()} · {formatDistance(munition.distance)}
+          </option>
         {/each}
       </select>
     </label>
@@ -61,7 +68,7 @@
 
   .mode-grid {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 6px;
   }
 
