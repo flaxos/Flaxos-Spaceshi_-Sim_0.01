@@ -707,4 +707,35 @@
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
+
+  @media (max-width: 720px) {
+    .hero-actions,
+    .auth-row,
+    .inline-form,
+    .client-row {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .hero-actions,
+    .auth-row,
+    .inline-form {
+      width: 100%;
+    }
+
+    .section-head {
+      align-items: flex-start;
+    }
+
+    .button-grid,
+    .button-grid.compact,
+    .stats-grid,
+    .section-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .client-row button {
+      width: 100%;
+    }
+  }
 </style>

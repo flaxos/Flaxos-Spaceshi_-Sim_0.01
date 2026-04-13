@@ -1,5 +1,8 @@
 # Navigation + Helm GUI Test Plan
 
+> Historical note: this document predates the current full-station Svelte UAT ladder.
+> Keep it as a focused reference for nav/helm checks, but use [UAT_MASTER_PLAN.md](/home/flax/games/spaceship-sim/docs/UAT_MASTER_PLAN.md) as the active source of truth.
+
 This plan captures repeatable GUI checks and supporting scripts for validating navigation and helm flows, with a focus on the intercept tutorial scenario (`scenarios/01_tutorial_intercept.yaml`).
 
 ## Prerequisites

@@ -21,6 +21,9 @@ Act as an expert game engineer and producer on a hard‑sci‑fi bridge‑sim.
 - Prepare CHANGELOG & MIGRATION NOTES.
 - Confirm demo scenario runs end-to-end.
 - Update README plus the relevant `docs/`, `AGENTS.md`, or prompt/helper files when behavior or entrypoints change.
+- Prefer [docs/README.md](/home/flax/games/spaceship-sim/docs/README.md) as the docs index.
+- Prefer [docs/UAT_MASTER_PLAN.md](/home/flax/games/spaceship-sim/docs/UAT_MASTER_PLAN.md) for active UAT guidance.
+- Keep historical plans/prompts clearly marked as historical instead of treating them as the current source of truth.
 
 **Communication**
 - After each sprint: summarize (Built / Tested / Pass-Fail / Ready to Deploy).

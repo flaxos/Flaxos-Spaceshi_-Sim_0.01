@@ -236,6 +236,9 @@
 
   .claimed-badge,
   .expand-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     padding: 3px 10px;
     font-family: var(--font-mono);
     font-size: var(--font-size-xs);
@@ -313,5 +316,32 @@
   .release-btn:hover:not(:disabled) {
     background: rgba(255, 68, 68, 0.1);
     border-color: var(--status-critical);
+  }
+
+  @media (max-width: 768px) {
+    .station-selector {
+      width: 100%;
+    }
+
+    .claimed-badge,
+    .expand-btn {
+      width: 100%;
+      justify-content: space-between;
+    }
+
+    .station-panel {
+      left: 0;
+      right: 0;
+      min-width: 0;
+      max-width: min(100vw - 12px, 360px);
+      max-height: min(60vh, 420px);
+      overflow-y: auto;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .station-grid {
+      grid-template-columns: 1fr;
+    }
   }
 </style>

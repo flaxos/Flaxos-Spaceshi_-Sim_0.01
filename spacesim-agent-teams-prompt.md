@@ -1,5 +1,8 @@
 # Agent Teams Prompt: Spaceship Sim Polish & Feature Sprint
 
+> Historical helper: this prompt predates the current Svelte-first UAT/documentation flow.
+> Keep it for reference only. For current repo guidance, prefer `AGENTS.md`, `README.md`, `docs/README.md`, and `prompts/UAT_REFACTOR_AUDIT_PROMPT.txt`.
+
 ## HOW TO USE THIS FILE
 
 ### Prerequisites

@@ -1,208 +1,154 @@
 # Mobile GUI Testing Checklist
 
-**Project**: Flaxos Spaceship Simulator  
-**Version**: Phase 6 Mobile Optimization  
-**Last Updated**: 2026-01-24
+This is the current mobile checklist for the default Svelte bridge UI in `gui-svelte/`.
 
----
+For the full mission ladder, use [UAT_MASTER_PLAN.md](/home/flax/games/spaceship-sim/docs/UAT_MASTER_PLAN.md). This document focuses on mobile layout quality, touch access, and on-device operability.
 
-## Overview
+## Startup
 
-This document provides a testing checklist for validating the mobile GUI on Android (Pydroid/Chrome) and iOS (Safari/Chrome) browsers.
+Recommended:
 
----
+```bash
+python3 tools/start_gui_stack.py --lan --browser --rcon-password 'replace-this'
+python3 tools/uat_monitor.py --follow --fail-on-critical
+```
 
-## Prerequisites
+Device/browser targets:
+- Android Chrome
+- Android WebView / Pydroid browser if used in practice
+- iPhone Safari
+- iPhone Chrome
 
-### Server Setup
-1. Start the simulation server:
-   ```bash
-   python -m server.main --mode station --fleet-dir hybrid_fleet --dt 0.1 --host 0.0.0.0 --port 8765
-   ```
+## Pass Order
 
-2. Start the WebSocket bridge:
-   ```bash
-   python gui/ws_bridge.py --tcp-host 0.0.0.0 --tcp-port 8765 --ws-host 0.0.0.0 --ws-port 8081
-   ```
+Run these in order on each device:
 
-3. Serve the GUI (development):
-   ```bash
-   python -m http.server 3100 --directory gui
-   ```
+1. Shell + auth
+2. `Tutorial: Intercept and Dock`
+3. `Combat: Eliminate Threat`
+4. `Damage Control`
 
-4. Or use the all-in-one launcher:
-   ```bash
-   python tools/start_gui_stack.py --mode station --lan
-   ```
+Stop if any scenario causes:
+- GUI crash or reload
+- repeated disconnect/reconnect
+- invisible or untappable controls
+- critical log output in `tools/uat_monitor.py`
 
-### Device Requirements
-- **Android**: Chrome 90+ or Pydroid3 WebView
-- **iOS**: Safari 14+ or Chrome for iOS
-- Both devices must be on the same network as the server
+## 1. Shell + Auth
 
----
+### Layout
 
-## Testing Checklist
+Check:
+- page loads without console errors
+- status bar remains readable
+- station selector opens and closes cleanly
+- tier selector remains usable
+- view tabs remain tappable and horizontally scrollable if needed
+- `Config` view is reachable without accidental mis-taps
 
-### 1. Initial Load
+### Server Admin
 
-| Test | Android | iOS | Notes |
-|------|---------|-----|-------|
-| Page loads without errors | [ ] | [ ] | Check console for JS errors |
-| Fonts load correctly | [ ] | [ ] | JetBrains Mono, Inter |
-| CSS variables applied | [ ] | [ ] | Dark theme colors visible |
-| Connection bar visible | [ ] | [ ] | Shows connection status |
+Open `Config > Server`.
 
-### 2. Responsive Detection
+Check:
+- auth form is usable on a phone keyboard
+- `Unlock` works
+- stats cards stack cleanly
+- pause/resume, time-scale, reset, and client actions remain tappable
+- no clipped inputs or off-screen action buttons
 
-| Test | Android | iOS | Notes |
-|------|---------|-----|-------|
-| Mobile layout activates at <=768px | [ ] | [ ] | Tab bar should appear |
-| Desktop layout at >768px | [ ] | [ ] | Standard grid layout |
-| Rotation handles correctly | [ ] | [ ] | Portrait to landscape |
-| No horizontal scroll | [ ] | [ ] | Swipe left/right within bounds |
+Observe:
+- server status refreshes every few seconds
+- no stale session banner after successful auth
 
-### 3. Tab Navigation
+## 2. Helm Mobile Pass
 
-| Test | Android | iOS | Notes |
-|------|---------|-----|-------|
-| Tab bar visible | [ ] | [ ] | 5 tabs: NAV, SEN, WPN, LOG, SYS |
-| Tap to switch tabs | [ ] | [ ] | Visual feedback on tap |
-| Active tab highlighted | [ ] | [ ] | Different background color |
-| Correct panels shown per tab | [ ] | [ ] | Only relevant panels visible |
-| Swipe left/right changes tabs | [ ] | [ ] | Horizontal swipe gesture |
+Scenario:
+- `01_tutorial_intercept.yaml`
 
-### 4. Touch Controls
+Check:
+- flight data panel fits vertically without broken overflow
+- contacts remain selectable
+- flight computer controls remain tappable
+- manual controls are still usable after scrolling
+- docking panel remains reachable after a long scroll
 
-#### Touch Throttle
-| Test | Android | iOS | Notes |
-|------|---------|-----|-------|
-| Throttle visible in control zone | [ ] | [ ] | Bottom of screen |
-| Drag to change value | [ ] | [ ] | Vertical drag |
-| Snaps to 10% increments | [ ] | [ ] | 0%, 10%, 20%, etc. |
-| Value displayed correctly | [ ] | [ ] | Shows percentage |
-| Emergency stop button works | [ ] | [ ] | Sets throttle to 0 |
-| Double-tap emergency stop | [ ] | [ ] | Quick tap detection |
-| Server receives commands | [ ] | [ ] | Check ship state |
+Expected:
+- manual throttle still changes speed
+- rendezvous/autopilot still closes range
+- docking can be completed without rotating the device
 
-#### Touch Joystick
-| Test | Android | iOS | Notes |
-|------|---------|-----|-------|
-| Joystick visible in control zone | [ ] | [ ] | Bottom of screen |
-| Drag from center | [ ] | [ ] | Smooth movement |
-| Returns to center on release | [ ] | [ ] | Animated return |
-| X controls yaw | [ ] | [ ] | Left/right |
-| Y controls pitch | [ ] | [ ] | Up/down |
-| Values displayed | [ ] | [ ] | P: and Y: labels |
-| Server receives angular velocity | [ ] | [ ] | Check ship state |
+## 3. Tactical Mobile Pass
 
-#### Quick Actions
-| Test | Android | iOS | Notes |
-|------|---------|-----|-------|
-| Fire button works | [ ] | [ ] | Sends fire_weapon |
-| Lock button works | [ ] | [ ] | Sends lock_target |
-| Autopilot button works | [ ] | [ ] | Sends autopilot hold |
-| Ping button works | [ ] | [ ] | Sends ping_sensors |
-| Visual feedback on tap | [ ] | [ ] | Button animates |
+Scenario:
+- `02_combat_destroy.yaml`
 
-### 5. Touch Targets
+Check:
+- map renders without overlapping the rest of the tactical stack
+- contact list rows remain tappable
+- lock / fire controls remain reachable
+- weapons status and combat log remain visible after scrolling
+- no tactical panel disappears solely because it is secondary or tertiary priority
 
-| Test | Android | iOS | Notes |
-|------|---------|-----|-------|
-| All buttons >= 44px | [ ] | [ ] | Measure tap targets |
-| Input fields >= 44px | [ ] | [ ] | Command prompt input |
-| Contact rows tappable | [ ] | [ ] | Sensor contacts list |
-| Dropdown selects work | [ ] | [ ] | Autopilot target dropdown |
+Expected:
+- target lock and shot flow complete on mobile
+- combat log still updates while scrolling the page
 
-### 6. Panel Content
+## 4. Ops / Engineering Mobile Pass
 
-| Test | Android | iOS | Notes |
-|------|---------|-----|-------|
-| Ship Status displays | [ ] | [ ] | Hull, fuel, power bars |
-| Navigation displays | [ ] | [ ] | Position, velocity, heading |
-| Sensor contacts list | [ ] | [ ] | Contact rows visible |
-| Targeting display | [ ] | [ ] | Lock status shown |
-| Weapons status | [ ] | [ ] | Ammo counts visible |
-| Event log scrolls | [ ] | [ ] | Touch scroll working |
-| Command prompt accepts input | [ ] | [ ] | Keyboard appears |
+Scenario:
+- `22_damage_control.yaml`
 
-### 7. Performance
+Check:
+- subsystem status is legible at mobile width
+- ops / engineering control buttons remain large enough to tap reliably
+- event log or repair feedback remains reachable
+- switching between `Ops`, `Engineering`, and `Config` does not lose scroll state or stall telemetry
 
-| Test | Android | iOS | Notes |
-|------|---------|-----|-------|
-| Smooth scrolling | [ ] | [ ] | 60 FPS target |
-| No lag on tab switch | [ ] | [ ] | < 100ms transition |
-| Touch response < 100ms | [ ] | [ ] | Immediate feedback |
-| State updates real-time | [ ] | [ ] | 200ms polling |
-| Memory stable | [ ] | [ ] | No leaks over time |
+Expected:
+- repair/damage actions change visible state
+- no clipped cards or frozen panels
 
-### 8. Orientation & Safe Areas
+## Touch Target Checklist
 
-| Test | Android | iOS | Notes |
-|------|---------|-----|-------|
-| Portrait mode works | [ ] | [ ] | Primary mobile orientation |
-| Landscape mode works | [ ] | [ ] | Compact layout |
-| iOS notch handled | [ ] | [ ] | Safe area insets |
-| Android nav bar handled | [ ] | [ ] | Bottom padding |
+Check:
+- critical buttons are comfortably tappable
+- text inputs do not get hidden behind the virtual keyboard
+- no control requires hover to reveal its only action
+- panels scroll naturally without trapping touch interaction
 
-### 9. WebSocket Connection
+## Orientation Checklist
 
-| Test | Android | iOS | Notes |
-|------|---------|-----|-------|
-| Initial connection | [ ] | [ ] | Status shows connected |
-| Reconnect on disconnect | [ ] | [ ] | Auto-reconnect works |
-| Commands reach server | [ ] | [ ] | Server logs show commands |
-| State updates received | [ ] | [ ] | UI updates with state |
+Portrait:
+- bridge chrome remains readable
+- single-column layouts do not clip
+- no critical controls are pushed below unusable heights
 
-### 10. Scenario Playthrough
+Landscape:
+- tabs and station controls remain reachable
+- mission/admin controls do not overflow off-screen
 
-| Test | Android | iOS | Notes |
-|------|---------|-----|-------|
-| Load Tutorial scenario | [ ] | [ ] | From SYS tab |
-| Navigate using touch controls | [ ] | [ ] | Throttle and joystick |
-| Lock target | [ ] | [ ] | Via quick action |
-| Complete scenario objective | [ ] | [ ] | Full playthrough |
+## Log Signals During Mobile UAT
 
----
+Good signals:
+- `Loaded scenario: ...`
+- `RCON authenticated`
+- `Client connected:`
+- `Mission SUCCESS`
 
-## Known Limitations
+Bad signals:
+- `Traceback`
+- `ERROR`
+- `subprocess exited unexpectedly`
+- repeated `Client disconnected`
+- repeated auth failures while the UI still appears connected
 
-1. **iOS Safari**: Some CSS custom properties may not update dynamically
-2. **Android WebView**: Touch event timing may vary
-3. **Landscape**: Reduced control zone height
-4. **Slow networks**: State updates may lag
+## Reporting
 
----
-
-## Troubleshooting
-
-### Touch Not Responding
-- Check `touch-action: none` on control elements
-- Verify no overlapping transparent elements
-- Test with browser DevTools touch simulation
-
-### Layout Issues
-- Clear browser cache
-- Check viewport meta tag
-- Test with DevTools device emulation first
-
-### Connection Issues
-- Verify server is reachable (ping)
-- Check WebSocket bridge is running
-- Ensure correct port in URL
-
----
-
-## Reporting Issues
-
-Include:
-1. Device model and OS version
-2. Browser and version
-3. Screenshot or screen recording
-4. Console errors (if any)
-5. Steps to reproduce
-
----
-
-**Document Maintained By**: Development Team  
-**Review Frequency**: After each mobile update
+Record:
+1. device + OS
+2. browser
+3. scenario
+4. exact view/station
+5. screenshot or short screen recording
+6. matching `tools/uat_monitor.py` lines

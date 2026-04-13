@@ -1,23 +1,55 @@
 # User Guide (Player)
 
-## Controls (Legacy Desktop Reference)
-This section is only for older desktop-control layouts kept for historical
-reference. The default supported interface is the browser GUI.
+The default supported interface is the browser GUI served from `gui-svelte/`.
 
-- Click a contact to select as **target**
-- **F** — Fire weapon (if in FOV + turret arc, power & cooldown OK)
-- **P** — Active sensor ping
-- **A** — Toggle autopilot override
-- **R** — Start/Stop recording to `replay.jsonl`
+## Startup
 
-## Controls (Web GUI)
-- Use the **Sensors** panel to select a contact, then **Lock Target**
-- Use **Autopilot** panel to engage programs (intercept/match/hold/hold_velocity)
-- Use **Weapons** panel to fire (via `fire_weapon` commands)
-- Use **Config > Server** for authenticated admin/UAT controls such as pause/resume, mission reset, server reset, connected-client inspection, and runtime RCON password rotation
+```bash
+python3 tools/start_gui_stack.py --browser --rcon-password 'replace-this'
+```
 
-## Tips
-- Stay within the **weapon arc** wedge on the radar to enable firing.
-- Targets with **ECM** degrade missile lock; fire closer or use ECCM‑capable missiles.
-- PDC will auto‑engage the nearest inbound missile if within arc/range.
-- For repeatable UAT, launch with `python tools/start_gui_stack.py --browser --rcon-password 'replace-this'` and authenticate inside `Config > Server`.
+Open the browser UI, load a scenario from `Config`, then claim a station.
+
+## Main Views
+
+- `Helm`: flight computer, manual flight, docking, queue, navigation awareness
+- `Tactical`: contacts, lock pipeline, weapons, ECM/ECCM, combat log
+- `Engineering`: thermal, drive, power, subsystems
+- `Ops`: damage control, power profile, crew, boarding, drones
+- `Science`: passive contacts and analysis
+- `Comms`: radio, incoming choices, station chat
+- `Fleet`: formation, orders, shared contacts, fleet fire control
+- `Config`: scenario loader, objectives, campaign, command console, server admin
+
+## Core Flow
+
+1. Load a scenario from `Config`.
+2. Claim a station.
+3. Use the relevant station panels for that role.
+4. For repeatable UAT or multiplayer triage, authenticate in `Config > Server`.
+
+## Current Supported Controls
+
+- Use the contacts panels to select and lock targets.
+- Use the flight computer for intercept/rendezvous/match/hold programs.
+- Use tactical controls for railgun, PDC, launcher, and subsystem targeting.
+- Use `Config > Server` for pause/resume, time scale, mission reset, server reset, and client management.
+
+## UAT Tip
+
+For repeatable UAT:
+
+```bash
+python3 tools/start_gui_stack.py --browser --rcon-password 'replace-this'
+python3 tools/check_station_wiring.py
+python3 tools/uat_monitor.py --follow --fail-on-critical
+```
+
+## Historical Controls
+
+The old desktop-control reference remains historical only:
+- Click a contact to select a target
+- `F` fire
+- `P` ping sensors
+- `A` toggle autopilot override
+- `R` record replay output

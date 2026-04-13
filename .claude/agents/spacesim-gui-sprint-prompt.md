@@ -1,5 +1,8 @@
 # Agent Teams Prompt: GUI Overhaul & Flight Computer Layer
 
+> Historical helper: this prompt reflects an earlier GUI-overhaul phase and references the legacy `gui/` implementation heavily.
+> Keep it for reference, but use the current Svelte-first guidance in `AGENTS.md`, `README.md`, `docs/README.md`, and `prompts/UAT_REFACTOR_AUDIT_PROMPT.txt` for active work.
+
 ## THE PROBLEM
 
 The web GUI has never felt solid. The game has good underlying physics and

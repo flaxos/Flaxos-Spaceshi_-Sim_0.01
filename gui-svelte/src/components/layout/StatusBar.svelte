@@ -163,4 +163,20 @@
       animation: none;
     }
   }
+
+  @media (max-width: 768px) {
+    .status-bar {
+      min-width: 0;
+    }
+
+    .proposal-counts {
+      gap: 4px;
+    }
+
+    .tier-badge,
+    .count-badge,
+    .count-idle {
+      white-space: nowrap;
+    }
+  }
 </style>

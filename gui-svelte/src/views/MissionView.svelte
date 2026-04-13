@@ -188,6 +188,7 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-xs);
+    min-height: 0;
   }
 
   .loader-wrap {
@@ -205,6 +206,7 @@
     flex-direction: column;
     gap: var(--space-xs);
     overflow: hidden;
+    min-height: 0;
   }
 
   /* ── Tabs ── */
@@ -249,6 +251,7 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    min-height: 0;
   }
 
   .panel-body :global(.panel) {
@@ -264,10 +267,42 @@
     .config-layout {
       grid-template-columns: 1fr;
       grid-template-rows: minmax(220px, auto) 1fr;
+      overflow: auto;
     }
 
     .loader-wrap.compact {
       max-height: none;
+    }
+  }
+
+  @media (max-width: 680px) {
+    .mission-view {
+      overflow: auto;
+    }
+
+    .config-layout {
+      padding: var(--space-2xs, 2px);
+    }
+
+    .panel-tabs {
+      overflow-x: auto;
+      overflow-y: hidden;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .panel-tabs::-webkit-scrollbar {
+      display: none;
+    }
+
+    .tab-btn {
+      flex: 0 0 auto;
+      min-width: max-content;
+      padding: 7px 10px;
+    }
+
+    .panel-body :global(.panel-body) {
+      overscroll-behavior: contain;
     }
   }
 </style>

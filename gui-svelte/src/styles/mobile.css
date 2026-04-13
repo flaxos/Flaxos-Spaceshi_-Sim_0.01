@@ -21,6 +21,32 @@
     height: auto;
     min-height: 40px;
     padding: var(--space-xs);
+    row-gap: var(--space-xs);
+    align-items: stretch;
+  }
+
+  .controls-spacer,
+  .status-bar .spacer {
+    display: none;
+  }
+
+  .status-bar {
+    gap: var(--space-xs);
+    padding: 0 var(--space-xs);
+    min-height: 32px;
+    height: auto;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .status-bar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .status-bar > * {
+    flex: 0 0 auto;
   }
 
   button {
@@ -28,10 +54,10 @@
     min-width: var(--touch-min);
   }
 
-  /* Hide secondary / tertiary panels on mobile to reduce clutter */
+  /* Preserve all panels on mobile; rely on stacked/scrollable layouts instead. */
   .panel-priority-secondary,
   .panel-priority-tertiary {
-    display: none;
+    display: flex;
   }
 }
 
@@ -39,5 +65,6 @@
   .status-bar {
     font-size: 0.65rem;
     gap: var(--space-xs);
+    padding-bottom: max(var(--space-2xs, 2px), env(safe-area-inset-bottom));
   }
 }
