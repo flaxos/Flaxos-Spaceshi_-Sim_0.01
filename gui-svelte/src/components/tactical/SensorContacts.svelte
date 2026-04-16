@@ -51,10 +51,19 @@
   <div class="shell">
     {#if !passive}
       <div class="toolbar">
-        <button disabled={!canPing || busy} on:click={pingSensors}>
-          {cooldown > 0 ? `PING ${cooldown.toFixed(1)}s` : "PING SENSORS"}
+        <button
+          disabled={!canPing || busy}
+          title={cooldown > 0 ? `Active ping cooling down — ready in ${cooldown.toFixed(1)}s` : busy ? "Pinging…" : "Send active sonar ping to resolve contacts"}
+          on:click={pingSensors}
+        >
+          {cooldown > 0 ? `PING ${cooldown.toFixed(1)}s` : busy ? "PINGING…" : "PING SENSORS"}
         </button>
         <div class="summary">{contacts.length} contacts</div>
+      </div>
+    {:else}
+      <div class="toolbar passive-bar">
+        <span class="passive-badge">PASSIVE</span>
+        <div class="summary">{contacts.length} contacts · read-only</div>
       </div>
     {/if}
 
@@ -69,6 +78,7 @@
             class:passive={passive}
             type="button"
             disabled={passive}
+            title={passive ? "Passive mode — active lock unavailable" : `Lock ${contact.id} as tactical target`}
             on:click={() => lockContact(contact.id)}
           >
             <div class="topline">
@@ -148,7 +158,23 @@
   }
 
   .contact-row.passive {
-    cursor: default;
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+
+  .passive-bar {
+    align-items: center;
+  }
+
+  .passive-badge {
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.1em;
+    padding: 3px 7px;
+    border-radius: 3px;
+    background: rgba(255, 216, 77, 0.18);
+    color: #ffd84d;
+    border: 1px solid rgba(255, 216, 77, 0.35);
   }
 
   .contact-row strong {

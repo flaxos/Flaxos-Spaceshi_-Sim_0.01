@@ -11,11 +11,28 @@
   $: targetId = $selectedTacticalTargetId || getLockedTargetId(ship);
   $: arcadeTier = $tier === "arcade";
 
+  let firing = new Set<string>();
+
   async function fireMount(mountId: string) {
-    await fireRailgun({
-      mountId,
-      targetId: targetId || undefined,
-    });
+    if (firing.has(mountId)) return;
+    firing = new Set(firing).add(mountId);
+    try {
+      await fireRailgun({ mountId, targetId: targetId || undefined });
+    } finally {
+      firing = new Set(firing);
+      firing.delete(mountId);
+      firing = firing;
+    }
+  }
+
+  function fireTitle(mount: ReturnType<typeof getRailgunMounts>[number]): string {
+    if (mount.ammo <= 0) return "No ammunition";
+    if (!mount.ready) {
+      const pct = Math.round(mount.charge * 100);
+      return pct < 100 ? `Charging (${pct}%)` : "Not ready";
+    }
+    if (!targetId) return "No target selected";
+    return "Fire railgun";
   }
 </script>
 
@@ -28,12 +45,23 @@
         <div class="mount-row">
           <div class="meta">
             <strong>{mount.id}</strong>
-            <span>{mount.ammo} slugs · {mount.ready ? "READY" : mount.status.toUpperCase()}</span>
+            <span>
+              {mount.ammo} slugs ·
+              {#if mount.ready}
+                READY
+              {:else}
+                {mount.status.toUpperCase()} {mount.charge < 1 ? `${Math.round(mount.charge * 100)}%` : ""}
+              {/if}
+            </span>
           </div>
           <div class="track">
             <div class="fill" class:arcade={arcadeTier} style={`width: ${Math.round(mount.charge * 100)}%;`}></div>
           </div>
-          <button disabled={!mount.ready || mount.ammo <= 0} on:click={() => fireMount(mount.id)}>FIRE</button>
+          <button
+            disabled={!mount.ready || mount.ammo <= 0 || firing.has(mount.id)}
+            title={fireTitle(mount)}
+            on:click={() => fireMount(mount.id)}
+          >{firing.has(mount.id) ? "…" : "FIRE"}</button>
         </div>
       {/each}
     {/if}
