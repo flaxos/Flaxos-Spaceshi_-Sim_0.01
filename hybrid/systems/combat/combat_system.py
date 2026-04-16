@@ -1249,6 +1249,12 @@ class CombatSystem(BaseSystem):
             # Clear network engagements when switching modes so stale
             # assignments don't persist across mode changes.
             self._pdc_engagements.clear()
+            if hasattr(self._ship_ref, "event_bus") and self._ship_ref.event_bus:
+                self._ship_ref.event_bus.publish("pdc_mode_changed", {
+                    "ship_id": self._ship_ref.id,
+                    "mode": mode,
+                    "mounts": affected,
+                })
             return success_dict(f"PDC mode set to {mode.upper()}", mode=mode, affected_mounts=affected)
 
         elif action == "set_pdc_priority":
@@ -1259,6 +1265,11 @@ class CombatSystem(BaseSystem):
                     "torpedo_ids must be a list of torpedo IDs in priority order"
                 )
             self.pdc_priority_targets = list(torpedo_ids)
+            if hasattr(self._ship_ref, "event_bus") and self._ship_ref.event_bus:
+                self._ship_ref.event_bus.publish("pdc_priority_set", {
+                    "ship_id": self._ship_ref.id,
+                    "torpedo_ids": self.pdc_priority_targets,
+                })
             return success_dict(
                 f"PDC priority queue set ({len(torpedo_ids)} targets)",
                 torpedo_ids=self.pdc_priority_targets,

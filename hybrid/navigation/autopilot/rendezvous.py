@@ -376,6 +376,41 @@ class RendezvousAutopilot(BaseAutopilot):
         flip_coast = closing_speed * flip_time * self.flip_safety_factor
         return d_brake * self.brake_margin + flip_coast
 
+    def _resolve_precise_target(self, target, current_range: float):
+        """Use exact ship geometry for close-in docking phases.
+
+        Long-range rendezvous can use the sensor contact solution, but the
+        final docking envelope (<5 km) is too tight for the residual
+        position noise on IR contacts.  Once we are inside the close
+        approach region and can unambiguously map the contact back to a
+        real ship, switch to that precise target state for final guidance.
+        """
+        if not hasattr(target, "id"):
+            return target
+
+        if current_range > max(self.stationkeep_range * 10.0, 5_000.0):
+            return target
+
+        sensors = self.ship.systems.get("sensors")
+        tracker = getattr(sensors, "contact_tracker", None) if sensors else None
+        if not tracker:
+            return target
+
+        real_id = None
+        for candidate_real_id, stable_id in tracker.id_mapping.items():
+            if stable_id == target.id:
+                real_id = candidate_real_id
+                break
+
+        if not real_id:
+            return target
+
+        for ship in getattr(self.ship, "_all_ships_ref", []):
+            if getattr(ship, "id", None) == real_id:
+                return ship
+
+        return target
+
     # ----- core compute ----------------------------------------------------
 
     def compute(self, dt: float, sim_time: float) -> Optional[Dict]:
@@ -399,6 +434,11 @@ class RendezvousAutopilot(BaseAutopilot):
 
         rel = calculate_relative_motion(self.ship, target)
         current_range: float = rel["range"]
+        precise_target = self._resolve_precise_target(target, current_range)
+        if precise_target is not target:
+            target = precise_target
+            rel = calculate_relative_motion(self.ship, target)
+            current_range = rel["range"]
         # Signed closing speed: positive = closing, negative = opening.
         # Unlike the old code which clamped to 0 when not closing, we
         # keep the true value so BRAKE can distinguish "just stopped"
@@ -1193,11 +1233,13 @@ class RendezvousAutopilot(BaseAutopilot):
             self.status = "docking_ready"
             return {"thrust": 0.0, "heading": self.ship.orientation}
 
-        # Desired closing speed: proportional to sqrt(range) for smooth
-        # tapering.  Faster when far, slow when close.
-        # At 500m: ~6.7 m/s.  At 200m: ~4.2 m/s.  At 100m: ~3.0 m/s.
-        # At 60m: ~2.3 m/s.  At 50m: ~2.1 m/s.
-        desired_speed = max(1.5, min(15.0, math.sqrt(current_range) * 0.3))
+        # Taper to sub-1 m/s closure near the docking envelope so the
+        # docking system's <50m / <1m/s criterion is actually reachable.
+        # The old floor of 1.5 m/s kept the ship perpetually too "hot" to dock.
+        if current_range <= 100.0:
+            desired_speed = max(0.2, current_range / 60.0)
+        else:
+            desired_speed = max(0.4, min(12.0, math.sqrt(current_range) * 0.18))
 
         # Desired velocity vector: toward target at desired_speed
         to_target = subtract_vectors(target_pos, self.ship.position)

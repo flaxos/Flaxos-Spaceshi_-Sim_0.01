@@ -48,9 +48,17 @@ def test_mission_scenarios_have_supported_objective_types():
 
 def test_objective_checks_can_complete_with_minimal_state():
     class DummyContact:
-        def __init__(self, detection_method: str = "active", confidence: float = 1.0):
+        def __init__(
+            self,
+            detection_method: str = "active",
+            confidence: float = 1.0,
+            contact_id: str = "C001",
+            contact_state: str = "confirmed",
+        ):
             self.detection_method = detection_method
             self.confidence = confidence
+            self.id = contact_id
+            self.contact_state = contact_state
 
     class DummySensors:
         def __init__(self, contacts=None):
@@ -113,3 +121,95 @@ def test_objective_checks_can_complete_with_minimal_state():
     )
     assert scan_target.check(sim, player_ship)
     assert scan_target.status == ObjectiveStatus.COMPLETED
+
+
+def test_scan_target_accepts_ir_contacts_and_target_tracks():
+    class DummyContact:
+        def __init__(
+            self,
+            detection_method: str,
+            confidence: float,
+            contact_id: str,
+            contact_state: str = "ghost",
+        ):
+            self.detection_method = detection_method
+            self.confidence = confidence
+            self.id = contact_id
+            self.contact_state = contact_state
+
+    class DummySensors:
+        def __init__(self, contacts=None):
+            self._contacts = contacts or {}
+
+        def get_contact(self, target_id):
+            return self._contacts.get(target_id)
+
+    class DummyTrack:
+        def __init__(self, contact_id):
+            self.contact_id = contact_id
+
+    class DummyMultiTrack:
+        def __init__(self, contact_ids):
+            self.tracks = [DummyTrack(contact_id) for contact_id in contact_ids]
+
+    class DummyTargeting:
+        def __init__(self, locked_target=None, lock_state="none", tracked_ids=None):
+            self.locked_target = locked_target
+            self.lock_state = SimpleNamespace(value=lock_state)
+            self.multi_track = DummyMultiTrack(tracked_ids or [])
+
+    class DummyShip:
+        def __init__(self, ship_id, position):
+            self.id = ship_id
+            self.position = position
+            self.systems = {}
+
+    player_ship = DummyShip("player", {"x": 0, "y": 0, "z": 0})
+    target_ship = DummyShip("target", {"x": 0, "y": 0, "z": 0})
+    sim = SimpleNamespace(time=10, ships={"player": player_ship, "target": target_ship})
+
+    # The live passive sensor pipeline emits IR contacts, not "passive".
+    ir_scan = Objective(
+        obj_id="scan_ir",
+        obj_type=ObjectiveType.SCAN_TARGET,
+        description="scan target via IR",
+        params={"target": "target"},
+    )
+    player_ship.systems["sensors"] = DummySensors(
+        contacts={
+            "target": DummyContact(
+                detection_method="ir",
+                confidence=0.55,
+                contact_id="C007",
+                contact_state="unconfirmed",
+            )
+        }
+    )
+    assert ir_scan.check(sim, player_ship)
+    assert ir_scan.status == ObjectiveStatus.COMPLETED
+
+    # A built targeting track should also satisfy the mission objective,
+    # even if the underlying detection method is no longer "active".
+    tracked_scan = Objective(
+        obj_id="scan_tracked",
+        obj_type=ObjectiveType.SCAN_TARGET,
+        description="scan target via tracking pipeline",
+        params={"target": "target"},
+    )
+    player_ship.systems["sensors"] = DummySensors(
+        contacts={
+            "target": DummyContact(
+                detection_method="home_on_jam",
+                confidence=0.15,
+                contact_id="C009",
+                contact_state="ghost",
+            )
+        }
+    )
+    player_ship.systems["targeting"] = DummyTargeting(
+        locked_target="C009",
+        lock_state="tracking",
+        tracked_ids=["C009"],
+    )
+    assert tracked_scan.check(sim, player_ship)
+    assert tracked_scan.status == ObjectiveStatus.COMPLETED

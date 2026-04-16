@@ -225,6 +225,24 @@ class TestSetPdcMode:
         assert result["ok"]
         assert combat._pdc_engagements == {}
 
+    def test_mode_change_publishes_event(self):
+        """Live combat command path publishes pdc_mode_changed for UI/event consumers."""
+        from hybrid.systems.combat.combat_system import CombatSystem
+
+        combat = CombatSystem({"pdcs": 2})
+        ship = MagicMock()
+        ship.id = "player"
+        ship.event_bus = MagicMock()
+        combat._ship_ref = ship
+
+        result = combat.command("set_pdc_mode", {"mode": "network"})
+        assert result["ok"]
+        ship.event_bus.publish.assert_called_once_with("pdc_mode_changed", {
+            "ship_id": "player",
+            "mode": "network",
+            "mounts": ["pdc_1", "pdc_2"],
+        })
+
 
 # ---------------------------------------------------------------------------
 # Tests: set_pdc_priority command
@@ -270,6 +288,23 @@ class TestSetPdcPriority:
         combat.pdc_priority_targets = ["torp_2", "torp_1"]
         state = combat.get_state()
         assert state["pdc_priority_targets"] == ["torp_2", "torp_1"]
+
+    def test_priority_change_publishes_event(self):
+        """Live combat command path publishes pdc_priority_set for UI/event consumers."""
+        from hybrid.systems.combat.combat_system import CombatSystem
+
+        combat = CombatSystem({"pdcs": 1})
+        ship = MagicMock()
+        ship.id = "player"
+        ship.event_bus = MagicMock()
+        combat._ship_ref = ship
+
+        result = combat.command("set_pdc_priority", {"torpedo_ids": ["torp_2", "torp_1"]})
+        assert result["ok"]
+        ship.event_bus.publish.assert_called_once_with("pdc_priority_set", {
+            "ship_id": "player",
+            "torpedo_ids": ["torp_2", "torp_1"],
+        })
 
 
 # ---------------------------------------------------------------------------
