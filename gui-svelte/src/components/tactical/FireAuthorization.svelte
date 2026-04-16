@@ -32,8 +32,18 @@
   $: autoTacticalEnabled = Boolean(autoTactical.enabled);
   $: engagementMode = String(autoTactical.engagement_mode ?? "weapons_hold");
 
+  let firingNow: string | null = null;
+  let engagementPending = false;
+  let autoTacticalPending = false;
+
   async function fireNow(weaponType: "railgun" | "torpedo" | "missile") {
-    await fireArcadeWeapon(weaponType, activeTargetId || undefined);
+    if (firingNow) return;
+    firingNow = weaponType;
+    try {
+      await fireArcadeWeapon(weaponType, activeTargetId || undefined);
+    } finally {
+      firingNow = null;
+    }
   }
 
   async function toggleAuthorization(kind: "railgun" | "torpedo" | "missile") {
@@ -41,7 +51,23 @@
   }
 
   async function toggleAutoTactical() {
-    await setAutoTacticalEnabled(autoTacticalEnabled);
+    if (autoTacticalPending) return;
+    autoTacticalPending = true;
+    try {
+      await setAutoTacticalEnabled(autoTacticalEnabled);
+    } finally {
+      autoTacticalPending = false;
+    }
+  }
+
+  async function setEngagement(key: string) {
+    if (engagementPending) return;
+    engagementPending = true;
+    try {
+      await setEngagementRules(key);
+    } finally {
+      engagementPending = false;
+    }
   }
 
   function ammoPercent(loaded: unknown, capacity: unknown): string {
@@ -62,14 +88,29 @@
   <div class="shell">
     {#if arcadeTier}
       <div class="arcade-grid">
-        <button class="arcade-btn railgun" on:click={() => fireNow("railgun")}>
+        <button
+          class="arcade-btn railgun"
+          disabled={firingNow === "railgun"}
+          title={!activeTargetId ? "Select a target first" : "Fire railgun at locked target"}
+          on:click={() => fireNow("railgun")}
+        >
           <span>RAILGUN</span>
         </button>
-        <button class="arcade-btn torpedo" on:click={() => fireNow("torpedo")}>
+        <button
+          class="arcade-btn torpedo"
+          disabled={firingNow === "torpedo" || Number(inventory.torpedoes.loaded) <= 0}
+          title={Number(inventory.torpedoes.loaded) <= 0 ? "No torpedoes loaded" : !activeTargetId ? "Select a target first" : "Fire torpedo at locked target"}
+          on:click={() => fireNow("torpedo")}
+        >
           <span>TORPEDO</span>
           <strong>{ammoPercent(inventory.torpedoes.loaded, inventory.torpedoes.capacity)}</strong>
         </button>
-        <button class="arcade-btn missile" on:click={() => fireNow("missile")}>
+        <button
+          class="arcade-btn missile"
+          disabled={firingNow === "missile" || Number(inventory.missiles.loaded) <= 0}
+          title={Number(inventory.missiles.loaded) <= 0 ? "No missiles loaded" : !activeTargetId ? "Select a target first" : "Fire missile at locked target"}
+          on:click={() => fireNow("missile")}
+        >
           <span>MISSILE</span>
           <strong>{ammoPercent(inventory.missiles.loaded, inventory.missiles.capacity)}</strong>
         </button>
@@ -79,10 +120,12 @@
       <button
         class="auto-toggle"
         class:active={autoTacticalEnabled}
+        disabled={autoTacticalPending}
+        title={autoTacticalEnabled ? "Disable autonomous weapon engagement" : "Enable autonomous weapon engagement"}
         type="button"
         on:click={toggleAutoTactical}
       >
-        AUTO-TACTICAL: {autoTacticalEnabled ? "ENABLED" : "DISABLED"}
+        AUTO-TACTICAL: {autoTacticalPending ? "…" : autoTacticalEnabled ? "ENABLED" : "DISABLED"}
       </button>
 
       <!-- Engagement rules -->
@@ -90,8 +133,10 @@
         {#each ENGAGEMENT_MODES as { key, label }}
           <button
             class:selected={engagementMode === key}
+            disabled={engagementPending}
+            title={{ weapons_free: "Engage any valid target", weapons_hold: "Do not fire — hold all weapons", defensive_only: "Engage only inbound munitions" }[key]}
             type="button"
-            on:click={() => setEngagementRules(key)}
+            on:click={() => setEngagement(key)}
           >
             {label}
           </button>

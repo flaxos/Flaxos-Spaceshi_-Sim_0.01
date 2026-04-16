@@ -8,25 +8,41 @@
   $: ship = extractShipState($gameState);
   $: threats = getThreatList(ship).slice(0, 8);
 
+  let locking: string | null = null;
+
   async function lockThreat(contactId: string) {
-    selectedTacticalTargetId.set(contactId);
-    await lockTarget(contactId);
+    if (locking) return;
+    locking = contactId;
+    try {
+      selectedTacticalTargetId.set(contactId);
+      await lockTarget(contactId);
+    } finally {
+      locking = null;
+    }
   }
 </script>
 
 <Panel title="Threat Board" domain="weapons" priority="secondary" className="threat-board-panel">
   <div class="shell">
     {#if threats.length === 0}
-      <div class="empty">Threat queue clear.</div>
+      <div class="empty">No active threats detected.</div>
     {:else}
       {#each threats as threat, index}
-        <button class="threat-row {threat.threatLevel}" class:selected={threat.id === $selectedTacticalTargetId} type="button" on:click={() => lockThreat(threat.id)}>
+        <button
+          class="threat-row {threat.threatLevel}"
+          class:selected={threat.id === $selectedTacticalTargetId}
+          class:locking={locking === threat.id}
+          disabled={locking != null}
+          title="Lock {threat.id} as primary target"
+          type="button"
+          on:click={() => lockThreat(threat.id)}
+        >
           <span class="index">{index + 1}</span>
           <div class="body">
             <strong>{threat.id}</strong>
             <span>{threat.classification || "Unknown"} · {formatDistance(threat.distance)}</span>
           </div>
-          <span class="score">{Math.round(threat.threatScore * 100)}</span>
+          <span class="score" title="Composite threat score (0–100): range, closure rate, classification">{Math.round(threat.threatScore * 100)}</span>
         </button>
       {/each}
     {/if}
@@ -54,6 +70,10 @@
 
   .threat-row.selected {
     border-color: rgba(var(--tier-accent-rgb), 0.5);
+  }
+
+  .threat-row.locking {
+    opacity: 0.6;
   }
 
   .threat-row.red { border-color: rgba(255, 68, 68, 0.45); }

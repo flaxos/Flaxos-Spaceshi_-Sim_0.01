@@ -181,19 +181,43 @@
 </script>
 
 <Panel title="Tactical Map" domain="sensor" priority="primary" className="tactical-map-panel">
-  <SpatialMapCanvas
-    mode="tactical"
-    {tracks}
-    {rings}
-    {links}
-    {legendItems}
-    ownshipId="ownship"
-    selectedId={$selectedTacticalTargetId}
-    {initialRadius}
-    caption="Plan view emphasizes target geometry and weapon envelopes. The elevation strip now only mirrors ownship and focused tracks so Z cues stay readable. Wheel zooms on cursor; drag pans."
-    selectionActionLabel="Lock"
-    selectionActionDisabled={!$selectedTacticalTargetId || lockBusy}
-    on:select={(event) => selectedTacticalTargetId.set(event.detail.id)}
-    on:activate={(event) => lockSelected(event.detail.id)}
-  />
+  <div class="map-wrapper" class:lock-busy={lockBusy}>
+    <SpatialMapCanvas
+      mode="tactical"
+      {tracks}
+      {rings}
+      {links}
+      {legendItems}
+      ownshipId="ownship"
+      selectedId={$selectedTacticalTargetId}
+      {initialRadius}
+      caption="Scroll to zoom · drag to pan · click contact to select · Lock to acquire targeting"
+      selectionActionLabel={lockBusy ? "Locking…" : "Lock"}
+      selectionActionDisabled={!$selectedTacticalTargetId || lockBusy}
+      on:select={(event) => selectedTacticalTargetId.set(event.detail.id)}
+      on:activate={(event) => lockSelected(event.detail.id)}
+    />
+  </div>
 </Panel>
+
+<style>
+  .map-wrapper {
+    position: relative;
+    display: contents;
+  }
+
+  .map-wrapper.lock-busy::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border: 2px solid rgba(var(--tier-accent-rgb), 0.5);
+    border-radius: var(--radius-sm);
+    pointer-events: none;
+    animation: lock-pulse 0.7s ease-in-out infinite;
+  }
+
+  @keyframes lock-pulse {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 0.9; }
+  }
+</style>

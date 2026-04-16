@@ -20,6 +20,7 @@
 
   let solution: Record<string, unknown> = {};
   let pollHandle: number | null = null;
+  let locking = false;
 
   $: ship = extractShipState($gameState);
   $: targeting = getTargetingSummary(ship);
@@ -51,9 +52,14 @@
   }
 
   async function lockSelectedTarget() {
-    if (!targetId) return;
-    await lockTarget(targetId);
-    await refreshSolution();
+    if (!targetId || locking) return;
+    locking = true;
+    try {
+      await lockTarget(targetId);
+      await refreshSolution();
+    } finally {
+      locking = false;
+    }
   }
 
   async function clearTargetLock() {
@@ -92,8 +98,16 @@
     </div>
 
     <div class="actions">
-      <button disabled={!targetId} on:click={lockSelectedTarget}>LOCK TARGET</button>
-      <button disabled={!lockedTargetId} on:click={clearTargetLock}>CLEAR LOCK</button>
+      <button
+        disabled={!targetId || locking}
+        title={!targetId ? "Select a contact first" : locking ? "Acquiring lock…" : "Acquire targeting lock"}
+        on:click={lockSelectedTarget}
+      >{locking ? "LOCKING…" : "LOCK TARGET"}</button>
+      <button
+        disabled={!lockedTargetId}
+        title={!lockedTargetId ? "No active lock" : "Release targeting lock"}
+        on:click={clearTargetLock}
+      >CLEAR LOCK</button>
     </div>
   </div>
 </Panel>

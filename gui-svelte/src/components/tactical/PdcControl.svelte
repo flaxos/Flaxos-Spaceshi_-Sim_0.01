@@ -18,6 +18,8 @@
     { label: "HOLD", value: "hold_fire" },
   ];
 
+  let modePending = false;
+
   $: ship = extractShipState($gameState);
   $: combat = getCombatState(ship);
   $: incomingMunitions = getIncomingMunitions($gameState, ship);
@@ -26,8 +28,22 @@
     ? toStringValue(combat.pdc_priority_targets[0])
     : "";
 
+  const modeDescriptions: Record<string, string> = {
+    auto: "Automatically engage incoming threats",
+    manual: "PDC fires only on explicit command",
+    network: "Coordinate engagement across all PDC mounts",
+    priority: "Engage threat-board priority targets first",
+    hold_fire: "PDC will not fire — all mounts safed",
+  };
+
   async function setMode(next: string) {
-    await setPdcMode(next);
+    if (modePending || mode === next) return;
+    modePending = true;
+    try {
+      await setPdcMode(next);
+    } finally {
+      modePending = false;
+    }
   }
 
   async function applyPriority(event: Event) {
@@ -41,7 +57,13 @@
   <div class="shell">
     <div class="mode-grid">
       {#each modes as item}
-        <button class:selected={mode === item.value} type="button" on:click={() => setMode(item.value)}>{item.label}</button>
+        <button
+          class:selected={mode === item.value}
+          disabled={modePending}
+          title={modeDescriptions[item.value] ?? item.label}
+          type="button"
+          on:click={() => setMode(item.value)}
+        >{item.label}</button>
       {/each}
     </div>
 
