@@ -409,26 +409,72 @@ class Objective:
             return False
 
         contact = sensors.get_contact(target_id)
-        if contact and hasattr(contact, "detection_method"):
-            # Active scans complete immediately (high-confidence ping)
-            if contact.detection_method == "active" and contact.confidence > 0.5:
+        if contact:
+            method = str(getattr(contact, "detection_method", "") or "").lower()
+            confidence = float(getattr(contact, "confidence", 0.0) or 0.0)
+            contact_state = str(getattr(contact, "contact_state", "") or "").lower()
+            stable_contact_id = getattr(contact, "id", None)
+
+            # If the targeting system has built a live track on the
+            # contact, the player has unquestionably detected it even if
+            # the originating sensor method was IR or the method tag has
+            # evolved from the original detection mode.
+            targeting = player_ship.systems.get("targeting")
+            if targeting:
+                tracked_ids = {target_id}
+                if stable_contact_id:
+                    tracked_ids.add(stable_contact_id)
+
+                lock_state = getattr(targeting, "lock_state", None)
+                lock_state_value = getattr(lock_state, "value", str(lock_state)).lower()
+                locked_target = getattr(targeting, "locked_target", None)
+
+                if (
+                    locked_target in tracked_ids
+                    and lock_state_value in {"tracking", "acquiring", "locked"}
+                ):
+                    self.status = ObjectiveStatus.COMPLETED
+                    self.completion_time = sim.time
+                    self.progress = 1.0
+                    logger.info(
+                        f"Objective {self.id} completed: Tracking contact for {target_id}"
+                    )
+                    return True
+
+                multi_track = getattr(targeting, "multi_track", None)
+                tracks = getattr(multi_track, "tracks", []) if multi_track else []
+                if any(getattr(track, "contact_id", None) in tracked_ids for track in tracks):
+                    self.status = ObjectiveStatus.COMPLETED
+                    self.completion_time = sim.time
+                    self.progress = 1.0
+                    logger.info(
+                        f"Objective {self.id} completed: Track list contains {target_id}"
+                    )
+                    return True
+
+            # Active/FCR scans complete immediately once a contact exists.
+            if method in {"active", "fcr"} and confidence > 0.0:
                 self.status = ObjectiveStatus.COMPLETED
                 self.completion_time = sim.time
                 self.progress = 1.0
                 logger.info(f"Objective {self.id} completed: Active scan of {target_id}")
                 return True
 
-            # Passive detection completes once confidence stabilises above noise floor.
-            # At 427km / 500km range, accuracy is ~0.24-0.49 so 0.3 is reachable.
-            if contact.detection_method == "passive" and contact.confidence > 0.3:
+            # Passive detections are produced as IR contacts in the current
+            # sensor model.  Once the contact is at least UNCONFIRMED
+            # quality (or above the equivalent confidence threshold), it
+            # counts as a completed scan objective.
+            if contact_state in {"unconfirmed", "confirmed"} or confidence > 0.3:
                 self.status = ObjectiveStatus.COMPLETED
                 self.completion_time = sim.time
                 self.progress = 1.0
-                logger.info(f"Objective {self.id} completed: Passive detection of {target_id}")
+                logger.info(
+                    f"Objective {self.id} completed: Passive/IR detection of {target_id}"
+                )
                 return True
 
             # Update progress based on confidence
-            self.progress = contact.confidence
+            self.progress = confidence
 
         return False
 
