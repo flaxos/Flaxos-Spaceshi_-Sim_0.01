@@ -13,6 +13,7 @@ Usage:
   tools/uat_commands.sh smoke
   tools/uat_commands.sh tactical
   tools/uat_commands.sh ops
+  tools/uat_commands.sh science
   tools/uat_commands.sh monitor
 
 Modes:
@@ -21,6 +22,7 @@ Modes:
   smoke     Run station wiring smoke checks (helm/tutorial)
   tactical  Run tactical command sweep (Phase 2: combat, railgun, torpedoes, missiles)
   ops       Run ops/engineering/stealth command sweep (Phase 3: repair, power, EMCON)
+  science   Run science/comms command sweep (Phase 4: analysis, hail, broadcast)
   monitor   Tail the latest session log and fail on critical patterns
 EOF
 }
@@ -41,7 +43,10 @@ python3 tools/uat_command_sweep.py
 4. Run the ops/engineering/stealth sweep (Phase 3: repair, power, EMCON)
 python3 tools/uat_ops_sweep.py
 
-5. Watch logs during UAT in a second terminal
+5. Run the science/comms sweep (Phase 4: analysis, hail, broadcast)
+python3 tools/uat_science_comms_sweep.py
+
+6. Watch logs during UAT in a second terminal
 python3 tools/uat_monitor.py --follow --fail-on-critical
 
 6. UAT docs
@@ -74,6 +79,9 @@ case "$mode" in
     ;;
   ops)
     exec python3 tools/uat_ops_sweep.py
+    ;;
+  science)
+    exec python3 tools/uat_science_comms_sweep.py
     ;;
   monitor)
     exec python3 tools/uat_monitor.py --follow --fail-on-critical

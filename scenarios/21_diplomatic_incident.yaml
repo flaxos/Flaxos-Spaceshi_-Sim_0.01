@@ -33,6 +33,9 @@ ships:
           range: 300000
         active:
           scan_range: 500000
+      comms:
+        transponder_enabled: true
+        transponder_code: "UNSA-STEADFAST"
 
   # ── Suspect freighter: spoofed transponder ─────────────────────
   - id: "suspect_freighter"
