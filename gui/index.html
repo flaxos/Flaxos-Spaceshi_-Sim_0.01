@@ -181,9 +181,19 @@
       min-height: var(--panel-height-md);
     }
 
+    .helm-orientation-panel {
+      grid-column: span 4;
+      min-height: var(--panel-height-md);
+    }
+
     .helm-rcs-panel {
       grid-column: span 4;
       min-height: var(--panel-height-sm);
+    }
+
+    .helm-rcs-thruster-panel {
+      grid-column: span 4;
+      min-height: var(--panel-height-md);
     }
 
     .helm-maneuver-panel {
@@ -239,6 +249,11 @@
     .tac-charge-game-panel {
       grid-column: span 4;
       min-height: var(--panel-height-sm);
+    }
+
+    .tac-hardpoints-panel {
+      grid-column: span 6;
+      min-height: var(--panel-height-md);
     }
 
     .tac-weapons-panel {
@@ -539,6 +554,7 @@
       .tac-targeting-panel,
       .tac-solution-panel,
       .tac-fire-ctrl-panel,
+      .tac-hardpoints-panel,
       .tac-weapons-panel,
       .tac-torpedo-panel,
       .eng-thermal-panel,
@@ -565,7 +581,9 @@
       /* span-4 panels stay span-4 (half-width, 2-per-row in 8-col) */
       .helm-autopilot-status-panel,
       .helm-manual-flight-panel,
+      .helm-orientation-panel,
       .helm-rcs-panel,
+      .helm-rcs-thruster-panel,
       .helm-queue-panel,
       .helm-docking-panel,
       .tac-sensors-panel,
@@ -609,7 +627,9 @@
 
       /* Span-4 panels become span-3 so two fit side-by-side */
       .helm-autopilot-status-panel,
+      .helm-orientation-panel,
       .helm-rcs-panel,
+      .helm-rcs-thruster-panel,
       .helm-queue-panel,
       .helm-docking-panel,
       .helm-micro-rcs-panel,
@@ -722,6 +742,10 @@
             <manual-flight-panel></manual-flight-panel>
           </flaxos-panel>
 
+          <flaxos-panel title="Orientation" collapsible priority="primary" domain="helm" class="helm-orientation-panel">
+            <ship-orientation-display></ship-orientation-display>
+          </flaxos-panel>
+
           <flaxos-panel title="RCS / Attitude" collapsible domain="helm" class="helm-rcs-panel">
             <rcs-controls></rcs-controls>
           </flaxos-panel>
@@ -813,6 +837,10 @@
 
           <flaxos-panel title="Railgun Charge" collapsible priority="secondary" domain="weapons" class="tac-charge-game-panel">
             <weapons-charge-game></weapons-charge-game>
+          </flaxos-panel>
+
+          <flaxos-panel title="Hardpoints" collapsible priority="primary" domain="weapons" class="tac-hardpoints-panel">
+            <weapons-hardpoints-display></weapons-hardpoints-display>
           </flaxos-panel>
 
           <flaxos-panel title="Weapons / Ordnance" collapsible priority="secondary" domain="weapons" class="tac-weapons-panel">
@@ -972,8 +1000,8 @@
             <subsystem-status-panel></subsystem-status-panel>
           </flaxos-panel>
 
-          <flaxos-panel title="Power Draw" collapsible priority="secondary" domain="power" class="eng-power-panel">
-            <power-draw-display></power-draw-display>
+          <flaxos-panel title="Power Flow" collapsible priority="secondary" domain="power" class="eng-power-panel">
+            <power-flow-display></power-flow-display>
           </flaxos-panel>
         </div>
 

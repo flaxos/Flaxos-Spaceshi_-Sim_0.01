@@ -15,6 +15,35 @@ import { wsClient } from "../js/ws-client.js";
 const POLL_INTERVAL_MS = 3000;
 const BUS_NAMES = ["primary", "secondary", "tertiary"];
 
+function normalizeDrawProfile(raw) {
+  const profile = raw?.response || raw;
+  if (!profile || typeof profile !== "object") return null;
+
+  if (profile.buses && typeof profile.buses === "object") {
+    const normalized = {};
+    for (const bus of BUS_NAMES) {
+      const entry = profile.buses?.[bus];
+      if (!entry) continue;
+      normalized[bus] = {
+        supply: Number(entry.available_kw ?? entry.supply ?? 0),
+        requested: Number(entry.requested_kw ?? entry.requested ?? 0),
+        delta: Number(
+          entry.delta_kw ?? entry.delta ??
+          ((entry.available_kw ?? entry.supply ?? 0) - (entry.requested_kw ?? entry.requested ?? 0))
+        ),
+        status: entry.status || "balanced",
+      };
+    }
+    return normalized;
+  }
+
+  if (BUS_NAMES.some((bus) => profile[bus])) {
+    return profile;
+  }
+
+  return null;
+}
+
 class PowerDrawDisplay extends HTMLElement {
   constructor() {
     super();
@@ -50,7 +79,7 @@ class PowerDrawDisplay extends HTMLElement {
   async _fetchDrawProfile() {
     try {
       const resp = await wsClient.sendShipCommand("get_draw_profile", {});
-      this._drawData = resp;
+      this._drawData = normalizeDrawProfile(resp);
       this._render();
     } catch (err) {
       console.warn("power-draw-display: fetch failed:", err.message);

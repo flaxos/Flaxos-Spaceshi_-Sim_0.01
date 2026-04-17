@@ -39,7 +39,7 @@ class StationTelemetryFilter:
             "autopilot_status": ["nav_mode", "autopilot_program",
                                  "autopilot_state", "course"],
             "helm_status": ["orientation", "angular_velocity", "velocity",
-                            "helm_queue"],
+                            "helm_queue", "helm", "rcs"],
             "propulsion_status": ["fuel", "systems"],
 
             # Tactical displays

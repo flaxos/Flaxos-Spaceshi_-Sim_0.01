@@ -157,11 +157,21 @@ def get_ship_telemetry(ship, sim_time: float = None) -> Dict[str, Any]:
         autopilot_state = nav_state.get("autopilot_state")
         course_info = nav_state.get("course")
 
-    # Get helm queue status
+    # Get helm queue and control state
     helm_queue = None
+    helm_state = None
     helm = ship.systems.get("helm")
-    if helm and hasattr(helm, "get_queue_state"):
-        helm_queue = helm.get_queue_state()
+    if helm:
+        if hasattr(helm, "get_queue_state"):
+            helm_queue = helm.get_queue_state()
+        if hasattr(helm, "get_state"):
+            helm_state = helm.get_state()
+
+    # Get live RCS telemetry for helm orientation/thruster displays
+    rcs_state = None
+    rcs = ship.systems.get("rcs")
+    if rcs and hasattr(rcs, "get_state"):
+        rcs_state = rcs.get_state()
 
     # Get weapons status
     weapons_status = get_weapons_status(ship)
@@ -264,6 +274,8 @@ def get_ship_telemetry(ship, sim_time: float = None) -> Dict[str, Any]:
         "autopilot_state": autopilot_state,
         "course": course_info,
         "helm_queue": helm_queue,
+        "helm": helm_state,
+        "rcs": rcs_state,
         "trajectory": trajectory,
         "flight_computer": flight_computer_status,
         "weapons": weapons_status,
