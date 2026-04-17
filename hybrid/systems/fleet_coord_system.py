@@ -443,8 +443,10 @@ class FleetCoordSystem(BaseSystem):
             return error_dict("CONTACT_NOT_FOUND", f"Contact {contact_id} not found")
 
         import numpy as np
-        pos = contact.get("position", {})
-        vel = contact.get("velocity", {})
+        pos = contact.position if isinstance(contact.position, dict) else {}
+        vel = getattr(contact, "velocity", None) or {}
+        if not isinstance(vel, dict):
+            vel = {}
         position = np.array([pos.get("x", 0), pos.get("y", 0), pos.get("z", 0)])
         velocity = np.array([vel.get("x", 0), vel.get("y", 0), vel.get("z", 0)])
 
@@ -453,8 +455,8 @@ class FleetCoordSystem(BaseSystem):
             reporting_ship=ship.id,
             position=position,
             velocity=velocity,
-            classification=contact.get("classification", "unknown"),
-            confidence=contact.get("confidence", 0.5),
+            classification=contact.classification or "unknown",
+            confidence=contact.confidence or 0.5,
             is_hostile=is_hostile,
         )
 
