@@ -135,6 +135,12 @@ import "../components/munition-programming-panel.js";
 import "../components/target-assessment.js";
 // MANUAL tier weapon aiming reticle
 import "../components/weapon-aiming-panel.js";
+// Weapons hardpoints schematic (live state per mount)
+import "../components/weapons-hardpoints-display.js";
+// Helm schematic with live RCS / drift state
+import "../components/ship-orientation-display.js";
+// Engineering power bus flow schematic
+import "../components/power-flow-display.js";
 // Damage visualization
 import { damageStateManager } from "./damage-state-manager.js";
 // Ship Class Editor
