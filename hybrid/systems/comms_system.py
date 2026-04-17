@@ -362,7 +362,7 @@ class CommsSystem(BaseSystem):
         return success_dict(
             f"Hailing {target}{delay_str}",
             target=target,
-            message=message,
+            hail_message=message,
             delay_seconds=round(delay, 3),
         )
 
@@ -403,7 +403,7 @@ class CommsSystem(BaseSystem):
         return success_dict(
             f"Broadcasting on {channel}: {message[:60]}",
             channel=channel,
-            message=message,
+            broadcast_message=message,
         )
 
     def _cmd_set_distress(self, params: dict) -> dict:
