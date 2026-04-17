@@ -14,6 +14,7 @@ Usage:
   tools/uat_commands.sh tactical
   tools/uat_commands.sh ops
   tools/uat_commands.sh science
+  tools/uat_commands.sh fleet
   tools/uat_commands.sh monitor
 
 Modes:
@@ -23,6 +24,7 @@ Modes:
   tactical  Run tactical command sweep (Phase 2: combat, railgun, torpedoes, missiles)
   ops       Run ops/engineering/stealth command sweep (Phase 3: repair, power, EMCON)
   science   Run science/comms command sweep (Phase 4: analysis, hail, broadcast)
+  fleet     Run fleet command sweep (Phase 5: create, form, target, fire, data link)
   monitor   Tail the latest session log and fail on critical patterns
 EOF
 }
@@ -46,7 +48,10 @@ python3 tools/uat_ops_sweep.py
 5. Run the science/comms sweep (Phase 4: analysis, hail, broadcast)
 python3 tools/uat_science_comms_sweep.py
 
-6. Watch logs during UAT in a second terminal
+6. Run the fleet command sweep (Phase 5: create, form, target, fire, data link)
+python3 tools/uat_fleet_sweep.py
+
+7. Watch logs during UAT in a second terminal
 python3 tools/uat_monitor.py --follow --fail-on-critical
 
 6. UAT docs
@@ -82,6 +87,9 @@ case "$mode" in
     ;;
   science)
     exec python3 tools/uat_science_comms_sweep.py
+    ;;
+  fleet)
+    exec python3 tools/uat_fleet_sweep.py
     ;;
   monitor)
     exec python3 tools/uat_monitor.py --follow --fail-on-critical
