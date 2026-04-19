@@ -1387,11 +1387,27 @@ class RendezvousAutopilot(BaseAutopilot):
         d_brake = self._braking_distance(closing_speed, a_max)
         eta = self._estimate_eta(current_range, closing_speed, a_max)
 
+        # Distance/time to the flip trigger from current position.
+        # Only populated during BURN phase — elsewhere it's not actionable.
+        d_trigger = self._corrected_braking_distance(
+            max(closing_speed, 0.0), a_max)
+        flip_in_m: Optional[float] = None
+        flip_in_s: Optional[float] = None
+        if self.phase == "burn" and closing_speed > 0:
+            d_to_flip = current_range - d_trigger
+            if d_to_flip > 0:
+                flip_in_m = d_to_flip
+                # Linear estimate (ignores ongoing acceleration — fine for display)
+                flip_in_s = d_to_flip / closing_speed
+
         state.update({
             "range": current_range,
             "closing_speed": closing_speed,
             "braking_distance": d_brake,
             "flip_time_estimate": self._estimate_flip_time(),
+            "flip_trigger_range_m": d_trigger,
+            "flip_in_m": flip_in_m,
+            "flip_in_s": flip_in_s,
             "time_to_arrival": eta,
             "status_text": self._build_status_text(current_range, eta),
         })

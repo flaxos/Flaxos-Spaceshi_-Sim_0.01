@@ -5,6 +5,7 @@
  * cpu-assist (speed + fuel % only).
  */
 import { stateManager } from "../js/state-manager.js";
+import { extractAutopilotState } from "../js/autopilot-utils.js";
 
 const G0 = 9.81;
 const BINGO_PCT = 0.10;
@@ -57,6 +58,13 @@ class FlightDataPanel extends HTMLElement {
 @keyframes bp { 0%,100%{opacity:1} 50%{opacity:.5} }
 .empty { text-align:center; color:var(--text-dim,#555566); padding:24px; font-style:italic; font-size:.75rem; }
 .hero { text-align:center; padding:14px; }
+.bp-phase { display:inline-block; padding:1px 6px; border-radius:3px; font-size:.6rem; font-weight:700; letter-spacing:1px; margin-bottom:4px; }
+.bp-phase.burn  { background:rgba(255,170,0,.2); color:var(--status-warning,#ffaa00); }
+.bp-phase.flip  { background:rgba(204,102,255,.2); color:#cc66ff; }
+.bp-phase.brake { background:rgba(255,68,68,.2); color:var(--status-critical,#ff4444); }
+.bp-phase.approach { background:rgba(0,170,255,.2); color:var(--status-info,#00aaff); }
+.bp-phase.stationkeep { background:rgba(0,255,136,.15); color:var(--status-nominal,#00ff88); }
+.flip-soon { color:var(--status-warning,#ffaa00); font-weight:600; }
 .hero .hv { font-size:1.6rem; font-weight:700; color:var(--status-info,#00aaff); }
 .hero .hs { font-size:.75rem; color:var(--text-secondary,#888899); margin-top:2px; }
 :host(.tier-raw) .s+.s { border-color:#00ff8833; }
@@ -96,7 +104,9 @@ class FlightDataPanel extends HTMLElement {
     if (ct > 0 && ve > 0) { const r = ct / ve; bt = r > 0 ? fm / r : null; }
     // Point-of-no-return data (from server telemetry or client-side fallback)
     const ponr = ship.ponr || null;
-    return { pos, vel, hdg, vmag, fm, fc, fp, dm, wm, dv, tg, bt, ponr };
+    // Autopilot burn-plan data (null when manual flight)
+    const ap = extractAutopilotState();
+    return { pos, vel, hdg, vmag, fm, fc, fp, dm, wm, dv, tg, bt, ponr, ap };
   }
 
   _update() {
@@ -134,9 +144,62 @@ class FlightDataPanel extends HTMLElement {
     return "";
   }
 
+  /** Burn-plan section — shown when a flip-and-burn AP is active.
+   *  Programs: rendezvous, intercept, goto_position, dock_approach.
+   *  Returns "" when manual or for hold/match/evasive programs. */
+  _burnPlanHTML(ap, compact = false) {
+    if (!ap) return "";
+    const BURN_PROGRAMS = ["rendezvous", "intercept", "approach", "dock_approach",
+                           "goto_position", "set_course", "course"];
+    const prog = (ap.program || "").toLowerCase();
+    if (!BURN_PROGRAMS.includes(prog)) return "";
+
+    const phase = (ap.phase || "").toLowerCase();
+    const phaseClass = ["burn","flip","brake"].includes(phase) ? phase
+      : phase.startsWith("approach") ? "approach"
+      : phase === "stationkeep" ? "stationkeep" : "";
+    const phaseLabel = phase.replace(/_/g, " ").toUpperCase() || "ACTIVE";
+
+    const rows = [];
+
+    if (!compact) {
+      // Range + closing speed always useful
+      if (ap.range != null)
+        rows.push(this._kv("Range", this._fmtDist(ap.range)));
+      if (ap.closingSpeed != null && ap.closingSpeed > 0.1)
+        rows.push(this._kv("Closing", this._fmtSpd(ap.closingSpeed), "i"));
+    }
+
+    // Flip countdown — only meaningful in BURN phase
+    if (phase === "burn" && ap.flipInM != null && ap.flipInS != null) {
+      const dist = this._fmtDist(ap.flipInM);
+      const t = this._fmtDur(ap.flipInS);
+      rows.push(`<div class="kv"><span class="kl">Flip in</span><span class="kv-v flip-soon">${dist} / ~${t}</span></div>`);
+    } else if (phase === "burn" && ap.flipTriggerRangeM != null) {
+      // Still building speed, flip trigger range at least
+      rows.push(this._kv("Flip at", this._fmtDist(ap.flipTriggerRangeM)));
+    }
+
+    // Braking distance — useful in BRAKE phase
+    if (phase === "brake" && ap.brakingDistance != null)
+      rows.push(this._kv("Brake dist", this._fmtDist(ap.brakingDistance)));
+
+    // ETA always useful when non-trivial
+    if (ap.eta != null && ap.eta > 5)
+      rows.push(this._kv("ETA", this._fmtDur(ap.eta), "i"));
+
+    if (!phaseClass && rows.length === 0) return "";
+
+    const badge = phaseClass
+      ? `<span class="bp-phase ${phaseClass}">${phaseLabel}</span>`
+      : `<span class="bp-phase">${phaseLabel}</span>`;
+
+    return `<div class="s"><div class="st">Nav Plan ${badge}</div>${rows.join("")}</div>`;
+  }
+
   // -- ARCADE --
   _arcadeHTML(d) {
-    return `<div class="s"><div class="st">Position</div>${
+    return `${this._burnPlanHTML(d.ap)}<div class="s"><div class="st">Position</div>${
       this._kv("X", this._fmtDist(d.pos[0]))}${
       this._kv("Y", this._fmtDist(d.pos[1]))}${
       this._kv("Z", this._fmtDist(d.pos[2]))
@@ -158,7 +221,7 @@ class FlightDataPanel extends HTMLElement {
   // -- RAW --
   _rawHTML(d) {
     const ac = (d.tg * G0).toFixed(2);
-    return `<div class="s"><div class="st">VELOCITY (m/s)</div>${
+    return `${this._burnPlanHTML(d.ap)}<div class="s"><div class="st">VELOCITY (m/s)</div>${
       this._kv("Vx", this._sf(d.vel[0]))}${
       this._kv("Vy", this._sf(d.vel[1]))}${
       this._kv("Vz", this._sf(d.vel[2]))}${
@@ -185,7 +248,7 @@ class FlightDataPanel extends HTMLElement {
 
   // -- CPU-ASSIST --
   _assistHTML(d) {
-    return `<div class="hero"><div class="hv">${this._fmtSpd(d.vmag)}</div><div class="hs">current speed</div></div><div class="s">${
+    return `${this._burnPlanHTML(d.ap, true)}<div class="hero"><div class="hv">${this._fmtSpd(d.vmag)}</div><div class="hs">current speed</div></div><div class="s">${
       this._ponrHTML(d.ponr, true)}${
       this._bingoHTML(d.fp, d.fc)}${
       this._kv("\u0394v", this._fmtSpd(d.dv), "i")}${

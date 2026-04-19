@@ -56,10 +56,11 @@ class FlightComputerPanel extends HTMLElement {
 
     // Nav solutions state
     this._selectedProfile = "balanced";
-    this._navSolutions = null;       // last response from get_nav_solutions
-    this._navSolPollInterval = null;  // 5s refresh timer
-    this._lastSolTarget = null;       // target_id used for last fetch
-    this._lastSolCoords = null;       // {x,y,z} used for last fetch
+    this._navSolutions = null;
+    this._navSolPollInterval = null;
+    this._lastSolTarget = null;
+    this._lastSolCoords = null;
+    this._ackTimer = null;
   }
 
   connectedCallback() {
@@ -76,6 +77,7 @@ class FlightComputerPanel extends HTMLElement {
     if (this._unsubscribe) { this._unsubscribe(); this._unsubscribe = null; }
     if (this._keyHandler) { document.removeEventListener("keydown", this._keyHandler); this._keyHandler = null; }
     if (this._tierHandler) { document.removeEventListener("tier-change", this._tierHandler); this._tierHandler = null; }
+    if (this._ackTimer) { clearTimeout(this._ackTimer); this._ackTimer = null; }
     this._stopNavSolPolling();
   }
 
@@ -98,6 +100,9 @@ class FlightComputerPanel extends HTMLElement {
     // Nav solutions: hidden in RAW (manual only, no computer help)
     const navSolSection = this.shadowRoot.getElementById("nav-solutions");
     if (navSolSection) navSolSection.classList.toggle("tier-hidden", isRaw);
+    // Section title: "Orders" in CPU-ASSIST, "Commands" elsewhere
+    const title = this.shadowRoot.getElementById("commands-title");
+    if (title) title.textContent = isCpuAssist ? "Orders" : "Commands";
   }
 
   render() {
@@ -257,6 +262,37 @@ class FlightComputerPanel extends HTMLElement {
         .active-profile-badge.balanced { color: #4488ff; background: rgba(68, 136, 255, 0.15); }
         .active-profile-badge.conservative { color: #00cc66; background: rgba(0, 204, 102, 0.15); }
 
+        /* --- CPU-ASSIST: order acknowledgment banner --- */
+        .order-ack {
+          display: none;
+          padding: 8px 12px;
+          margin-bottom: 10px;
+          background: rgba(192, 160, 255, 0.07);
+          border: 1px solid rgba(192, 160, 255, 0.25);
+          border-radius: 6px;
+        }
+        .order-ack.visible {
+          display: block;
+          animation: ack-in 0.18s ease-out;
+        }
+        @keyframes ack-in {
+          from { opacity: 0; transform: translateY(-3px); }
+          to   { opacity: 1; transform: none; }
+        }
+        .order-ack-label {
+          font-size: 0.6rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          color: var(--tier-accent, #c0a0ff);
+          margin-bottom: 3px;
+        }
+        .order-ack-detail {
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+          font-size: 0.68rem;
+          color: var(--text-secondary, #888899);
+        }
+
         @media (max-width: 768px) {
           .command-grid { grid-template-columns: repeat(3, 1fr); }
           .nav-sol-grid { grid-template-columns: 1fr; }
@@ -288,8 +324,14 @@ class FlightComputerPanel extends HTMLElement {
         <button class="disengage-btn" id="disengage-btn" title="Disengage autopilot and return to manual control (Esc)">DISENGAGE AUTOPILOT</button>
       </div>
 
+      <!-- CPU-ASSIST order acknowledgment (hidden in other tiers) -->
+      <div class="order-ack" id="order-ack">
+        <div class="order-ack-label" id="order-ack-label">✓ ORDER TRANSMITTED</div>
+        <div class="order-ack-detail" id="order-ack-detail"></div>
+      </div>
+
       <!-- Quick Commands -->
-      <div class="section-title">Commands</div>
+      <div class="section-title" id="commands-title">Commands</div>
 
       <!-- Coordinate input (shown on Navigate click) -->
       <div class="coord-input-section" id="coord-section">
@@ -510,7 +552,14 @@ class FlightComputerPanel extends HTMLElement {
       if (response?.error) {
         this._showMessage(`Autopilot error: ${response.error}`, "error");
       } else {
-        this._showMessage(`Autopilot: ${program === "off" ? "disengaged" : program}`, "success");
+        if (program === "off") {
+          this._showOrderAck("ORDER RECEIVED", "Autopilot disengaged — manual control restored");
+          this._showMessage("Autopilot: disengaged", "success");
+        } else {
+          const label = program.toUpperCase().replace(/_/g, " ");
+          this._showOrderAck("ORDER RECEIVED", `${label} — autopilot engaged`);
+          this._showMessage(`Autopilot: ${program}`, "success");
+        }
       }
     } catch (error) {
       this._showMessage(`Command failed: ${error.message}`, "error");
@@ -532,6 +581,7 @@ class FlightComputerPanel extends HTMLElement {
       if (response?.error) {
         this._showMessage(`Navigate error: ${response.error}`, "error");
       } else {
+        this._showOrderAck("COURSE PLOTTED", `Navigate (${x}, ${y}, ${z}) — ${profile}`);
         this._showMessage(`Navigating to (${x}, ${y}, ${z}) [${profile}]`, "success");
         this._hideCoordInput();
         this._hideNavSolutions();
@@ -550,8 +600,10 @@ class FlightComputerPanel extends HTMLElement {
       if (response?.error) {
         this._showMessage(`${action} error: ${response.error}`, "error");
       } else {
-        const profileNote = profile ? ` [${profile}]` : "";
-        this._showMessage(`${action}: ${targetId}${profileNote}`, "success");
+        const profileNote = profile ? ` — ${profile}` : "";
+        const label = action.toUpperCase().replace(/_/g, " ");
+        this._showOrderAck("ORDER TRANSMITTED", `${label} ${targetId}${profileNote}`);
+        this._showMessage(`${action}: ${targetId}${profile ? ` [${profile}]` : ""}`, "success");
         this._hideNavSolutions();
       }
     } catch (error) {
@@ -735,11 +787,32 @@ class FlightComputerPanel extends HTMLElement {
         section.appendChild(engageBtn);
       }
       const profileLabel = PROFILE_CONFIG[this._selectedProfile]?.label || this._selectedProfile;
-      engageBtn.textContent = `Engage ${this._pendingAction.toUpperCase()} [${profileLabel}]`;
+      const isCpuAssist = (window.controlTier || "arcade") === "cpu-assist";
+      engageBtn.textContent = isCpuAssist
+        ? `ORDER ${this._pendingAction.toUpperCase()} — ${profileLabel.toUpperCase()}`
+        : `Engage ${this._pendingAction.toUpperCase()} [${profileLabel}]`;
       engageBtn.style.display = "block";
     } else if (engageBtn) {
       engageBtn.style.display = "none";
     }
+  }
+
+  // --- Order acknowledgment (CPU-ASSIST only) ---
+
+  _showOrderAck(label, detail) {
+    if ((window.controlTier || "arcade") !== "cpu-assist") return;
+    const ack  = this.shadowRoot.getElementById("order-ack");
+    const lbl  = this.shadowRoot.getElementById("order-ack-label");
+    const det  = this.shadowRoot.getElementById("order-ack-detail");
+    if (!ack) return;
+    lbl.textContent = `✓ ${label}`;
+    det.textContent = detail || "";
+    ack.classList.add("visible");
+    if (this._ackTimer) clearTimeout(this._ackTimer);
+    this._ackTimer = setTimeout(() => {
+      ack.classList.remove("visible");
+      this._ackTimer = null;
+    }, 2500);
   }
 
   // --- Display update ---
