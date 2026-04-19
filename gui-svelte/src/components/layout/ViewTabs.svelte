@@ -3,7 +3,7 @@
 
   const dispatch = createEventDispatcher<{ "view-change": { view: string } }>();
 
-  export let activeView = "config";
+  export let activeView = "mission";
   export let allowedViews: string[] | null = null; // null = all allowed
 
   const VIEWS: { id: string; label: string; key: string }[] = [
@@ -14,7 +14,7 @@
     { id: "science",     label: "SCIENCE",     key: "5" },
     { id: "comms",       label: "COMMS",       key: "6" },
     { id: "fleet",       label: "FLEET",       key: "7" },
-    { id: "config",      label: "CONFIG",      key: "8" },
+    { id: "mission",     label: "MISSION",     key: "0" },
     { id: "editor",      label: "EDITOR",      key: "9" },
   ];
 
@@ -46,9 +46,15 @@
     }
 
     const idx = parseInt(e.key, 10);
+    if (e.key === "0") {
+      e.preventDefault();
+      selectView("mission");
+      return;
+    }
+
     if (idx >= 1 && idx <= VIEWS.length) {
-      const view = VIEWS[idx - 1];
-      if (isAllowed(view.id)) {
+      const view = VIEWS.find((entry) => entry.key === e.key);
+      if (view && isAllowed(view.id)) {
         e.preventDefault();
         selectView(view.id);
       }

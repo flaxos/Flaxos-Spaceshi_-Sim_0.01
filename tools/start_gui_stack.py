@@ -2,7 +2,7 @@
 Start the full GUI stack in a single terminal:
 - TCP simulation server (unified entrypoint)
 - WebSocket bridge
-- GUI frontend (`gui-svelte` build by default, legacy `gui/` on demand)
+- Bridge UI v3 (`gui-svelte` build by default, legacy `gui/` still available as a deprecated fallback)
 
 Uses the unified server.main entrypoint with --mode flag.
 """
@@ -148,13 +148,14 @@ def main() -> int:
     parser.add_argument("--lan", action="store_true", help="Enable LAN mode (bind to 0.0.0.0)")
     parser.add_argument(
         "--ui",
-        choices=["legacy", "svelte", "dev"],
-        default="svelte",
+        choices=["legacy", "svelte", "dev", "v3"],
+        default="v3",
         help=(
             "Frontend to serve: "
-            "svelte (default, builds gui-svelte/ then serves dist/), "
-            "legacy (serves gui/), "
-            "dev (starts vite dev server on :5174 alongside the game servers)"
+            "v3 (default, builds gui-svelte/ then serves dist/), "
+            "svelte (alias for v3), "
+            "legacy (deprecated fallback serving gui/), "
+            "dev (starts vite dev server for the v3 UI on :5174 alongside the game servers)"
         ),
     )
     parser.add_argument("--no-browser", action="store_true", default=True, help="Do not open browser (default)")
@@ -244,7 +245,7 @@ def main() -> int:
         ws_bridge_cmd.extend(["--allowed-origin-host", origin_host])
 
     http_bind = "0.0.0.0" if args.lan else "127.0.0.1"
-    ui_mode = args.ui  # legacy | svelte | dev
+    ui_mode = "svelte" if args.ui == "v3" else args.ui  # legacy | svelte | dev
 
     # Resolve which directory to serve for HTTP
     if ui_mode == "svelte":
@@ -344,6 +345,9 @@ def main() -> int:
             gui_url = f"http://localhost:{args.http_port}/"
             razorback_url = f"http://localhost:{args.http_port}/razorback.html"
 
+        if ui_mode == "legacy":
+            print("[warn] Legacy GUI selected. The supported default is the v3 bridge UI.")
+
         if args.game_code:
             gui_url = _append_query_param(gui_url, "game_code", args.game_code)
             razorback_url = _append_query_param(
@@ -352,12 +356,13 @@ def main() -> int:
                 args.game_code,
             )
 
-        print(f"[ready] Mode: {mode} | UI: {ui_mode}")
+        display_ui_mode = "v3" if ui_mode in {"svelte", "dev"} else "legacy"
+        print(f"[ready] Mode: {mode} | UI: {display_ui_mode}")
         print(f"[ready] GUI: {gui_url}")
         if ui_mode == "legacy":
             print(f"[ready] Razorback cockpit: {razorback_url}")
         if ui_mode == "dev":
-            print(f"[ready] Vite dev server: {gui_url} (hot reload)")
+            print(f"[ready] Vite dev server (v3): {gui_url} (hot reload)")
         print(f"[ready] WS bridge: ws://localhost:{args.ws_port}")
         print(f"[ready] TCP server: {args.host}:{args.tcp_port}")
         if args.game_code:

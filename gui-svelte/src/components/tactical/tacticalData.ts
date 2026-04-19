@@ -40,12 +40,19 @@ export interface TacticalContact {
 
 export interface WeaponMountState {
   id: string;
+  label: string;
   type: string;
   weaponType: "railgun" | "pdc" | "torpedo" | "missile" | "other";
   ammo: number;
+  ammoCapacity: number;
   ready: boolean;
+  enabled: boolean;
   charge: number;
   cooldown: number;
+  reloading: boolean;
+  reloadProgress: number;
+  reloadTime: number;
+  chargeState: string;
   status: string;
   range: number;
 }
@@ -224,14 +231,30 @@ export function getWeaponMounts(ship: JsonMap): WeaponMountState[] {
       else if (typeString.includes("torpedo")) weaponType = "torpedo";
       else if (typeString.includes("missile")) weaponType = "missile";
 
+      const ammo = toNumber(item.ammo);
+      const ammoCapacity = toNumber(item.ammo_capacity, ammo);
+      const charge = clamp(toNumber(item.charge_fraction, toNumber(item.charge_progress, toNumber(item.charge, 0))), 0, 1);
+      const reloadProgress = clamp(toNumber(item.reload_progress, 0), 0, 1);
+      const reloadTime = toNumber(item.reload_time, 0);
+      const reloading = Boolean(item.reloading);
+
       return {
         id,
+        label: toStringValue(item.name, toStringValue(item.weapon_type, toStringValue(item.type, id))).toUpperCase(),
         type: toStringValue(item.type, id),
         weaponType,
-        ammo: toNumber(item.ammo),
+        ammo,
+        ammoCapacity,
         ready: Boolean(item.ready),
-        charge: clamp(toNumber(item.charge_fraction, toNumber(item.charge, 0)), 0, 1),
-        cooldown: toNumber(item.cooldown_remaining, toNumber(item.cooldown)),
+        enabled: item.enabled !== false,
+        charge,
+        cooldown: reloading
+          ? Math.max(0, reloadTime * (1 - reloadProgress))
+          : toNumber(item.cooldown_remaining, toNumber(item.cooldown)),
+        reloading,
+        reloadProgress,
+        reloadTime,
+        chargeState: toStringValue(item.charge_state, "idle"),
         status: toStringValue(item.status, item.ready ? "ready" : "standby"),
         range: toNumber(item.range, toNumber(item.max_range)),
       };

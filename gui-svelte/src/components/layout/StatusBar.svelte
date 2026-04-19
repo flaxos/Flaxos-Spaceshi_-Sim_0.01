@@ -3,42 +3,93 @@
   import { shipState } from "../../lib/stores/gameState.js";
   import { tier } from "../../lib/stores/tier.js";
   import { proposals, type Proposal } from "../../lib/stores/proposals.js";
-  import ConnectionStatus from "./ConnectionStatus.svelte";
+  import { extractShipState, getOrientation, getVelocity, magnitude, toNumber, toStringValue, asRecord, getSystem } from "../helm/helmData.js";
 
+  // Mission clock (local time for now; server mission time can replace this)
+  let missionTime = "00:00:00";
+  setInterval(() => {
+    const d = new Date();
+    missionTime = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
+  }, 500);
+
+  // Hull integrity (supports both nested systems.hull and top-level)
   const hull = derived(shipState, ($s) => {
     if (!$s) return null;
     const h = $s?.systems?.hull?.integrity ?? $s?.hull_integrity ?? $s?.hull ?? null;
-    if (typeof h === "number") return Math.round(h * 100);
+    if (typeof h === "number") return h > 1 ? Math.round(h) : Math.round(h * 100);
     return null;
   });
 
+  // Fuel percentage
   const fuel = derived(shipState, ($s) => {
     if (!$s) return null;
     const f = $s?.systems?.propulsion?.fuel_pct ?? $s?.fuel_pct ?? null;
-    if (typeof f === "number") return Math.round(f * 100);
+    if (typeof f === "number") return f > 1 ? Math.round(f) : Math.round(f * 100);
     return null;
   });
 
-  const driveStatus = derived(shipState, ($s) => {
-    if (!$s) return "—";
-    return $s?.systems?.propulsion?.status ?? $s?.drive_status ?? "nominal";
+  // Reactor output percent
+  const reactor = derived(shipState, ($s) => {
+    if (!$s) return null;
+    const r = $s?.systems?.reactor?.output_pct ?? $s?.systems?.power?.reactor_output ?? null;
+    if (typeof r === "number") return Math.round(r > 1 ? r : r * 100);
+    return null;
   });
 
-  function hullColor(pct: number | null): string {
-    if (pct === null) return "var(--text-dim)";
-    if (pct > 70) return "var(--status-nominal)";
-    if (pct > 35) return "var(--status-warning)";
-    return "var(--status-critical)";
+  // Speed (m/s)
+  // shipState is already extracted; passing through extractShipState is a no-op guard
+  // that also normalizes undefined → {} so downstream helpers don't crash.
+  const speed = derived(shipState, ($s) => {
+    const vel = getVelocity(extractShipState($s as Record<string, unknown>));
+    return magnitude(vel);
+  });
+
+  // Heading (yaw, deg)
+  const heading = derived(shipState, ($s) => {
+    const ship = extractShipState($s as Record<string, unknown>);
+    return getOrientation(ship).yaw;
+  });
+
+  // Heat state (K current / K max)
+  const heat = derived(shipState, ($s) => {
+    if (!$s) return { current: 0, max: 500 };
+    const thermal = asRecord($s)?.thermal ?? getSystem($s as never, "thermal");
+    const current = toNumber(asRecord(thermal)?.heat, toNumber(asRecord($s)?.heat, 0));
+    const max = toNumber(asRecord(thermal)?.heat_max, toNumber(asRecord($s)?.heat_max, 500));
+    return { current, max };
+  });
+
+  // Any impaired subsystems → alert indicator
+  const subsystemAlert = derived(shipState, ($s) => {
+    const sys = asRecord($s)?.systems ?? {};
+    for (const [name, value] of Object.entries(sys as Record<string, unknown>)) {
+      const status = asRecord(value)?.status;
+      if (typeof status === "string" && /impair|damag|critical/i.test(status)) return name;
+    }
+    return null;
+  });
+
+  // Ship identity
+  const shipInfo = derived(shipState, ($s) => {
+    const ship = asRecord($s) ?? {};
+    return {
+      name: toStringValue(ship.name, toStringValue(ship.id, "MCRN Rocinante")),
+      cls: toStringValue(ship.class_name, toStringValue(ship.ship_class, "Corvette")),
+    };
+  });
+
+  function normPct(x: number | null): number {
+    if (x === null) return 0;
+    return Math.max(0, Math.min(100, x));
   }
 
-  const TIER_LABELS: Record<string, string> = {
-    manual:       "MANUAL",
-    raw:          "RAW",
-    arcade:       "ARCADE",
-    "cpu-assist": "CPU-ASSIST",
-  };
+  function heatColor(pct: number): string {
+    if (pct > 80) return "var(--crit)";
+    if (pct > 60) return "var(--warn)";
+    return "#1e8cff";
+  }
 
-  // Per-station proposal counts (cpu-assist only)
+  // Proposal counts (preserved from prior design)
   const STATION_LABELS: Array<[keyof typeof $proposals, string]> = [
     ["tactical", "TAC"],
     ["engineering", "ENG"],
@@ -54,28 +105,80 @@
   $: anyUrgent = (Object.values($proposals) as Proposal[][])
     .flat()
     .some((p) => p.urgent);
+
+  $: heatPct = $heat.max > 0 ? ($heat.current / $heat.max) * 100 : 0;
+  $: hc = heatColor(heatPct);
 </script>
 
 <header class="status-bar">
-  <span class="stat-item">
-    HULL:
-    <span style="color: {hullColor($hull)}">
-      {$hull !== null ? `${$hull}%` : "—"}
+  <!-- Ship identity -->
+  <div class="cell identity">
+    <span class="dot nominal" aria-hidden="true"></span>
+    <div class="ident-text">
+      <div class="ship-name">{$shipInfo.name.toUpperCase()}</div>
+      <div class="ship-cls">{$shipInfo.cls.toUpperCase()}</div>
+    </div>
+  </div>
+
+  <!-- SPD -->
+  <div class="cell vital">
+    <span class="lbl">SPD</span>
+    <span class="val">
+      {$speed.toFixed(1)}<span class="unit">m/s</span>
     </span>
-  </span>
+  </div>
 
-  <span class="stat-item">
-    FUEL: <span class="stat-val">{$fuel !== null ? `${$fuel}%` : "—"}</span>
-  </span>
+  <!-- HDG -->
+  <div class="cell vital">
+    <span class="lbl">HDG</span>
+    <span class="val">{String(Math.round($heading < 0 ? $heading + 360 : $heading)).padStart(3, "0")}°</span>
+  </div>
 
-  <span class="stat-item">
-    DRIVE: <span class="stat-val">{$driveStatus}</span>
-  </span>
+  <!-- FUEL -->
+  <div class="cell vital">
+    <span class="lbl">FUEL</span>
+    <span class="val" class:crit={$fuel !== null && $fuel < 20}>
+      {$fuel !== null ? $fuel : "--"}<span class="unit">%</span>
+    </span>
+  </div>
 
-  <span class="spacer"></span>
+  <!-- HULL -->
+  <div class="cell vital">
+    <span class="lbl">HULL</span>
+    <span class="val" class:crit={$hull !== null && $hull < 60}>
+      {$hull !== null ? $hull : "--"}<span class="unit">%</span>
+    </span>
+  </div>
 
+  <!-- REACTOR -->
+  <div class="cell vital">
+    <span class="lbl">RCT</span>
+    <span class="val">
+      {$reactor !== null ? $reactor : "--"}<span class="unit">%</span>
+    </span>
+  </div>
+
+  <!-- Thermal bar -->
+  <div class="cell thermal">
+    <div class="thermal-head">
+      <span class="lbl">THERMAL</span>
+      <span class="thermal-k" style="color: {hc}">{Math.round($heat.current)}K</span>
+    </div>
+    <div class="bar-track">
+      <div class="bar-fill" style="width: {normPct(heatPct)}%; background: {hc}; box-shadow: {heatPct > 65 ? `0 0 6px ${hc}55` : 'none'};"></div>
+    </div>
+  </div>
+
+  {#if $subsystemAlert}
+    <div class="cell alert">
+      <span class="dot impaired" aria-hidden="true"></span>
+      <span class="alert-text">SUBSYS IMPAIRED</span>
+    </div>
+  {/if}
+
+  <!-- CPU proposals (cpu-assist tier) -->
   {#if $tier === "cpu-assist"}
-    <span class="proposal-counts" class:urgent={anyUrgent}>
+    <div class="cell proposals" class:urgent={anyUrgent}>
       {#if proposalCounts.length === 0}
         <span class="count-idle">AI IDLE</span>
       {:else}
@@ -83,100 +186,209 @@
           <span class="count-badge">{entry.label}:{entry.count}</span>
         {/each}
       {/if}
-    </span>
+    </div>
   {/if}
 
-  <span class="tier-badge tier-badge-{$tier}">{TIER_LABELS[$tier] ?? $tier}</span>
+  <span class="spacer"></span>
 
-  <ConnectionStatus />
+  <!-- Mission clock -->
+  <div class="cell mission">
+    <span class="lbl">MISSION</span>
+    <span class="clock">{missionTime}</span>
+  </div>
 </header>
 
 <style>
   .status-bar {
     display: flex;
     align-items: center;
-    gap: var(--space-sm);
-    padding: 0 var(--space-sm);
-    font-family: var(--font-mono);
-    font-size: var(--font-size-xs);
+    gap: 0;
+    padding: 0 2px;
+    height: 36px;
     flex-shrink: 0;
-    height: 32px;
+    background: var(--bg-raised);
+    border-bottom: 2px solid var(--tier-accent, #1e8cff);
   }
 
-  .stat-item {
-    color: var(--text-dim);
-    white-space: nowrap;
+  .cell {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    border-right: 1px solid var(--bd-subtle);
+    font-family: var(--font-mono);
   }
 
-  .stat-val { color: var(--text-secondary); }
+  .cell.identity {
+    padding: 0 12px;
+    border-right: 1px solid var(--bd-default);
+    gap: 7px;
+  }
+
+  .cell.mission {
+    padding: 0 12px;
+    border-right: none;
+    border-left: 1px solid var(--bd-default);
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: center;
+  }
+
+  .cell.vital {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    min-width: 52px;
+  }
+
+  .cell.thermal {
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: center;
+    gap: 3px;
+    min-width: 110px;
+  }
+
+  .cell.alert {
+    gap: 5px;
+  }
+
+  .cell.proposals {
+    gap: 6px;
+  }
 
   .spacer { flex: 1; }
 
-  .proposal-counts {
+  .ident-text {
     display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 0.65rem;
+    flex-direction: column;
+  }
+
+  .ship-name {
+    font-size: 0.7rem;
     font-weight: 700;
-    letter-spacing: 0.5px;
+    color: var(--tx-bright);
+    letter-spacing: 0.06em;
+  }
+
+  .ship-cls {
+    font-size: 0.52rem;
+    color: var(--tx-dim);
+    letter-spacing: 0.06em;
+  }
+
+  .lbl {
+    font-size: 0.48rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--tx-dim);
+  }
+
+  .val {
+    font-size: 0.76rem;
+    font-weight: 600;
+    color: var(--tx-bright);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .val.crit {
+    color: var(--crit);
+    animation: critFlicker 1.8s step-end infinite;
+  }
+
+  .unit {
+    font-size: 0.5rem;
+    color: var(--tx-dim);
+    margin-left: 1px;
+  }
+
+  .thermal-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+
+  .thermal-k {
+    font-size: 0.55rem;
+  }
+
+  .bar-track {
+    height: 4px;
+    background: var(--bg-input);
+    border-radius: 1px;
+    overflow: hidden;
+    width: 100%;
+  }
+
+  .bar-fill {
+    height: 100%;
+    transition: width .4s ease, background .4s ease;
+  }
+
+  .dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .dot.nominal {
+    background: var(--nom);
+    box-shadow: 0 0 9px rgba(0, 221, 106, 0.7);
+  }
+
+  .dot.impaired {
+    background: var(--warn);
+    box-shadow: 0 0 9px rgba(239, 160, 32, 0.7);
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  .alert-text {
+    font-size: 0.58rem;
+    color: var(--warn);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+  }
+
+  .clock {
+    font-size: 0.7rem;
+    color: var(--tx-bright);
   }
 
   .count-badge {
+    font-size: 0.58rem;
+    font-weight: 700;
     padding: 2px 6px;
     border-radius: 3px;
-    border: 1px solid rgba(192, 160, 255, 0.45);
-    color: #c0a0ff;
-    background: rgba(192, 160, 255, 0.1);
+    border: 1px solid rgba(170, 136, 255, 0.45);
+    color: #aa88ff;
+    background: rgba(170, 136, 255, 0.1);
   }
 
   .count-idle {
+    font-size: 0.58rem;
+    font-weight: 700;
     padding: 2px 6px;
     border-radius: 3px;
-    border: 1px solid var(--border-default);
-    color: var(--text-dim);
+    border: 1px solid var(--bd-default);
+    color: var(--tx-dim);
   }
 
-  .proposal-counts.urgent .count-badge {
-    border-color: rgba(255, 170, 0, 0.6);
-    color: #ffaa00;
-    background: rgba(255, 170, 0, 0.1);
-    animation: urgentFlash 0.8s ease-in-out infinite;
+  .cell.proposals.urgent .count-badge {
+    border-color: rgba(239, 160, 32, 0.6);
+    color: var(--warn);
+    background: rgba(239, 160, 32, 0.1);
+    animation: pulse 0.8s ease-in-out infinite;
   }
 
-  .tier-badge {
-    font-size: 0.65rem;
-    font-weight: 700;
-    letter-spacing: 1px;
-    padding: 2px 8px;
-    border-radius: 3px;
-    border: 1px solid var(--tier-accent, var(--border-default));
-    color: var(--tier-accent, var(--text-dim));
+  @media (max-width: 900px) {
+    .cell.mission { display: none; }
+    .cell.identity .ship-cls { display: none; }
   }
 
-  @keyframes urgentFlash {
-    0%, 100% { opacity: 1; }
-    50%       { opacity: 0.5; }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .proposal-counts.urgent .count-badge {
-      animation: none;
-    }
-  }
-
-  @media (max-width: 768px) {
-    .status-bar {
-      min-width: 0;
-    }
-
-    .proposal-counts {
-      gap: 4px;
-    }
-
-    .tier-badge,
-    .count-badge,
-    .count-idle {
-      white-space: nowrap;
-    }
+  @media (max-width: 600px) {
+    .cell.vital { min-width: 38px; padding: 0 6px; }
+    .cell.thermal { display: none; }
   }
 </style>

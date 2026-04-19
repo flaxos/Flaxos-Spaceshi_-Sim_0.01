@@ -4,9 +4,11 @@
   import { proposals, autoSystems } from "../lib/stores/proposals.js";
 
   import ThermalDisplay from "../components/engineering/ThermalDisplay.svelte";
+  import EngineeringShipSchematic from "../components/engineering/EngineeringShipSchematic.svelte";
   import EngineeringControlPanel from "../components/engineering/EngineeringControlPanel.svelte";
   import SubsystemStatus from "../components/engineering/SubsystemStatus.svelte";
   import PowerDrawDisplay from "../components/engineering/PowerDrawDisplay.svelte";
+  import PowerFlowDisplay from "../components/engineering/PowerFlowDisplay.svelte";
   import PowerAllocationPanel from "../components/engineering/PowerAllocationPanel.svelte";
   import SystemToggles from "../components/engineering/SystemToggles.svelte";
 
@@ -42,6 +44,11 @@
 </script>
 
 <div class="engineering-root" class:arcade={arcadeTier} class:manual={manualTier} class:cpu={cpuAssistTier}>
+  <section class="column schematic">
+    <div class="column-title">Damage Control</div>
+    <EngineeringShipSchematic />
+  </section>
+
   <section class="column thermal">
     <div class="column-title">Thermal &amp; Drive</div>
     <ThermalDisplay />
@@ -54,7 +61,10 @@
 
   <section class="column power">
     <div class="column-title">Power</div>
-    <PowerDrawDisplay />
+    <PowerFlowDisplay />
+    {#if rawTier}
+      <PowerDrawDisplay />
+    {/if}
     <PowerAllocationPanel />
   </section>
 
@@ -120,8 +130,12 @@
     gap: var(--space-xs);
   }
 
-  .column.thermal {
+  .column.schematic {
     grid-column: span 2;
+  }
+
+  .column.thermal {
+    grid-column: span 1;
   }
 
   .column-title {
@@ -168,6 +182,10 @@
     }
 
     .column.thermal {
+      grid-column: span 1;
+    }
+
+    .column.schematic {
       grid-column: span 1;
     }
   }

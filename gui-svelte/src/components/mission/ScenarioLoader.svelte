@@ -84,6 +84,17 @@
     tutorial: "TUTORIAL", combat: "COMBAT", stealth: "STEALTH", fleet: "FLEET", campaign: "CAMPAIGN",
   };
   const CATEGORIES = ["all", "tutorial", "combat", "stealth", "fleet", "campaign"];
+  const STATION_THEME: Record<string, { color: string; icon: string; desc: string }> = {
+    captain: { color: "#ffcc00", icon: "✦", desc: "Command authority" },
+    helm: { color: "#00aaff", icon: "⛵", desc: "Flight and navigation" },
+    tactical: { color: "#ff4444", icon: "⊕", desc: "Weapons and targeting" },
+    ops: { color: "#00ff88", icon: "⚙", desc: "Crew and operations" },
+    engineering: { color: "#ff8800", icon: "⚛", desc: "Reactor and thermal" },
+    science: { color: "#44ddff", icon: "◎", desc: "Sensor analysis" },
+    comms: { color: "#aa88ff", icon: "◈", desc: "Traffic and hailing" },
+    fleet: { color: "#ff66cc", icon: "◇", desc: "Fleet coordination" },
+    fleet_commander: { color: "#ff66cc", icon: "◇", desc: "Fleet coordination" },
+  };
 
   function commandSucceeded(resp: CommandEnvelope | null | undefined): boolean {
     if (!resp) return false;
@@ -106,6 +117,14 @@
 
   function commandError(resp: CommandEnvelope | null | undefined, fallback: string): string {
     return String(resp?.message ?? resp?.error ?? resp?.reason ?? fallback);
+  }
+
+  function stationTheme(stationName: string) {
+    return STATION_THEME[stationName.toLowerCase()] ?? { color: "#888899", icon: "•", desc: "Bridge station" };
+  }
+
+  function stationLabel(stationName: string) {
+    return stationName.replaceAll("_", " ").toUpperCase();
   }
 
   // ── Derived ───────────────────────────────────────────────────────
@@ -505,21 +524,35 @@
           {#each ships as ship (ship.id)}
             <div class="ship-card">
               <div class="ship-card-header">
-                <span class="ship-name">{ship.name ?? ship.id}</span>
-                <span class="ship-class-badge">{ship.class ?? "?"}</span>
-                {#if ship.faction}<span class="ship-faction">{ship.faction.toUpperCase()}</span>{/if}
+                <div class="ship-card-id">
+                  <span class="ship-name">{ship.name ?? ship.id}</span>
+                  <span class="ship-id">{ship.id}</span>
+                </div>
+                <div class="ship-card-tags">
+                  <span class="ship-class-badge">{ship.class ?? "?"}</span>
+                  {#if ship.faction}<span class="ship-faction">{ship.faction.toUpperCase()}</span>{/if}
+                </div>
               </div>
               <div class="station-grid">
                 {#each (ship.stations ?? []) as st}
+                  {@const theme = stationTheme(st.station)}
                   {#if st.claimed}
-                    <div class="station-slot occupied" title={st.player ?? "Taken"}>
-                      <span class="st-name">{st.station}</span>
-                      <span class="st-status">{st.player ?? "TAKEN"}</span>
+                    <div class="station-slot occupied" style="--station-color: {theme.color}" title={st.player ?? "Taken"}>
+                      <span class="st-icon" aria-hidden="true">{theme.icon}</span>
+                      <span class="st-copy">
+                        <span class="st-name">{stationLabel(st.station)}</span>
+                        <span class="st-desc">{theme.desc}</span>
+                        <span class="st-status">{st.player ?? "TAKEN"}</span>
+                      </span>
                     </div>
                   {:else}
-                    <button class="station-slot vacant" on:click={() => joinStation(ship.id, st.station)}>
-                      <span class="st-name">{st.station}</span>
-                      <span class="st-status">JOIN</span>
+                    <button class="station-slot vacant" style="--station-color: {theme.color}" on:click={() => joinStation(ship.id, st.station)}>
+                      <span class="st-icon" aria-hidden="true">{theme.icon}</span>
+                      <span class="st-copy">
+                        <span class="st-name">{stationLabel(st.station)}</span>
+                        <span class="st-desc">{theme.desc}</span>
+                        <span class="st-status">JOIN</span>
+                      </span>
                     </button>
                   {/if}
                 {/each}
@@ -616,7 +649,7 @@
 
   /* ── Screen wrapper ── */
   .screen {
-    max-width: 900px;
+    max-width: 1080px;
     margin: 0 auto;
     padding: var(--space-md);
     min-height: 100%;
@@ -850,33 +883,54 @@
 
   .ship-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: var(--space-sm);
     margin-bottom: var(--space-md);
   }
 
   .ship-card {
-    background: var(--bg-panel);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.018), transparent 18%),
+      var(--bg-panel);
     border: 1px solid var(--border-default);
-    border-radius: var(--radius-md);
-    padding: var(--space-sm);
+    border-top: 3px solid rgba(var(--tier-accent-rgb, 68, 136, 255), 0.32);
+    border-radius: var(--radius-sm);
+    padding: 10px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
   }
 
   .ship-card-header {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
+    justify-content: space-between;
     gap: var(--space-xs);
-    margin-bottom: var(--space-xs);
+    margin-bottom: 10px;
     padding-bottom: var(--space-xs);
     border-bottom: 1px solid var(--border-subtle);
   }
 
+  .ship-card-id,
+  .ship-card-tags {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+
   .ship-name {
     font-family: var(--font-mono);
-    font-size: var(--font-size-sm);
-    font-weight: 600;
+    font-size: 0.75rem;
+    font-weight: 700;
     color: var(--text-primary);
-    flex: 1;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .ship-id {
+    font-family: var(--font-mono);
+    font-size: 0.56rem;
+    color: var(--text-dim);
+    letter-spacing: 0.08em;
   }
 
   .ship-class-badge, .ship-faction {
@@ -890,30 +944,35 @@
   }
 
   .station-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
   }
 
   .station-slot {
     display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 6px 4px;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 9px 10px;
     border-radius: var(--radius-sm);
     border: 1px solid var(--border-subtle);
     font-family: var(--font-mono);
     transition: all var(--transition-fast);
+    text-align: left;
   }
 
   .station-slot.vacant {
     cursor: pointer;
-    background: rgba(var(--tier-accent-rgb, 68, 136, 255), 0.08);
-    border-color: var(--tier-accent, var(--hud-primary));
+    background: rgba(255, 255, 255, 0.02);
+    border-color: color-mix(in srgb, var(--station-color) 35%, var(--border-subtle));
   }
 
   .station-slot.vacant:hover {
-    background: rgba(var(--tier-accent-rgb, 68, 136, 255), 0.2);
+    background:
+      linear-gradient(90deg, color-mix(in srgb, var(--station-color) 12%, transparent), transparent 80%),
+      rgba(255, 255, 255, 0.02);
+    border-color: color-mix(in srgb, var(--station-color) 70%, var(--border-default));
+    transform: translateY(-1px);
   }
 
   .station-slot.occupied {
@@ -921,21 +980,49 @@
     opacity: 0.7;
   }
 
+  .st-icon {
+    width: 22px;
+    display: grid;
+    place-items: center;
+    color: var(--station-color, var(--tier-accent));
+    font-size: 0.95rem;
+    line-height: 1;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .st-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
   .st-name {
-    font-size: 0.55rem;
-    color: var(--text-secondary);
+    font-size: 0.6rem;
+    color: var(--text-primary);
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+  }
+
+  .st-desc {
+    font-size: 0.53rem;
+    color: var(--text-dim);
+    line-height: 1.35;
   }
 
   .st-status {
-    font-size: 0.6rem;
+    font-size: 0.56rem;
     font-weight: 600;
-    color: var(--text-primary);
-    margin-top: 2px;
+    color: var(--station-color, var(--tier-accent));
+    margin-top: 3px;
+    letter-spacing: 0.06em;
   }
 
-  .station-slot.vacant .st-status { color: var(--tier-accent, var(--hud-primary)); }
+  .station-slot.occupied .st-status {
+    color: var(--text-secondary);
+  }
 
   .start-btn { width: 100%; margin-top: var(--space-md); }
 

@@ -1,5 +1,7 @@
 # GUI Guide
 
+> The supported web interface is the v3 bridge UI in `gui-svelte/`. If this guide conflicts with the live Svelte UI, follow [docs/USER_GUIDE.md](/home/flax/games/spaceship-sim/docs/USER_GUIDE.md) and the current in-app `Mission` flow.
+
 ## Overview
 
 The web GUI connects to the simulation server via a WebSocket bridge and

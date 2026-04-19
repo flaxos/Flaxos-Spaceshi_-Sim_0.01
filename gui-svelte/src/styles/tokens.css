@@ -1,43 +1,68 @@
 /* Flaxos Spaceship Sim — Design Tokens
- * Mirrors gui/styles/main.css — keep variable names in sync.
+ * Updated to match design_reference_v2.html palette.
+ * Legacy variable aliases retained so existing components keep working.
  */
 
 :root {
-  /* ── Core backgrounds ── */
-  --bg-primary:       #0a0a0f;
-  --bg-panel:         #12121a;
-  --bg-input:         #1a1a24;
-  --bg-hover:         #22222e;
-  --bg-void:          #050508;
-  --bg-panel-deep:    #0d0d14;
-  --bg-glass:         rgba(22, 22, 34, 0.85);
-  --bg-panel-raised:  #161622;
-  --bg-active:        #2a2a3a;
+  /* ── Core backgrounds (new palette from prototype) ── */
+  --bg-void:         #020205;
+  --bg-app:          #07070d;
+  --bg-panel:        #0c0c14;
+  --bg-raised:       #111119;
+  --bg-input:        #15151e;
+  --bg-hover:        #1b1b26;
 
-  /* ── Borders ── */
-  --border-default:   #2a2a3a;
-  --border-active:    #3a3a4a;
-  --border-focus:     #4a4a5a;
-  --border-subtle:    #1e1e2e;
+  /* Legacy aliases — previous tokens retained for older components */
+  --bg-primary:      #0a0a0f;
+  --bg-panel-deep:   #0d0d14;
+  --bg-glass:        rgba(22, 22, 34, 0.85);
+  --bg-panel-raised: var(--bg-raised);
+  --bg-active:       #2a2a3a;
 
-  /* ── Text ── */
-  --text-primary:     #e0e0e0;
-  --text-secondary:   #888899;
-  --text-dim:         #555566;
-  --text-bright:      #f0f0f4;
+  /* ── Borders (new palette) ── */
+  --bd-subtle:       #16162a;
+  --bd-default:      #20203a;
+  --bd-active:       #2e2e50;
+  --bd-focus:        #3e3e68;
 
-  /* ── Status ── */
-  --status-nominal:   #00ff88;
-  --status-warning:   #ffaa00;
-  --status-critical:  #ff4444;
-  --status-info:      #00aaff;
-  --status-offline:   #555566;
+  /* Legacy aliases */
+  --border-default:  var(--bd-default);
+  --border-active:   var(--bd-active);
+  --border-focus:    var(--bd-focus);
+  --border-subtle:   var(--bd-subtle);
+
+  /* ── Text (new palette) ── */
+  --tx-bright:       #f0f0f6;
+  --tx-primary:      #b8b8cc;
+  --tx-sec:          #68687e;
+  --tx-dim:          #3a3a52;
+  --tx-muted:        #252538;
+
+  /* Legacy aliases */
+  --text-primary:    var(--tx-primary);
+  --text-secondary:  var(--tx-sec);
+  --text-dim:        var(--tx-dim);
+  --text-bright:     var(--tx-bright);
+
+  /* ── Status colors (sharper / prototype) ── */
+  --nom:             #00dd6a;
+  --warn:            #efa020;
+  --crit:            #e83030;
+  --info:            #1e8cff;
+  --offline:         #3a3a52;
+
+  /* Legacy aliases */
+  --status-nominal:  var(--nom);
+  --status-warning:  var(--warn);
+  --status-critical: var(--crit);
+  --status-info:     var(--info);
+  --status-offline:  var(--offline);
 
   /* ── Alert levels ── */
-  --alert-advisory:   #4488ff;
-  --alert-caution:    #ffaa00;
-  --alert-warning:    #ff6600;
-  --alert-critical:   #ff2222;
+  --alert-advisory:  #4488ff;
+  --alert-caution:   var(--warn);
+  --alert-warning:   #ff6600;
+  --alert-critical:  #ff2222;
 
   /* ── Category colors (event log) ── */
   --cat-nav:   #00aaff;
@@ -47,13 +72,25 @@
   --cat-com:   #aa88ff;
   --cat-err:   #ff4444;
 
-  /* ── Domain accent colors ── */
-  --domain-nav:     #3399ff;
-  --domain-sensor:  #00ccaa;
-  --domain-weapons: #cc4444;
-  --domain-power:   #cc8800;
-  --domain-comms:   #9977dd;
-  --domain-helm:    #6699cc;
+  /* ── Domain accent colors (updated to prototype) ── */
+  --d-sensor:        #00a882;
+  --d-weapons:       #c03030;
+  --d-nav:           #1e7ee0;
+  --d-power:         #c07800;
+  --d-helm:          #3878aa;
+  --d-comms:         #8866cc;
+  --d-ops:           #779933;
+  --d-fleet:         #1e99bb;
+
+  /* Legacy aliases */
+  --domain-nav:      var(--d-nav);
+  --domain-sensor:   var(--d-sensor);
+  --domain-weapons:  var(--d-weapons);
+  --domain-power:    var(--d-power);
+  --domain-comms:    var(--d-comms);
+  --domain-helm:     var(--d-helm);
+  --domain-ops:      var(--d-ops);
+  --domain-fleet:    var(--d-fleet);
 
   /* ── HUD ── */
   --hud-primary: #4a9eff;
@@ -61,6 +98,8 @@
   /* ── Typography ── */
   --font-mono:       "JetBrains Mono", "Fira Code", "Consolas", monospace;
   --font-sans:       "Inter", "Segoe UI", system-ui, sans-serif;
+  --fm:              var(--font-mono);
+  --fs:              var(--font-sans);
   --font-size-xs:    0.7rem;
   --font-size-sm:    0.8rem;
   --font-size-base:  0.9rem;
@@ -75,7 +114,7 @@
   --space-xl: 32px;
 
   /* ── Border radius ── */
-  --radius-sm: 4px;
+  --radius-sm: 3px;
   --radius-md: 8px;
   --radius-lg: 12px;
 
@@ -87,17 +126,23 @@
   --transition-base: 0.2s ease;
 
   /* ── Glows ── */
-  --glow-nominal:  0 0 8px rgba(0, 255, 136, 0.35);
-  --glow-warning:  0 0 8px rgba(255, 170, 0, 0.35);
-  --glow-critical: 0 0 12px rgba(255, 68, 68, 0.5);
-  --glow-info:     0 0 8px rgba(0, 170, 255, 0.3);
-  --glow-tier:     0 0 10px rgba(var(--tier-accent-rgb, 68, 136, 255), 0.25);
+  --glow-nominal:  0 0 8px rgba(0, 221, 106, 0.35);
+  --glow-warning:  0 0 8px rgba(239, 160, 32, 0.35);
+  --glow-critical: 0 0 12px rgba(232, 48, 48, 0.5);
+  --glow-info:     0 0 8px rgba(30, 140, 255, 0.3);
+  --glow-tier:     0 0 10px rgba(var(--tier-accent-rgb, 30, 140, 255), 0.25);
 
   /* ── Noise / scanlines ── */
-  --noise-opacity:    0.018;
+  --noise-opacity:    0.016;
   --scanline-opacity: 0.022;
 
   /* ── Tier accent (default: arcade blue) ── */
-  --tier-accent:     #4488ff;
-  --tier-accent-rgb: 68, 136, 255;
+  --tier-accent:     #1e8cff;
+  --tier-accent-rgb: 30, 140, 255;
+
+  /* ── IFF colors (tactical display) ── */
+  --iff-hostile:  #e83030;
+  --iff-friendly: #00dd6a;
+  --iff-unknown:  #efa020;
+  --iff-neutral:  #6888aa;
 }

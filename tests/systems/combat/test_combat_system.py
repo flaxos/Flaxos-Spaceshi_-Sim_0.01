@@ -27,7 +27,7 @@ class TestTruthWeapons:
         assert PDC_SPECS.muzzle_velocity == 2000.0  # 2 km/s (40mm rounds)
         assert PDC_SPECS.effective_range == 2000.0  # 2 km (accuracy-limited)
         assert PDC_SPECS.base_damage == 5.0  # Ablative, not penetrating
-        assert PDC_SPECS.cycle_time == 0.02  # 50 rps = 3000 RPM
+        assert PDC_SPECS.cycle_time == 0.2  # 5 bursts/sec * burst_count=10 = 50 rps = 3000 RPM
         assert PDC_SPECS.burst_count == 10  # Longer bursts
         assert PDC_SPECS.ammo_capacity == 3000  # Deep magazines
 

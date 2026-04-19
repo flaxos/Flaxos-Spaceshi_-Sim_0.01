@@ -3,11 +3,13 @@
  * Mirrors gui/styles/tiers.css.
  */
 
-/* ── Tier accent tokens ── */
+/* ── Tier accent tokens (updated to prototype palette) ── */
 body.tier-manual     { --tier-accent: #ff8800; --tier-accent-rgb: 255, 136, 0; }
-body.tier-raw        { --tier-accent: #ff4444; --tier-accent-rgb: 255, 68, 68; }
-body.tier-arcade     { --tier-accent: #4488ff; --tier-accent-rgb: 68, 136, 255; }
-body.tier-cpu-assist { --tier-accent: #c0a0ff; --tier-accent-rgb: 192, 160, 255; }
+body.tier-raw        { --tier-accent: #e83030; --tier-accent-rgb: 232, 48, 48; }
+body.tier-arcade     { --tier-accent: #1e8cff; --tier-accent-rgb: 30, 140, 255; }
+body.tier-cpu-assist { --tier-accent: #aa88ff; --tier-accent-rgb: 170, 136, 255; }
+/* Alias — prototype uses "tier-cpu" shorthand; keep the long name as canonical. */
+body.tier-cpu        { --tier-accent: #aa88ff; --tier-accent-rgb: 170, 136, 255; }
 
 /* ── MANUAL: Amber flight-sim HUD ── */
 body.tier-manual {

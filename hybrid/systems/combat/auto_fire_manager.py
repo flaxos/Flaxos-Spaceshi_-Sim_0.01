@@ -27,7 +27,7 @@ from hybrid.utils.errors import success_dict, error_dict
 logger = logging.getLogger(__name__)
 
 # Valid weapon types that can be authorized
-VALID_WEAPON_TYPES = {"railgun", "torpedo", "missile"}
+VALID_WEAPON_TYPES = {"railgun", "torpedo", "missile", "pdc"}
 
 
 class AutoFireManager:
@@ -43,6 +43,7 @@ class AutoFireManager:
             "railgun": False,
             "torpedo": False,
             "missile": False,
+            "pdc": False,
         }
         # Per-type cooldown remaining (seconds).  Prevents double-commanding
         # the same weapon mount within its cycle time.
@@ -50,6 +51,7 @@ class AutoFireManager:
             "railgun": 0.0,
             "torpedo": 0.0,
             "missile": 0.0,
+            "pdc": 0.0,
         }
         # Missile launch configuration (count reserved for future salvo support)
         self._missile_config: dict = {"count": 1, "profile": "direct"}
@@ -170,6 +172,12 @@ class AutoFireManager:
             if result:
                 events.append(result)
 
+        # --- PDC: continuous fire while authorized ---
+        if self._authorized["pdc"] and self._cooldowns["pdc"] <= 0:
+            result = self._try_fire_pdc(combat_system)
+            if result:
+                events.append(result)
+
         # --- Torpedo: single-shot, then deauthorize ---
         if self._authorized["torpedo"] and self._cooldowns["torpedo"] <= 0:
             result = self._try_fire_torpedo(combat_system, ship)
@@ -220,6 +228,38 @@ class AutoFireManager:
                 self._cooldowns["railgun"] = weapon.specs.cycle_time
                 result["auto_fire"] = True
                 result["weapon_type"] = "railgun"
+                return result
+        return None
+
+    def _try_fire_pdc(self, combat_system) -> Optional[dict]:
+        """Attempt to fire a PDC offensively if conditions are met.
+
+        Finds the first PDC mount with a ready solution for the main locked
+        target, then fires it. This enables PDCs to be used offensively via
+        CPU-Assist instead of just defensively.
+
+        Args:
+            combat_system: CombatSystem instance.
+
+        Returns:
+            dict or None: Fire result if fired, None otherwise.
+        """
+        for mount_id, weapon in combat_system.truth_weapons.items():
+            if not mount_id.startswith("pdc"):
+                continue
+            if weapon.ammo <= 0:
+                continue
+            if not weapon.can_fire(combat_system._sim_time):
+                continue
+            solution = weapon.current_solution
+            if not solution or not solution.ready_to_fire:
+                continue
+
+            result = combat_system.fire_weapon(mount_id)
+            if result.get("ok"):
+                self._cooldowns["pdc"] = weapon.specs.cycle_time
+                result["auto_fire"] = True
+                result["weapon_type"] = "pdc"
                 return result
         return None
 

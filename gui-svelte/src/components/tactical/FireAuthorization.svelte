@@ -114,6 +114,14 @@
           <span>MISSILE</span>
           <strong>{ammoPercent(inventory.missiles.loaded, inventory.missiles.capacity)}</strong>
         </button>
+        <button
+          class="arcade-btn pdc"
+          disabled={firingNow === "pdc"}
+          title={!activeTargetId ? "Select a target first" : "Fire PDC at locked target"}
+          on:click={() => fireNow("pdc")}
+        >
+          <span>PDC</span>
+        </button>
       </div>
     {:else if cpuAssistTier}
       <!-- Auto-tactical enable/disable -->
@@ -145,11 +153,11 @@
 
       <!-- Weapon auth toggles -->
       <div class="auth-grid">
-        {#each ["railgun", "torpedo", "missile"] as weapon}
+        {#each ["railgun", "torpedo", "missile", "pdc"] as weapon}
           <button
             class:selected={authorized[weapon]}
             type="button"
-            on:click={() => toggleAuthorization(weapon as "railgun" | "torpedo" | "missile")}
+            on:click={() => toggleAuthorization(weapon as "railgun" | "torpedo" | "missile" | "pdc")}
           >
             <span>{weapon.toUpperCase()}</span>
             <strong>{authorized[weapon] ? "AUTHORIZED" : "HOLD"}</strong>
@@ -174,7 +182,7 @@
 
   .arcade-grid {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: var(--space-sm);
   }
 
@@ -249,7 +257,7 @@
   /* Weapon authorization grid */
   .auth-grid {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: var(--space-sm);
   }
 

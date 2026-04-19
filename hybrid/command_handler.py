@@ -68,8 +68,8 @@ system_commands = {
     "fire": ("weapons", "fire"),
     "fire_weapon": ("weapons", "fire"),
     # Combat system commands (Sprint C - truth weapons)
-    "fire_railgun": ("combat", "fire"),
-    "fire_pdc": ("combat", "fire"),
+    "fire_railgun": ("combat", "fire_railgun"),
+    "fire_pdc": ("combat", "fire_pdc"),
     "fire_combat": ("combat", "fire"),
     "fire_all": ("combat", "fire_all"),
     "fire_unguided": ("combat", "fire_unguided"),

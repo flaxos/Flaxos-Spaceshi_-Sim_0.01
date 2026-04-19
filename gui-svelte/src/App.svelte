@@ -8,10 +8,8 @@
   import { initializeConnection } from "./lib/stores/playerShip.js";
   import { playerShipId } from "./lib/stores/playerShip.js";
 
+  import BridgeHeader from "./components/layout/BridgeHeader.svelte";
   import StatusBar from "./components/layout/StatusBar.svelte";
-  import TierSelector from "./components/layout/TierSelector.svelte";
-  import StationSelector from "./components/layout/StationSelector.svelte";
-  import ViewTabs from "./components/layout/ViewTabs.svelte";
 
   import HelmView from "./views/HelmView.svelte";
   import TacticalView from "./views/TacticalView.svelte";
@@ -20,22 +18,22 @@
   import ScienceView from "./views/ScienceView.svelte";
   import CommsView from "./views/CommsView.svelte";
   import FleetView from "./views/FleetView.svelte";
-  import ConfigView from "./views/MissionView.svelte";
+  import MissionView from "./views/MissionView.svelte";
   import EditorView from "./views/EditorView.svelte";
 
   // Station → allowed views mapping (mirrors index.html logic)
   const STATION_VIEWS: Record<string, string[]> = {
-    captain:         ["helm", "tactical", "engineering", "ops", "science", "comms", "fleet", "config"],
-    helm:            ["helm", "tactical", "config"],
-    tactical:        ["tactical", "helm", "config"],
-    ops:             ["ops", "engineering", "config"],
-    engineering:     ["engineering", "ops", "config"],
-    comms:           ["comms", "config"],
-    science:         ["science", "tactical", "config"],
-    fleet_commander: ["fleet", "tactical", "config"],
+    captain:         ["mission", "helm", "tactical", "engineering", "ops", "science", "comms", "fleet"],
+    helm:            ["mission", "helm", "tactical"],
+    tactical:        ["mission", "tactical", "helm"],
+    ops:             ["mission", "ops", "engineering"],
+    engineering:     ["mission", "engineering", "ops"],
+    comms:           ["mission", "comms"],
+    science:         ["mission", "science", "tactical"],
+    fleet_commander: ["mission", "fleet", "tactical"],
   };
 
-  let activeView = "config";
+  let activeView = "mission";
   let allowedViews: string[] | null = null; // null = all (pre-station-claim)
 
   function onViewChange(e: CustomEvent<{ view: string }>) {
@@ -44,9 +42,9 @@
 
   function onStationClaimed(e: CustomEvent<{ station: string }>) {
     const station = e.detail.station;
-    allowedViews = STATION_VIEWS[station] ?? ["config"];
-    // Auto-switch to first allowed view that isn't config (if available)
-    const preferred = allowedViews.find((v) => v !== "config") ?? allowedViews[0];
+    allowedViews = STATION_VIEWS[station] ?? ["mission"];
+    // Auto-switch to first allowed view that isn't mission (if available)
+    const preferred = allowedViews.find((v) => v !== "mission") ?? allowedViews[0];
     if (preferred && !allowedViews.includes(activeView)) {
       activeView = preferred;
     }
@@ -56,7 +54,7 @@
     allowedViews = null; // unlock all views
   }
 
-  // Listen for scenario-loaded to switch to helm/config view
+  // Listen for scenario-loaded to switch to the first active bridge view
   function onScenarioLoaded(e: Event) {
     // Server returns player_ship_id / assigned_ship — check all possible keys
     type ScenarioDetail = Record<string, string | undefined>;
@@ -84,22 +82,14 @@
 
 <div id="app-shell">
   <!-- ── Top chrome ── -->
-  <StatusBar />
-
-  <div class="bridge-controls">
-    <StationSelector
-      on:station-claimed={onStationClaimed}
-      on:station-released={onStationReleased}
-    />
-    <span class="controls-spacer"></span>
-    <TierSelector />
-  </div>
-
-  <ViewTabs
+  <BridgeHeader
     bind:activeView
     {allowedViews}
+    on:station-claimed={onStationClaimed}
+    on:station-released={onStationReleased}
     on:view-change={onViewChange}
   />
+  <StatusBar />
 
   <!-- ── View stack ── -->
   <div class="view-stack">
@@ -124,8 +114,8 @@
     <div class="view-container" class:active={activeView === "fleet"}>
       <FleetView />
     </div>
-    <div class="view-container" class:active={activeView === "config"}>
-      <ConfigView />
+    <div class="view-container" class:active={activeView === "mission"}>
+      <MissionView />
     </div>
     <div class="view-container" class:active={activeView === "editor"}>
       <EditorView />
@@ -148,24 +138,6 @@
 
   /* Status bar */
   :global(.status-bar) {
-    flex: 0 0 32px;
-  }
-
-  .bridge-controls {
-    flex: 0 0 40px;
-    display: flex;
-    align-items: center;
-    padding: 0 var(--space-sm);
-    gap: var(--space-sm);
-    background: var(--bg-panel);
-    border-bottom: 2px solid var(--tier-accent, var(--border-default));
-    position: relative;
-    z-index: 99;
-  }
-
-  .controls-spacer { flex: 1; }
-
-  :global(.view-tabs) {
     flex: 0 0 36px;
   }
 

@@ -1,6 +1,6 @@
 # User Guide (Player)
 
-The default supported interface is the browser GUI served from `gui-svelte/`.
+The default supported interface is the **v3 browser bridge UI** served from `gui-svelte/`.
 
 ## Startup
 
@@ -8,7 +8,7 @@ The default supported interface is the browser GUI served from `gui-svelte/`.
 python3 tools/start_gui_stack.py --browser --rcon-password 'replace-this'
 ```
 
-Open the browser UI, load a scenario from `Config`, then claim a station.
+Open the browser UI, load a scenario from `Mission`, then claim a station.
 
 ## Main Views
 
@@ -19,21 +19,21 @@ Open the browser UI, load a scenario from `Config`, then claim a station.
 - `Science`: passive contacts and analysis
 - `Comms`: radio, incoming choices, station chat
 - `Fleet`: formation, orders, shared contacts, fleet fire control
-- `Config`: scenario loader, objectives, campaign, command console, server admin
+- `Mission`: scenario loader, objectives, campaign, command console, server admin
 
 ## Core Flow
 
-1. Load a scenario from `Config`.
+1. Load a scenario from `Mission`.
 2. Claim a station.
 3. Use the relevant station panels for that role.
-4. For repeatable UAT or multiplayer triage, authenticate in `Config > Server`.
+4. For repeatable UAT or multiplayer triage, authenticate in `Mission > Server`.
 
 ## Current Supported Controls
 
 - Use the contacts panels to select and lock targets.
 - Use the flight computer for intercept/rendezvous/match/hold programs.
 - Use tactical controls for railgun, PDC, launcher, and subsystem targeting.
-- Use `Config > Server` for pause/resume, time scale, mission reset, server reset, and client management.
+- Use `Mission > Server` for pause/resume, time scale, mission reset, server reset, and client management.
 
 ## UAT Tip
 

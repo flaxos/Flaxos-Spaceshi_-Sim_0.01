@@ -1,8 +1,10 @@
 <script lang="ts">
   import Panel from "../layout/Panel.svelte";
+  import AttitudeIndicator from "./AttitudeIndicator.svelte";
   import { gameState } from "../../lib/stores/gameState.js";
   import { tier } from "../../lib/stores/tier.js";
   import {
+    asRecord,
     computeRelativeSpeed,
     extractShipState,
     formatDistance,
@@ -13,6 +15,7 @@
     getOrientation,
     getPONR,
     getPosition,
+    getSystem,
     getVelocity,
     magnitude,
     signed,
@@ -34,6 +37,8 @@
   $: manualLike = $tier === "manual" || $tier === "raw";
   $: showRawVectors = manualLike;
   $: stopMargin = toNumber(ponr.dv_margin);
+  $: propulsion = getSystem(ship, "propulsion");
+  $: fuelPct = toNumber(asRecord(propulsion)?.fuel_pct, toNumber(asRecord(ship)?.fuel_pct, 0));
 </script>
 
 <Panel title="Flight Data" domain="helm" priority={$tier === "manual" ? "primary" : "secondary"} className="flight-data-panel">
@@ -43,6 +48,34 @@
     {:else if toNumber(ponr.margin_percent, 100) < 25 && toNumber(ponr.dv_to_stop) > 0}
       <div class="alert warning">Brake margin {toPercent(toNumber(ponr.margin_percent), 0)} · reserve {formatSpeed(stopMargin)}</div>
     {/if}
+
+    <section class="section">
+      <div class="hero-dial">
+        <AttitudeIndicator heading={heading.yaw} pitch={heading.pitch} roll={heading.roll} size={116} />
+      </div>
+      <div class="hero-grid">
+        <div class="hero-metric">
+          <span>Speed</span>
+          <strong>{speed.toFixed(1)}</strong>
+          <em>m/s</em>
+        </div>
+        <div class="hero-metric">
+          <span>Heading</span>
+          <strong>{String(Math.round(heading.yaw < 0 ? heading.yaw + 360 : heading.yaw)).padStart(3, "0")}</strong>
+          <em>deg</em>
+        </div>
+        <div class="hero-metric">
+          <span>Delta-V</span>
+          <strong>{deltaV.toFixed(0)}</strong>
+          <em>m/s</em>
+        </div>
+        <div class="hero-metric">
+          <span>Fuel</span>
+          <strong>{fuelPct.toFixed(1)}</strong>
+          <em>%</em>
+        </div>
+      </div>
+    </section>
 
     <section class="section">
       <div class="section-title">Position</div>
@@ -169,6 +202,39 @@
   .hero {
     font-size: 1.25rem;
     color: var(--tier-accent);
+  }
+
+  .hero-dial {
+    display: flex;
+    justify-content: center;
+    padding-bottom: 2px;
+  }
+
+  .hero-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 12px;
+  }
+
+  .hero-metric {
+    display: grid;
+    gap: 2px;
+  }
+
+  .hero-metric span,
+  .hero-metric em {
+    font-size: var(--font-size-xs);
+    color: var(--text-secondary);
+    font-style: normal;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .hero-metric strong {
+    font-family: var(--font-mono);
+    color: var(--text-bright);
+    font-size: 0.95rem;
+    line-height: 1.1;
   }
 
   .accent {

@@ -449,6 +449,18 @@ class ProjectileManager:
                 proj, target_ship, actual_hit, subsystem_hit, flight_time
             )
 
+        # Pre-calculate true reported damage
+        reported_damage = 0.0
+        reported_sub_damage = 0.0
+        if actual_hit:
+            # pen_factor was set during armor resolution
+            if locals().get("is_ricochet"):
+                reported_damage = proj.damage * 0.1
+                reported_sub_damage = 0.0
+            else:
+                reported_damage = proj.damage * locals().get("pen_factor", 1.0)
+                reported_sub_damage = proj.subsystem_damage * locals().get("pen_factor", 1.0)
+
         event = {
             "type": "projectile_impact",
             "projectile_id": proj.id,
@@ -457,9 +469,9 @@ class ProjectileManager:
             "shooter": proj.shooter_id,
             "target": target_ship.id,
             "hit": actual_hit,
-            "damage": proj.damage * (hit_location.penetration_factor if hit_location else 1.0) if actual_hit else 0,
+            "damage": reported_damage,
             "subsystem_hit": subsystem_hit,
-            "subsystem_damage": proj.subsystem_damage * (hit_location.penetration_factor if hit_location else 1.0) if actual_hit and not (hit_location and hit_location.is_ricochet) else 0,
+            "subsystem_damage": reported_sub_damage,
             "sim_time": sim_time,
             "flight_time": flight_time,
             "damage_result": damage_result,
