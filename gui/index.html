@@ -216,6 +216,11 @@
       min-height: var(--panel-height-sm);
     }
 
+    .helm-balance-game-panel {
+      grid-column: span 4;
+      min-height: var(--panel-height-sm);
+    }
+
     /* --- Tactical view panels (grouped: Detect > Decide > Destroy) --- */
 
     /* DETECT group */
@@ -313,6 +318,37 @@
       min-height: clamp(200px, 28vh, 400px);
     }
 
+    /* Panels that default to span 4 — tier CSS overrides sizing / visibility */
+    .tac-aiming-panel {
+      grid-column: span 4;
+      min-height: var(--panel-height-sm);
+    }
+
+    .tac-lock-game-panel {
+      grid-column: span 4;
+      min-height: var(--panel-height-sm);
+    }
+
+    .tac-ecm-game-panel {
+      grid-column: span 4;
+      min-height: var(--panel-height-sm);
+    }
+
+    .tac-sweep-game-panel {
+      grid-column: span 4;
+      min-height: var(--panel-height-sm);
+    }
+
+    .tac-sensor-analysis-panel {
+      grid-column: span 4;
+      min-height: var(--panel-height-sm);
+    }
+
+    .tac-munition-program-panel {
+      grid-column: span 4;
+      min-height: var(--panel-height-sm);
+    }
+
     /* --- Engineering view panels (Phase 5: 8 panels, Micro RCS moved to Helm) --- */
 
     /* THERMAL & DRIVE row — hero panels, span-6 each */
@@ -337,6 +373,11 @@
       min-height: var(--panel-height-md);
     }
 
+    .eng-power-alloc-panel {
+      grid-column: span 6;
+      min-height: var(--panel-height-md);
+    }
+
     /* MONITORING row — span-4 each */
     .eng-systems-panel {
       grid-column: span 4;
@@ -348,6 +389,17 @@
       min-height: var(--panel-height-sm);
       max-height: clamp(280px, 40vh, 400px);
       overflow: auto;
+    }
+
+    /* ARCADE mini-games — hidden by tier CSS in non-ARCADE tiers */
+    .eng-reactor-game-panel {
+      grid-column: span 4;
+      min-height: var(--panel-height-sm);
+    }
+
+    .eng-radiator-game-panel {
+      grid-column: span 4;
+      min-height: var(--panel-height-sm);
     }
 
     /* Micro RCS — moved to Helm, RAW tier only (tier CSS handles visibility) */
@@ -404,6 +456,26 @@
       min-height: var(--panel-height-sm);
     }
 
+    .ops-crew-roster-panel {
+      grid-column: span 6;
+      min-height: var(--panel-height-md);
+    }
+
+    .ops-boarding-panel {
+      grid-column: span 4;
+      min-height: var(--panel-height-sm);
+    }
+
+    .ops-drone-panel {
+      grid-column: span 4;
+      min-height: var(--panel-height-sm);
+    }
+
+    .ops-damage-game-panel {
+      grid-column: span 4;
+      min-height: var(--panel-height-sm);
+    }
+
     /* Science view panels (sensor analysis, contact classification) */
     .sci-sensors-panel {
       grid-column: span 12;
@@ -420,6 +492,16 @@
       min-height: var(--panel-height-md);
       max-height: clamp(280px, 40vh, 400px);
       overflow: auto;
+    }
+
+    .sci-spectral-game-panel {
+      grid-column: span 6;
+      min-height: var(--panel-height-md);
+    }
+
+    .sci-mass-game-panel {
+      grid-column: span 4;
+      min-height: var(--panel-height-sm);
     }
 
     /* Comms view panels (IFF, radio, hailing, distress) */
@@ -446,6 +528,11 @@
     .comms-choice-panel {
       grid-column: span 6;
       min-height: var(--panel-height-md);
+    }
+
+    .comms-hail-game-panel {
+      grid-column: span 4;
+      min-height: var(--panel-height-sm);
     }
 
     .comms-log-panel {
@@ -486,6 +573,11 @@
       min-height: var(--panel-height-md);
     }
 
+    .fleet-formation-game-panel {
+      grid-column: span 4;
+      min-height: var(--panel-height-sm);
+    }
+
     /* Mission view panels */
     .mis-scenario-panel {
       grid-column: span 6;
@@ -508,6 +600,11 @@
     }
 
     .mis-chat-panel {
+      grid-column: span 6;
+      min-height: var(--panel-height-sm);
+    }
+
+    .mis-campaign-panel {
       grid-column: span 6;
       min-height: var(--panel-height-sm);
     }

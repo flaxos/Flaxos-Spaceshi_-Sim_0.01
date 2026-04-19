@@ -380,6 +380,7 @@ body.tier-arcade .helm-rcs-thruster-panel {
 
 /* Guided burn panel — ARCADE exclusive */
 body.tier-raw .helm-guided-burn-panel,
+body.tier-manual .helm-guided-burn-panel,
 body.tier-cpu-assist .helm-guided-burn-panel {
   display: none;
 }
