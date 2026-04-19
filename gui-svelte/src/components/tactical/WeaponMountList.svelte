@@ -14,6 +14,9 @@
   import { fireRailgun, launchDirectMunition } from "./tacticalActions.js";
 
   let firingIds = new Set<string>();
+  // Track mounts that just completed a fire command for the muzzle-flash animation.
+  let justFiredIds = new Set<string>();
+  let justFiredTimers: Record<string, ReturnType<typeof setTimeout>> = {};
 
   $: ship = extractShipState($gameState);
   $: mounts = getWeaponMounts(ship);
@@ -154,6 +157,14 @@
       } else if (mount.weaponType === "missile") {
         await launchDirectMunition("missile", { targetId: effectiveTarget || undefined });
       }
+      // Trigger muzzle-flash on the row after a successful fire
+      clearTimeout(justFiredTimers[mount.id]);
+      justFiredIds = new Set(justFiredIds).add(mount.id);
+      justFiredTimers[mount.id] = setTimeout(() => {
+        const next = new Set(justFiredIds);
+        next.delete(mount.id);
+        justFiredIds = next;
+      }, 650);
     } finally {
       const next = new Set(firingIds);
       next.delete(mount.id);
@@ -174,10 +185,23 @@
       {@const isLauncher = mount.weaponType === "torpedo" || mount.weaponType === "missile"}
       {@const showFire = isRailgun || isLauncher}
       {@const allowed = canFire(mount)}
-      <div class="row" style="background: {rowBgTint(mount)};">
+      {@const isFiring = firingIds.has(mount.id)}
+      {@const justFired = justFiredIds.has(mount.id)}
+      <div
+        class="row"
+        class:just-fired={justFired}
+        class:is-firing={isFiring}
+        style="background: {rowBgTint(mount)};"
+      >
         <div class="head">
           <div class="name">
-            <span class="dot" style="background: {statusDotColor(mount)};" aria-hidden="true"></span>
+            <span
+              class="dot"
+              class:dot-fire={isFiring || justFired}
+              class:dot-reload={mount.reloading}
+              style="background: {isFiring || justFired ? '#fff' : statusDotColor(mount)};"
+              aria-hidden="true"
+            ></span>
             <span class="lbl">{mount.label}</span>
           </div>
           <div class="status">
@@ -203,8 +227,12 @@
         </div>
 
         {#if mount.reloading || status === "reloading"}
-          <div class="reload-track">
-            <div class="reload-fill" style="width: {Math.round(mount.reloadProgress * 100)}%;"></div>
+          <div class="reload-row">
+            <span class="reload-label">RELOAD</span>
+            <div class="reload-track">
+              <div class="reload-fill" style="width: {Math.round(mount.reloadProgress * 100)}%;"></div>
+            </div>
+            <span class="reload-pct">{Math.round(mount.reloadProgress * 100)}%</span>
           </div>
         {/if}
 
@@ -212,21 +240,22 @@
           <button
             class="fire-btn"
             class:armed={allowed}
+            class:is-firing={isFiring}
             disabled={!allowed}
             title={fireTitle(mount)}
             on:click={() => void fire(mount)}
           >
-            {#if firingIds.has(mount.id)}
+            {#if isFiring}
               <span class="bullet">●</span> FIRING…
             {:else if allowed}
               <span class="bullet">●</span>
               {isRailgun
                 ? `FIRE — ${Math.round(solutionConfidence * 100)}% SOL`
-                : isLauncher && mount.weaponType === "torpedo"
+                : mount.weaponType === "torpedo"
                   ? "LAUNCH TORPEDO"
                   : "LAUNCH MISSILE"}
             {:else}
-              <span class="bullet">●</span>
+              <span class="bullet">○</span>
               {targeting.lockState !== "locked"
                 ? "LOCK REQUIRED"
                 : isRailgun
@@ -357,16 +386,59 @@
     font-variant-numeric: tabular-nums;
   }
 
+  /* Muzzle flash on the row */
+  .row.just-fired {
+    animation: rowFlash 0.6s ease-out forwards;
+  }
+
+  .row.is-firing .fire-btn {
+    animation: firingPulse 0.4s ease-in-out infinite alternate;
+  }
+
+  /* Status dot firing states */
+  .dot.dot-fire {
+    animation: dotFlash 0.18s ease-in-out infinite;
+  }
+
+  .dot.dot-reload {
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+
+  /* Reload row */
+  .reload-row {
+    display: grid;
+    grid-template-columns: 46px minmax(0, 1fr) 32px;
+    gap: 5px;
+    align-items: center;
+  }
+
+  .reload-label {
+    font-size: 0.52rem;
+    font-family: var(--font-mono);
+    letter-spacing: 0.08em;
+    color: var(--warn);
+    text-transform: uppercase;
+  }
+
+  .reload-pct {
+    font-size: 0.55rem;
+    font-family: var(--font-mono);
+    color: var(--warn);
+    text-align: right;
+  }
+
   .reload-track {
-    height: 2px;
+    height: 4px;
     background: var(--bg-input);
-    border-radius: 1px;
+    border-radius: 2px;
     overflow: hidden;
+    border: 1px solid rgba(239, 160, 32, 0.2);
   }
 
   .reload-fill {
     height: 100%;
     background: var(--warn);
+    box-shadow: 0 0 6px rgba(239, 160, 32, 0.5);
     transition: width 0.25s linear;
   }
 
@@ -404,8 +476,35 @@
     box-shadow: 0 0 22px rgba(232, 48, 48, 0.32);
   }
 
+  .fire-btn.is-firing {
+    border-color: rgba(232, 48, 48, 0.8);
+    color: #fff;
+    box-shadow: 0 0 20px rgba(232, 48, 48, 0.5);
+  }
+
   .bullet {
     font-size: 0.7em;
     line-height: 1;
+  }
+
+  @keyframes rowFlash {
+    0%   { background: rgba(232, 48, 48, 0.22) !important; box-shadow: inset 0 0 16px rgba(232, 48, 48, 0.3); }
+    50%  { background: rgba(232, 48, 48, 0.08) !important; }
+    100% { box-shadow: none; }
+  }
+
+  @keyframes firingPulse {
+    from { box-shadow: 0 0 8px rgba(232, 48, 48, 0.4); }
+    to   { box-shadow: 0 0 20px rgba(232, 48, 48, 0.8); }
+  }
+
+  @keyframes dotFlash {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.15; }
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
   }
 </style>

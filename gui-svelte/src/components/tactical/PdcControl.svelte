@@ -20,15 +20,17 @@
   export let embedded = false;
 
   const modes = [
-    { label: "AUTO", value: "auto" },
-    { label: "MANUAL", value: "manual" },
-    { label: "NETWORK", value: "network" },
-    { label: "PRIORITY", value: "priority" },
-    { label: "HOLD", value: "hold_fire" },
+    { label: "AUTO",     value: "auto",       color: "#00dd6a", rgb: "0,221,106" },
+    { label: "MANUAL",   value: "manual",      color: "#efa020", rgb: "239,160,32" },
+    { label: "NETWORK",  value: "network",     color: "#1e8cff", rgb: "30,140,255" },
+    { label: "PRIORITY", value: "priority",    color: "#aa88ff", rgb: "170,136,255" },
+    { label: "HOLD",     value: "hold_fire",   color: "#e83030", rgb: "232,48,48" },
   ];
 
   let modePending = false;
   let firingMounts = new Set<string>();
+  let justFiredMounts = new Set<string>();
+  let justFiredTimers: Record<string, ReturnType<typeof setTimeout>> = {};
   let mountSelections: Record<string, string> = {};
 
   $: ship = extractShipState($gameState);
@@ -139,6 +141,14 @@
         await assignPdcTarget(mountId, targetId);
       }
       await firePdc({ mountId, targetId: targetId || undefined });
+      // Muzzle flash on the card
+      clearTimeout(justFiredTimers[mountId]);
+      justFiredMounts = new Set(justFiredMounts).add(mountId);
+      justFiredTimers[mountId] = setTimeout(() => {
+        const s = new Set(justFiredMounts);
+        s.delete(mountId);
+        justFiredMounts = s;
+      }, 750);
     } finally {
       const pending = new Set(firingMounts);
       pending.delete(mountId);
@@ -179,6 +189,7 @@
         <button
           class:selected={mode === item.value}
           disabled={modePending}
+          style="--mc:{item.color};--mr:{item.rgb};"
           title={modeDescriptions[item.value] ?? item.label}
           type="button"
           on:click={() => setMode(item.value)}
@@ -295,7 +306,7 @@
       <div class="mount-list">
         {#each pdcMounts as mount}
           {@const assignedTarget = getAssignedTarget(mount.id)}
-          <div class="mount-card">
+          <div class="mount-card" class:just-fired={justFiredMounts.has(mount.id)}>
             <div class="mount-head">
               <div>
                 <strong>{mount.label}</strong>
@@ -398,8 +409,10 @@
   }
 
   .mode-grid button.selected {
-    border-color: rgba(var(--tier-accent-rgb), 0.5);
-    background: rgba(var(--tier-accent-rgb), 0.12);
+    border-color: rgba(var(--mr, var(--tier-accent-rgb)), 0.65);
+    background: rgba(var(--mr, var(--tier-accent-rgb)), 0.15);
+    color: var(--mc, var(--tx-primary));
+    box-shadow: 0 0 10px rgba(var(--mr, var(--tier-accent-rgb)), 0.2);
   }
 
   .mount-list {
@@ -412,6 +425,17 @@
     border-radius: var(--radius-sm);
     border: 1px solid var(--border-default);
     background: rgba(255, 255, 255, 0.02);
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  /* Highlight the card briefly when the mount fires */
+  :global(.mount-card.just-fired) {
+    animation: mountFired 0.7s ease-out forwards;
+  }
+
+  @keyframes mountFired {
+    0%   { border-color: rgba(0, 221, 106, 0.8); box-shadow: 0 0 16px rgba(0, 221, 106, 0.35); }
+    100% { border-color: var(--border-default);   box-shadow: none; }
   }
 
   .mount-head {
