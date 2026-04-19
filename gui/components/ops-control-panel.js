@@ -728,8 +728,8 @@ class OpsControlPanel extends HTMLElement {
           <div class="proposal-reason">${p.reason}</div>
           <div class="proposal-timer"><div class="proposal-timer-fill" style="width:${timerPct}%"></div></div>
           <div class="proposal-actions">
-            <button class="proposal-approve" data-id="${p.proposal_id}">APPROVE</button>
-            <button class="proposal-deny" data-id="${p.proposal_id}">DENY</button>
+            <button class="proposal-approve" data-id="${p.proposal_id}">EXECUTE</button>
+            <button class="proposal-deny" data-id="${p.proposal_id}">STAND DOWN</button>
           </div>
         </div>`;
     }

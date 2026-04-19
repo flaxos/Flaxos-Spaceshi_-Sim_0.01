@@ -1283,7 +1283,7 @@ class EngineeringControlPanel extends HTMLElement {
     html += '</div>';
     html += '<div id="eng-proposals" class="proposals-container">';
     if (proposals.length === 0) {
-      html += '<div class="no-proposals">No pending proposals</div>';
+      html += '<div class="no-proposals">Auto-engineering standing by — no proposals</div>';
     } else {
       proposals.forEach(p => {
         const confidence = p.confidence ?? 0;
@@ -1301,8 +1301,8 @@ class EngineeringControlPanel extends HTMLElement {
             </div>
             ${remaining > 0 ? `<div class="proposal-timer"><div class="proposal-timer-fill" style="width:${timerPct}%"></div></div>` : ""}
             <div class="proposal-actions">
-              <button class="proposal-approve" data-approve="${p.id}">APPROVE</button>
-              <button class="proposal-deny" data-deny="${p.id}">DENY</button>
+              <button class="proposal-approve" data-approve="${p.id}">EXECUTE</button>
+              <button class="proposal-deny" data-deny="${p.id}">STAND DOWN</button>
             </div>
           </div>
         `;

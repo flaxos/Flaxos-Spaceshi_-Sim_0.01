@@ -796,7 +796,7 @@ class CommsControlPanel extends HTMLElement {
 
     // Proposals queue
     const proposalsHtml = proposals.length === 0
-      ? '<div class="no-proposals">No pending proposals</div>'
+      ? '<div class="no-proposals">Auto-comms standing by — no proposals</div>'
       : proposals.map(p => {
           const confidence = p.confidence ?? 0;
           const remaining = Math.max(0, p.time_remaining || 0);
@@ -813,8 +813,8 @@ class CommsControlPanel extends HTMLElement {
             </div>
             ${remaining > 0 ? `<div class="proposal-timer"><div class="proposal-timer-fill" style="width:${timerPct}%"></div></div>` : ""}
             <div class="proposal-actions">
-              <button class="proposal-approve" data-approve="${this._escapeHtml(p.id)}">APPROVE</button>
-              <button class="proposal-deny" data-deny="${this._escapeHtml(p.id)}">DENY</button>
+              <button class="proposal-approve" data-approve="${this._escapeHtml(p.id)}">EXECUTE</button>
+              <button class="proposal-deny" data-deny="${this._escapeHtml(p.id)}">STAND DOWN</button>
             </div>
           </div>`;
         }).join("");
