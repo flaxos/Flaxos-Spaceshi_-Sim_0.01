@@ -345,6 +345,78 @@ class ManeuverPlanner extends HTMLElement {
           filter: brightness(1.1);
         }
 
+        /* ── Phase execution buttons ── */
+        .phase-exec { margin-bottom: 12px; }
+
+        .phase-btns {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 5px;
+          margin-top: 8px;
+        }
+
+        .phase-btn {
+          padding: 9px 4px;
+          border-radius: 6px;
+          font-family: var(--font-mono, "JetBrains Mono", monospace);
+          font-size: 0.68rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.3px;
+          cursor: pointer;
+          border: 2px solid;
+          text-align: center;
+          min-height: 50px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 3px;
+          transition: all 0.1s ease;
+          background: transparent;
+        }
+
+        .phase-btn .phase-dur {
+          font-size: 0.6rem;
+          font-weight: 400;
+          opacity: 0.75;
+        }
+
+        .phase-btn.burn {
+          border-color: var(--status-warning, #ffaa00);
+          color: var(--status-warning, #ffaa00);
+        }
+        .phase-btn.burn:hover:not(:disabled) { background: rgba(255,170,0,.12); }
+
+        .phase-btn.flip {
+          border-color: #cc66ff;
+          color: #cc66ff;
+        }
+        .phase-btn.flip:hover:not(:disabled) { background: rgba(204,102,255,.12); }
+
+        .phase-btn.brake {
+          border-color: var(--status-critical, #ff4444);
+          color: var(--status-critical, #ff4444);
+        }
+        .phase-btn.brake:hover:not(:disabled) { background: rgba(255,68,68,.12); }
+
+        .phase-btn.cut {
+          border-color: var(--text-secondary, #888899);
+          color: var(--text-secondary, #888899);
+        }
+        .phase-btn.cut:hover:not(:disabled) { background: rgba(136,136,153,.12); }
+
+        .phase-btn:active:not(:disabled) { transform: scale(0.95); }
+        .phase-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        .exec-feedback {
+          margin-top: 6px;
+          font-size: 0.68rem;
+          min-height: 1em;
+          color: var(--status-nominal, #00ff88);
+          text-align: center;
+        }
+
         .hidden {
           display: none !important;
         }
@@ -468,6 +540,30 @@ class ManeuverPlanner extends HTMLElement {
         <div id="maneuver-steps"></div>
       </div>
 
+      <!-- Phase Execution (intercept mode, RAW tier) -->
+      <div id="phase-exec-section" class="hidden">
+        <div class="phase-exec">
+          <div class="section-title" style="margin-bottom: 6px;">Execute Phase</div>
+          <div class="phase-btns">
+            <button class="phase-btn burn" id="phase-burn-btn" disabled>
+              BURN
+              <span class="phase-dur" id="burn-phase-dur">--</span>
+            </button>
+            <button class="phase-btn flip" id="phase-flip-btn">
+              FLIP
+            </button>
+            <button class="phase-btn brake" id="phase-brake-btn" disabled>
+              BRAKE
+              <span class="phase-dur" id="brake-phase-dur">--</span>
+            </button>
+            <button class="phase-btn cut" id="phase-cut-btn">
+              CUT
+            </button>
+          </div>
+          <div class="exec-feedback" id="exec-feedback"></div>
+        </div>
+      </div>
+
       <div class="plan-options">
         <label>
           <input type="checkbox" id="queue-plan" />
@@ -514,6 +610,12 @@ class ManeuverPlanner extends HTMLElement {
     this.shadowRoot.getElementById("execute-btn").addEventListener("click", () => {
       this._execute();
     });
+
+    // Phase execution buttons
+    this.shadowRoot.getElementById("phase-burn-btn").addEventListener("click", () => this._executePhase("burn"));
+    this.shadowRoot.getElementById("phase-flip-btn").addEventListener("click", () => this._executePhase("flip"));
+    this.shadowRoot.getElementById("phase-brake-btn").addEventListener("click", () => this._executePhase("brake"));
+    this.shadowRoot.getElementById("phase-cut-btn").addEventListener("click", () => this._executePhase("cut"));
   }
 
   _setMode(mode) {
@@ -528,6 +630,7 @@ class ManeuverPlanner extends HTMLElement {
     this.shadowRoot.getElementById("waypoint-section").classList.toggle("hidden", mode !== "waypoint");
     this.shadowRoot.getElementById("intercept-section").classList.toggle("hidden", mode !== "intercept");
     this.shadowRoot.getElementById("flip-burn-section").classList.toggle("hidden", mode !== "flip_burn");
+    this.shadowRoot.getElementById("phase-exec-section").classList.toggle("hidden", mode !== "intercept");
 
     // Reset solution
     this._computedSolution = null;
@@ -749,104 +852,127 @@ class ManeuverPlanner extends HTMLElement {
 
     if (!targetId) return null;
 
-    // Get target contact
     const contacts = stateManager.getContacts();
     const target = contacts.find(c => (c.contact_id || c.id) === targetId);
-
     if (!target) return null;
 
     const targetPos = target.position || [0, 0, 0];
     const targetVel = target.velocity || [0, 0, 0];
 
-    // Calculate relative motion
     const dx = targetPos[0] - position[0];
     const dy = targetPos[1] - position[1];
     const dz = targetPos[2] - position[2];
     const range = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    if (range < 1) return null;
 
-    // Relative velocity
+    // Closing speed: positive = gap is shrinking
     const dvx = targetVel[0] - velocity[0];
     const dvy = targetVel[1] - velocity[1];
     const dvz = targetVel[2] - velocity[2];
-    const closingRate = -(dx * dvx + dy * dvy + dz * dvz) / range;
+    const closingSpeed = -(dx * dvx + dy * dvy + dz * dvz) / range;
 
-    // For intercept, use lead pursuit
-    // Estimate time to intercept assuming constant acceleration
-    const accel = interceptG * G_ACCEL;
+    const a = interceptG * G_ACCEL;
 
-    // Simple estimate: t = sqrt(2*range/accel) for stationary target
-    // For moving target, iterate or use approximation
-    let timeToIntercept;
-    if (closingRate > 0) {
-      // Already closing, adjust for that
-      timeToIntercept = range / closingRate;
-    } else {
-      timeToIntercept = Math.sqrt(2 * range / accel);
+    // Brachistochrone solution for flip-and-burn intercept (1-D approximation).
+    //
+    // BURN phase: accelerate at `a` for t_burn seconds — closing speed rises from v_c to v_peak.
+    // FLIP phase: rotate 180°.
+    // BRAKE phase: decelerate at `a` for t_brake = v_peak/a until relative speed = 0.
+    //
+    // Constraint: total relative range consumed = range
+    //   range_consumed_burn = v_c*t_b + 0.5*a*t_b²
+    //   range_consumed_brake = v_peak²/(2a)
+    //   ⟹  a·t_b² + 2·v_c·t_b + (v_c²/(2a) − range) = 0
+    //
+    // Discriminant always ≥ 0 for a,range > 0.
+    const disc = 2 * closingSpeed * closingSpeed + 4 * a * range;
+    let t_burn = (-2 * closingSpeed + Math.sqrt(disc)) / (2 * a);
+
+    // Edge case: already closing fast enough that braking distance ≥ range
+    const brakingDistNow = closingSpeed > 0 ? (closingSpeed * closingSpeed) / (2 * a) : 0;
+    if (brakingDistNow >= range && closingSpeed > 0) {
+      // Need to brake immediately — show brake-only plan
+      t_burn = 0;
+    } else if (t_burn < 0) {
+      t_burn = 0;
     }
 
-    // Predicted intercept point
-    const interceptX = targetPos[0] + targetVel[0] * timeToIntercept;
-    const interceptY = targetPos[1] + targetVel[1] * timeToIntercept;
-    const interceptZ = targetPos[2] + targetVel[2] * timeToIntercept;
+    const v_peak  = closingSpeed + a * t_burn;          // closing speed at flip
+    const t_brake = Math.max(v_peak, 0) / a;            // time to decelerate to 0
+    const t_total = t_burn + t_brake;
+    const flipRange = (v_peak * v_peak) / (2 * a);      // range to target when flip occurs
 
-    // Heading to intercept point
-    const interceptDx = interceptX - position[0];
-    const interceptDy = interceptY - position[1];
-    const interceptDz = interceptZ - position[2];
-    const yaw = Math.atan2(interceptDy, interceptDx) * (180 / Math.PI);
-    const horizontalDist = Math.sqrt(interceptDx * interceptDx + interceptDy * interceptDy);
-    const pitch = Math.atan2(interceptDz, horizontalDist) * (180 / Math.PI);
+    // Total ΔV: accelerate from v_c to v_peak, then decelerate from v_peak to 0
+    const deltaV = Math.abs(v_peak - closingSpeed) + v_peak;
 
-    // Delta-v to match velocity at intercept
-    const deltaV = Math.sqrt(dvx * dvx + dvy * dvy + dvz * dvz);
-    const burnDuration = deltaV / accel;
+    // Lead intercept heading: point at where target will be after t_total seconds
+    const leadX = targetPos[0] + targetVel[0] * t_total - position[0];
+    const leadY = targetPos[1] + targetVel[1] * t_total - position[1];
+    const leadZ = targetPos[2] + targetVel[2] * t_total - position[2];
+    const burnYaw   = Math.atan2(leadY, leadX) * (180 / Math.PI);
+    const burnPitch = Math.atan2(leadZ, Math.sqrt(leadX * leadX + leadY * leadY)) * (180 / Math.PI);
+    const burnHeading = { pitch: burnPitch, yaw: burnYaw };
 
-    // Build maneuver plan
-    const maneuverPlan = [
-      {
-        action: "Point at lead",
-        detail: `Heading: P=${pitch.toFixed(1)} Y=${yaw.toFixed(1)}`,
-        trigger: { distance_remaining: range }
-      },
-      {
-        action: `Burn at ${interceptG}G`,
-        detail: `Intercept in ${this._formatTime(timeToIntercept)}`,
-        trigger: { time_to_target: timeToIntercept }
-      },
-      {
-        action: "Match velocity",
-        detail: `Delta-V: ${deltaV.toFixed(1)} m/s`,
-        trigger: { distance_remaining: 0, time_to_target: 0 }
-      }
-    ];
+    const maneuverPlan = t_burn > 0.5
+      ? [
+          {
+            action: `BURN at ${interceptG}G`,
+            detail: `Orient P=${burnPitch.toFixed(1)} Y=${burnYaw.toFixed(1)} · burn ${this._formatTime(t_burn)}`,
+            trigger: { distance_remaining: range }
+          },
+          {
+            action: "FLIP to retrograde",
+            detail: `When range to target ≤ ${this._formatDistance(flipRange)}`,
+            trigger: { distance_remaining: flipRange }
+          },
+          {
+            action: `BRAKE at ${interceptG}G`,
+            detail: `Burn ${this._formatTime(t_brake)} · arrive with zero relative velocity`,
+            trigger: { distance_remaining: 0 }
+          },
+        ]
+      : [
+          {
+            action: "FLIP to retrograde",
+            detail: "Already within braking distance — brake immediately",
+            trigger: { distance_remaining: range }
+          },
+          {
+            action: `BRAKE at ${interceptG}G`,
+            detail: `Burn ${this._formatTime(t_brake)}`,
+            trigger: { distance_remaining: 0 }
+          },
+        ];
 
     const plan = {
       name: "Intercept Plan",
       type: "intercept",
       source: "flight_computer",
       target: { contact_id: targetId },
-      steps: maneuverPlan.map(step => ({
-        action: step.action,
-        detail: step.detail,
-        trigger: step.trigger
-      }))
+      steps: maneuverPlan.map(s => ({ action: s.action, detail: s.detail, trigger: s.trigger }))
     };
 
     return {
       range,
-      closingRate,
-      timeToIntercept,
+      closingRate: closingSpeed,
+      timeToIntercept: t_total,
       deltaV,
-      burnDuration,
-      flipPoint: range / 2,
-      heading: { pitch, yaw },
+      burnDuration: t_burn,
+      flipPoint: flipRange,
+      heading: burnHeading,
+      // intercept-specific fields
+      t_burn,
+      t_brake,
+      t_total,
+      flipRange,
+      burnHeading,
       targetId,
       maneuverPlan,
       plan,
       command: {
         type: "intercept",
         target: targetId,
-        g: interceptG
+        g: interceptG,
       }
     };
   }
@@ -937,6 +1063,19 @@ class ManeuverPlanner extends HTMLElement {
     const maneuverPlan = this.shadowRoot.getElementById("maneuver-plan");
     const maneuverSteps = this.shadowRoot.getElementById("maneuver-steps");
 
+    // Dynamic labels based on mode
+    const isIntercept = this._mode === "intercept";
+    this.shadowRoot.querySelector("#sol-tti").closest(".solution-item").querySelector(".solution-label")
+      .textContent = isIntercept ? "Burn Time" : "Time to Target";
+    this.shadowRoot.querySelector("#sol-dv").closest(".solution-item").querySelector(".solution-label")
+      .textContent = isIntercept ? "Total Time" : "Required Delta-V";
+    this.shadowRoot.querySelector("#sol-burn").closest(".solution-item").querySelector(".solution-label")
+      .textContent = isIntercept ? "Brake Time" : "Burn Duration";
+    this.shadowRoot.querySelector("#sol-flip").closest(".solution-item").querySelector(".solution-label")
+      .textContent = isIntercept ? "Flip at Range" : "Flip Point";
+    this.shadowRoot.querySelector("#sol-heading").closest(".solution-item").querySelector(".solution-label")
+      .textContent = isIntercept ? "Intercept Heading" : "Suggested Heading";
+
     if (!sol) {
       rangeEl.textContent = "--";
       closingEl.textContent = "--";
@@ -946,16 +1085,33 @@ class ManeuverPlanner extends HTMLElement {
       flipEl.textContent = "--";
       headingEl.textContent = "P: -- | Y: --";
       maneuverPlan.style.display = "none";
+      // Disable phase buttons when no solution
+      this._setPhaseButtonsEnabled(false, null);
       return;
     }
 
     rangeEl.textContent = this._formatDistance(sol.range);
     closingEl.textContent = `${sol.closingRate.toFixed(1)} m/s`;
-    ttiEl.textContent = this._formatTime(sol.timeToIntercept);
-    dvEl.textContent = `${sol.deltaV.toFixed(1)} m/s`;
-    burnEl.textContent = this._formatTime(sol.burnDuration);
-    flipEl.textContent = this._formatDistance(sol.flipPoint);
+    // For intercept: show burn time / total time / brake time / flip-at-range
+    if (isIntercept && sol.t_burn != null) {
+      ttiEl.textContent = this._formatTime(sol.t_burn);
+      dvEl.textContent = this._formatTime(sol.t_total);
+      burnEl.textContent = this._formatTime(sol.t_brake);
+      flipEl.textContent = this._formatDistance(sol.flipRange);
+    } else {
+      ttiEl.textContent = this._formatTime(sol.timeToIntercept);
+      dvEl.textContent = `${sol.deltaV.toFixed(1)} m/s`;
+      burnEl.textContent = this._formatTime(sol.burnDuration);
+      flipEl.textContent = this._formatDistance(sol.flipPoint);
+    }
     headingEl.textContent = `P: ${sol.heading.pitch.toFixed(1)} | Y: ${sol.heading.yaw.toFixed(1)}`;
+
+    // Update phase button durations and enable state
+    if (isIntercept && sol.t_burn != null) {
+      this._setPhaseButtonsEnabled(true, sol);
+    } else {
+      this._setPhaseButtonsEnabled(false, null);
+    }
 
     // Show maneuver plan
     if (sol.maneuverPlan && sol.maneuverPlan.length > 0) {
@@ -1041,6 +1197,77 @@ class ManeuverPlanner extends HTMLElement {
     } catch (error) {
       console.error("Execute failed:", error);
       this._showMessage(`Execution failed: ${error.message}`, "error");
+    }
+  }
+
+  _setPhaseButtonsEnabled(enabled, sol) {
+    const burnBtn  = this.shadowRoot.getElementById("phase-burn-btn");
+    const brakeBtn = this.shadowRoot.getElementById("phase-brake-btn");
+    const burnDur  = this.shadowRoot.getElementById("burn-phase-dur");
+    const brakeDur = this.shadowRoot.getElementById("brake-phase-dur");
+
+    if (!burnBtn) return;
+
+    const hasBurn = enabled && sol && sol.t_burn > 0.5;
+    burnBtn.disabled  = !hasBurn;
+    brakeBtn.disabled = !enabled;
+    burnDur.textContent  = hasBurn ? this._formatTime(sol.t_burn) : "--";
+    brakeDur.textContent = enabled && sol ? this._formatTime(sol.t_brake) : "--";
+  }
+
+  async _executePhase(phase) {
+    const sol = this._computedSolution;
+    const feedbackEl = this.shadowRoot.getElementById("exec-feedback");
+    const showFeedback = (msg, ok = true) => {
+      if (!feedbackEl) return;
+      feedbackEl.style.color = ok ? "var(--status-nominal, #00ff88)" : "var(--status-critical, #ff4444)";
+      feedbackEl.textContent = msg;
+      setTimeout(() => { if (feedbackEl) feedbackEl.textContent = ""; }, 3000);
+    };
+
+    try {
+      switch (phase) {
+        case "burn": {
+          if (!sol || sol.t_burn < 0.5) {
+            showFeedback("No burn phase — brake immediately", false);
+            return;
+          }
+          await wsClient.sendShipCommand("execute_burn", {
+            duration: Math.round(sol.t_burn * 10) / 10,
+            g: sol.command.g,
+            pitch: Math.round(sol.burnHeading.pitch * 10) / 10,
+            yaw: Math.round(sol.burnHeading.yaw * 10) / 10,
+          });
+          showFeedback(`Burn queued — ${this._formatTime(sol.t_burn)} @ ${sol.command.g}G`);
+          break;
+        }
+
+        case "flip": {
+          // Server computes retrograde from live velocity at execution time
+          await wsClient.sendShipCommand("flip_and_burn", { auto_burn: false });
+          showFeedback("Flip to retrograde queued");
+          break;
+        }
+
+        case "brake": {
+          if (!sol) { showFeedback("No solution — compute first", false); return; }
+          // Burns at current heading — assumes ship already flipped to retrograde
+          await wsClient.sendShipCommand("execute_burn", {
+            duration: Math.round(sol.t_brake * 10) / 10,
+            g: sol.command.g,
+          });
+          showFeedback(`Brake queued — ${this._formatTime(sol.t_brake)} @ ${sol.command.g}G`);
+          break;
+        }
+
+        case "cut": {
+          await wsClient.sendShipCommand("emergency_stop", {});
+          showFeedback("Thrust cut");
+          break;
+        }
+      }
+    } catch (err) {
+      showFeedback(`Failed: ${err.message}`, false);
     }
   }
 
