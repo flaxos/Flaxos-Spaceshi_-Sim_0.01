@@ -9,14 +9,14 @@
   }>();
 
   const STATIONS = [
-    { id: "captain",         label: "CAPTAIN",         color: "#ffcc00" },
-    { id: "helm",            label: "HELM",            color: "#00aaff" },
-    { id: "tactical",        label: "TACTICAL",        color: "#ff4444" },
-    { id: "ops",             label: "OPS",             color: "#00ff88" },
-    { id: "engineering",     label: "ENGINEERING",     color: "#ff8800" },
-    { id: "comms",           label: "COMMS",           color: "#aa88ff" },
-    { id: "science",         label: "SCIENCE",         color: "#44ddff" },
-    { id: "fleet_commander", label: "FLEET CMDR",      color: "#ff66cc" },
+    { id: "captain",         label: "CAPTAIN",         icon: "✦", desc: "Full command authority", color: "#ffcc00" },
+    { id: "helm",            label: "HELM",            icon: "⛵", desc: "Flight and navigation", color: "#00aaff" },
+    { id: "tactical",        label: "TACTICAL",        icon: "⊕", desc: "Weapons and fire control", color: "#ff4444" },
+    { id: "ops",             label: "OPS",             icon: "⚙", desc: "Crew and ship operations", color: "#00ff88" },
+    { id: "engineering",     label: "ENGINEERING",     icon: "⚛", desc: "Reactor and thermal control", color: "#ff8800" },
+    { id: "comms",           label: "COMMS",           icon: "◈", desc: "Hailing and traffic", color: "#aa88ff" },
+    { id: "science",         label: "SCIENCE",         icon: "◎", desc: "Sensor analysis", color: "#44ddff" },
+    { id: "fleet_commander", label: "FLEET CMDR",      icon: "◇", desc: "Fleet coordination", color: "#ff66cc" },
   ];
 
   let registered = false;
@@ -87,6 +87,7 @@
       if (resp && resp.ok !== false) {
         claimedStation = stationId;
         setStatus(`Station: ${stationId.toUpperCase()}`, "success");
+        expanded = false;
         dispatch("station-claimed", { station: stationId });
       } else {
         setStatus(`Claim failed: ${resp?.error ?? "rejected"}`, "error");
@@ -178,6 +179,10 @@
   function stationColor(id: string): string {
     return STATIONS.find((s) => s.id === id)?.color ?? "#888899";
   }
+
+  function stationMeta(id: string) {
+    return STATIONS.find((s) => s.id === id);
+  }
 </script>
 
 <div class="station-selector">
@@ -200,9 +205,30 @@
 
   {#if expanded}
     <div class="station-panel">
+      <div class="panel-summary">
+        <div class="summary-chip" class:ok={registered}>
+          <span class="chip-label">Link</span>
+          <span class="chip-value">{registered ? "READY" : "OFFLINE"}</span>
+        </div>
+        <div class="summary-chip" class:ok={!!assignedShipId}>
+          <span class="chip-label">Ship</span>
+          <span class="chip-value">{assignedShipId ?? "UNASSIGNED"}</span>
+        </div>
+        <div class="summary-chip" class:ok={!!claimedStation}>
+          <span class="chip-label">Role</span>
+          <span class="chip-value">{claimedStation ? (stationMeta(claimedStation)?.label ?? claimedStation.toUpperCase()) : "OPEN"}</span>
+        </div>
+      </div>
       <div class="status-row status-{statusVariant}">{statusText}</div>
 
       {#if claimedStation}
+        <div class="claimed-card" style="--claimed-color: {stationColor(claimedStation)};">
+          <div class="claimed-icon">{stationMeta(claimedStation)?.icon ?? "•"}</div>
+          <div class="claimed-copy">
+            <div class="claimed-label">{stationMeta(claimedStation)?.label ?? claimedStation}</div>
+            <div class="claimed-desc">{stationMeta(claimedStation)?.desc ?? "Active bridge assignment"}</div>
+          </div>
+        </div>
         <button class="release-btn" disabled={isProcessing} on:click={releaseStation}>
           Release Station
         </button>
@@ -214,10 +240,14 @@
               class:full-width={i === STATIONS.length - 1 && STATIONS.length % 2 !== 0}
               disabled={!canClaim || claimedStation === s.id}
               class:active={claimedStation === s.id}
-              style={claimedStation === s.id ? `border-color: ${s.color}; color: ${s.color}; background: rgba(${hexToRgb(s.color)}, 0.12)` : ""}
+              style="--station-color: {s.color}; --station-rgb: {hexToRgb(s.color)}"
               on:click={() => claimStation(s.id)}
             >
-              {s.label}
+              <span class="station-btn-icon" aria-hidden="true">{s.icon}</span>
+              <span class="station-btn-copy">
+                <span class="station-btn-label">{s.label}</span>
+                <span class="station-btn-desc">{s.desc}</span>
+              </span>
             </button>
           {/each}
         </div>
@@ -260,12 +290,58 @@
     top: calc(100% + 6px);
     left: 0;
     z-index: 200;
-    background: var(--bg-panel);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.018), transparent 18%),
+      var(--bg-panel);
     border: 1px solid var(--border-default);
     border-radius: var(--radius-sm);
     padding: var(--space-sm);
-    min-width: 220px;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+    min-width: 320px;
+    box-shadow: 0 10px 34px rgba(0,0,0,0.58);
+  }
+
+  .panel-summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    margin-bottom: var(--space-sm);
+  }
+
+  .summary-chip {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 7px 8px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    background: var(--bg-input);
+    min-width: 0;
+  }
+
+  .summary-chip.ok {
+    border-color: rgba(var(--tier-accent-rgb, 30, 140, 255), 0.3);
+    background: rgba(var(--tier-accent-rgb, 30, 140, 255), 0.08);
+  }
+
+  .chip-label,
+  .chip-value {
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+  }
+
+  .chip-label {
+    font-size: 0.52rem;
+    letter-spacing: 0.1em;
+    color: var(--text-dim);
+  }
+
+  .chip-value {
+    font-size: 0.58rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .status-row {
@@ -281,26 +357,119 @@
   .station-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 5px;
+    gap: 6px;
+  }
+
+  .claimed-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: var(--space-sm);
+    padding: 10px;
+    border: 1px solid rgba(var(--tier-accent-rgb, 30, 140, 255), 0.24);
+    border-left: 3px solid var(--claimed-color, var(--tier-accent));
+    border-radius: var(--radius-sm);
+    background: rgba(var(--tier-accent-rgb, 30, 140, 255), 0.08);
+  }
+
+  .claimed-icon {
+    width: 28px;
+    height: 28px;
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--claimed-color, var(--tier-accent));
+    font-size: 0.95rem;
+    flex-shrink: 0;
+  }
+
+  .claimed-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .claimed-label,
+  .claimed-desc {
+    font-family: var(--font-mono);
+  }
+
+  .claimed-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: 0.06em;
+  }
+
+  .claimed-desc {
+    font-size: 0.55rem;
+    color: var(--text-secondary);
   }
 
   .station-btn {
-    padding: 8px 6px;
-    font-family: var(--font-mono);
-    font-size: var(--font-size-xs);
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    text-align: center;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px 9px;
+    text-align: left;
     border-radius: var(--radius-sm);
     cursor: pointer;
     min-height: unset;
     transition: all var(--transition-fast);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.018), transparent 70%),
+      var(--bg-input);
+    border: 1px solid rgba(var(--station-rgb, 136, 136, 153), 0.22);
   }
 
   .station-btn:disabled { opacity: 0.35; cursor: not-allowed; }
-  .station-btn:hover:not(:disabled) { background: var(--bg-hover); }
+  .station-btn:hover:not(:disabled) {
+    background:
+      linear-gradient(180deg, rgba(var(--station-rgb, 136, 136, 153), 0.12), transparent 70%),
+      var(--bg-hover);
+    border-color: rgba(var(--station-rgb, 136, 136, 153), 0.58);
+    transform: translateY(-1px);
+  }
   .station-btn.full-width { grid-column: 1 / -1; }
+
+  .station-btn-icon {
+    width: 22px;
+    display: grid;
+    place-items: center;
+    color: var(--station-color, var(--tier-accent));
+    font-size: 0.95rem;
+    line-height: 1;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .station-btn-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+  }
+
+  .station-btn-label,
+  .station-btn-desc {
+    font-family: var(--font-mono);
+  }
+
+  .station-btn-label {
+    font-size: 0.61rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--text-primary);
+    text-transform: uppercase;
+  }
+
+  .station-btn-desc {
+    font-size: 0.54rem;
+    color: var(--text-secondary);
+    line-height: 1.35;
+  }
 
   .release-btn {
     width: 100%;
@@ -333,7 +502,7 @@
       left: 0;
       right: 0;
       min-width: 0;
-      max-width: min(100vw - 12px, 360px);
+      max-width: min(100vw - 12px, 420px);
       max-height: min(60vh, 420px);
       overflow-y: auto;
     }

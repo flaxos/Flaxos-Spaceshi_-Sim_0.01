@@ -137,7 +137,7 @@ RAILGUN_SPECS = WeaponSpecs(
     ammo_capacity=20,  # Limited heavy rounds
     mass_per_round=5.0,  # 5 kg tungsten penetrator
     reload_time=0.0,  # Railgun uses electromagnetic acceleration, no magazine reload
-    power_per_shot=50.0,  # High power draw
+    power_per_shot=15.0,  # Balanced for 4-shot volley before heat saturation
     charge_time=2.0,  # 2 second charge
     base_accuracy=0.85,  # High accuracy
     accuracy_falloff=0.3,  # Maintains accuracy at range
@@ -154,9 +154,9 @@ PDC_SPECS = WeaponSpecs(
     base_damage=5.0,  # Light damage per round (ablative, not penetrating)
     subsystem_damage=3.0,  # Can chip away at external subsystems
     armor_penetration=0.5,  # Poor vs heavy armor — strips plating, doesn't punch
-    cycle_time=0.02,  # 50 rps = 3000 RPM per turret (Expanse CIWS fire rate)
+    cycle_time=0.2,  # 5 bursts of 10 = 50 rps = 3000 RPM per turret
     burst_count=10,  # Longer bursts — sustained fire strips armor
-    burst_delay=0.02,  # Matches cycle time for continuous stream
+    burst_delay=0.02,  # Delay between rounds in the burst
     ammo_capacity=3000,  # High ammo count — bullet hose needs deep magazines
     mass_per_round=0.05,  # 50g 40mm autocannon rounds
     reload_time=3.0,  # 3 seconds to swap magazine (every 200 rounds)
@@ -1277,30 +1277,25 @@ class TruthWeapon:
                 return {"ok": False, "reason": "no_ammo"}
             self.ammo -= 1
 
+        # Heat generation (per burst, not per round)
+        self.heat += 10.0 * (1.0 / max(0.5, damage_factor))
+        if damage_model is not None:
+            heat_scale = self.specs.subsystem_damage / max(1.0, self.specs.base_damage)
+            heat_amount = self.specs.power_per_shot * (1.0 + heat_scale)
+            if heat_amount > 0:
+                damage_model.add_heat("weapons", heat_amount, event_bus, ship_id)
+
         for shot_i in range(self.specs.burst_count):
-            burst_rounds += 1
-
-            # Magazine reload check per round (> 0: only count live rounds)
-            if self._magazine_size > 0 and self.ammo is not None and self.ammo > 0:
-                self._rounds_since_reload += 1
-                if self._rounds_since_reload >= self._magazine_size:
-                    self.reloading = True
-                    self._reload_timer = self.specs.reload_time
-                    self.reload_progress = 0.0
-                    self.event_bus.publish("weapon_reloading", {
-                        "weapon": self.specs.name,
-                        "mount_id": self.mount_id,
-                        "reload_time": self.specs.reload_time,
-                    })
+            if self.ammo <= 0:
+                if self.specs.reload_time > 0 and self.inventory:
+                    self.inventory.start_reload(self.mount_id, self.specs.name, self.specs.reload_time)
+                    if self.event_bus:
+                        self.event_bus.publish("weapon_reloading", {
+                            "weapon": self.specs.name,
+                            "mount_id": self.mount_id,
+                            "reload_time": self.specs.reload_time,
+                        })
                     break  # Stop burst on reload
-
-            # Heat per round
-            self.heat += 10.0 * (1.0 / max(0.5, damage_factor))
-            if damage_model is not None:
-                heat_scale = self.specs.subsystem_damage / max(1.0, self.specs.base_damage)
-                heat_amount = self.specs.power_per_shot * (1.0 + heat_scale)
-                if heat_amount > 0:
-                    damage_model.add_heat("weapons", heat_amount, event_bus, ship_id)
 
             # Hit roll per round
             hit = random.random() < self.current_solution.hit_probability
@@ -1310,9 +1305,24 @@ class TruthWeapon:
 
             if hit and target_ship:
                 # Use hit-location physics for PDC hits
-                hit_loc = self._compute_instant_hit_location(target_ship)
-                pen_factor = hit_loc.penetration_factor if hit_loc else 1.0
-                is_ricochet = hit_loc.is_ricochet if hit_loc else False
+                hit_result = self._compute_instant_hit_location(target_ship)
+                hit_loc, proj_vel = hit_result if hit_result else (None, None)
+
+                # Resolve penetration through the mutable armor model when available.
+                armor_model = getattr(target_ship, "armor_model", None)
+                if armor_model is not None and hit_loc is not None:
+                    armor_result = armor_model.resolve_hit(
+                        section=hit_loc.armor_section,
+                        projectile_velocity=proj_vel,
+                        projectile_mass=self.specs.mass_per_round,
+                        armor_penetration_rating=self.specs.armor_penetration,
+                        angle_of_incidence=hit_loc.angle_of_incidence,
+                    )
+                    pen_factor = armor_result.penetration_factor
+                    is_ricochet = armor_result.is_ricochet
+                else:
+                    pen_factor = hit_loc.penetration_factor if hit_loc else 1.0
+                    is_ricochet = hit_loc.is_ricochet if hit_loc else False
 
                 if is_ricochet:
                     effective_damage = self.specs.base_damage * damage_factor * 0.1
@@ -1462,7 +1472,7 @@ class TruthWeapon:
             target_ship: Target ship object
 
         Returns:
-            HitLocation or None if ship lacks required data
+            Tuple of (HitLocation, projectile_velocity_dict) or None if ship lacks required data
         """
         if not target_ship or not hasattr(target_ship, 'position'):
             return None
@@ -1474,11 +1484,14 @@ class TruthWeapon:
 
         # PDC projectile velocity toward intercept point
         intercept = solution.intercept_point
-        target_pos = target_ship.position
+        shooter_pos = {"x": 0, "y": 0, "z": 0}
+        if hasattr(self, '_ship_ref') and self._ship_ref and hasattr(self._ship_ref, 'position'):
+            shooter_pos = self._ship_ref.position
+            
         aim_vec = {
-            "x": intercept["x"] - target_pos["x"],
-            "y": intercept["y"] - target_pos["y"],
-            "z": intercept["z"] - target_pos["z"],
+            "x": intercept["x"] - shooter_pos["x"],
+            "y": intercept["y"] - shooter_pos["y"],
+            "z": intercept["z"] - shooter_pos["z"],
         }
         # Normalize and scale to muzzle velocity
         aim_mag = math.sqrt(aim_vec["x"]**2 + aim_vec["y"]**2 + aim_vec["z"]**2)
@@ -1503,7 +1516,7 @@ class TruthWeapon:
             subsystem_names = list(target_ship.damage_model.subsystems.keys())
 
         try:
-            return compute_hit_location(
+            hit_loc = compute_hit_location(
                 projectile_velocity=proj_vel,
                 projectile_mass=self.specs.mass_per_round,
                 projectile_armor_pen=self.specs.armor_penetration,
@@ -1515,6 +1528,7 @@ class TruthWeapon:
                 ship_weapon_mounts=ship_weapon_mounts,
                 ship_subsystems=subsystem_names,
             )
+            return (hit_loc, proj_vel)
         except Exception as e:
             logger.warning(f"Hit location calc failed for PDC: {e}")
             return None

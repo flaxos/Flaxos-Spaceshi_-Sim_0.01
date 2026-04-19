@@ -90,7 +90,7 @@ class TestAuthorization:
         """All weapon types start deauthorized."""
         mgr = AutoFireManager()
         state = mgr.get_state()
-        assert state["authorized"] == {"railgun": False, "torpedo": False, "missile": False}
+        assert state["authorized"] == {"railgun": False, "torpedo": False, "missile": False, "pdc": False}
 
     def test_authorize_railgun(self):
         """Authorizing railgun sets its state to True."""
@@ -145,7 +145,7 @@ class TestAuthorization:
         result = mgr.cease_fire()
         assert result["ok"] is True
         state = mgr.get_state()
-        assert state["authorized"] == {"railgun": False, "torpedo": False, "missile": False}
+        assert state["authorized"] == {"railgun": False, "torpedo": False, "missile": False, "pdc": False}
 
 
 class TestTickRailgun:

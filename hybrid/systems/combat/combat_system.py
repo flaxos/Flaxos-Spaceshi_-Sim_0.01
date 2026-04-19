@@ -452,10 +452,10 @@ class CombatSystem(BaseSystem):
 
         # Get power manager
         power = self._ship_ref.systems.get("power_management") or self._ship_ref.systems.get("power")
+        targeting = self._ship_ref.systems.get("targeting")
 
         # Get target from targeting system if not provided
         if target_ship is None:
-            targeting = self._ship_ref.systems.get("targeting")
             if targeting and targeting.locked_target:
                 locked_id = targeting.locked_target
                 # Resolve contact ID to real ship ID via sensor contact tracker
@@ -470,8 +470,59 @@ class CombatSystem(BaseSystem):
                                 target_ship = ships_dict.get(real_id)
                                 break
 
+        resolved_contact_id = None
+        if target_ship is not None and targeting:
+            sensors = self._ship_ref.systems.get("sensors")
+            if targeting.locked_target:
+                locked_id = targeting.locked_target
+                if target_ship.id == locked_id:
+                    resolved_contact_id = locked_id
+                elif sensors and hasattr(sensors, "contact_tracker"):
+                    tracker = sensors.contact_tracker
+                    for real_id, stable_id in tracker.id_mapping.items():
+                        if stable_id == locked_id and real_id == target_ship.id:
+                            resolved_contact_id = locked_id
+                            break
+
+            if not resolved_contact_id and sensors and hasattr(sensors, "contact_tracker"):
+                tracker = sensors.contact_tracker
+                for real_id, stable_id in tracker.id_mapping.items():
+                    if real_id == target_ship.id:
+                        resolved_contact_id = stable_id
+                        break
+
+            if not resolved_contact_id:
+                resolved_contact_id = target_ship.id
+
+            current_target_id = getattr(weapon.current_solution, "target_id", None)
+            if current_target_id != resolved_contact_id or not weapon.current_solution:
+                track_quality = getattr(targeting, "track_quality", 1.0)
+                multi_track = getattr(targeting, "multi_track", None)
+                if multi_track and resolved_contact_id:
+                    for track in getattr(multi_track, "tracks", []):
+                        if getattr(track, "contact_id", None) == resolved_contact_id:
+                            track_quality = max(0.15, track_quality * getattr(track, "quality_modifier", 1.0))
+                            break
+
+                target_accel = None
+                if hasattr(targeting, "_get_target_accel") and targeting.locked_target == resolved_contact_id:
+                    target_accel = targeting._get_target_accel()
+
+                weapon.calculate_solution(
+                    shooter_pos=self._ship_ref.position,
+                    shooter_vel=self._ship_ref.velocity,
+                    target_pos=target_ship.position,
+                    target_vel=target_ship.velocity,
+                    target_id=resolved_contact_id,
+                    sim_time=self._sim_time,
+                    track_quality=track_quality,
+                    shooter_angular_vel=getattr(self._ship_ref, "angular_velocity", None),
+                    weapon_damage_factor=self._damage_factor,
+                    target_accel=target_accel,
+                    shooter_heading=getattr(self._ship_ref, "orientation", None),
+                )
+
         if target_subsystem is None:
-            targeting = self._ship_ref.systems.get("targeting")
             if targeting and hasattr(targeting, "target_subsystem"):
                 target_subsystem = targeting.target_subsystem
 
@@ -1162,11 +1213,25 @@ class CombatSystem(BaseSystem):
         Returns:
             dict: Result
         """
-        if action == "fire":
+        if action in ("fire", "fire_pdc", "fire_railgun"):
             # GUI sends mount_id, accept all common param names
             weapon_id = (params.get("weapon_id")
                          or params.get("weapon")
                          or params.get("mount_id"))
+            
+            # Auto-assign if missing but implied by action name
+            if not weapon_id:
+                if action == "fire_pdc":
+                    for mid in self.truth_weapons:
+                        if mid.startswith("pdc"):
+                            weapon_id = mid
+                            break
+                elif action == "fire_railgun":
+                    for mid in self.truth_weapons:
+                        if mid.startswith("railgun"):
+                            weapon_id = mid
+                            break
+
             if not weapon_id:
                 return error_dict("MISSING_PARAMETER", "weapon_id required")
 
@@ -1365,6 +1430,43 @@ class CombatSystem(BaseSystem):
         weapons_state = {}
         for weapon_id, weapon in self.truth_weapons.items():
             weapons_state[weapon_id] = weapon.get_state()
+
+        # Inject mock truth_weapons for torpedo and missile launchers to make them selectable in V3 GUI.
+        # Extra tubes/launchers are scaffolding for GUI mount selection; the real ammo pool is
+        # ship-wide (torpedoes_loaded / missiles_loaded). Show the true loaded count on the first
+        # tube so the player sees the full magazine; other tubes display 0 rather than a clipped
+        # per-tube slice (which misreported stock when loaded > torpedo_capacity).
+        for i in range(self.torpedo_tubes):
+            mid = f"torpedo_tube_{i+1}"
+            # Tube 0 shows the real loaded count; extra tubes are empty scaffolding
+            ammo = self.torpedoes_loaded if i == 0 else 0
+            ammo_capacity = self.torpedo_capacity * self.torpedo_tubes  # total ship capacity
+            weapons_state[mid] = {
+                "id": mid, "name": f"Torpedo Tube {i+1}", "type": "torpedo_launcher",
+                "weapon_type": "torpedo", "enabled": True,
+                "ready": self.torpedoes_loaded > 0 and self._torpedo_cooldown <= 0,
+                "ammo": ammo, "ammo_capacity": ammo_capacity,
+                "status": "ready" if self._torpedo_cooldown <= 0 else "standby",
+                "reloading": self._torpedo_cooldown > 0,
+                "cooldown": self.torpedo_reload_time,
+                "cooldown_remaining": self._torpedo_cooldown,
+            }
+
+        for i in range(self.missile_launchers):
+            mid = f"missile_launcher_{i+1}"
+            # Launcher 0 shows the real loaded count; extra launchers are empty scaffolding
+            ammo = self.missiles_loaded if i == 0 else 0
+            ammo_capacity = self.missile_capacity * self.missile_launchers  # total ship capacity
+            weapons_state[mid] = {
+                "id": mid, "name": f"Missile Silo {i+1}", "type": "missile_launcher",
+                "weapon_type": "missile", "enabled": True,
+                "ready": self.missiles_loaded > 0 and self._missile_cooldown <= 0,
+                "ammo": ammo, "ammo_capacity": ammo_capacity,
+                "status": "ready" if self._missile_cooldown <= 0 else "standby",
+                "reloading": self._missile_cooldown > 0,
+                "cooldown": self.missile_reload_time,
+                "cooldown_remaining": self._missile_cooldown,
+            }
 
         # Summarize PDC mode from PDC mounts
         pdc_mode = "hold_fire"

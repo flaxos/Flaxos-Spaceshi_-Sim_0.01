@@ -36,7 +36,7 @@ cd /path/to/spaceship-sim
 python tools/start_gui_stack.py --browser --rcon-password 'replace-this-with-a-strong-secret'
 ```
 
-This starts the current default Svelte stack and, with `--browser`, opens the GUI at `http://localhost:3100/`:
+This starts the current default **v3 bridge UI** and, with `--browser`, opens the GUI at `http://localhost:3100/`:
 
 | Process | Default Port |
 |---------|-------------|
@@ -59,7 +59,7 @@ python tools/start_gui_stack.py --tcp-port 9000 --ws-port 9001 --http-port 3200
 # Open a browser automatically
 python tools/start_gui_stack.py --browser
 
-# Set an explicit RCON password for Config > Server admin controls
+# Set an explicit RCON password for Mission > Server admin controls
 python tools/start_gui_stack.py --rcon-password 'replace-this'
 
 # Secure remote/LAN use: restrict browser origin, require WS auth, and set RCON
@@ -78,9 +78,9 @@ python -m server.main --port 9000      # Custom port
 ### Connect and play
 
 1. Open `http://localhost:3100/` in a browser
-2. The GUI connects to the WebSocket bridge automatically
-3. Select a bridge station (Helm, Tactical, OPS, etc.)
-4. You are on the bridge
+2. The v3 bridge UI connects to the WebSocket bridge automatically
+3. Open `Mission`, load a scenario, and join a bridge station
+4. Use the bridge header to move between the playable station workflows
 
 ### Server Admin / UAT
 
@@ -88,7 +88,7 @@ For repeatable UAT runs, start the stack with a non-default RCON password and us
 
 1. Launch with `python tools/start_gui_stack.py --browser --rcon-password 'replace-this'`
 2. Load a scenario and claim a station
-3. Open `Config > Server`
+3. Open `Mission > Server`
 4. Authenticate with the RCON password
 5. Use the panel for:
    - server uptime and mission uptime visibility
@@ -122,7 +122,7 @@ python3 tools/uat_monitor.py --follow --fail-on-critical
 For remote browser access over ZeroTier, use all three controls together:
 
 1. `--game-code` to gate the WebSocket bridge
-2. `--rcon-password` for admin actions in `Config > Server`
+2. `--rcon-password` for admin actions in `Mission > Server`
 3. `--allowed-origin-host <zerotier-ip-or-hostname>` to restrict browser origins hitting the bridge
 
 Recommended example:

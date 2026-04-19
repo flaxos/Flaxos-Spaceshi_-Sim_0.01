@@ -1,5 +1,8 @@
-/* Flaxos GUI — App base layout */
+/* Flaxos GUI — App base layout
+ * Mirrors tokens + animations from tools/design_reference_v2.html
+ */
 
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap");
 @import "./tokens.css";
 
 *,
@@ -19,7 +22,7 @@ html {
 body {
   font-family: var(--font-sans);
   font-size: var(--font-size-base);
-  color: var(--text-primary);
+  color: var(--tx-primary);
   background-color: var(--bg-void);
   line-height: 1.5;
   height: 100%;
@@ -29,15 +32,15 @@ body {
   position: relative;
 }
 
-/* Noise overlay */
+/* ── Noise overlay (prototype-matched) ── */
 body::before {
-  content: '';
+  content: "";
   position: fixed;
   inset: 0;
   pointer-events: none;
   z-index: 0;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
-  opacity: var(--noise-opacity, 0.018);
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 300 300' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.72' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: var(--noise-opacity, 0.016);
 }
 
 #app {
@@ -50,14 +53,14 @@ body::before {
 
 /* ── Bridge chrome regions ── */
 .status-bar {
-  flex: 0 0 32px;
-  min-height: 32px;
+  flex: 0 0 36px;
+  min-height: 36px;
   display: flex;
   align-items: center;
-  background: var(--bg-panel);
-  border-bottom: 2px solid var(--tier-accent, #4488ff);
-  padding: 0 var(--space-sm);
-  gap: var(--space-sm);
+  background: var(--bg-raised);
+  border-bottom: 2px solid var(--tier-accent, #1e8cff);
+  padding: 0 2px;
+  gap: 0;
   font-size: var(--font-size-xs);
   z-index: 100;
 }
@@ -68,7 +71,7 @@ body::before {
   display: flex;
   align-items: center;
   background: var(--bg-panel);
-  border-bottom: 2px solid var(--tier-accent, #4488ff);
+  border-bottom: 2px solid var(--tier-accent, #1e8cff);
   padding: 0 var(--space-sm);
   gap: var(--space-sm);
   z-index: 99;
@@ -79,8 +82,8 @@ body::before {
   min-height: 36px;
   display: flex;
   align-items: stretch;
-  background: var(--bg-panel);
-  border-bottom: 1px solid var(--border-default);
+  background: var(--bg-raised);
+  border-bottom: 1px solid var(--bd-default);
   padding: 0 var(--space-xs);
   gap: 2px;
   z-index: 98;
@@ -108,7 +111,7 @@ body::before {
 h1, h2, h3, h4, h5, h6 {
   font-weight: 600;
   line-height: 1.3;
-  color: var(--text-bright);
+  color: var(--tx-bright);
 }
 
 h1 { font-size: var(--font-size-xl); }
@@ -119,9 +122,9 @@ h3 { font-size: var(--font-size-base); }
 button {
   font-family: inherit;
   cursor: pointer;
-  border: 1px solid var(--border-default);
+  border: 1px solid var(--bd-default);
   background: var(--bg-input);
-  color: var(--text-primary);
+  color: var(--tx-primary);
   border-radius: var(--radius-sm);
   padding: var(--space-xs) var(--space-sm);
   font-size: var(--font-size-xs);
@@ -130,7 +133,7 @@ button {
 
 button:hover:not(:disabled) {
   background: var(--bg-hover);
-  border-color: var(--border-active);
+  border-color: var(--bd-active);
 }
 
 button:disabled {
@@ -143,33 +146,41 @@ input, select, textarea {
   font-family: inherit;
   font-size: var(--font-size-sm);
   background: var(--bg-input);
-  color: var(--text-primary);
-  border: 1px solid var(--border-default);
+  color: var(--tx-primary);
+  border: 1px solid var(--bd-default);
   border-radius: var(--radius-sm);
   padding: var(--space-xs) var(--space-sm);
 }
 
 input:focus, select:focus, textarea:focus {
   outline: none;
-  border-color: var(--border-focus);
+  border-color: var(--bd-focus);
 }
 
-/* ── Scrollbars ── */
+input[type="range"] {
+  accent-color: var(--tier-accent);
+}
+
+/* ── Scrollbars (thinner, prototype-matched) ── */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 4px;
+  height: 4px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--bg-panel);
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--border-active);
-  border-radius: 3px;
+  background: var(--bd-default);
+  border-radius: 2px;
 }
 
-/* ── 12-column grid base ── */
+::-webkit-scrollbar-thumb:hover {
+  background: var(--bd-active);
+}
+
+/* ── 12-column grid base (legacy) ── */
 .view-grid {
   display: grid;
   grid-template-columns: repeat(12, 1fr);
@@ -177,4 +188,52 @@ input:focus, select:focus, textarea:focus {
   padding: var(--space-xs);
   height: 100%;
   overflow: hidden;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Global animations (prototype-matched)
+═══════════════════════════════════════════════════════════ */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.45; }
+}
+
+@keyframes critFlicker {
+  0%, 88%, 92%, 100% { opacity: 1; }
+  90% { opacity: 0.25; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideRight {
+  from { opacity: 0; transform: translateX(-12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes reloadBar {
+  from { width: 0%; }
+  to   { width: 100%; }
+}
+
+@keyframes pingRing {
+  0%   { transform: scale(1);   opacity: 0.6; }
+  100% { transform: scale(3.5); opacity: 0; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes lockRotate {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
 }

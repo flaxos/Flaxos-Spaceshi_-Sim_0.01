@@ -685,9 +685,12 @@ class TestPDCRangeFalloff:
         )
 
     def test_pdc_fire_rate_is_3000_rpm(self):
-        """PDC cycle_time of 0.02s equals 50 rps = 3000 RPM."""
+        """PDC fires in bursts that sum to 50 rps = 3000 RPM (Expanse CIWS)."""
         from hybrid.systems.weapons.truth_weapons import PDC_SPECS
-        rps = 1.0 / PDC_SPECS.cycle_time
+        # Each trigger pull fires burst_count rounds at burst_delay spacing, and
+        # a new trigger pull happens every cycle_time seconds. Sustained rate is
+        # therefore burst_count / cycle_time rounds per second.
+        rps = PDC_SPECS.burst_count / PDC_SPECS.cycle_time
         rpm = rps * 60
         assert abs(rps - 50.0) < 0.1, f"Expected 50 rps, got {rps:.1f}"
         assert abs(rpm - 3000.0) < 10, f"Expected 3000 RPM, got {rpm:.0f}"

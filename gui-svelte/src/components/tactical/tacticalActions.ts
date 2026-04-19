@@ -1,6 +1,6 @@
 import { wsClient } from "../../lib/ws/wsClient.js";
 
-export type TacticalWeaponType = "railgun" | "torpedo" | "missile";
+export type TacticalWeaponType = "railgun" | "torpedo" | "missile" | "pdc";
 export type MunitionType = "torpedo" | "missile";
 
 export const GUIDANCE_OPTIONS = ["dumb", "guided", "smart"] as const;
@@ -85,7 +85,10 @@ export async function fireArcadeWeapon(
   if (weaponType === "railgun") {
     return fireRailgun({ targetId });
   }
-  return launchDirectMunition(weaponType, { targetId, profile: "direct" });
+  if (weaponType === "pdc") {
+    return firePdc({ targetId });
+  }
+  return launchDirectMunition(weaponType as MunitionType, { targetId, profile: "direct" });
 }
 
 export async function launchSalvo(options: {
@@ -136,4 +139,26 @@ export async function setPdcMode(mode: string) {
 
 export async function setPdcPriority(torpedoIds: string[]) {
   return wsClient.sendShipCommand("set_pdc_priority", { torpedo_ids: torpedoIds });
+}
+
+export async function assignPdcTarget(mountId: string, contactId: string) {
+  return wsClient.sendShipCommand("assign_pdc_target", {
+    mount_id: mountId,
+    contact_id: contactId,
+  });
+}
+
+export async function addTrack(contactId: string) {
+  return wsClient.sendShipCommand("add_track", { contact_id: contactId });
+}
+
+export async function removeTrack(contactId: string) {
+  return wsClient.sendShipCommand("remove_track", { contact_id: contactId });
+}
+
+export async function firePdc(options: { mountId?: string; targetId?: string }) {
+  return wsClient.sendShipCommand("fire_pdc", {
+    weapon_id: options.mountId,
+    ...withOptionalTarget(options.targetId),
+  });
 }
