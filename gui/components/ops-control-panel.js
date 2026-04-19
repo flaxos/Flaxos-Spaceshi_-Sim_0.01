@@ -701,7 +701,7 @@ class OpsControlPanel extends HTMLElement {
     const container = this.shadowRoot.getElementById("ops-proposals");
     if (!enabled || proposals.length === 0) {
       container.innerHTML = enabled
-        ? '<div class="no-proposals">Monitoring subsystems...</div>'
+        ? '<div class="no-proposals">Auto-ops standing by — monitoring subsystems</div>'
         : '';
       return;
     }
