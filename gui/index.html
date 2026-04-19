@@ -201,6 +201,11 @@
       min-height: var(--panel-height-md);
     }
 
+    .helm-guided-burn-panel {
+      grid-column: span 4;
+      min-height: var(--panel-height-sm);
+    }
+
     .helm-queue-panel {
       grid-column: span 4;
       min-height: var(--panel-height-sm);
@@ -736,6 +741,10 @@
         <div class="panel-group" data-label="// COMMAND &amp; CONTROL">
           <flaxos-panel title="Flight Computer" collapsible priority="primary" domain="nav" class="helm-fc-panel">
             <flight-computer-panel></flight-computer-panel>
+          </flaxos-panel>
+
+          <flaxos-panel title="Nav Guidance" collapsible priority="primary" domain="nav" class="helm-guided-burn-panel">
+            <guided-burn-panel></guided-burn-panel>
           </flaxos-panel>
 
           <flaxos-panel title="Manual Flight" collapsible priority="primary" domain="helm" class="helm-manual-flight-panel">

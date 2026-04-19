@@ -378,6 +378,12 @@ body.tier-arcade .helm-rcs-thruster-panel {
   display: none;
 }
 
+/* Guided burn panel — ARCADE exclusive */
+body.tier-raw .helm-guided-burn-panel,
+body.tier-cpu-assist .helm-guided-burn-panel {
+  display: none;
+}
+
 /* ARCADE: Flight Data — standard width beside flight computer */
 body.tier-arcade .view-grid .helm-flight-data-panel {
   grid-column: span 4;
