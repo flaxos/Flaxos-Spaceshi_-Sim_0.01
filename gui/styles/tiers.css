@@ -374,7 +374,8 @@ body.tier-raw .helm-rcs-thruster-panel {
 body.tier-arcade .helm-manual-flight-panel,
 body.tier-arcade .helm-maneuver-panel,
 body.tier-arcade .helm-queue-panel,
-body.tier-arcade .helm-rcs-thruster-panel {
+body.tier-arcade .helm-rcs-thruster-panel,
+body.tier-arcade .helm-orientation-panel {
   display: none;
 }
 
@@ -422,7 +423,8 @@ body.tier-cpu-assist .helm-manual-flight-panel,
 body.tier-cpu-assist .helm-rcs-panel,
 body.tier-cpu-assist .helm-maneuver-panel,
 body.tier-cpu-assist .helm-rcs-thruster-panel,
-body.tier-cpu-assist .helm-balance-game-panel {
+body.tier-cpu-assist .helm-balance-game-panel,
+body.tier-cpu-assist .helm-orientation-panel {
   display: none;
 }
 
@@ -1189,9 +1191,19 @@ body.tier-arcade .fleet-formation-game-panel {
    Scenario, Command, Chat, and Log panels across tiers.
    ========================================================================= */
 
+/* MANUAL: Campaign hub hidden — no meta-game in stick-and-rudder mode */
+body.tier-manual .view-grid .mis-campaign-panel {
+  display: none;
+}
+
 /* RAW: Scenario panel full width — raw mission data exposed */
 body.tier-raw .view-grid .mis-scenario-panel {
   grid-column: span 12;
+}
+
+/* Campaign panel wider in CPU-ASSIST — captain reviews campaign state */
+body.tier-cpu-assist .view-grid .mis-campaign-panel {
+  grid-column: span 8;
 }
 
 /* Command panel: full width in all tiers — mission commands always prominent */

@@ -130,8 +130,8 @@ class FleetOrders extends HTMLElement {
           <div class="proposal-timer"><div class="proposal-timer-fill" style="width:${timerPct}%"></div></div>
           ${p.auto_execute ? `<div class="proposal-countdown${countdownClass}" style="font-size:0.65rem;margin-bottom:6px;">Auto-execute in ${Math.ceil(remaining)}s</div>` : ""}
           <div class="proposal-actions">
-            <button class="btn-approve" data-id="${this._esc(p.proposal_id)}">APPROVE</button>
-            <button class="btn-deny" data-id="${this._esc(p.proposal_id)}">DENY</button>
+            <button class="btn-approve" data-id="${this._esc(p.proposal_id)}">EXECUTE</button>
+            <button class="btn-deny" data-id="${this._esc(p.proposal_id)}">STAND DOWN</button>
           </div>
         </div>`;
       }).join("")

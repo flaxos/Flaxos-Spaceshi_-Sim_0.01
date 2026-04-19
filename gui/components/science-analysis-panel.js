@@ -641,7 +641,7 @@ class ScienceAnalysisPanel extends HTMLElement {
       <div class="section">
         <div class="section-title">Scan Proposals</div>
         <div id="proposals-list">
-          <div class="no-contacts">No pending proposals</div>
+          <div class="no-contacts">Auto-science standing by — no proposals</div>
         </div>
       </div>
 
@@ -683,7 +683,7 @@ class ScienceAnalysisPanel extends HTMLElement {
     if (proposalsList) {
       const proposals = autoSci.proposals || [];
       if (proposals.length === 0) {
-        proposalsList.innerHTML = `<div class="no-contacts">${autoSci.enabled ? "Scanning... no proposals yet" : "Enable auto-science to begin"}</div>`;
+        proposalsList.innerHTML = `<div class="no-contacts">${autoSci.enabled ? "Auto-science standing by — no proposals yet" : "Enable auto-science to begin"}</div>`;
       } else {
         proposalsList.innerHTML = proposals.map(p => {
           const confidence = p.confidence ?? 0;
@@ -702,8 +702,8 @@ class ScienceAnalysisPanel extends HTMLElement {
             <div class="proposal-reason">${p.target || ""} ${p.priority ? "Priority: " + p.priority : ""}</div>
             ${remaining > 0 ? `<div class="proposal-timer"><div class="proposal-timer-fill" style="width:${timerPct}%"></div></div>` : ""}
             <div class="proposal-actions">
-              <button class="proposal-approve" data-approve="${p.id}">APPROVE</button>
-              <button class="proposal-deny" data-deny="${p.id}">DENY</button>
+              <button class="proposal-approve" data-approve="${p.id}">EXECUTE</button>
+              <button class="proposal-deny" data-deny="${p.id}">STAND DOWN</button>
             </div>
           </div>`;
         }).join("");
