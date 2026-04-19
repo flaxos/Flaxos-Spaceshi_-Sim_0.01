@@ -47,6 +47,7 @@ import "../components/docking-panel.js";
 import "../components/flight-data-panel.js";
 import "../components/manual-flight-panel.js";
 import "../components/helm-workflow-strip.js";
+import "../components/nav-phase-strip.js";
 // Phase 11: Tactical Completion
 import "../components/subsystem-selector.js";
 import "../components/threat-board.js";

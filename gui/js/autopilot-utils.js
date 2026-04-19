@@ -14,7 +14,8 @@ import { stateManager } from "./state-manager.js";
 // Phase lists for different autopilot programs
 const GOTO_PHASES = ["ACCELERATE", "COAST", "FLIP", "BRAKE", "ZERO", "HOLD"];
 const RENDEZVOUS_PHASES = ["BURN", "FLIP", "BRAKE", "APPROACH_DECEL", "APPROACH_ROTATE", "APPROACH_COAST", "STATIONKEEP"];
-const INTERCEPT_PHASES = ["INTERCEPT", "APPROACH", "MATCH"];
+// InterceptAutopilot now subclasses RendezvousAutopilot — same phases
+const INTERCEPT_PHASES = RENDEZVOUS_PHASES;
 const ALL_STOP_PHASES = ["CUT", "FLIP", "BRAKE", "ZERO", "HOLD"];
 
 const PROGRAM_PHASES = {

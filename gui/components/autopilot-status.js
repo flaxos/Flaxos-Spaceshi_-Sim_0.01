@@ -17,7 +17,8 @@ import { wsClient } from "../js/ws-client.js";
 // We normalise to uppercase for display and map them into a common ordered list.
 const GOTO_PHASES = ["ACCELERATE", "COAST", "FLIP", "BRAKE", "ZERO", "HOLD"];
 const RENDEZVOUS_PHASES = ["BURN", "FLIP", "BRAKE", "APPROACH_DECEL", "APPROACH_ROTATE", "APPROACH_COAST", "STATIONKEEP"];
-const INTERCEPT_PHASES = ["INTERCEPT", "APPROACH", "MATCH"];
+// InterceptAutopilot now subclasses RendezvousAutopilot — same phases
+const INTERCEPT_PHASES = RENDEZVOUS_PHASES;
 const ALL_STOP_PHASES = ["CUT", "FLIP", "BRAKE", "ZERO", "HOLD"];
 
 // Map program names to their phase lists
@@ -334,7 +335,7 @@ class AutopilotStatus extends HTMLElement {
                 <div class="info-value" id="info-closing">--</div>
               </div>
               <div class="info-item">
-                <div class="info-label">Braking Dist</div>
+                <div class="info-label" id="info-braking-label">Braking Dist</div>
                 <div class="info-value" id="info-braking">--</div>
               </div>
               <div class="info-item">
@@ -398,6 +399,8 @@ class AutopilotStatus extends HTMLElement {
     this._brakingDistance = apState?.braking_distance ?? null;
     this._eta = apState?.time_to_arrival ?? null;
     this._statusText = apState?.status_text ?? null;
+    this._flipInM = apState?.flip_in_m ?? null;
+    this._flipInS = apState?.flip_in_s ?? null;
 
     this._updateDisplay();
   }
@@ -525,9 +528,18 @@ class AutopilotStatus extends HTMLElement {
         : "--";
     }
 
-    // Braking distance
+    // In BURN phase show flip countdown; otherwise show braking distance
+    const brakingLabelEl = this.shadowRoot.getElementById("info-braking-label");
     if (brakingEl) {
-      brakingEl.textContent = this._formatDistance(this._brakingDistance);
+      if (this._phase === "BURN" && this._flipInM != null) {
+        if (brakingLabelEl) brakingLabelEl.textContent = "Flip In";
+        const dist = this._formatDistance(this._flipInM);
+        const t = this._formatEta(this._flipInS);
+        brakingEl.textContent = `${dist} / ~${t}`;
+      } else {
+        if (brakingLabelEl) brakingLabelEl.textContent = "Braking Dist";
+        brakingEl.textContent = this._formatDistance(this._brakingDistance);
+      }
     }
 
     // ETA
