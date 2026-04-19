@@ -17,7 +17,9 @@ from enum import Enum
 from typing import Dict, Optional, Set
 
 from hybrid.core.base_system import BaseSystem
+from hybrid.systems.crew_binding_system import CrewBindingSystem
 from hybrid.systems.proposals import ProposalManager, Proposal
+from server.stations.crew_system import StationSkill
 
 logger = logging.getLogger(__name__)
 
@@ -128,6 +130,23 @@ class AutoScienceSystem(BaseSystem):
     # Threat flagging
     # ------------------------------------------------------------------
 
+    def _get_crew_efficiency(self, ship) -> float:
+        """Look up best crew sensor efficiency for this ship.
+
+        Returns 0.5 default if no crew data is available, so proposals
+        still work without the crew system -- just at reduced confidence.
+        """
+        crew_eff = 0.5
+        crew_mgr = CrewBindingSystem._shared_crew_manager
+        if crew_mgr and hasattr(crew_mgr, 'get_ship_crew'):
+            crew_list = crew_mgr.get_ship_crew(ship.id)
+            if crew_list:
+                crew_eff = max(
+                    c.get_current_efficiency(StationSkill.SENSORS)
+                    for c in crew_list
+                )
+        return crew_eff
+
     def _check_threat_flags(self, ship, event_bus, now: float):
         """Propose threat flags for warship-class contacts."""
         sensors = ship.systems.get("sensors")
@@ -148,13 +167,17 @@ class AutoScienceSystem(BaseSystem):
 
             auto_exec = self.science_mode == ScienceMode.AUTO
             name = getattr(contact, "name", None) or cid
+            crew_eff = self._get_crew_efficiency(ship)
+            base_confidence = getattr(contact, "confidence", 0.5)
+            adjusted_confidence = base_confidence * (0.5 + 0.5 * crew_eff)
             proposal = self._proposals.create(
                 prefix="SCI", action="threat_flag",
                 target=cid,
-                confidence=getattr(contact, "confidence", 0.5),
+                confidence=adjusted_confidence,
                 reason=f"{name} classified as {classification}",
                 timeout=PROPOSAL_TIMEOUT, auto_execute=auto_exec, now=now,
                 params={"contact_id": cid, "classification": classification},
+                crew_efficiency=crew_eff,
             )
             if event_bus and ship:
                 event_bus.publish("science_proposal", {

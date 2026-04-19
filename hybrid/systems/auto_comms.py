@@ -20,7 +20,9 @@ from enum import Enum
 from typing import Optional
 
 from hybrid.core.base_system import BaseSystem
+from hybrid.systems.crew_binding_system import CrewBindingSystem
 from hybrid.systems.proposals import ProposalManager, Proposal
+from server.stations.crew_system import StationSkill
 
 logger = logging.getLogger(__name__)
 
@@ -71,6 +73,23 @@ class AutoCommsSystem(BaseSystem):
     # Hail response
     # ------------------------------------------------------------------
 
+    def _get_crew_efficiency(self, ship) -> float:
+        """Look up best crew communications efficiency for this ship.
+
+        Returns 0.5 default if no crew data is available, so proposals
+        still work without the crew system -- just at reduced confidence.
+        """
+        crew_eff = 0.5
+        crew_mgr = CrewBindingSystem._shared_crew_manager
+        if crew_mgr and hasattr(crew_mgr, 'get_ship_crew'):
+            crew_list = crew_mgr.get_ship_crew(ship.id)
+            if crew_list:
+                crew_eff = max(
+                    c.get_current_efficiency(StationSkill.COMMUNICATIONS)
+                    for c in crew_list
+                )
+        return crew_eff
+
     def _check_pending_hails(self, ship, event_bus, now: float):
         """Check for pending incoming hails and respond or propose."""
         comms = ship.systems.get("comms")
@@ -106,13 +125,16 @@ class AutoCommsSystem(BaseSystem):
                 key = f"hail_response_{msg_id}"
                 if not self._proposals.can_propose(key, now):
                     continue
+                crew_eff = self._get_crew_efficiency(ship)
+                adjusted_confidence = 0.8 * (0.5 + 0.5 * crew_eff)
                 proposal = self._proposals.create(
                     prefix="COM", action="hail_response",
                     target=msg.get("sender", "unknown"),
-                    confidence=0.8,
+                    confidence=adjusted_confidence,
                     reason=f"Hail from {msg.get('sender', 'unknown')} ({diplo})",
                     timeout=PROPOSAL_TIMEOUT, auto_execute=False, now=now,
                     params={"msg": msg, "response": response},
+                    crew_efficiency=crew_eff,
                 )
                 if event_bus and ship:
                     event_bus.publish("comms_proposal", {

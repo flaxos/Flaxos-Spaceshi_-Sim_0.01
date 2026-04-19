@@ -17,7 +17,9 @@ from enum import Enum
 from typing import Optional
 
 from hybrid.core.base_system import BaseSystem
+from hybrid.systems.crew_binding_system import CrewBindingSystem
 from hybrid.systems.proposals import ProposalManager, Proposal
+from server.stations.crew_system import StationSkill
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +69,23 @@ class AutoEngineeringSystem(BaseSystem):
             self._check_fatigue(ship, event_bus, now)
         self._auto_execute(ship, event_bus, now)
 
+    def _get_crew_efficiency(self, ship) -> float:
+        """Look up best crew engineering efficiency for this ship.
+
+        Returns 0.5 default if no crew data is available, so proposals
+        still work without the crew system -- just at reduced confidence.
+        """
+        crew_eff = 0.5
+        crew_mgr = CrewBindingSystem._shared_crew_manager
+        if crew_mgr and hasattr(crew_mgr, 'get_ship_crew'):
+            crew_list = crew_mgr.get_ship_crew(ship.id)
+            if crew_list:
+                crew_eff = max(
+                    c.get_current_efficiency(StationSkill.ENGINEERING)
+                    for c in crew_list
+                )
+        return crew_eff
+
     # ------------------------------------------------------------------
     # Proposal generators
     # ------------------------------------------------------------------
@@ -86,13 +105,17 @@ class AutoEngineeringSystem(BaseSystem):
             if not self._proposals.can_propose(key, now):
                 return
             auto_exec = self.eng_mode == EngineeringMode.AUTO
+            crew_eff = self._get_crew_efficiency(ship)
+            base_confidence = min(hull_temp_pct, 1.0)
+            adjusted_confidence = base_confidence * (0.5 + 0.5 * crew_eff)
             proposal = self._proposals.create(
                 prefix="ENG", action="reduce_reactor",
                 target="reactor",
-                confidence=min(hull_temp_pct, 1.0),
+                confidence=adjusted_confidence,
                 reason=f"Hull temp at {hull_temp_pct:.0%}",
                 timeout=PROPOSAL_TIMEOUT, auto_execute=auto_exec, now=now,
                 params={"output": 50},
+                crew_efficiency=crew_eff,
             )
             if event_bus and ship:
                 event_bus.publish("engineering_proposal", {
@@ -120,13 +143,16 @@ class AutoEngineeringSystem(BaseSystem):
             if not self._proposals.can_propose(key, now):
                 return
             auto_exec = self.eng_mode == EngineeringMode.AUTO
+            crew_eff = self._get_crew_efficiency(ship)
+            adjusted_confidence = 0.9 * (0.5 + 0.5 * crew_eff)
             proposal = self._proposals.create(
                 prefix="ENG", action="retract_radiators",
                 target="radiators",
-                confidence=0.9,
+                confidence=adjusted_confidence,
                 reason="Under fire -- radiators vulnerable",
                 timeout=PROPOSAL_TIMEOUT, auto_execute=auto_exec, now=now,
                 params={"deployed": False},
+                crew_efficiency=crew_eff,
             )
             if event_bus and ship:
                 event_bus.publish("engineering_proposal", {
@@ -138,13 +164,16 @@ class AutoEngineeringSystem(BaseSystem):
             if not self._proposals.can_propose(key, now):
                 return
             auto_exec = self.eng_mode == EngineeringMode.AUTO
+            crew_eff = self._get_crew_efficiency(ship)
+            adjusted_confidence = hull_temp_pct * (0.5 + 0.5 * crew_eff)
             proposal = self._proposals.create(
                 prefix="ENG", action="deploy_radiators",
                 target="radiators",
-                confidence=hull_temp_pct,
+                confidence=adjusted_confidence,
                 reason=f"Hull temp at {hull_temp_pct:.0%}",
                 timeout=PROPOSAL_TIMEOUT, auto_execute=auto_exec, now=now,
                 params={"deployed": True},
+                crew_efficiency=crew_eff,
             )
             if event_bus and ship:
                 event_bus.publish("engineering_proposal", {
@@ -169,13 +198,17 @@ class AutoEngineeringSystem(BaseSystem):
             return
 
         auto_exec = self.eng_mode == EngineeringMode.AUTO
+        crew_eff = self._get_crew_efficiency(ship)
+        base_confidence = 1.0 - performance
+        adjusted_confidence = base_confidence * (0.5 + 0.5 * crew_eff)
         proposal = self._proposals.create(
             prefix="ENG", action="throttle_governor",
             target="drive",
-            confidence=1.0 - performance,
+            confidence=adjusted_confidence,
             reason=f"Crew performance at {performance:.0%}",
             timeout=PROPOSAL_TIMEOUT, auto_execute=auto_exec, now=now,
             params={"limit": int(COMFORTABLE_G / 3.0 * 100)},
+            crew_efficiency=crew_eff,
         )
         if event_bus and ship:
             event_bus.publish("engineering_proposal", {
