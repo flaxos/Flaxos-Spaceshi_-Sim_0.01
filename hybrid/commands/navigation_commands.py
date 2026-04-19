@@ -63,7 +63,7 @@ def register_commands(dispatcher):
                     description="Target contact ID (required for match/intercept)"),
             ArgSpec("profile", "str", required=False,
                     choices=["aggressive", "balanced", "conservative"],
-                    description="Nav solution profile (rendezvous/goto_position)"),
+                    description="Nav solution profile (intercept/rendezvous/goto_position)"),
         ],
         help_text="Engage autopilot (match|intercept|approach|hold|hold_velocity|orbit|evasive|rendezvous|off)",
         system="navigation"

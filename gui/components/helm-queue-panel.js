@@ -195,9 +195,10 @@ class HelmQueuePanel extends HTMLElement {
           roll: request.params.roll || 0
         });
       } else if (request.type === "intercept") {
-        await wsClient.sendShipCommand("set_autopilot", {
-          mode: "intercept",
-          target: request.targetId
+        await wsClient.sendShipCommand("autopilot", {
+          program: "intercept",
+          target: request.targetId,
+          profile: request.params?.profile || "aggressive"
         });
       } else if (request.type === "match_velocity") {
         await wsClient.sendShipCommand("set_autopilot", {
