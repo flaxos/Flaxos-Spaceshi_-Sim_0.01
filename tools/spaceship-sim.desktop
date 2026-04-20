@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Spaceship Sim
+Comment=Launch the interactive setup wizard and start the Flaxos Spaceship Sim stack
+Icon=applications-games
+Exec=xfce4-terminal --hold -e "bash -c '/home/flax/games/spaceship-sim/tools/launch-spacesim.sh'"
+Terminal=false
+Categories=Game;Simulation;
+StartupNotify=true

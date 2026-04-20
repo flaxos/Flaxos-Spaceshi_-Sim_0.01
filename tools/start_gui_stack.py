@@ -146,16 +146,18 @@ def main() -> int:
         help="(deprecated) Use --mode instead. run=minimal, station=station",
     )
     parser.add_argument("--lan", action="store_true", help="Enable LAN mode (bind to 0.0.0.0)")
+    parser.add_argument("--server-only", action="store_true",
+        help="Start TCP sim server only — no WebSocket bridge or GUI HTTP server")
+    parser.add_argument("--no-server", action="store_true",
+        help="Start WS bridge + GUI HTTP server only — skips the TCP sim server")
     parser.add_argument(
         "--ui",
-        choices=["legacy", "svelte", "dev", "v3"],
+        choices=["svelte", "dev", "v3"],  # legacy removed
         default="v3",
         help=(
             "Frontend to serve: "
-            "v3 (default, builds gui-svelte/ then serves dist/), "
-            "svelte (alias for v3), "
-            "legacy (deprecated fallback serving gui/), "
-            "dev (starts vite dev server for the v3 UI on :5174 alongside the game servers)"
+            "v3/svelte (default — builds gui-svelte/ dist/), "
+            "dev (Vite hot-reload on :5174)"
         ),
     )
     parser.add_argument("--no-browser", action="store_true", default=True, help="Do not open browser (default)")
@@ -245,10 +247,10 @@ def main() -> int:
         ws_bridge_cmd.extend(["--allowed-origin-host", origin_host])
 
     http_bind = "0.0.0.0" if args.lan else "127.0.0.1"
-    ui_mode = "svelte" if args.ui == "v3" else args.ui  # legacy | svelte | dev
+    ui_mode = "svelte" if args.ui in ("v3", "svelte") else args.ui  # svelte | dev
 
-    # Resolve which directory to serve for HTTP
-    if ui_mode == "svelte":
+    # Resolve which directory to serve for HTTP (skip build for server-only mode)
+    if ui_mode == "svelte" and not args.server_only:
         # Build the Svelte project first
         svelte_dir = os.path.join(ROOT_DIR, "gui-svelte")
         dist_dir = os.path.join(svelte_dir, "dist")
@@ -289,7 +291,7 @@ def main() -> int:
             return 1
         gui_dir = dist_dir
     else:
-        gui_dir = os.path.join(ROOT_DIR, "gui")
+        gui_dir = os.path.join(ROOT_DIR, "gui-svelte", "dist")
 
     http_cmd = [
         python,
@@ -309,7 +311,21 @@ def main() -> int:
 
     processes: list[subprocess.Popen] = []
     try:
-        processes.append(_start_process("TCP server", server_cmd, ROOT_DIR, env=env))
+        if not args.no_server:
+            processes.append(_start_process("TCP server", server_cmd, ROOT_DIR, env=env))
+        else:
+            print("[skip] TCP server (--no-server)")
+
+        if args.server_only:
+            print("[skip] WS bridge + GUI (--server-only)")
+            print("[ready] TCP server listening — press Ctrl+C to stop.")
+            while True:
+                time.sleep(1.0)
+                for proc in processes:
+                    if proc.poll() is not None:
+                        raise RuntimeError("TCP server exited unexpectedly.")
+            return 0
+
         processes.append(_start_process("WebSocket bridge", ws_bridge_cmd, ROOT_DIR))
 
         if ui_mode == "dev":
@@ -344,9 +360,6 @@ def main() -> int:
             processes.append(_start_process("GUI server", http_cmd, ROOT_DIR))
             gui_url = f"http://localhost:{args.http_port}/"
             razorback_url = f"http://localhost:{args.http_port}/razorback.html"
-
-        if ui_mode == "legacy":
-            print("[warn] Legacy GUI selected. The supported default is the v3 bridge UI.")
 
         if args.game_code:
             gui_url = _append_query_param(gui_url, "game_code", args.game_code)
