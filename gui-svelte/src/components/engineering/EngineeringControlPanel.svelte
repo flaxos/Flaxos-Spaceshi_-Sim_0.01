@@ -107,8 +107,8 @@
 
         {#if proposals.length === 0}
           <div class="empty-card">
-            <strong>Stable</strong>
-            <span>Auto-ops is holding reactor, radiators, and drive governor inside limits.</span>
+            <strong>No pending proposals</strong>
+            <span>No pending Engineering proposals. Check actual reactor, thermal, and drive telemetry; an empty queue does not confirm automatic control.</span>
           </div>
         {:else}
           {#each proposals as proposal}

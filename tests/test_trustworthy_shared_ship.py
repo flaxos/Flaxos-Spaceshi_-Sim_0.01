@@ -354,6 +354,54 @@ def test_ownership_guard_allows_nested_cleanup_and_captain_election(station_serv
     assert manager.get_station_owner(ship_id, StationType.HELM) is None
 
 
+def test_station_status_reports_own_ship_cpu_flags_without_changing_command_authority(station_server):
+    server = station_server
+    manager = server.station_manager
+    ship_id = next(iter(server.runner.simulator.ships))
+    manager.register_client("helm_reader", "Helm reader")
+    assert server.dispatch("helm_reader", {"cmd": "assign_ship", "ship": ship_id})["ok"]
+    assert server.dispatch("helm_reader", {"cmd": "claim_station", "ship": ship_id, "station": "helm"})["ok"]
+    response = server.dispatch("helm_reader", {"cmd": "station_status", "ship": ship_id})
+    assert response["ok"]
+    data = response["response"]
+    human = next(row for row in data["stations"] if row["station"] == "helm")
+    assert human["claimed"] and human["player"] == "Helm reader"
+    cpu = data["crew_assistance"]
+    assert not cpu["worker_running"] and not cpu["simulation_running"]
+    assert cpu["mission_epoch"] == server.runner.mission_epoch
+    assert cpu["thermal_available"] == bool(server.runner.simulator.ships[ship_id].systems.get("thermal"))
+    helm = next(row for row in cpu["stations"] if row["station"] == "helm")
+    assert not helm["active"]
+    assert server.dispatch("helm_reader", {"cmd": "set_reactor_output", "ship": ship_id, "output": 0.5})["ok"] is False
+    assert manager.get_session("helm_reader").station == StationType.HELM
+
+
+def test_other_ship_or_removed_ship_station_status_does_not_infer_cpu_coverage(station_server):
+    server = station_server
+    own, other = list(server.runner.simulator.ships)[:2]
+    join(server, "reader", StationType.ENGINEERING, own)
+    foreign = server.dispatch("reader", {"cmd": "station_status", "ship": other})
+    assert foreign["ok"]
+    assert "crew_assistance" not in foreign["response"]
+    server.runner.simulator.ships.pop(own)
+    removed = server.dispatch("reader", {"cmd": "station_status", "ship": own})
+    assert removed["ok"]
+    assert "crew_assistance" not in removed["response"]
+
+
+def test_assistance_snapshot_loading_and_full_ai_ship_do_not_claim_a_running_cpu_worker(station_server):
+    server = station_server
+    own = next(iter(server.runner.simulator.ships))
+    join(server, "reader", StationType.HELM, own)
+    server.runner._loading_scenario = True
+    data = server.dispatch("reader", {"cmd": "station_status"})["response"]["crew_assistance"]
+    assert data["stations"] == [] and not data["worker_running"]
+    server.runner._loading_scenario = False
+    server.runner.simulator.ships[own].ai_enabled = True
+    data = server.dispatch("reader", {"cmd": "station_status"})["response"]["crew_assistance"]
+    assert not data["ship_eligible"] and not data["worker_running"]
+
+
 def test_bootstrap_and_replay_enforce_authority_and_preserve_crew(station_server):
     server = station_server
     for client in ("captain", "science"):

@@ -24,7 +24,7 @@
   $: contacts = getContacts(ship);
   $: docking = getDockingSnapshot(ship);
   $: currentTargetId = docking.targetId || $selectedHelmTargetId || toStringValue(ship.target_id);
-  $: stateLabel = docking.status === "docked" ? "docked" : docking.status === "idle" ? "free" : "approaching";
+  $: stateLabel = docking.status === "idle" ? "free" : docking.status;
   $: contact = currentTargetId ? findContact(ship, currentTargetId) : null;
   $: guidanceHeading = contact ? headingToTarget(ship, contact.position) : null;
   $: shipHeading = getOrientation(ship);
@@ -71,7 +71,7 @@
 <Panel title="Docking" domain="helm" priority={stateLabel === "docked" ? "primary" : "secondary"} className="docking-panel">
   <div class="shell">
     <div class="status-row">
-      <div class="state {stateLabel}">{stateLabel.toUpperCase()}</div>
+      <div class="state {stateLabel}">{stateLabel.replaceAll("_", " ").toUpperCase()}</div>
       <div class="target">{currentTargetId || "No target"}</div>
     </div>
 
@@ -154,6 +154,7 @@
   .state.docked {
     color: var(--status-nominal);
   }
+  .state.offline, .state.target_lost { color: var(--status-critical); }
 
   .guidance-grid span,
   .feedback,

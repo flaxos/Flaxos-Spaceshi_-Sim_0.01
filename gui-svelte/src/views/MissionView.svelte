@@ -11,7 +11,7 @@
   type GamePhase = "lobby" | "playing" | "ended";
   let phase: GamePhase = "lobby";
   let loaderRef: ScenarioLoader | undefined;
-  let activePanel: "objectives" | "campaign" | "console" | "server" = "server";
+  let activePanel: "objectives" | "campaign" | "console" | "server" = "objectives";
   let showingResult = false;
 
   function syncMission(mission: SharedMission | null, station: string | null) {

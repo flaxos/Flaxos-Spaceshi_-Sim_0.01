@@ -10,7 +10,7 @@ The first acceptance mission is the existing `07_docking_test` scenario.
 Use a fresh clone, especially if existing worktrees contain changes or already
 hold the draft branch. These commands create a unique directory and never switch,
 reset, stash or overwrite an existing checkout. The draft is unmerged. Compare
-the printed SHA with the final tested SHA in PR #417's validation report before
+the printed SHA with the final tested SHA in the guided-docking draft PR's report before
 testing; if it differs, stop and obtain that exact revision.
 
 ```bash
@@ -18,7 +18,7 @@ FLAXOS_TEST_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/flaxos-playtest.XXXXXX")
 export FLAXOS_TEST_ROOT
 (
   set -e
-  git clone --single-branch --branch codex/trustworthy-shared-ship \
+  git clone --single-branch --branch codex/guided-docking-operation \
     https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01.git "$FLAXOS_TEST_ROOT/repo"
   cd "$FLAXOS_TEST_ROOT/repo"
   git checkout --detach
@@ -88,9 +88,12 @@ loopback procedure does not establish LAN/ZeroTier acceptance.
    existing captain seat before claiming a different seat. Both headers should
    show the server-confirmed ship and station. Have B release Engineering, then
    attempt to claim the occupied Helm seat: it must be denied visibly and leave
-   A's claim intact. B then rejoins Engineering.
+   A's claim intact. B then rejoins Engineering. Mission opens on Objectives;
+   read the Docking crew guide and expand Full mission briefing. Coverage should
+   show the actual Helm and Engineering humans, not infer CPU control from a
+   vacant seat or the local CPU ASSIST tier.
 2. **Operate together.** Use MANUAL on A for a short 80% throttle request. On B,
-   Engineering's drive governor limits the output to 50%, then 0%. Both clients
+   Engineering chooses MANUAL and its drive governor limits the output to 50%, then 0%. Both clients
    should observe the same speed, fuel and hull, allowing for their sampling
    interval. A's throttle display shows actual governed output. Fuel must not say
    empty while Engineering has fuel; full 150/150 integrity must read 100%.
@@ -114,14 +117,34 @@ loopback procedure does not establish LAN/ZeroTier acceptance.
    real success after detection, approach and docking. Briefly pause/resume and
    compare clocks during flight. A failure must display MISSION FAILED. Current
    mission replay/reset should clear the old outcome for both clients; replay
-   remains subject to captain/admin authority. Next Mission progression is outside
+   remains subject to captain/admin authority. In the two-client run, Engineering's
+   Replay button is disabled. A may explicitly release Helm, claim the vacant
+   Captain seat, replay the current mission, then release Captain and rejoin Helm;
+   B's Engineering claim should remain. Next Mission progression is outside
    this slice. After docking, manually set Helm thrust to zero and confirm actual
    output is zero: existing docking can constrain motion while drive/fuel use
    continues. Automatic thrust cutoff has not been established.
 
-The CPU-ASSIST choice above uses the existing navigation program. It is not proof
-of a full solo crew replacing every human station. Existing crew execution and
-auto-system regressions are reported separately; new CPU behavior is excluded.
+## Existing solo assistance: a separate 5–10 minute run
+
+Close the companion connection. Use the same existing mission and authorized
+replay. Prepare any needed Engineering settings while holding that seat (MANUAL,
+Drive Limit 100%), explicitly release it and join Helm. Return to Mission
+Objectives: Helm should show your human claim. Unclaimed Engineering should show
+the registered CPU's actual limited coverage: no thermal system, waiting worker,
+or heat-sink watch, as reported. Helm CPU is passive when unclaimed; you must
+approve the rendezvous program. No CPU reactor/governor management is promised.
+
+Use the same detected Tycho contact, CPU ASSIST APPROVE and Nav Tools REQUEST
+DOCK; observe the real approach and three objectives at 2x. After actual success,
+set manual thrust to zero and verify output. Record CPU coverage, final mission
+and ship state. If existing behavior cannot finish, retain the failed run and
+identify the missing behavior; do not add new CPU capabilities or claim success.
+
+This exercises existing navigation assistance and configured basic station crew.
+It does not establish a full CPU crew replacing every human station. An empty
+Engineering proposal queue is not proof that reactor, radiator or governor control
+is automatic. Solo evidence and human acceptance are reported separately.
 
 ## Acceptance record
 

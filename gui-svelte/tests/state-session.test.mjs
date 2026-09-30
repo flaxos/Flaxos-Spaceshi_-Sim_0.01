@@ -17,6 +17,7 @@ await build({
     'export * from "./src/lib/stores/crewSession.ts";',
     'export * from "./src/lib/stores/missionState.ts";',
     'export * from "./src/lib/stores/selectedTarget.ts";',
+    'export * from "./src/lib/stores/crewAssistance.ts";',
   ].join('\n'), resolveDir: frontend, loader: 'ts' },
   outfile: bundle, bundle: true, format: 'esm', platform: 'node',
   plugins: [{ name: 'transport-fixture', setup(b) {
@@ -87,6 +88,58 @@ async function fixture(t) {
   const hold = cmd => { const d = deferred(); holds.set(cmd, d); return d; };
   return { stores, ws, requests, time, hold, async connect() { stores.initializeCrewSession(); stores.initializeConnection(); await settle(); } };
 }
+
+function coverage(ship, epoch, claimed = false) {
+  return { ship_id: ship, stations: [{ station: 'helm', claimed, player: claimed ? 'Helm player' : null },
+    { station: 'engineering', claimed: false }], crew_assistance: {
+    mission_epoch: epoch, simulation_running: true, worker_running: true, ship_eligible: true, thermal_available: true,
+    stations: [{ station: 'helm', active: true, competence: 0.7 }, { station: 'engineering', active: true, competence: 0.7 }],
+  } };
+}
+
+test('crew assistance distinguishes human ownership, passive seats and conditional heat-sink watch', async t => {
+  const f = await fixture(t);
+  const data = coverage('ship_A', 1);
+  assert.match(f.stores.stationCoverage(null, 'helm'), /unavailable/);
+  assert.match(f.stores.stationCoverage(data, 'helm'), /passive/);
+  assert.equal(f.stores.stationCoverage(data, 'engineering'), 'CPU heat-sink watch');
+  data.crew_assistance.worker_running = false;
+  assert.match(f.stores.stationCoverage(data, 'engineering'), /waiting/);
+  data.crew_assistance.thermal_available = false;
+  assert.match(f.stores.stationCoverage(data, 'engineering'), /no thermal system/);
+  data.stations[1] = { station: 'engineering', claimed: true, player: 'Engineer' };
+  assert.equal(f.stores.stationCoverage(data, 'engineering'), 'Human: Engineer');
+  data.stations[1].claimed = false;
+  data.crew_assistance.ship_eligible = false;
+  assert.equal(f.stores.stationCoverage(data, 'engineering'), 'Unstaffed');
+});
+
+test('late crew coverage cannot publish after disconnect, rejoin, role change or same-time epoch reset', async t => {
+  const f = await fixture(t); await f.connect();
+  f.ws.handlers.station_status = args => ({ ok: true, response: coverage(args.ship, f.ws.mission.mission_epoch, true) });
+  const stop = f.stores.watchCrewAssistance(); t.after(stop);
+  await f.stores.joinCrewStation('ship_A', 'helm'); await settle();
+  assert.equal(read(f.stores.crewAssistance).ship_id, 'ship_A');
+  const old = f.hold('station_status'); await f.time.advance(1000);
+  f.ws.emit('status_change', { status: 'disconnected' });
+  assert.equal(read(f.stores.crewAssistance), null);
+  f.ws.session = { ship_id: null, station: null };
+  f.ws.emit('status_change', { status: 'connected' }); await settle();
+  assert.equal(read(f.stores.crewAssistance), null);
+  await f.stores.joinCrewStation('ship_B', 'engineering'); await settle();
+  old.resolve({ ok: true, response: coverage('ship_A', 1) }); await settle();
+  assert.equal(read(f.stores.crewAssistance).ship_id, 'ship_B');
+  const previousEpoch = f.hold('station_status'); await f.time.advance(1000);
+  f.ws.mission.mission_epoch = 2; await f.time.advance(1000);
+  previousEpoch.resolve({ ok: true, response: coverage('ship_B', 1) }); await settle();
+  assert.equal(read(f.stores.crewAssistance).crew_assistance.mission_epoch, 2);
+  f.ws.session.station = 'helm'; await f.stores.refreshCrewSession(); await settle();
+  f.ws.handlers.station_status = () => ({ ok: true, response: coverage('wrong_ship', 2) });
+  await f.time.advance(1000);
+  assert.equal(read(f.stores.crewAssistance), null, 'a mismatched server snapshot cannot establish readiness');
+  stop(); await f.time.advance(1000);
+  assert.equal(read(f.stores.crewAssistance), null);
+});
 
 test('event identity accepts time zero and distinct paused events while suppressing exact duplicates', async t => {
   const f = await fixture(t); await f.connect();

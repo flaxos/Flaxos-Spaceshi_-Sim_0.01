@@ -74,14 +74,27 @@ mission:
   briefing: |
     Short-range approach and docking exercise. Target station is 200km
     out on a direct bearing. Use rendezvous autopilot to approach,
-    then dock when within range.
+    then dock within 50m at a relative speed of at most 1m/s.
 
     Steps:
-    1. Detect the station with sensors
-    2. Engage rendezvous autopilot
-    3. When within docking range (<50m, <1 m/s), request docking
-    4. Verify docked state
-    5. Undock and maneuver clear
+    Helm: select Tycho Station in Navigation Contacts. Choose CPU ASSIST,
+    select the same contact in the flight computer and APPROVE rendezvous.
+    Open Nav Tools and REQUEST DOCK on that contact; the request can wait
+    during approach until the physical docking limits are met.
+
+    Engineering: choose MANUAL to use Engineering Control. Monitor fuel and
+    thermal state, coordinate the drive governor
+    with Helm, then restore the drive limit to 100% for the existing approach.
+    An unclaimed Engineering CPU seat only provides heat-sink watch when a
+    thermal system is fitted. It does not manage the reactor or drive governor.
+
+    Solo: prepare any Engineering settings before releasing that seat and
+    joining Helm. Approve the existing navigation program yourself.
+
+    The three objectives end at docking. After success, manually set Helm
+    thrust to zero and verify actual output; docking does not guarantee drive
+    shutdown. Undocking and maneuvering clear are optional post-mission work.
+    Replaying this mission requires the existing captain or admin authority.
 
   objectives:
     - id: "detect_station"
@@ -125,4 +138,4 @@ mission:
       message: "Halfway there. Autopilot handling deceleration."
     - trigger: "range < 5000"
       target: "target_station"
-      message: "Within docking range! Request docking when ready."
+      message: "Within 5km: final approach. Docking requires at most 50m and 1 m/s; a docking request can wait during approach."

@@ -618,7 +618,7 @@ class UnifiedServer:
         # Ownership commands share the cleanup guard through AI notification.
         # Ordinary gameplay does not hold this lock around ship commands.
         ownership_command = cmd in ("claim_station", "release_station", "assign_ship", "transfer_station")
-        with self.station_manager.ownership_lock if ownership_command else nullcontext():
+        with self.station_manager.ownership_lock if ownership_command or cmd == "station_status" else nullcontext():
             # Capture station before release (release clears session.station).
             previous_claim = None
             if cmd == "release_station" and self.ai_crew_manager:
@@ -642,6 +642,29 @@ class UnifiedServer:
                         pass
                 elif cmd == "release_station" and previous_claim:
                     self._restore_ai_for_released_claims([previous_claim])
+
+            # Add read-only assistance flags to the existing own-ship snapshot.
+            # Other-ship lobby queries retain their existing human occupancy
+            # response. An active CPU seat is eligibility, not task success.
+            if cmd == "station_status" and result.success and isinstance(result.data, dict):
+                current = self.station_manager.get_session(client_id)
+                target = args.get("ship") or (current.ship_id if current else None)
+                ship = self.runner.simulator.ships.get(target)
+                if current and target == current.ship_id and ship:
+                    eligible = not getattr(ship, "ai_enabled", False)
+                    result.data["crew_assistance"] = {
+                        "mission_epoch": self.runner.mission_epoch,
+                        "simulation_running": self.runner.running,
+                        "worker_running": bool(
+                            eligible and self.ai_crew_manager and self.running
+                            and self.runner.running and not self.runner._loading_scenario
+                            and not self._monitor_stop.is_set() and self._ai_crew_thread
+                            and self._ai_crew_thread.is_alive()),
+                        "ship_eligible": eligible,
+                        "thermal_available": bool(ship.systems.get("thermal")),
+                        "stations": self.ai_crew_manager.get_status(target)
+                            if self.ai_crew_manager and not self.runner._loading_scenario else [],
+                    }
 
         return result.to_dict()
 
