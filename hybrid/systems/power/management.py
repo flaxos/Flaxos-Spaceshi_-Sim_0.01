@@ -76,9 +76,8 @@ class PowerManagementSystem:
             base = Reactor(layer_name)
             # D6: Support "output" as alias for "capacity" for backward compatibility
             capacity = params.get("capacity") or params.get("output", base.capacity)
-            # Power buses model max continuous output in kW. When no explicit
-            # ramp is provided, refill from cold to max in roughly 10 ticks,
-            # matching the project power-management design notes.
+            # Reserve capacity is kJ; output_rate is kW (kJ/s). The legacy
+            # default replenishes a full reserve in one second.
             default_output_rate = float(capacity)
             self.reactors[layer_name] = Reactor(
                 name=layer_name,
@@ -242,10 +241,9 @@ class PowerManagementSystem:
             return
         total_energy = 0.0
         for reactor in self.reactors.values():
-            # last_generated is already dt-scaled (energy)
+            # Actual admitted generation is already energy in kJ. Drawing that
+            # reserve later must not count the same energy a second time.
             total_energy += getattr(reactor, "last_generated", 0.0)
-            # last_drawn is raw power (kW), convert to energy with dt
-            total_energy += getattr(reactor, "last_drawn", 0.0) * self._last_dt
             reactor.last_drawn = 0.0
         if total_energy <= 0:
             return
@@ -253,6 +251,7 @@ class PowerManagementSystem:
         ship.damage_model.add_heat("power", heat_amount, event_bus, ship.id)
 
     def request_power(self, amount, consumer):
+        """Request ``amount`` kJ; continuous consumers supply kW multiplied by dt."""
         for layer in POWER_LAYER_PRIORITIES:
             reactor = self.reactors.get(layer)
             if reactor and reactor.draw_power(amount):

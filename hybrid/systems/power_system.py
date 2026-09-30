@@ -23,7 +23,7 @@ class PowerSystem(BaseSystem):
         # find the PowerManagementSystem when both coexist.
         self._ship_ref = None
 
-        # Generation and storage
+        # Generation is kW; capacity and stored_power are kJ.
         self.generation_rate = float(config.get("generation", 10.0))
         self.capacity = float(config.get("capacity", 100.0))
         self.stored_power = float(config.get("initial", self.capacity * 0.8))
@@ -35,7 +35,7 @@ class PowerSystem(BaseSystem):
 
         # Additional tracking
         self.generation = config.get("generation", 5.0)  # fallback for old configs
-        self.current = config.get("current", self.capacity)
+        self.current = self.stored_power
         self.total_draw = 0.0
         self.drawing_systems = {}
         self.status = "online"
@@ -58,6 +58,14 @@ class PowerSystem(BaseSystem):
 
     def tick(self, dt, ship, event_bus):
         self._ship_ref = ship
+        self._last_generated = 0.0
+        self._last_draw = self.total_draw
+        self._last_dt = dt
+        self.total_draw = 0.0
+        self.drawing_systems = {}
+        # The multi-reactor system owns generation as well as draw accounting.
+        if self._get_delegate() is not None:
+            return
         damage_factor = 1.0
         if ship is not None and hasattr(ship, "damage_model"):
             damage_factor = ship.damage_model.get_combined_factor("power")
@@ -78,15 +86,15 @@ class PowerSystem(BaseSystem):
             event_bus.publish("power_offline", {"source": "power"})
             return
 
-        generated = self.generation_rate * dt * self.efficiency
+        generated = min(
+            max(0.0, self.capacity - self.stored_power),
+            self.generation_rate * dt * self.efficiency,
+        )
         self.stored_power = min(self.capacity, self.stored_power + generated)
 
-        self.current = min(self.capacity, self.current + self.generation * dt)
+        # Keep the legacy current field as a view of the same finite reserve.
+        self.current = self.stored_power
         self._last_generated = generated
-        self._last_draw = self.total_draw
-        self._last_dt = dt
-        self.total_draw = 0.0
-        self.drawing_systems = {}
         event_bus.publish("power_available", {"available": self.current, "capacity": self.capacity, "source": "power"})
 
         if self.stored_power <= 0:
@@ -108,14 +116,15 @@ class PowerSystem(BaseSystem):
             self._last_status = self.status
 
     def report_heat(self, ship, event_bus):
+        if self._get_delegate() is not None:
+            return
         if ship is None or not hasattr(ship, "damage_model"):
             return
         subsystem = ship.damage_model.subsystems.get("power")
         if not subsystem:
             return
-        # _last_generated is already dt-scaled (energy), _last_draw is raw power (kW)
-        # Convert draw to energy by multiplying by dt
-        heat_amount = subsystem.heat_generation * (self._last_generated + self._last_draw * self._last_dt)
+        # Count actual admitted generation once; requests already draw kJ.
+        heat_amount = subsystem.heat_generation * self._last_generated
         if heat_amount <= 0:
             return
         ship.damage_model.add_heat("power", heat_amount, event_bus, ship.id)
@@ -134,6 +143,7 @@ class PowerSystem(BaseSystem):
         if action == "add_power":
             amount = float(params.get("amount", 0))
             self.stored_power = min(self.capacity, self.stored_power + amount)
+            self.current = self.stored_power
             return {"status": "Power added", "amount": amount, "current": self.stored_power}
         if action == "set_generation":
             if "value" in params:
@@ -155,12 +165,12 @@ class PowerSystem(BaseSystem):
         if not self.enabled:
             return False
         if amount <= 0:
-            return True
+            return amount == 0
         self.drawing_systems[system_name] = amount
         self.total_draw += amount
-        if self.current >= amount:
-            self.current -= amount
-            self.stored_power = max(0, self.stored_power - amount)
+        if self.stored_power >= amount:
+            self.stored_power -= amount
+            self.current = self.stored_power
             return True
         return False
 
