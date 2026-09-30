@@ -93,7 +93,7 @@
 
   <div class="bridge-header__nav" role="tablist" aria-label="Bridge stations and mission views">
     {#each VIEWS as view}
-      {@const allowed = isAllowed(view.id)}
+      {@const allowed = !allowedViews || allowedViews.includes(view.id)}
       <button
         class="nav-tab"
         class:active={activeView === view.id}

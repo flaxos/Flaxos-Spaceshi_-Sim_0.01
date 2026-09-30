@@ -1,10 +1,11 @@
 <script lang="ts">
   import { onMount, onDestroy, createEventDispatcher } from "svelte";
   import { wsClient } from "../../lib/ws/wsClient.js";
+  import { crewSession, joinCrewStation, refreshCrewSession } from "../../lib/stores/crewSession.js";
+  import { missionState, type SharedMission } from "../../lib/stores/missionState.js";
 
   const dispatch = createEventDispatcher<{
     "scenario-loaded": { ship_id?: string; station?: string; assignedShip?: string; started?: boolean };
-    "next-mission": Record<string, never>;
   }>();
 
   type MenuState = "title" | "mission_select" | "quick_play" | "lobby" | "post_mission";
@@ -54,7 +55,8 @@
   let selectedScenario: string | null = null;
   let expandedCard: string | null = null;
   let activeScenario: string | null = null;
-  let isCaptain = false;
+  $: isCaptain = $crewSession.station === "captain";
+  let result: SharedMission | null = null;
   let isLoading = false;
   let categoryFilter = "all";
   let errorMsg = "";
@@ -134,19 +136,30 @@
 
   // ── Lifecycle ─────────────────────────────────────────────────────
   let statusHandler: ((e: Event) => void) | null = null;
+  let rejoinHandler: (() => void) | null = null;
+  let lobbyGeneration = 0;
 
   onMount(() => {
     statusHandler = (e: Event) => {
       const detail = (e as CustomEvent<{ status: string }>).detail;
-      if (detail.status === "connected" && menuState === "lobby") {
-        fetchAndRenderLobby();
+      if (detail.status === "disconnected") {
+        lobbyGeneration++;
+        isLoading = false;
+        lastLobbyFetch = 0;
+        ships = [];
+      } else if (detail.status === "connected" && menuState === "lobby") {
+        fetchAndRenderLobby(true);
       }
     };
     wsClient.addEventListener("status_change", statusHandler);
+    rejoinHandler = () => { void goJoinGame(); };
+    document.addEventListener("crew-rejoin-request", rejoinHandler);
   });
 
   onDestroy(() => {
     if (statusHandler) wsClient.removeEventListener("status_change", statusHandler);
+    if (rejoinHandler) document.removeEventListener("crew-rejoin-request", rejoinHandler);
+    lobbyGeneration++;
   });
 
   // ── Navigation ────────────────────────────────────────────────────
@@ -158,7 +171,7 @@
 
   async function goJoinGame() {
     errorMsg = "";
-    await fetchAndRenderLobby();
+    await fetchAndRenderLobby(true);
   }
 
   function goQuickPlay() {
@@ -176,13 +189,14 @@
 
   let lastLobbyFetch = 0;
 
-  async function fetchAndRenderLobby() {
+  async function fetchAndRenderLobby(force = false) {
     if (isLoading) return;
     const now = Date.now();
-    if (now - lastLobbyFetch < 2000) return;
+    if (!force && now - lastLobbyFetch < 2000) return;
 
     isLoading = true;
     errorMsg = "";
+    const gen = ++lobbyGeneration;
 
     try {
       if (wsClient.status !== "connected") {
@@ -190,14 +204,15 @@
       }
 
       const shipsResp = await wsClient.send("list_ships", {}) as CommandEnvelope;
+      if (gen !== lobbyGeneration) return;
       const shipsData = unwrapCommandData<{ ships?: LobbyShip[] }>(shipsResp);
       ships = commandSucceeded(shipsResp) && Array.isArray(shipsData.ships) ? shipsData.ships : [];
 
-      const statusResp = await wsClient.send("my_status", {}) as CommandEnvelope;
-      const statusData = unwrapCommandData<{ station?: string }>(statusResp);
-      isCaptain = commandSucceeded(statusResp) && statusData.station === "captain";
+      await refreshCrewSession();
+      if (gen !== lobbyGeneration) return;
 
       const stateResp = await wsClient.send("get_state", {}) as { active_scenario?: string };
+      if (gen !== lobbyGeneration) return;
       activeScenario = stateResp?.active_scenario ?? null;
 
       await Promise.all(ships.map(async (ship) => {
@@ -207,6 +222,7 @@
           ship.stations = commandSucceeded(sResp) ? (stationData.stations ?? []) : [];
         } catch { ship.stations = []; }
       }));
+      if (gen !== lobbyGeneration) return;
       ships = [...ships]; // trigger reactivity
 
       lastLobbyFetch = Date.now();
@@ -214,14 +230,14 @@
     } catch (e) {
       errorMsg = "Failed to load lobby. Check server connection.";
     } finally {
-      isLoading = false;
+      if (gen === lobbyGeneration) isLoading = false;
     }
   }
 
   // ── Mission Launch ─────────────────────────────────────────────────
   let launching = false;
 
-  async function loadScenario(scenarioId: string) {
+  async function loadScenario(scenarioId: string, force = false) {
     if (!scenarioId || launching) return;
     launching = true;
     errorMsg = "";
@@ -231,7 +247,7 @@
         try { await wsClient.connect(); } catch { /* continue */ }
       }
 
-      const resp = await wsClient.send("load_scenario", { scenario: scenarioId }) as CommandEnvelope;
+      const resp = await wsClient.send("load_scenario", { scenario: scenarioId, force }) as CommandEnvelope;
 
       if (!commandSucceeded(resp)) {
         errorMsg = commandError(resp, "Failed to load scenario.");
@@ -242,8 +258,9 @@
       selectedScenario = null;
       expandedCard = null;
 
+      await refreshCrewSession();
       _dispatchScenarioLoaded(resp);
-      await fetchAndRenderLobby();
+      await fetchAndRenderLobby(true);
     } catch (e) {
       errorMsg = "Error loading scenario.";
     } finally {
@@ -274,8 +291,10 @@
       }
 
       activeScenario = (resp?.scenario_name as string) ?? "Generated Skirmish";
+      await refreshCrewSession();
       _dispatchScenarioLoaded(resp);
-      await fetchAndRenderLobby();
+      isLoading = false;
+      await fetchAndRenderLobby(true);
     } catch { errorMsg = "Error generating skirmish."; }
     finally { isLoading = false; }
   }
@@ -283,17 +302,12 @@
   async function joinStation(shipId: string, stationName: string) {
     errorMsg = "";
     try {
-      const assignResp = await wsClient.send("assign_ship", { ship: shipId }) as CommandEnvelope;
-      if (!commandSucceeded(assignResp)) throw new Error(commandError(assignResp, "assign failed"));
-
-      const claimResp = await wsClient.send("claim_station", { station: stationName, ship: shipId }) as CommandEnvelope;
-      if (!commandSucceeded(claimResp)) throw new Error(commandError(claimResp, "claim failed"));
-
-      const detail = { assignedShip: shipId, station: stationName };
+      if (!await joinCrewStation(shipId, stationName)) throw new Error($crewSession.error || "Station claim not verified");
+      const detail = { assignedShip: $crewSession.shipId ?? undefined, station: $crewSession.station ?? undefined };
       dispatch("scenario-loaded", detail);
       document.dispatchEvent(new CustomEvent("scenario-loaded", { detail }));
 
-      await fetchAndRenderLobby();
+      await fetchAndRenderLobby(true);
     } catch (e) {
       errorMsg = `Failed to join station: ${e instanceof Error ? e.message : e}`;
     }
@@ -315,15 +329,19 @@
 
   // ── Post-mission ────────────────────────────────────────────────
   /** Called externally to switch to post-mission screen */
-  export function showPostMission() { menuState = "post_mission"; }
-
-  function replayScenario() {
-    if (activeScenario) loadScenario(activeScenario);
+  export function showPostMission(mission: SharedMission) {
+    result = mission;
+    menuState = "post_mission";
   }
 
-  function onNextMission() {
-    dispatch("next-mission", {});
-    document.dispatchEvent(new CustomEvent("next-mission", {}));
+  export function showCurrentLobby() {
+    result = null;
+    void fetchAndRenderLobby(true);
+  }
+
+  function replayScenario() {
+    const scenarioId = $missionState?.current_scenario_id ?? result?.current_scenario_id;
+    if (isCaptain && scenarioId) void loadScenario(scenarioId, true);
   }
 </script>
 
@@ -506,7 +524,7 @@
       <div class="screen-header">
         <button class="btn btn-ghost" on:click={() => menuState = "title"}>← BACK</button>
         <h2 class="section-title">FLEET LOBBY</h2>
-        <button class="btn btn-ghost btn-sm" on:click={fetchAndRenderLobby} disabled={isLoading}>
+        <button class="btn btn-ghost btn-sm" on:click={() => fetchAndRenderLobby(true)} disabled={isLoading}>
           {isLoading ? "..." : "REFRESH"}
         </button>
       </div>
@@ -570,10 +588,12 @@
   <!-- ── POST MISSION ───────────────────────────── -->
   {:else if menuState === "post_mission"}
     <div class="post-mission screen">
-      <h2 class="section-title post-title">MISSION COMPLETE</h2>
+      <h2 class="section-title post-title">{(result?.mission_status ?? result?.status) === "success" ? "MISSION SUCCESS" : "MISSION FAILED"}</h2>
+      <p>{(result?.mission_status ?? result?.status) === "success" ? result?.success_message : result?.failure_message}</p>
+      {#if errorMsg}<div class="error-msg">{errorMsg}</div>{/if}
       <div class="post-buttons">
-        <button class="btn btn-primary btn-large" on:click={onNextMission}>NEXT MISSION</button>
-        <button class="btn btn-secondary btn-large" on:click={replayScenario}>REPLAY</button>
+        <button class="btn btn-secondary btn-large" disabled={!isCaptain || launching || !($missionState?.current_scenario_id ?? result?.current_scenario_id)} on:click={replayScenario}>REPLAY CURRENT MISSION</button>
+        {#if !isCaptain}<p>The captain can replay the current mission.</p>{/if}
         <button class="btn btn-ghost btn-large" on:click={() => menuState = "title"}>BACK TO MENU</button>
       </div>
     </div>

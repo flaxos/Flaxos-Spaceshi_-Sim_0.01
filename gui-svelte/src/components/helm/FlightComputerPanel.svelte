@@ -112,7 +112,7 @@
         ? { target_id: activeTargetId }
         : { x: Number(xInput), y: Number(yInput), z: Number(zInput) };
       const response = await wsClient.sendShipCommand("get_nav_solutions", params);
-      navSolutions = toSolutionCards(response);
+      navSolutions = toSolutionCards(asRecord(response)?.response ?? response);
     } catch {
       navSolutions = [];
     } finally {
@@ -257,7 +257,7 @@
       {:else}
         <div class="target-indicator none">
           <span class="target-dot empty"></span>
-          NO TARGET — ping sensors and lock a contact
+          NO TARGET — select a shared navigation contact
         </div>
       {/if}
       <div class="command-grid arcade">

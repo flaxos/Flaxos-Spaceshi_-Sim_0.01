@@ -7,6 +7,9 @@
  * Ship ID is injected via setActiveShipId() to avoid circular deps with stores.
  */
 
+import { describeCommandFailure, isCommandRejected } from "./commandResponse.js";
+import { reportCommandFailure } from "../stores/commandFeedback.js";
+
 type ConnectionStatus = "disconnected" | "connecting" | "connected";
 
 interface PendingRequest {
@@ -219,9 +222,13 @@ class WSClient extends EventTarget {
   }
 
   send(cmd: string, args: Record<string, unknown> = {}): Promise<unknown> {
-    if (this._shouldThrottle(cmd)) return Promise.resolve({ ok: false, reason: "throttled" });
+    if (this._shouldThrottle(cmd)) {
+      const response = { ok: false, reason: "throttled" };
+      this._reportRejection(cmd, response);
+      return Promise.resolve(response);
+    }
 
-    return new Promise((resolve, reject) => {
+    return new Promise<unknown>((resolve, reject) => {
       if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
         reject(new Error("Not connected"));
         return;
@@ -244,14 +251,26 @@ class WSClient extends EventTarget {
         this._pendingRequests.delete(requestId);
         reject(error);
       }
+    }).then(response => {
+      this._reportRejection(cmd, response);
+      if (!isCommandRejected(response) && ["load_scenario", "generate_skirmish", "rcon_load", "rcon_reload", "rcon_restart"].includes(cmd)) {
+        this._emit("mission_changed", { command: cmd });
+      }
+      return response;
+    }, error => {
+      if (this._isAction(cmd)) reportCommandFailure(cmd, error instanceof Error ? error.message : String(error));
+      throw error;
     });
   }
 
   sendAsync(cmd: string, args: Record<string, unknown> = {}): void {
-    if (this._shouldThrottle(cmd)) return;
-    if (!this.socket || this.socket.readyState !== WebSocket.OPEN) return;
-    const message = JSON.stringify({ cmd, ...args });
-    try { this.socket.send(message); } catch (err) { console.error("Send error:", err); }
+    if (cmd === "_ping") {
+      if (this.socket?.readyState === WebSocket.OPEN) this.socket.send(JSON.stringify({ cmd, ...args }));
+      return;
+    }
+    // Fire-and-forget commands still correlate their replies; heartbeat replies
+    // must not resolve an unrelated get_state/claim request.
+    void this.send(cmd, args).catch(() => { /* send already reports action failures */ });
   }
 
   sendShipCommand(cmd: string, args: Record<string, unknown> = {}): Promise<unknown> {
@@ -261,7 +280,9 @@ class WSClient extends EventTarget {
       const count = (this._blockedCommands.get(cmd) ?? 0) + 1;
       this._blockedCommands.set(cmd, count);
       this._blockedCommandTotal += 1;
-      return Promise.resolve({ ok: false, error: "no_ship_id" });
+      const response = { ok: false, error: "Join a ship and claim a station before issuing ship commands" };
+      this._reportRejection(cmd, response);
+      return Promise.resolve(response);
     }
 
     return this.send(cmd, { ship: shipId, ...args });
@@ -273,6 +294,7 @@ class WSClient extends EventTarget {
       const count = (this._blockedCommands.get(cmd) ?? 0) + 1;
       this._blockedCommands.set(cmd, count);
       this._blockedCommandTotal += 1;
+      this._reportRejection(cmd, { ok: false, error: "Join a ship and claim a station before issuing ship commands" });
       return false;
     }
     this.sendAsync(cmd, { ship: shipId, ...args });
@@ -384,15 +406,20 @@ class WSClient extends EventTarget {
       resolve(data);
       return;
     }
-    // FIFO fallback for servers that don't echo request ID
-    const iter = this._pendingRequests.entries().next();
-    if (!iter.done) {
-      const [fallbackId, { resolve, timeout }] = iter.value as [number, PendingRequest];
-      clearTimeout(timeout);
-      this._pendingRequests.delete(fallbackId);
-      resolve(data);
-    } else {
-      this._emit("response", data as Record<string, unknown>);
+    // The canonical bridge echoes IDs. Late/unsolicited replies never own a
+    // different pending request, even if that request happens to be oldest.
+    this._emit("response", data as Record<string, unknown>);
+  }
+
+  private _isAction(cmd: string): boolean {
+    return !/^(?:get_|list_|_)/.test(cmd)
+      && cmd !== "register_client" && cmd !== "my_status" && cmd !== "heartbeat"
+      && !/(?:_status|_tactical)$/.test(cmd);
+  }
+
+  private _reportRejection(cmd: string, response: unknown): void {
+    if (this._isAction(cmd) && isCommandRejected(response)) {
+      reportCommandFailure(cmd, describeCommandFailure(response));
     }
   }
 

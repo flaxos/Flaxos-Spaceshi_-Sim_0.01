@@ -12,6 +12,7 @@
   import { tier } from "../../lib/stores/tier.js";
   import { wsClient } from "../../lib/ws/wsClient.js";
   import { selectedTacticalTargetId } from "../../lib/stores/tacticalUi.js";
+  import { selectedHelmTargetId } from "../../lib/stores/helmUi.js";
   import {
     extractShipState,
     getLockedTargetId,
@@ -23,6 +24,7 @@
   import { lockTarget } from "./tacticalActions.js";
 
   export let passive = false;
+  export let navigation = false;
 
   let busy = false;
 
@@ -31,7 +33,7 @@
   $: sensors = getSensorState(ship);
   $: lockedTargetId = getLockedTargetId(ship);
   $: cooldown = toNumber(sensors.ping_cooldown_remaining);
-  $: canPing = !passive && Boolean(sensors.can_ping ?? true) && cooldown <= 0;
+  $: canPing = !passive && !navigation && Boolean(sensors.can_ping ?? true) && cooldown <= 0;
 
   // Sort: ordnance first (threats!), then by distance
   $: sortedContacts = [...contacts].sort((a, b) => {
@@ -100,6 +102,10 @@
   }
 
   async function selectContact(contactId: string) {
+    if (navigation) {
+      selectedHelmTargetId.set(contactId);
+      return;
+    }
     selectedTacticalTargetId.set(contactId);
     if (passive) return;
     await lockTarget(contactId);
@@ -107,14 +113,14 @@
 </script>
 
 <Panel
-  title={passive ? "Passive Contacts" : "Sensor Contacts"}
+  title={navigation ? "Navigation Contacts" : passive ? "Passive Contacts" : "Sensor Contacts"}
   domain="sensor"
   priority="primary"
   className="sensor-contacts-panel"
 >
   <div class="shell">
     <!-- Toolbar -->
-    {#if !passive}
+    {#if !passive && !navigation}
       <div class="toolbar">
         <button
           class="ping-btn"
@@ -132,7 +138,7 @@
       </div>
     {:else}
       <div class="toolbar passive-bar">
-        <span class="passive-badge">PASSIVE</span>
+        <span class="passive-badge">{navigation ? "SHARED CONTACTS · SELECT TO NAVIGATE" : "PASSIVE"}</span>
         <span class="status-badge">{contacts.length} RO</span>
       </div>
     {/if}
@@ -156,7 +162,7 @@
           {@const tag = iffTag(c)}
           {@const badge = threatBadge(c)}
           {@const ord = isOrdnance(c)}
-          {@const selected = c.id === $selectedTacticalTargetId || c.id === lockedTargetId}
+          {@const selected = navigation ? c.id === $selectedHelmTargetId : c.id === $selectedTacticalTargetId || c.id === lockedTargetId}
           <button
             class="row"
             class:selected
@@ -164,7 +170,7 @@
             class:passive
             type="button"
             disabled={passive}
-            title={passive ? "Passive — cannot designate" : `Designate ${c.id}`}
+            title={navigation ? `Navigate to ${c.id}` : passive ? "Passive — cannot designate" : `Designate ${c.id}`}
             style="--iff: {col}; --iff-border: {col}50;"
             on:click={() => selectContact(c.id)}
           >

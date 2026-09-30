@@ -17,6 +17,7 @@ Examples:
 from __future__ import annotations
 
 import argparse
+from contextlib import nullcontext
 import hmac
 import json
 import logging
@@ -60,6 +61,8 @@ logger = logging.getLogger(__name__)
 RCON_AUTH_RATE = 0.2
 RCON_AUTH_BURST = 3
 RCON_TOKEN_TTL_SECONDS = 8 * 60 * 60
+AI_CREW_TICK_INTERVAL = 2.0
+STALE_CLAIM_CHECK_INTERVAL = 60.0
 
 
 class UnifiedServer:
@@ -79,6 +82,9 @@ class UnifiedServer:
     def __init__(self, config: ServerConfig):
         self.config = config
         self.running = False
+        self._monitor_stop = threading.Event()
+        self._ai_crew_thread: Optional[threading.Thread] = None
+        self._stale_claim_thread: Optional[threading.Thread] = None
 
         # Initialize simulation
         self.runner = HybridRunner(
@@ -220,9 +226,39 @@ class UnifiedServer:
             self.runner.simulator.fleet_manager,
         )
 
-        # Start AI crew background tick thread
+        self._sync_ai_crew()
+        logger.info("Station system initialized with multi-crew support")
+
+    def _sync_ai_crew(self) -> None:
+        """Bind existing AI crew to the current ships and human station claims."""
+        if not self.ai_crew_manager:
+            return
+        with self.station_manager.ownership_lock:
+            for ship_id in self.runner.simulator.ships:
+                self.ai_crew_manager.register_ship(ship_id)
+            for session in self.station_manager.get_all_clients():
+                if session.ship_id and session.station:
+                    self.ai_crew_manager.deactivate_station(session.ship_id, session.station)
+
+    def _restore_ai_for_released_claims(self, previous_claims) -> None:
+        """Return existing AI stations to service only when their human left."""
+        if not self.ai_crew_manager or not self.station_manager:
+            return
+        # A claim must not slip between the owner check and AI activation.
+        # Claim dispatch holds the same guard until its AI deactivation.
+        with self.station_manager.ownership_lock:
+            for ship_id, station in previous_claims:
+                if ship_id and station and self.station_manager.get_station_owner(ship_id, station) is None:
+                    self.ai_crew_manager.activate_station(ship_id, station)
+
+    def _start_station_monitors(self) -> None:
+        """Start maintenance only after the server is listening and running."""
+        if self.config.mode != ServerMode.STATION:
+            return
+        self._monitor_stop.clear()
         self._ai_crew_thread = threading.Thread(
             target=self._ai_crew_tick_loop,
+            name="flaxos-ai-crew",
             daemon=True,
         )
         self._ai_crew_thread.start()
@@ -230,11 +266,10 @@ class UnifiedServer:
         # Periodic stale-claim cleanup (runs every 60 seconds)
         self._stale_claim_thread = threading.Thread(
             target=self._stale_claim_cleanup_loop,
+            name="flaxos-stale-claims",
             daemon=True,
         )
         self._stale_claim_thread.start()
-
-        logger.info("Station system initialized with multi-crew support")
 
     def dispatch(self, client_id: str, req: dict) -> dict:
         """
@@ -431,7 +466,7 @@ class UnifiedServer:
         if cmd == "load_scenario":
             from server.stations.station_types import StationType
 
-            has_active_ships = len(self.runner.simulator.ships) > 0
+            has_active_scenario = self.runner._current_scenario_path is not None or self.runner.mission is not None
             is_captain = (
                 session
                 and session.station == StationType.CAPTAIN
@@ -440,7 +475,7 @@ class UnifiedServer:
 
             # Guard: if a mission is already running, only the captain
             # (or the sole connected client) may reload
-            if has_active_ships and not is_captain and not is_only_client:
+            if has_active_scenario and not is_captain and not is_only_client:
                 return Response.error(
                     "Mission already in progress — only the captain can reload",
                     ErrorCode.PERMISSION_DENIED,
@@ -458,16 +493,19 @@ class UnifiedServer:
                 player_ship_id = result["player_ship_id"]
 
                 self.station_manager.assign_to_ship(client_id, player_ship_id)
-                self.station_manager.claim_station(
-                    client_id,
-                    player_ship_id,
-                    StationType.CAPTAIN,
-                )
+                # Preserve a crew role on replay. A new unassigned loader
+                # receives captain authority under the existing policy.
+                loader_session = self.station_manager.get_session(client_id)
+                if loader_session and loader_session.station is None:
+                    self.station_manager.claim_station(
+                        client_id, player_ship_id, StationType.CAPTAIN,
+                    )
 
                 result["auto_assigned"] = True
                 result["assigned_ship"] = player_ship_id
-                result["station"] = "captain"
-                logger.info(f"Auto-assigned {client_id} to {player_ship_id} as captain")
+                if loader_session and loader_session.station:
+                    result["station"] = loader_session.station.value
+                logger.info(f"Auto-assigned {client_id} to {player_ship_id}")
 
             # Auto-reassign connected-but-unassigned clients to
             # the player ship after scenario reload purges their claims.
@@ -476,22 +514,21 @@ class UnifiedServer:
 
             # Register AI crew for all ships in the scenario
             if result.get("ok") and self.ai_crew_manager:
-                for sid in self.runner.simulator.ships:
-                    self.ai_crew_manager.register_ship(sid)
+                self._sync_ai_crew()
 
             return result
 
         if cmd == "generate_skirmish":
             from server.stations.station_types import StationType
 
-            has_active_ships = len(self.runner.simulator.ships) > 0
+            has_active_scenario = self.runner._current_scenario_path is not None or self.runner.mission is not None
             is_captain = (
                 session
                 and session.station == StationType.CAPTAIN
             )
             is_only_client = len(self.station_manager.sessions) <= 1
 
-            if has_active_ships and not is_captain and not is_only_client:
+            if has_active_scenario and not is_captain and not is_only_client:
                 return Response.error(
                     "Mission already in progress — only the captain can generate a skirmish",
                     ErrorCode.PERMISSION_DENIED,
@@ -517,8 +554,7 @@ class UnifiedServer:
                 self._auto_reassign_orphaned_clients(result["player_ship_id"])
 
             if result.get("ok") and self.ai_crew_manager:
-                for sid in self.runner.simulator.ships:
-                    self.ai_crew_manager.register_ship(sid)
+                self._sync_ai_crew()
 
             return result
 
@@ -579,31 +615,33 @@ class UnifiedServer:
         if ship_id:
             args["ship"] = ship_id
 
-        # Capture station before release (release clears session.station)
-        _pre_release_station = None
-        _pre_release_ship = None
-        if cmd == "release_station" and self.ai_crew_manager:
-            pre_session = self.station_manager.get_session(client_id)
-            if pre_session and pre_session.station and pre_session.ship_id:
-                _pre_release_station = pre_session.station
-                _pre_release_ship = pre_session.ship_id
+        # Ownership commands share the cleanup guard through AI notification.
+        # Ordinary gameplay does not hold this lock around ship commands.
+        ownership_command = cmd in ("claim_station", "release_station", "assign_ship", "transfer_station")
+        with self.station_manager.ownership_lock if ownership_command else nullcontext():
+            # Capture station before release (release clears session.station).
+            previous_claim = None
+            if cmd == "release_station" and self.ai_crew_manager:
+                pre_session = self.station_manager.get_session(client_id)
+                if pre_session and pre_session.station and pre_session.ship_id:
+                    previous_claim = (pre_session.ship_id, pre_session.station)
 
-        result = self.dispatcher.dispatch(client_id, ship_id or "", cmd, args)
+            result = self.dispatcher.dispatch(client_id, ship_id or "", cmd, args)
 
-        # Notify AI crew manager when stations are claimed/released
-        if self.ai_crew_manager and result.success:
-            if cmd == "claim_station":
-                station_name = args.get("station", "")
-                from server.stations.station_types import StationType
-                try:
-                    st = StationType(station_name.lower())
-                    sess = self.station_manager.get_session(client_id)
-                    if sess and sess.ship_id:
-                        self.ai_crew_manager.deactivate_station(sess.ship_id, st)
-                except ValueError:
-                    pass
-            elif cmd == "release_station" and _pre_release_station and _pre_release_ship:
-                self.ai_crew_manager.activate_station(_pre_release_ship, _pre_release_station)
+            # Notify AI crew manager when stations are claimed/released.
+            if self.ai_crew_manager and result.success:
+                if cmd == "claim_station":
+                    station_name = args.get("station", "")
+                    from server.stations.station_types import StationType
+                    try:
+                        st = StationType(station_name.lower())
+                        sess = self.station_manager.get_session(client_id)
+                        if sess and sess.ship_id:
+                            self.ai_crew_manager.deactivate_station(sess.ship_id, st)
+                    except ValueError:
+                        pass
+                elif cmd == "release_station" and previous_claim:
+                    self._restore_ai_for_released_claims([previous_claim])
 
         return result.to_dict()
 
@@ -890,6 +928,7 @@ class UnifiedServer:
                 return self._handle_load_scenario({"scenario": scenario, "force": True})
             # No scenario loaded -- just reset the runner
             self.runner.stop()
+            self.runner._reset_simulation()
             self.runner.load_ships()
             self.runner.start()
             self._clear_mission_runtime()
@@ -897,7 +936,7 @@ class UnifiedServer:
 
         return {"ok": False, "error": f"Unknown RCON command: {cmd}"}
 
-    def _compute_delta(self, client_id: str, ship_id: str, snapshot: dict) -> dict:
+    def _compute_delta(self, client_id: str, ship_id: str, snapshot: dict, force_full: bool = False) -> dict:
         """Compute delta between new and cached telemetry.
 
         Returns only the top-level keys that changed since the last snapshot
@@ -911,7 +950,7 @@ class UnifiedServer:
         prev = self._telemetry_cache.get(cache_key)
 
         # Force full sync on first request or every 10th request
-        if prev is None or count % 10 == 0:
+        if force_full or prev is None or count % 10 == 0:
             self._telemetry_cache[cache_key] = snapshot
             return snapshot
 
@@ -940,6 +979,7 @@ class UnifiedServer:
         payload = {
             "ok": True,
             "t": self.runner.simulator.time,
+            "mission_epoch": self.runner.mission_epoch,
             "ships": [self._format_ship_state(state) for state in states.values()],
         }
 
@@ -951,7 +991,7 @@ class UnifiedServer:
                 payload["ok"] = False
                 payload["error"] = ship_state["error"]
 
-        return self._compute_delta(client_id, ship_id or "_all", payload)
+        return self._compute_delta(client_id, ship_id or "_all", payload, force_full=bool(req.get("full")))
 
     def _handle_get_state_station(self, client_id: str, req: dict) -> dict:
         """Handle get_state in station mode with telemetry filtering."""
@@ -970,11 +1010,12 @@ class UnifiedServer:
                 client_id, full_telemetry
             )
             result = {"ok": True, "t": self.runner.simulator.time, **filtered}
+            result["mission_epoch"] = self.runner.mission_epoch
             # Include active scenario metadata so clients can detect mission state
             if self.runner._current_scenario_name:
                 result["active_scenario"] = self.runner._current_scenario_name
             result["ship_count"] = len(self.runner.simulator.ships)
-            return self._compute_delta(client_id, "_all", result)
+            return self._compute_delta(client_id, "_all", result, force_full=bool(req.get("full")))
 
         # Get specific ship
         if not session.ship_id:
@@ -992,7 +1033,8 @@ class UnifiedServer:
             client_id, ship_id, ship_telemetry
         )
 
-        result = {"ok": True, "ship": ship_id, "state": filtered, "t": self.runner.simulator.time}
+        result = {"ok": True, "ship": ship_id, "state": filtered, "t": self.runner.simulator.time,
+                  "mission_epoch": self.runner.mission_epoch}
 
         # Include simulation-wide projectiles and torpedoes for stations
         # that need them (TACTICAL, CAPTAIN).  These live on the simulator,
@@ -1009,7 +1051,7 @@ class UnifiedServer:
                 if hasattr(sim, "torpedo_manager") else []
             )
 
-        return self._compute_delta(client_id, ship_id, result)
+        return self._compute_delta(client_id, ship_id, result, force_full=bool(req.get("full")))
 
     def _handle_get_events(self, req: dict) -> dict:
         """Handle get_events command (minimal mode)."""
@@ -1269,6 +1311,11 @@ class UnifiedServer:
             ).to_dict()
 
         self._mark_mission_loaded()
+        self._telemetry_cache.clear()
+        self._delta_counters.clear()
+        if self.station_manager:
+            self.station_manager.purge_claims_for_missing_ships(set(self.runner.simulator.ships))
+            self._sync_ai_crew()
 
         return {
             "ok": True,
@@ -1277,6 +1324,7 @@ class UnifiedServer:
             "ships_loaded": loaded,
             "player_ship_id": self.runner.player_ship_id,
             "mission": self.runner.get_mission_status(),
+            "mission_epoch": self.runner.mission_epoch,
         }
 
     def _handle_generate_skirmish(self, req: dict) -> dict:
@@ -1437,15 +1485,6 @@ class UnifiedServer:
         finally:
             logger.info(f"Client disconnected: {client_id}")
 
-            # Capture station/ship before unregister clears them
-            _released_station = None
-            _released_ship = None
-            if self.config.mode == ServerMode.STATION and self.station_manager:
-                session = self.station_manager.get_session(client_id)
-                if session:
-                    _released_station = session.station
-                    _released_ship = session.ship_id
-
             with self.client_lock:
                 self.clients.pop(client_id, None)
             self.rate_limiter.remove_client(client_id)
@@ -1454,33 +1493,36 @@ class UnifiedServer:
             self._rcon_tokens.pop(client_id, None)
 
             if self.config.mode == ServerMode.STATION and self.station_manager:
-                self.station_manager.unregister_client(client_id)
+                with self.station_manager.ownership_lock:
+                    # Capture before unregister/election clears station state.
+                    previous_claims = [(session.ship_id, session.station)
+                                       for session in self.station_manager.get_all_clients()]
+                    session = self.station_manager.get_session(client_id)
+                    released_station = session.station if session else None
+                    released_ship = session.ship_id if session else None
+                    self.station_manager.unregister_client(client_id)
 
-                # Auto-promote a new captain if the departing client held
-                # CAPTAIN.  Without this, pause / time-scale / load-scenario
-                # become permanently locked out.
-                if (
-                    _released_station is not None
-                    and _released_station.value == "captain"
-                    and _released_ship
-                ):
-                    self.station_manager.elect_new_captain(_released_ship)
+                    # Preserve the existing captain succession policy.
+                    if (released_station is not None
+                            and released_station.value == "captain" and released_ship):
+                        self.station_manager.elect_new_captain(released_ship)
+                    self._restore_ai_for_released_claims(previous_claims)
 
             conn.close()
 
     def _ai_crew_tick_loop(self) -> None:
         """Background loop for AI crew behaviors."""
-        import time as _time
-        while self.running:
+        while self.running and not self._monitor_stop.is_set():
             try:
-                if self.ai_crew_manager and self.runner.simulator.ships:
+                if (self.ai_crew_manager and self.runner.running
+                        and not self.runner._loading_scenario and self.runner.simulator.ships):
                     self.ai_crew_manager.tick(
-                        self.runner.simulator.ships,
+                        dict(self.runner.simulator.ships),
                         self.config.dt,
                     )
             except Exception as e:
                 logger.debug(f"AI crew tick error: {e}")
-            _time.sleep(2.0)  # AI acts every 2 seconds
+            self._monitor_stop.wait(AI_CREW_TICK_INTERVAL)
 
     def _stale_claim_cleanup_loop(self) -> None:
         """Periodically release stations held by clients that stopped heartbeating.
@@ -1489,12 +1531,19 @@ class UnifiedServer:
         was never invoked.  This daemon thread calls it every 60 seconds so
         that inactive clients do not permanently block stations.
         """
-        import time as _time
-        while self.running:
-            _time.sleep(60.0)
+        while not self._monitor_stop.wait(STALE_CLAIM_CHECK_INTERVAL):
+            if not self.running:
+                return
             try:
                 if self.station_manager:
-                    removed = self.station_manager.cleanup_stale_claims()
+                    with self.station_manager.ownership_lock:
+                        previous_claims = {
+                            session.client_id: (session.ship_id, session.station)
+                            for session in self.station_manager.get_all_clients()
+                        }
+                        removed = self.station_manager.cleanup_stale_claims()
+                        if removed:
+                            self._restore_ai_for_released_claims(previous_claims.values())
                     if removed:
                         logger.info(
                             f"Stale-claim cleanup released {len(removed)} "
@@ -1505,21 +1554,20 @@ class UnifiedServer:
 
     def start(self) -> None:
         """Start the server."""
-        self.initialize()
-
-        self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.server_socket.bind((self.config.host, self.config.tcp_port))
-        self.server_socket.listen(8)
-        self.running = True
-
-        mode_str = "multi-crew" if self.config.mode == ServerMode.STATION else "minimal"
-        logger.info(
-            f"Server listening on {self.config.host}:{self.config.tcp_port} "
-            f"(mode={mode_str}, dt={self.config.dt})"
-        )
-
         try:
+            self.initialize()
+            self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            self.server_socket.bind((self.config.host, self.config.tcp_port))
+            self.server_socket.listen(8)
+            self.running = True
+            self._start_station_monitors()
+
+            mode_str = "multi-crew" if self.config.mode == ServerMode.STATION else "minimal"
+            logger.info(
+                f"Server listening on {self.config.host}:{self.config.tcp_port} "
+                f"(mode={mode_str}, dt={self.config.dt})"
+            )
             while self.running:
                 try:
                     client, addr = self.server_socket.accept()
@@ -1541,6 +1589,18 @@ class UnifiedServer:
     def stop(self) -> None:
         """Stop the server."""
         self.running = False
+        self._monitor_stop.set()
+
+        if self.server_socket:
+            try:
+                self.server_socket.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
+            self.server_socket.close()
+
+        for thread in (self._ai_crew_thread, self._stale_claim_thread):
+            if thread and thread.is_alive() and thread is not threading.current_thread():
+                thread.join(timeout=1.0)
 
         with self.client_lock:
             for client_id, conn in list(self.clients.items()):
@@ -1551,9 +1611,6 @@ class UnifiedServer:
             self.clients.clear()
 
         self.runner.stop()
-
-        if self.server_socket:
-            self.server_socket.close()
 
         logger.info("Server stopped")
 

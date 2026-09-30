@@ -4,7 +4,6 @@
   import { gameState } from "../../lib/stores/gameState.js";
   import { tier } from "../../lib/stores/tier.js";
   import {
-    asRecord,
     computeRelativeSpeed,
     extractShipState,
     formatDistance,
@@ -12,10 +11,10 @@
     formatVector,
     getAutopilotSnapshot,
     getDeltaV,
+    getFuelPercent,
     getOrientation,
     getPONR,
     getPosition,
-    getSystem,
     getVelocity,
     magnitude,
     signed,
@@ -37,8 +36,7 @@
   $: manualLike = $tier === "manual" || $tier === "raw";
   $: showRawVectors = manualLike;
   $: stopMargin = toNumber(ponr.dv_margin);
-  $: propulsion = getSystem(ship, "propulsion");
-  $: fuelPct = toNumber(asRecord(propulsion)?.fuel_pct, toNumber(asRecord(ship)?.fuel_pct, 0));
+  $: fuelPct = getFuelPercent(ship);
 </script>
 
 <Panel title="Flight Data" domain="helm" priority={$tier === "manual" ? "primary" : "secondary"} className="flight-data-panel">
@@ -71,7 +69,7 @@
         </div>
         <div class="hero-metric">
           <span>Fuel</span>
-          <strong>{fuelPct.toFixed(1)}</strong>
+          <strong>{fuelPct == null ? "--" : fuelPct.toFixed(1)}</strong>
           <em>%</em>
         </div>
       </div>

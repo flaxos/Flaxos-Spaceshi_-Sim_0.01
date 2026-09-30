@@ -4,6 +4,8 @@ This directory contains both current operational docs and historical design/refe
 
 ## Current Docs
 
+- [SHARED_SHIP_PLAYTEST.md](SHARED_SHIP_PLAYTEST.md): draft repair checkout, current Svelte two-client acceptance and owner exercise
+
 - [UAT_MASTER_PLAN.md](/home/flax/games/spaceship-sim/docs/UAT_MASTER_PLAN.md): full human UAT ladder, mission order, and log-monitoring guidance
 - [UAT_COMMANDS.md](/home/flax/games/spaceship-sim/docs/UAT_COMMANDS.md): exact copy/paste command set for UAT
 - [STATION_UAT_WIRING_CHECKLIST.md](/home/flax/games/spaceship-sim/docs/STATION_UAT_WIRING_CHECKLIST.md): fast smoke and bridge wiring triage

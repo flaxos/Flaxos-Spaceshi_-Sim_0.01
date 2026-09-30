@@ -3,21 +3,21 @@
  * Also keeps wsClient.setActiveShipId() in sync to avoid circular deps.
  */
 
-import { writable } from "svelte/store";
+import { get, writable } from "svelte/store";
 import { wsClient } from "../ws/wsClient.js";
 import { startPolling, stopPolling } from "./gameState.js";
+import { selectedTargetId } from "./selectedTarget.js";
+import { selectedScienceContactId } from "./scienceUi.js";
 
 const _playerShipId = writable<string | null>(null);
 
 // Keep wsClient ship ID in sync (needed for sendShipCommand)
 _playerShipId.subscribe((id) => {
   wsClient.setActiveShipId(id);
-  if (id) {
-    startPolling(id);
-  } else {
-    // Still poll without ship ID — server will return minimal state
-    startPolling(null);
-  }
+  selectedTargetId.clear();
+  selectedScienceContactId.set("");
+  if (wsClient.status === "connected") startPolling(id);
+  else stopPolling();
 });
 
 export const playerShipId = {
@@ -25,20 +25,19 @@ export const playerShipId = {
   set: (id: string | null) => _playerShipId.set(id),
 };
 
-/** Call once at startup to connect and begin polling. */
+let initialized = false;
+
+/** Call once at startup. The session store owns authoritative assignment. */
 export function initializeConnection(): void {
+  if (initialized) return;
+  initialized = true;
   wsClient.addEventListener("status_change", (e) => {
     const { status } = (e as CustomEvent<{ status: string }>).detail;
     if (status === "connected") {
-      // Resume polling when reconnected
-      const currentId = (() => {
-        let val: string | null = null;
-        const unsub = _playerShipId.subscribe((v) => { val = v; });
-        unsub();
-        return val;
-      })();
-      startPolling(currentId);
+      startPolling(get(_playerShipId));
     } else if (status === "disconnected") {
+      _playerShipId.set(null);
+      wsClient.setActiveShipId(null);
       stopPolling();
     }
   });
