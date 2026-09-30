@@ -108,4 +108,5 @@ constructed solutions without it retain the legacy angle fallback.
 
 Local logs, JUnit reports, passive JSON traces, the captured RNG state, diagnostic
 harnesses and checksums are retained in `/workspace/spacesim-task2-evidence/`.
-The draft PR links the retained evidence bundle and its exact-head results.
+The draft PR links the public exact-head CI results. The evidence bundle is
+retained privately in the owner's ChatGPT Library.
