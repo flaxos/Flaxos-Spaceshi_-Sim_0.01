@@ -22,7 +22,7 @@ let _hasFullState = false;
 let _stateTimer: ReturnType<typeof setTimeout> | null = null;
 let _eventGeneration = 0;
 let _eventTimer: ReturnType<typeof setTimeout> | null = null;
-let _lastEventTime = 0;
+let _lastEventId = 0;
 
 // ── Deep merge (mirrors StateManager._deepMerge) ──────────────────────────
 
@@ -126,15 +126,22 @@ const _events = writable<GameState[]>([]);
 async function _fetchEvents(gen: number): Promise<void> {
   if (gen !== _eventGeneration) return;
   try {
-    const response = await wsClient.send("get_events", { since: _lastEventTime }) as {
+    // The server returns a recent, station-filtered window; `since` is not a
+    // supported cursor. EventLogBuffer IDs increase even while time is paused.
+    const response = await wsClient.send("get_events", {}) as {
       ok: boolean;
       events: GameState[];
     };
     if (gen !== _eventGeneration) return;
     if (response?.ok && Array.isArray(response.events)) {
-      const newEvents = response.events.filter(event => (event.t as number) > _lastEventTime);
-      for (const event of response.events) {
-        if ((event.t as number) > _lastEventTime) _lastEventTime = event.t as number;
+      const seen = new Set<number>();
+      const newEvents = response.events.filter(event => {
+        if (!Number.isSafeInteger(event.id) || event.id <= _lastEventId || seen.has(event.id)) return false;
+        seen.add(event.id);
+        return true;
+      });
+      for (const event of newEvents) {
+        _lastEventId = Math.max(_lastEventId, event.id);
       }
       if (newEvents.length > 0) {
         _events.update((prev) => {
@@ -153,7 +160,10 @@ function _stopEventPolling(): void {
   _eventGeneration++;
   if (_eventTimer) clearTimeout(_eventTimer);
   _eventTimer = null;
-  _lastEventTime = 0;
+  // Ship/station changes, disconnects and observed mission epochs invalidate
+  // both the cursor and pending replies. A reconnect can reach a new server
+  // whose IDs start over; a mission reset keeps IDs monotonic on this server.
+  _lastEventId = 0;
   _events.set([]);
 }
 

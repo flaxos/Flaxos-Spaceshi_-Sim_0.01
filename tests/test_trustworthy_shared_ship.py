@@ -234,6 +234,95 @@ def test_competing_human_claim_cannot_interleave_ai_restoration(station_server, 
     assert not server.ai_crew_manager._ai_crew[ship_id][station].active
 
 
+def test_inflight_cpu_action_finishes_before_human_handover(station_server, monkeypatch):
+    server = station_server
+    manager = server.station_manager
+    ship_id = next(iter(server.runner.simulator.ships))
+    station = StationType.ENGINEERING
+    manager.register_client("incoming_engineer", "incoming_engineer")
+    assert manager.assign_to_ship("incoming_engineer", ship_id)
+    # Isolate one actual tick-selected station at the active-check/action boundary.
+    for crew_ship, crew in server.ai_crew_manager._ai_crew.items():
+        for member in crew.values():
+            member.active = crew_ship == ship_id and member.station == station
+    selected = threading.Event()
+    resume_action = threading.Event()
+    claim_waiting = threading.Event()
+    claim_finished = threading.Event()
+    original_lock = manager.ownership_lock
+    ordering, errors, outcomes = [], [], {}
+
+    class ObservedLock:
+        def __enter__(self):
+            if threading.current_thread().name == "incoming-human":
+                acquired = original_lock.acquire(blocking=False)
+                outcomes.setdefault("claim_blocked", not acquired)
+                claim_waiting.set()  # report the actual acquisition result
+                if not acquired:
+                    original_lock.acquire()
+                return self
+            original_lock.acquire()
+            return self
+
+        def __exit__(self, *args):
+            original_lock.release()
+
+    monkeypatch.setattr(manager, "ownership_lock", ObservedLock())
+
+    def action(ship, ai):
+        assert ai.station == station
+        selected.set()  # tick has already passed ai.active
+        assert resume_action.wait(2)
+        ordering.append(("cpu_action", manager.get_station_owner(ship_id, station)))
+        server._monitor_stop.set()  # one tick only
+
+    monkeypatch.setattr(server.ai_crew_manager, "_run_station_ai", action)
+
+    def tick():
+        try:
+            server._ai_crew_tick_loop()
+        except Exception as error:
+            errors.append(error)
+
+    def claim():
+        try:
+            outcomes["claim"] = server.dispatch("incoming_engineer", {
+                "cmd": "claim_station", "ship": ship_id, "station": station.value,
+            })
+            ordering.append(("human_handover", manager.get_station_owner(ship_id, station)))
+        except Exception as error:
+            errors.append(error)
+        finally:
+            claim_finished.set()
+
+    server.running = server.runner.running = True
+    server._monitor_stop.clear()
+    cpu = threading.Thread(target=tick, name="cpu-action", daemon=True)
+    human = threading.Thread(target=claim, name="incoming-human", daemon=True)
+    cpu.start()
+    try:
+        assert selected.wait(1)
+        human.start()
+        assert claim_waiting.wait(1)
+        # CPU either finishes before handover, or must not execute afterwards.
+        # The approved serialization boundary chooses the former.
+        assert outcomes["claim_blocked"], "Human handover passed an in-flight CPU action"
+        assert not claim_finished.is_set()
+    finally:
+        resume_action.set()
+        cpu.join(2)
+        if human.ident is not None:
+            human.join(2)
+        server.running = server.runner.running = False
+    assert not cpu.is_alive() and not human.is_alive(), "Ownership serialization deadlocked"
+    assert not errors
+    assert outcomes["claim"]["ok"] is True
+    assert ordering == [("cpu_action", None), ("human_handover", "incoming_engineer")]
+    assert not server.ai_crew_manager._ai_crew[ship_id][station].active
+    server.ai_crew_manager.tick(dict(server.runner.simulator.ships), server.config.dt)
+    assert len(ordering) == 2, "CPU executed again after handover"
+
+
 def test_ownership_guard_allows_nested_cleanup_and_captain_election(station_server):
     server = station_server
     manager = server.station_manager

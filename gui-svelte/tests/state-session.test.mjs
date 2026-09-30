@@ -76,7 +76,7 @@ async function fixture(t) {
       }
       if (cmd === 'release_station') { this.session.station = null; return Promise.resolve({ ok: true }); }
       if (cmd === 'get_mission') return Promise.resolve({ ok: true, mission: { ...this.mission } });
-      if (cmd === 'get_events') return Promise.resolve({ ok: true, events: [{ t: time.now / 1000 + 1, type: 'crew_test' }] });
+      if (cmd === 'get_events') return Promise.resolve({ ok: true, events: [{ id: time.now + 1, t: time.now / 1000, type: 'crew_test' }] });
       if (cmd === 'get_state') return Promise.resolve({ ok: true, t: time.now / 1000, mission_epoch: this.mission.mission_epoch, state: args.ship ? { id: args.ship } : undefined });
       return Promise.resolve({ ok: true });
     },
@@ -87,6 +87,68 @@ async function fixture(t) {
   const hold = cmd => { const d = deferred(); holds.set(cmd, d); return d; };
   return { stores, ws, requests, time, hold, async connect() { stores.initializeCrewSession(); stores.initializeConnection(); await settle(); } };
 }
+
+test('event identity accepts time zero and distinct paused events while suppressing exact duplicates', async t => {
+  const f = await fixture(t); await f.connect();
+  let recent = [{ id: 1, t: 0, type: 'paused_first' }];
+  f.ws.handlers.get_events = () => ({ ok: true, events: recent });
+  f.stores.startPolling('ship_A'); await settle();
+  assert.deepEqual(read(f.stores.events).map(e => e.id), [1]);
+  recent = [recent[0], { id: 2, t: 0, type: 'paused_second' }];
+  await f.time.advance(1000);
+  assert.deepEqual(read(f.stores.events).map(e => e.id), [1, 2]);
+  recent = [...recent, { id: 3, t: 0, type: 'paused_third' }, { id: 3, t: 0, type: 'paused_third' }];
+  await f.time.advance(2000);
+  assert.deepEqual(read(f.stores.events).map(e => e.id), [1, 2, 3]);
+  assert(f.requests.filter(r => r.cmd === 'get_events').length >= 4);
+});
+
+test('successive polls retain different events at a previously consumed nonzero paused timestamp', async t => {
+  const f = await fixture(t); await f.connect();
+  let recent = [{ id: 10, t: 8, type: 'first' }];
+  f.ws.handlers.get_events = () => ({ ok: true, events: recent });
+  f.stores.startPolling('ship_A'); await settle();
+  assert.deepEqual(read(f.stores.events).map(e => e.id), [10]);
+  recent = [...recent, { id: 11, t: 8, type: 'second' }];
+  await f.time.advance(1000);
+  recent = [...recent, { id: 12, t: 8, type: 'third' }];
+  await f.time.advance(2000);
+  assert.deepEqual(read(f.stores.events).map(e => e.id), [10, 11, 12]);
+});
+
+test('mission epoch retires delayed event replies and rebuilds the ID cursor at unchanged time zero', async t => {
+  const f = await fixture(t); await f.connect();
+  let recent = [{ id: 40, t: 0, type: 'old_mission' }];
+  f.ws.handlers.get_events = () => ({ ok: true, events: recent });
+  f.ws.handlers.get_state = () => ({ ok: true, t: 0, mission_epoch: f.ws.mission.mission_epoch, state: { id: 'ship_A' } });
+  f.stores.startPolling('ship_A'); await settle();
+  assert.deepEqual(read(f.stores.events).map(e => e.id), [40]);
+  const old = f.hold('get_events'); await f.time.advance(1000);
+  recent = [{ id: 41, t: 0, type: 'new_mission' }]; // runner keeps IDs monotonic across reset
+  f.ws.mission.mission_epoch = 2; await f.time.advance(200);
+  assert.deepEqual(read(f.stores.events).map(e => e.id), [41]);
+  old.resolve({ ok: true, events: [{ id: 42, t: 0, type: 'retired_response' }] }); await settle();
+  await f.time.advance(2000);
+  assert.deepEqual(read(f.stores.events).map(e => e.id), [41]);
+});
+
+test('disconnect and explicit rejoin discard old event replies and permit a new server ID sequence', async t => {
+  const f = await fixture(t); await f.connect();
+  let recent = [{ id: 90, t: 0, type: 'old_connection' }];
+  f.ws.handlers.get_events = () => ({ ok: true, events: recent });
+  await f.stores.joinCrewStation('ship_A', 'helm'); await settle();
+  assert.deepEqual(read(f.stores.events).map(e => e.id), [90]);
+  const old = f.hold('get_events'); await f.time.advance(1000);
+  f.ws.session = { ship_id: null, station: null };
+  f.ws.emit('status_change', { status: 'disconnected' });
+  assert.deepEqual(read(f.stores.events), []);
+  recent = [{ id: 1, t: 0, type: 'new_server' }];
+  f.ws.emit('status_change', { status: 'connected' }); await settle();
+  await f.stores.joinCrewStation('ship_A', 'helm'); await settle();
+  old.resolve({ ok: true, events: [{ id: 91, t: 0, type: 'old_reply' }] }); await settle();
+  await f.time.advance(2000);
+  assert.deepEqual(read(f.stores.events).map(e => e.id), [1]);
+});
 
 test('in-flight ship switch publishes only the new ship and continues both poll chains', async t => {
   const f = await fixture(t); await f.connect();

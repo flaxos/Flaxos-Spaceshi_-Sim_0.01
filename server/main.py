@@ -1514,12 +1514,17 @@ class UnifiedServer:
         """Background loop for AI crew behaviors."""
         while self.running and not self._monitor_stop.is_set():
             try:
-                if (self.ai_crew_manager and self.runner.running
-                        and not self.runner._loading_scenario and self.runner.simulator.ships):
-                    self.ai_crew_manager.tick(
-                        dict(self.runner.simulator.ships),
-                        self.config.dt,
-                    )
+                # Serialize the active check AND its station action with human
+                # handover. Deactivation alone cannot cancel an action already
+                # selected by tick. The wait remains outside this reentrant
+                # ownership guard, shared with claim/restore/sync dispatch.
+                with self.station_manager.ownership_lock:
+                    if (self.ai_crew_manager and self.runner.running
+                            and not self.runner._loading_scenario and self.runner.simulator.ships):
+                        self.ai_crew_manager.tick(
+                            dict(self.runner.simulator.ships),
+                            self.config.dt,
+                        )
             except Exception as e:
                 logger.debug(f"AI crew tick error: {e}")
             self._monitor_stop.wait(AI_CREW_TICK_INTERVAL)

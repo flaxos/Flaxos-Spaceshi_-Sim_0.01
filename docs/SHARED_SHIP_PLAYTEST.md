@@ -7,52 +7,70 @@ The first acceptance mission is the existing `07_docking_test` scenario.
 
 ## Safe Linux checkout and build
 
-Use a separate checkout if your current tree contains work. The commands below
-stop on local changes or a diverged branch; they do not reset, stash or overwrite
-anything. Run them in the repository root. Fetch the draft branch only when you
-are ready to test unpublished changes.
+Use a fresh clone, especially if existing worktrees contain changes or already
+hold the draft branch. These commands create a unique directory and never switch,
+reset, stash or overwrite an existing checkout. The draft is unmerged. Compare
+the printed SHA with the final tested SHA in PR #417's validation report before
+testing; if it differs, stop and obtain that exact revision.
 
 ```bash
-set -e
-test -z "$(git status --porcelain)" || {
-  echo 'STOP: commit your work or use a separate clone.' >&2
-  exit 1
-}
-git fetch origin main codex/trustworthy-shared-ship
-if git show-ref --verify --quiet refs/heads/codex/trustworthy-shared-ship; then
-  git switch codex/trustworthy-shared-ship
-else
-  git switch --track origin/codex/trustworthy-shared-ship
-fi
-test "$(git rev-list --count origin/codex/trustworthy-shared-ship..HEAD)" -eq 0 || {
-  echo 'STOP: local branch has commits absent from the draft branch.' >&2
-  exit 1
-}
-git merge --ff-only origin/codex/trustworthy-shared-ship
-git rev-parse HEAD
-
-# Keep the environment outside the working tree.
-python3 -m venv ../flaxos-shared-ship-venv
-../flaxos-shared-ship-venv/bin/python -m pip install -r requirements.txt pytest
-../flaxos-shared-ship-venv/bin/python -m pytest tests/ -q
-cd gui-svelte
-npm ci
-npm test
-npm run check
-npm run build
-cd ..
+FLAXOS_TEST_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/flaxos-playtest.XXXXXX")
+export FLAXOS_TEST_ROOT
+(
+  set -e
+  git clone --single-branch --branch codex/trustworthy-shared-ship \
+    https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01.git "$FLAXOS_TEST_ROOT/repo"
+  cd "$FLAXOS_TEST_ROOT/repo"
+  git checkout --detach
+  git rev-parse HEAD
+  python3 -m venv "$FLAXOS_TEST_ROOT/venv"
+  "$FLAXOS_TEST_ROOT/venv/bin/python" -m pip install -r requirements.txt pytest
+  cd gui-svelte
+  npm ci
+)
 ```
 
-Record the printed commit SHA with your results. Tested tool versions and exact
-pass/failure counts accompany the implementation report. The full Python baseline
-contains an intermittent `test_enemy_ai_fires_back` failure; record it if it occurs.
-Do not skip the test or interpret a passing retry as resolution of combat AI.
+Run each verification command separately and record its exit status and output.
+A Python failure must remain visible and does not prevent running frontend checks
+in the next command. None of these commands skips or suppresses a failed test.
+
+```bash
+(cd "$FLAXOS_TEST_ROOT/repo" && "$FLAXOS_TEST_ROOT/venv/bin/python" -m pytest tests/ -q)
+```
+
+```bash
+(cd "$FLAXOS_TEST_ROOT/repo/gui-svelte" && npm test)
+```
+
+```bash
+(cd "$FLAXOS_TEST_ROOT/repo/gui-svelte" && npm run check)
+```
+
+```bash
+(cd "$FLAXOS_TEST_ROOT/repo/gui-svelte" && npm run build)
+```
+
+Record the printed SHA with your results. Tested versions and exact counts are in
+the report. The full Python baseline has an intermittent
+`test_enemy_ai_fires_back` failure; record it if it occurs. Do not interpret a
+passing retry as resolution of combat AI. `npm test` runs deterministic mocked
+transport/store regressions; the optional `crew-ui.acceptance.cjs` also mocks
+WebSockets and is outside npm test/CI. Neither proves the live two-client stack.
+The separately recorded live Chromium run uses actual WS/TCP/server commands.
 
 Start the station-mode stack on loopback:
 
 ```bash
-../flaxos-shared-ship-venv/bin/python tools/start_gui_stack.py \
-  --rcon-password 'choose-a-local-testing-password'
+(
+  set -e
+  cd "$FLAXOS_TEST_ROOT/repo"
+  test -z "$(git status --porcelain)" || {
+    echo 'STOP: this testing checkout now contains local changes.' >&2
+    exit 1
+  }
+  "$FLAXOS_TEST_ROOT/venv/bin/python" tools/start_gui_stack.py \
+    --rcon-password 'choose-a-local-testing-password'
+)
 ```
 
 Open `http://localhost:3100/` in two independent browser profiles or one normal
@@ -97,7 +115,9 @@ loopback procedure does not establish LAN/ZeroTier acceptance.
    compare clocks during flight. A failure must display MISSION FAILED. Current
    mission replay/reset should clear the old outcome for both clients; replay
    remains subject to captain/admin authority. Next Mission progression is outside
-   this slice.
+   this slice. After docking, manually set Helm thrust to zero and confirm actual
+   output is zero: existing docking can constrain motion while drive/fuel use
+   continues. Automatic thrust cutoff has not been established.
 
 The CPU-ASSIST choice above uses the existing navigation program. It is not proof
 of a full solo crew replacing every human station. Existing crew execution and
