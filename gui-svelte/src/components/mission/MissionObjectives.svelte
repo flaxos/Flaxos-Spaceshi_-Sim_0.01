@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { onMount, onDestroy } from "svelte";
-  import { wsClient } from "../../lib/ws/wsClient.js";
+  import { missionState } from "../../lib/stores/missionState.js";
+  import DockingOperation from "./DockingOperation.svelte";
 
   interface Objective {
     id?: string;
@@ -29,7 +29,7 @@
   }
 
   let mission: Mission | null = null;
-  let gen = 0;
+  $: mission = $missionState;
 
   function formatSeconds(s: number): string {
     const m = Math.floor(s / 60);
@@ -55,37 +55,6 @@
     return Object.entries(m.objectives).map(([id, obj]) => ({ id, ...obj }));
   }
 
-  async function poll(g: number) {
-    if (g !== gen) return;
-    try {
-      const resp = await wsClient.send("get_mission", {}) as { ok?: boolean; mission?: Mission } & Mission;
-      if (g !== gen) return;
-      if (resp?.ok !== false) {
-        mission = resp?.mission ?? (resp?.name ? resp : null);
-      }
-    } catch { /* skip */ }
-    if (g === gen) setTimeout(() => poll(g), 2000);
-  }
-
-  let scenarioHandler: ((e: Event) => void) | null = null;
-
-  onMount(() => {
-    gen++;
-    poll(gen);
-
-    scenarioHandler = (e: Event) => {
-      const detail = (e as CustomEvent<{ mission?: Mission }>).detail;
-      if (detail?.mission) mission = detail.mission;
-      else { gen++; poll(gen); }
-    };
-    document.addEventListener("scenario-loaded", scenarioHandler);
-  });
-
-  onDestroy(() => {
-    gen++;
-    if (scenarioHandler) document.removeEventListener("scenario-loaded", scenarioHandler);
-  });
-
   $: status = mission?.mission_status ?? mission?.status ?? "in_progress";
   $: objectives = mission ? getObjectives(mission) : [];
   $: hints = (mission?.hints ?? []) as Array<{ message?: string } | string>;
@@ -97,10 +66,17 @@
   {:else}
     <div class="mission-header">
       <div class="mission-name">{mission.name ?? "Mission"}</div>
-      {#if mission.description || mission.briefing}
-        <div class="mission-desc">{mission.description ?? mission.briefing}</div>
+      {#if mission.description}
+        <div class="mission-desc">{mission.description}</div>
+      {/if}
+      {#if mission.briefing}
+        <details class="mission-briefing"><summary>Full mission briefing</summary><p>{mission.briefing}</p></details>
       {/if}
     </div>
+
+    {#if $missionState?.current_scenario_id === "07_docking_test"}
+      <DockingOperation />
+    {/if}
 
     <div class="status-row">
       <div class="status-indicator">
@@ -172,6 +148,8 @@
   }
 
   .mission-header { margin-bottom: var(--space-sm); }
+  .mission-briefing { margin-top: var(--space-xs); font-size: var(--font-size-xs); }
+  .mission-briefing p { white-space: pre-line; line-height: 1.5; }
 
   .mission-name {
     font-size: var(--font-size-base);

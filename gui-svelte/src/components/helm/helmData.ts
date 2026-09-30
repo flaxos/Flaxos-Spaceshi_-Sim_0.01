@@ -286,7 +286,7 @@ export function getDockingSnapshot(ship: JsonMap): DockingSnapshot {
   const docking = asRecord(ship.docking) ?? getSystem(ship, "docking");
   const lastCheck = asRecord(docking.last_check);
   return {
-    status: normalizeDockingState(toStringValue(docking.status, "idle")),
+    status: normalizeDockingState(toStringValue(docking.status, "unknown")),
     targetId: toStringValue(docking.target),
     range: lastCheck?.range == null ? null : toNumber(lastCheck.range),
     relativeVelocity: lastCheck?.relative_velocity == null ? null : toNumber(lastCheck.relative_velocity),
