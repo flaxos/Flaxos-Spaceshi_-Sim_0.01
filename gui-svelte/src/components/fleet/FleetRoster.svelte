@@ -2,6 +2,8 @@
   import { onMount } from "svelte";
   import Panel from "../layout/Panel.svelte";
   import { wsClient } from "../../lib/ws/wsClient.js";
+  import { crewSession } from "../../lib/stores/crewSession.js";
+  import { pollShipCommand } from "../../lib/stores/crewPolling.js";
   import { fleetIdFromRecord, fleetShipsFromStatus, statusClass, type FleetShipRow } from "./fleetData.js";
 
   let fleetRecord: Record<string, unknown> = {};
@@ -13,6 +15,12 @@
 
   $: fleetId = fleetIdFromRecord(fleetRecord);
 
+  let authorityRevision = -1;
+  $: if (authorityRevision !== $crewSession.authorityRevision) {
+    authorityRevision = $crewSession.authorityRevision;
+    fleetRecord = {}; ships = [];
+  }
+
   onMount(() => {
     void refresh();
     pollHandle = window.setInterval(() => void refresh(), 4000);
@@ -23,7 +31,7 @@
 
   async function refresh() {
     try {
-      const response = await wsClient.sendShipCommand("fleet_status", {});
+      const response = await pollShipCommand("fleet_status", {});
       fleetRecord = (response as Record<string, unknown>) ?? {};
       ships = fleetShipsFromStatus(response);
     } catch {

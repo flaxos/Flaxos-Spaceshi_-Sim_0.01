@@ -1,16 +1,19 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import Panel from "../layout/Panel.svelte";
-  import { gameState } from "../../lib/stores/gameState.js";
-  import { wsClient } from "../../lib/ws/wsClient.js";
-  import { extractShipState, getLockedTargetId, getAssessmentSummary, asRecord } from "./tacticalData.js";
+  import { confirmedTargetLock, pollLockedShipCommand } from "../../lib/stores/crewPolling.js";
+  import { getAssessmentSummary, asRecord } from "./tacticalData.js";
 
   let assessment: Record<string, unknown> | null = null;
   let pollHandle: number | null = null;
 
-  $: ship = extractShipState($gameState);
-  $: lockedTargetId = getLockedTargetId(ship);
   $: summary = getAssessmentSummary(assessment);
+
+  let solutionRevision = -1;
+  $: if (solutionRevision !== $confirmedTargetLock.revision) {
+    solutionRevision = $confirmedTargetLock.revision;
+    assessment = null;
+  }
 
   onMount(() => {
     void refresh();
@@ -21,12 +24,12 @@
   });
 
   async function refresh() {
-    if (!lockedTargetId) {
+    if (!$confirmedTargetLock.targetId) {
       assessment = null;
       return;
     }
     try {
-      assessment = asRecord(await wsClient.sendShipCommand("assess_damage", {}));
+      assessment = asRecord(await pollLockedShipCommand("assess_damage"));
     } catch {
       assessment = null;
     }

@@ -1,9 +1,6 @@
-<script lang="ts">
-  import { onMount } from "svelte";
-  import Panel from "../layout/Panel.svelte";
-  import { gameState } from "../../lib/stores/gameState.js";
-  import { wsClient } from "../../lib/ws/wsClient.js";
-  import { asRecord, getCrewRows, getOpsShip, skillShort, toStringValue } from "./opsData.js";
+<script context="module" lang="ts">
+  import { asRecord, toStringValue } from "./opsData.js";
+  import { isCommandRejected } from "../../lib/ws/commandResponse.js";
 
   interface CrewCard {
     crewId: string;
@@ -16,6 +13,39 @@
     skills: Record<string, number>;
   }
 
+  /** Decode the dispatcher envelope; unavailable reads cannot reuse stale roster data. */
+  export function crewCardsFromResponse(response: unknown,
+    roster: Array<{ crewId: string; station: string }> = []): CrewCard[] {
+    if (!response || isCommandRejected(response)) return [];
+    const envelope = asRecord(response);
+    const record = asRecord(envelope?.response) ?? asRecord(envelope?.data) ?? envelope;
+    const source = Array.isArray(record?.crew) ? record.crew : [];
+    const stationMap = new Map(roster.map(row => [row.crewId, row.station]));
+    return source
+      .map(item => asRecord(item))
+      .filter((item): item is Record<string, unknown> => Boolean(item))
+      .map(item => ({
+        crewId: toStringValue(item.crew_id),
+        clientId: toStringValue(item.client_id),
+        name: toStringValue(item.name, "Crew"),
+        station: stationMap.get(toStringValue(item.crew_id)) ?? toStringValue(item.station_assignment, "UNASSIGNED"),
+        fatigue: Number(item.fatigue ?? 0),
+        stress: Number(item.stress ?? 0),
+        injury: toStringValue(item.injury_state, "healthy"),
+        skills: (asRecord(item.skills) as Record<string, number> | null) ?? {},
+      }));
+  }
+</script>
+
+<script lang="ts">
+  import { onMount } from "svelte";
+  import Panel from "../layout/Panel.svelte";
+  import { gameState } from "../../lib/stores/gameState.js";
+  import { wsClient } from "../../lib/ws/wsClient.js";
+  import { crewSession } from "../../lib/stores/crewSession.js";
+  import { pollShipCommand } from "../../lib/stores/crewPolling.js";
+  import { getCrewRows, getOpsShip, skillShort } from "./opsData.js";
+
   let cards: CrewCard[] = [];
   let canManageOfficers = false;
   let feedback = "";
@@ -23,6 +53,12 @@
 
   $: ship = getOpsShip($gameState);
   $: rosterFallback = getCrewRows(ship);
+
+  let authorityRevision = -1;
+  $: if (authorityRevision !== $crewSession.authorityRevision) {
+    authorityRevision = $crewSession.authorityRevision;
+    cards = [];
+  }
 
   onMount(() => {
     detectCaptain();
@@ -44,25 +80,10 @@
 
   async function refresh() {
     try {
-      const response = await wsClient.sendShipCommand("crew_status", {});
-      const record = asRecord(response);
-      const source = Array.isArray(record?.crew) ? record.crew : [];
-      const stationMap = new Map(rosterFallback.map((row) => [row.crewId, row.station]));
-      cards = source
-        .map((item) => asRecord(item))
-        .filter((item): item is Record<string, unknown> => Boolean(item))
-        .map((item) => ({
-          crewId: toStringValue(item.crew_id),
-          clientId: toStringValue(item.client_id),
-          name: toStringValue(item.name, "Crew"),
-          station: stationMap.get(toStringValue(item.crew_id)) ?? toStringValue(item.station_assignment, "UNASSIGNED"),
-          fatigue: Number(item.fatigue ?? 0),
-          stress: Number(item.stress ?? 0),
-          injury: toStringValue(item.injury_state, "healthy"),
-          skills: (asRecord(item.skills) as Record<string, number> | null) ?? {},
-        }));
+      const response = await pollShipCommand("crew_status", {});
+      cards = crewCardsFromResponse(response, rosterFallback);
     } catch {
-      cards = rosterFallback;
+      cards = [];
     }
   }
 

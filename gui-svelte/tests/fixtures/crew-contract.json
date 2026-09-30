@@ -1,0 +1,98 @@
+{
+  "assigned_ops": {
+    "status": {
+      "ok": true,
+      "message": "Session status",
+      "response": {
+        "ship_id": "ship_A",
+        "station": "ops",
+        "available_commands": [
+          "crew_status"
+        ]
+      }
+    },
+    "crew": {
+      "ok": true,
+      "message": "Crew status for ship_A",
+      "response": {
+        "ship_id": "ship_A",
+        "crew_count": 1,
+        "crew": [
+          {
+            "crew_id": "crew_1",
+            "name": "Verified Engineer",
+            "fatigue": 0.25,
+            "stress": 0.1,
+            "injury_state": "healthy",
+            "skills": {
+              "engineering": 3
+            }
+          }
+        ]
+      }
+    }
+  },
+  "assigned_unclaimed": {
+    "status": {
+      "ok": true,
+      "message": "Session status",
+      "response": {
+        "ship_id": "ship_A",
+        "station": null,
+        "available_commands": [
+          "crew_status"
+        ]
+      }
+    },
+    "crew": {
+      "ok": true,
+      "message": "Crew status for ship_A",
+      "response": {
+        "ship_id": "ship_A",
+        "crew_count": 1,
+        "crew": [
+          {
+            "crew_id": "crew_1",
+            "name": "Verified Engineer",
+            "fatigue": 0.25,
+            "stress": 0.1,
+            "injury_state": "healthy",
+            "skills": {
+              "engineering": 3
+            }
+          }
+        ]
+      }
+    }
+  },
+  "unassigned": {
+    "status": {
+      "ok": true,
+      "message": "Session status",
+      "response": {
+        "ship_id": null,
+        "station": null,
+        "available_commands": []
+      }
+    },
+    "crew": {
+      "ok": false,
+      "message": "Not assigned to a ship"
+    }
+  },
+  "manager_unavailable": {
+    "status": {
+      "ok": true,
+      "message": "Session status",
+      "response": {
+        "ship_id": "ship_A",
+        "station": "ops",
+        "available_commands": []
+      }
+    },
+    "crew": {
+      "ok": false,
+      "message": "Unknown command: crew_status"
+    }
+  }
+}

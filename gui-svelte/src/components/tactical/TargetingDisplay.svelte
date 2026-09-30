@@ -12,7 +12,7 @@
   import { onMount } from "svelte";
   import Panel from "../layout/Panel.svelte";
   import { gameState } from "../../lib/stores/gameState.js";
-  import { wsClient } from "../../lib/ws/wsClient.js";
+  import { confirmedTargetLock, pollLockedShipCommand } from "../../lib/stores/crewPolling.js";
   import { selectedTacticalTargetId } from "../../lib/stores/tacticalUi.js";
   import {
     asRecord,
@@ -39,12 +39,19 @@
   $: bestSolution = getBestWeaponSolution(ship);
 
   // Prefer polled solution (freshest), fall back to tick-embedded solution.
-  $: activeSolution = Object.keys(solution).length > 0 ? solution : bestSolution;
-  $: confidence = clamp01(toNumber(activeSolution.confidence, targeting.lockQuality));
+  $: activeSolution = $confirmedTargetLock.targetId && targetId === $confirmedTargetLock.targetId
+    ? (Object.keys(solution).length > 0 ? solution : bestSolution) : {};
+  $: confidence = clamp01(toNumber(activeSolution.confidence, $confirmedTargetLock.targetId && targetId === $confirmedTargetLock.targetId ? targeting.lockQuality : 0));
   $: confPct = Math.round(confidence * 100);
   $: trackQ = Math.round(targeting.trackQuality * 100);
   $: tof = toNumber(activeSolution.time_of_flight, NaN);
   $: tti = toNumber(activeSolution.time_to_cpa, toNumber(activeSolution.time_to_impact, NaN));
+
+  let solutionRevision = -1;
+  $: if (solutionRevision !== $confirmedTargetLock.revision) {
+    solutionRevision = $confirmedTargetLock.revision;
+    solution = {};
+  }
 
   onMount(() => {
     void refreshSolution();
@@ -55,12 +62,12 @@
   });
 
   async function refreshSolution() {
-    if (!targetId) {
+    if (!$confirmedTargetLock.targetId) {
       solution = {};
       return;
     }
     try {
-      const response = await wsClient.sendShipCommand("get_target_solution", {});
+      const response = await pollLockedShipCommand("get_target_solution");
       solution = asRecord(response) ?? {};
     } catch {
       solution = {};

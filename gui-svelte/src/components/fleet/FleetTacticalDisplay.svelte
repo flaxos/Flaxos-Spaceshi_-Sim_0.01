@@ -1,8 +1,10 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { get } from "svelte/store";
   import Panel from "../layout/Panel.svelte";
   import { gameState } from "../../lib/stores/gameState.js";
-  import { wsClient } from "../../lib/ws/wsClient.js";
+  import { crewSession } from "../../lib/stores/crewSession.js";
+  import { pollShipCommand } from "../../lib/stores/crewPolling.js";
   import { getTacticalContacts } from "../tactical/tacticalData.js";
   import {
     fleetIdFromRecord,
@@ -34,6 +36,12 @@
   $: localContacts = getTacticalContacts(ship);
   $: fleetId = fleetIdFromRecord(fleetRecord);
 
+  let authorityRevision = -1;
+  $: if (authorityRevision !== $crewSession.authorityRevision) {
+    authorityRevision = $crewSession.authorityRevision;
+    tacticalSummary = {}; fleetRecord = {}; ships = [];
+  }
+
   onMount(() => {
     void refresh();
     pollHandle = window.setInterval(() => void refresh(), 3000);
@@ -54,11 +62,13 @@
 
   async function refresh() {
     if (document.hidden) return;
+    const revision = get(crewSession).authorityRevision;
     try {
       const [tactical, status] = await Promise.all([
-        wsClient.sendShipCommand("fleet_tactical", {}),
-        wsClient.sendShipCommand("fleet_status", {}),
+        pollShipCommand("fleet_tactical", {}),
+        pollShipCommand("fleet_status", {}),
       ]);
+      if (get(crewSession).authorityRevision !== revision) return;
       tacticalSummary = (tactical as Record<string, unknown>) ?? {};
       fleetRecord = (status as Record<string, unknown>) ?? {};
       ships = fleetShipsFromStatus(status);
