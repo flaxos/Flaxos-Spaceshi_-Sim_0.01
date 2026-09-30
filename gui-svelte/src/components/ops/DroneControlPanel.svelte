@@ -2,6 +2,8 @@
   import { onMount } from "svelte";
   import Panel from "../layout/Panel.svelte";
   import { wsClient } from "../../lib/ws/wsClient.js";
+  import { crewSession } from "../../lib/stores/crewSession.js";
+  import { pollShipCommand } from "../../lib/stores/crewPolling.js";
   import { asRecord, formatDistance, toNumber, toStringValue } from "./opsData.js";
 
   interface DroneStatus {
@@ -37,6 +39,12 @@
     }, {}),
   );
 
+  let authorityRevision = -1;
+  $: if (authorityRevision !== $crewSession.authorityRevision) {
+    authorityRevision = $crewSession.authorityRevision;
+    status = { capacity: 0, stored_count: 0, active_count: 0, stored_drones: [], active_drones: [] };
+  }
+
   onMount(() => {
     void refresh();
     pollHandle = window.setInterval(() => void refresh(), 2000);
@@ -47,7 +55,7 @@
 
   async function refresh() {
     try {
-      const response = await wsClient.sendShipCommand("drone_status", {});
+      const response = await pollShipCommand("drone_status", {});
       const record = asRecord(response);
       status = {
         capacity: toNumber(record?.capacity, 0),

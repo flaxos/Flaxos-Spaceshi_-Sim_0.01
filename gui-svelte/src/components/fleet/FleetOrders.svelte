@@ -3,6 +3,8 @@
   import Panel from "../layout/Panel.svelte";
   import { tier } from "../../lib/stores/tier.js";
   import { wsClient } from "../../lib/ws/wsClient.js";
+  import { crewSession } from "../../lib/stores/crewSession.js";
+  import { pollShipCommand } from "../../lib/stores/crewPolling.js";
   import { autoFleetProposals } from "./fleetData.js";
 
   const SIMPLE_ORDERS = [
@@ -23,6 +25,12 @@
   $: arcadeTier = $tier === "arcade";
   $: cpuAssistTier = $tier === "cpu-assist";
 
+  let authorityRevision = -1;
+  $: if (authorityRevision !== $crewSession.authorityRevision) {
+    authorityRevision = $crewSession.authorityRevision;
+    proposals = [];
+  }
+
   onMount(() => {
     if (cpuAssistTier) {
       void refreshProposals();
@@ -35,7 +43,7 @@
 
   async function refreshProposals() {
     try {
-      const response = await wsClient.sendShipCommand("auto_fleet_status", {});
+      const response = await pollShipCommand("auto_fleet_status", {});
       proposals = autoFleetProposals(response);
     } catch {
       proposals = [];

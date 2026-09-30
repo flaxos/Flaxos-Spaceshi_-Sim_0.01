@@ -3,6 +3,8 @@
   import Panel from "../layout/Panel.svelte";
   import { gameState } from "../../lib/stores/gameState.js";
   import { wsClient } from "../../lib/ws/wsClient.js";
+  import { crewSession } from "../../lib/stores/crewSession.js";
+  import { pollShipCommand } from "../../lib/stores/crewPolling.js";
   import { getTacticalContacts } from "../tactical/tacticalData.js";
   import {
     asRecord,
@@ -28,6 +30,12 @@
   $: resistance = asRecord(boarding.resistance) ?? {};
   $: resistanceFactor = toNumber(resistance.total_factor, 1);
 
+  let authorityRevision = -1;
+  $: if (authorityRevision !== $crewSession.authorityRevision) {
+    authorityRevision = $crewSession.authorityRevision;
+    status = {};
+  }
+
   onMount(() => {
     if (!selectedTarget && contacts.length) selectedTarget = contacts[0].id;
     void refresh();
@@ -39,7 +47,7 @@
 
   async function refresh() {
     try {
-      const response = await wsClient.sendShipCommand("boarding_status", {});
+      const response = await pollShipCommand("boarding_status", {});
       status = (asRecord(response) ?? {}) as Record<string, unknown>;
     } catch {
       status = {};

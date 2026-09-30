@@ -2,6 +2,8 @@
   import { onMount } from "svelte";
   import Panel from "../layout/Panel.svelte";
   import { wsClient } from "../../lib/ws/wsClient.js";
+  import { crewSession } from "../../lib/stores/crewSession.js";
+  import { pollShipCommand } from "../../lib/stores/crewPolling.js";
   import { asRecord, toStringValue } from "./opsData.js";
 
   interface PowerProfileCard {
@@ -15,6 +17,12 @@
   let feedback = "";
   let pollHandle: number | null = null;
 
+  let authorityRevision = -1;
+  $: if (authorityRevision !== $crewSession.authorityRevision) {
+    authorityRevision = $crewSession.authorityRevision;
+    profiles = []; activeProfile = ""; selectedProfile = "";
+  }
+
   onMount(() => {
     void refresh();
     pollHandle = window.setInterval(() => void refresh(), 10000);
@@ -25,7 +33,7 @@
 
   async function refresh() {
     try {
-      const response = await wsClient.sendShipCommand("get_power_profiles", {});
+      const response = await pollShipCommand("get_power_profiles", {});
       const record = asRecord(response);
       const definitions = asRecord(record?.definitions) ?? {};
       const source = Array.isArray(record?.profiles) ? record?.profiles : Object.keys(definitions);

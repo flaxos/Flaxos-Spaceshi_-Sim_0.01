@@ -3,7 +3,7 @@
   import Panel from "../layout/Panel.svelte";
   import { gameState } from "../../lib/stores/gameState.js";
   import { tier } from "../../lib/stores/tier.js";
-  import { wsClient } from "../../lib/ws/wsClient.js";
+  import { confirmedTargetLock, pollLockedShipCommand } from "../../lib/stores/crewPolling.js";
   import {
     asRecord,
     extractShipState,
@@ -19,11 +19,18 @@
   $: ship = extractShipState($gameState);
   $: targeting = getTargetingSummary(ship);
   $: fallbackSolution = getBestWeaponSolution(ship);
-  $: solution = Object.keys(liveSolution).length ? liveSolution : fallbackSolution;
+  $: solution = $confirmedTargetLock.targetId
+    ? (Object.keys(liveSolution).length ? liveSolution : fallbackSolution) : {};
   $: factors = getSolutionFactors(asRecord(solution) ?? {});
-  $: overall = toNumber(solution.confidence, targeting.lockQuality);
+  $: overall = toNumber(solution.confidence, $confirmedTargetLock.targetId ? targeting.lockQuality : 0);
   $: overallClass = overall >= 0.75 ? "good" : overall >= 0.45 ? "warn" : "bad";
   $: arcadeTier = $tier === "arcade";
+
+  let solutionRevision = -1;
+  $: if (solutionRevision !== $confirmedTargetLock.revision) {
+    solutionRevision = $confirmedTargetLock.revision;
+    liveSolution = {};
+  }
 
   onMount(() => {
     void refresh();
@@ -34,12 +41,12 @@
   });
 
   async function refresh() {
-    if (!targeting.lockedTarget) {
+    if (!$confirmedTargetLock.targetId) {
       liveSolution = {};
       return;
     }
     try {
-      liveSolution = asRecord(await wsClient.sendShipCommand("get_target_solution", {})) ?? {};
+      liveSolution = asRecord(await pollLockedShipCommand("get_target_solution")) ?? {};
     } catch {
       liveSolution = {};
     }

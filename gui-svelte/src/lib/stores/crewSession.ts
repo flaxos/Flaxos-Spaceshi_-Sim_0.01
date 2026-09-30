@@ -2,7 +2,7 @@ import { get, writable } from "svelte/store";
 import { wsClient } from "../ws/wsClient.js";
 import { describeCommandFailure, isCommandRejected } from "../ws/commandResponse.js";
 import { playerShipId } from "./playerShip.js";
-import { startPolling } from "./gameState.js";
+import { gameState, startPolling } from "./gameState.js";
 
 export interface CrewSession {
   connected: boolean;
@@ -12,11 +12,13 @@ export interface CrewSession {
   needsRejoin: boolean;
   busy: boolean;
   error: string;
+  availableCommands: string[] | null;
+  authorityRevision: number;
 }
 
 const _session = writable<CrewSession>({
   connected: false, registered: false, shipId: null, station: null,
-  needsRejoin: false, busy: false, error: "",
+  needsRejoin: false, busy: false, error: "", availableCommands: null, authorityRevision: 0,
 });
 export const crewSession = { subscribe: _session.subscribe };
 
@@ -32,11 +34,19 @@ function unwrap(value: unknown): Record<string, unknown> | null {
   return data && typeof data === "object" ? data as Record<string, unknown> : null;
 }
 
-function applyAssignment(shipId: string | null, station: string | null): void {
+/** Retire pending reads before authority is changed or can no longer be verified. */
+function invalidateAuthority(): void {
+  _session.update(s => ({ ...s, availableCommands: null, authorityRevision: s.authorityRevision + 1 }));
+}
+
+function applyAssignment(shipId: string | null, station: string | null, availableCommands: string[] | null): void {
   const old = get(_session);
-  _session.update(s => ({ ...s, shipId, station }));
+  const changed = old.shipId !== shipId || old.station !== station
+    || JSON.stringify(old.availableCommands) !== JSON.stringify(availableCommands);
+  _session.update(s => ({ ...s, shipId, station, availableCommands,
+    authorityRevision: s.authorityRevision + (changed ? 1 : 0) }));
   if (get(playerShipId) !== shipId) playerShipId.set(shipId);
-  else if (old.station !== station && wsClient.status === "connected") startPolling(shipId);
+  else if (changed && wsClient.status === "connected") startPolling(shipId);
 }
 
 /** Session fields from my_status, rather than claim-button intent, are authoritative. */
@@ -49,18 +59,21 @@ export async function refreshCrewSession(): Promise<CrewSession | null> {
     if (gen !== connectionGeneration || seq !== refreshSequence) return null;
     const data = unwrap(response);
     if (!data) {
-      applyAssignment(null, null);
+      applyAssignment(null, null, null);
       _session.update(s => ({ ...s, error: describeCommandFailure(response, "Unable to verify crew session") }));
       return null;
     }
     const session = get(_session);
     if (!session.needsRejoin) {
       applyAssignment(typeof data.ship_id === "string" ? data.ship_id : null,
-        typeof data.station === "string" ? data.station : null);
+        typeof data.station === "string" ? data.station : null,
+        Array.isArray(data.available_commands) && data.available_commands.every(c => typeof c === "string")
+          ? [...new Set(data.available_commands as string[])].sort() : null);
     }
     return get(_session);
   } catch (error) {
     if (gen === connectionGeneration && seq === refreshSequence) {
+      invalidateAuthority();
       _session.update(s => ({ ...s, error: error instanceof Error ? error.message : String(error) }));
     }
     return null;
@@ -96,13 +109,15 @@ function disconnectSession(): void {
   pollTimer = null;
   const old = get(_session);
   _session.set({ connected: false, registered: false, shipId: null, station: null,
-    needsRejoin: old.needsRejoin || !!old.shipId || !!old.station, busy: false, error: "" });
+    needsRejoin: old.needsRejoin || !!old.shipId || !!old.station, busy: false, error: "",
+    availableCommands: null, authorityRevision: old.authorityRevision + 1 });
   playerShipId.set(null);
 }
 
 function connectSession(): void {
   if (get(_session).connected) return;
   const gen = ++connectionGeneration;
+  invalidateAuthority();
   _session.update(s => ({ ...s, connected: true, registered: false, busy: false, error: "" }));
   registerAndPoll(gen);
 }
@@ -120,7 +135,14 @@ export function initializeCrewSession(): void {
     if (connected === false) disconnectSession();
     else if (connected === true && wsClient.status === "connected") connectSession();
   });
-  wsClient.addEventListener("mission_changed", () => { void refreshCrewSession(); });
+  wsClient.addEventListener("mission_changed", () => { invalidateAuthority(); void refreshCrewSession(); });
+  let missionEpoch: number | undefined;
+  gameState.subscribe(state => {
+    if (typeof state.mission_epoch !== "number") return;
+    const changed = missionEpoch !== undefined && state.mission_epoch !== missionEpoch;
+    missionEpoch = state.mission_epoch;
+    if (changed) { invalidateAuthority(); void refreshCrewSession(); }
+  });
   if (wsClient.status === "connected") connectSession();
 }
 
@@ -128,6 +150,7 @@ export function initializeCrewSession(): void {
 export async function joinCrewStation(shipId: string, station: string): Promise<boolean> {
   const gen = connectionGeneration;
   if (!get(_session).registered || get(_session).busy) return false;
+  invalidateAuthority();
   _session.update(s => ({ ...s, busy: true, error: "" }));
   try {
     const assigned = await wsClient.send("assign_ship", { ship: shipId });
@@ -154,6 +177,7 @@ export async function joinCrewStation(shipId: string, station: string): Promise<
 export async function releaseCrewStation(): Promise<void> {
   const gen = connectionGeneration;
   if (get(_session).busy) return;
+  invalidateAuthority();
   _session.update(s => ({ ...s, busy: true, error: "" }));
   try {
     const response = await wsClient.send("release_station", {});

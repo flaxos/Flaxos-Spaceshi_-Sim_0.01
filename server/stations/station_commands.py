@@ -8,8 +8,8 @@ and manage their session.
 from typing import Dict, Any, Optional, Callable, Iterable, Mapping, List
 import logging
 
-from .station_manager import StationManager
-from .station_types import StationType, PermissionLevel
+from .station_manager import StationManager, ClientSession
+from .station_types import StationType, PermissionLevel, get_station_commands
 from .station_dispatch import CommandResult
 from .crew_system import CrewManager, StationSkill
 
@@ -30,6 +30,15 @@ def register_station_commands(
         station_manager: StationManager instance
         ship_provider: Callable returning iterable of ships or ship registry
     """
+
+    def _available_commands(session: ClientSession) -> List[str]:
+        """Advertise station commands and the assigned-ship crew read contract."""
+        available = set(get_station_commands(session.station)) if session.station else set()
+        # crew_status already bypasses station permissions, but its handler
+        # requires an assigned ship and is registered only with a crew manager.
+        if crew_manager is not None and session.ship_id:
+            available.add("crew_status")
+        return sorted(available)
 
     def _format_ship_list(ships: Iterable[Any]) -> List[Dict[str, Any]]:
         ship_entries: List[Dict[str, Any]] = []
@@ -175,16 +184,13 @@ def register_station_commands(
         )
 
         if success:
-            from .station_types import get_station_commands
-            available_commands = get_station_commands(station)
-
             return CommandResult(
                 success=True,
                 message=message,
                 data={
                     "station": station.value,
                     "ship_id": session.ship_id,
-                    "available_commands": list(available_commands)
+                    "available_commands": _available_commands(session)
                 }
             )
         else:
@@ -263,11 +269,7 @@ def register_station_commands(
 
         data = session.to_dict()
 
-        # Add available commands if station is claimed
-        if session.station:
-            from .station_types import get_station_commands
-            available_commands = get_station_commands(session.station)
-            data["available_commands"] = list(available_commands)
+        data["available_commands"] = _available_commands(session)
 
         return CommandResult(
             success=True,

@@ -3,6 +3,8 @@
   import Panel from "../layout/Panel.svelte";
   import { gameState } from "../../lib/stores/gameState.js";
   import { wsClient } from "../../lib/ws/wsClient.js";
+  import { crewSession } from "../../lib/stores/crewSession.js";
+  import { pollShipCommand } from "../../lib/stores/crewPolling.js";
   import { describeCommandFailure, isCommandRejected } from "../../lib/ws/commandResponse.js";
   import { asRecord, extractShipState, formatDuration, getQueueState, toNumber, toStringValue } from "./helmData.js";
 
@@ -21,6 +23,12 @@
   $: ship = extractShipState($gameState);
   $: storeQueue = getQueueState(ship);
   $: queue = polledQueue.active || polledQueue.pending.length ? polledQueue : storeQueue;
+
+  let authorityRevision = -1;
+  $: if (authorityRevision !== $crewSession.authorityRevision) {
+    authorityRevision = $crewSession.authorityRevision;
+    polledQueue = { active: null, pending: [] };
+  }
 
   onMount(() => {
     void refreshQueue();
@@ -44,7 +52,7 @@
 
   async function refreshQueue() {
     try {
-      const response = await wsClient.sendShipCommand("helm_queue_status", {});
+      const response = await pollShipCommand("helm_queue_status", {});
       const record = asRecord(response);
       const queueState = asRecord(record?.queue) ?? record;
       polledQueue = {

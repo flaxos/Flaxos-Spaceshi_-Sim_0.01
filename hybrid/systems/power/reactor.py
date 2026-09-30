@@ -3,6 +3,10 @@
 from hybrid.core.constants import DEFAULT_REACTOR_OUTPUT, DEFAULT_OUTPUT_RATE, DEFAULT_THERMAL_LIMIT
 
 class Reactor:
+    """Generate energy at ``output_rate`` kW into a reserve measured in kJ.
+
+    ``capacity`` and ``available`` retain their legacy names for compatibility.
+    """
     def __init__(self, name, capacity=DEFAULT_REACTOR_OUTPUT,
                  output_rate=DEFAULT_OUTPUT_RATE, thermal_limit=DEFAULT_THERMAL_LIMIT,
                  fuel_capacity=None, fuel_level=None, fuel_consumption_rate=0.0,
@@ -10,13 +14,14 @@ class Reactor:
                  overheat_output_factor=0.5):
         self.name = name
         self.capacity = capacity
-        self.available = capacity  # Start hot — no cold-start propulsion blackout
+        self.available = capacity  # kJ; start charged to avoid a propulsion blackout
         self.output_rate = output_rate
         self.thermal_limit = thermal_limit
         self.temperature = 25.0  # ambient start
         self.status = "nominal"
         self.fuel_capacity = self._normalize_fuel(fuel_capacity)
-        self.fuel_level = self._normalize_fuel(fuel_level)
+        # An explicit empty tank must not be mistaken for an omitted level.
+        self.fuel_level = None if fuel_level is None else max(0.0, float(fuel_level))
         if self.fuel_capacity is not None and self.fuel_level is None:
             self.fuel_level = self.fuel_capacity
         self.fuel_consumption_rate = float(fuel_consumption_rate or 0.0)
@@ -42,26 +47,25 @@ class Reactor:
             self.status = "depleted"
             return
 
-        # Ramp available power toward capacity
+        self._apply_heat_from_output(dt)
+        if self.temperature > self.thermal_limit:
+            self.status = "overheated"
+        elif self.status == "overheated" and self.temperature <= self.thermal_limit * 0.9:
+            self.status = "nominal"
+
+        # Derate new generation while hot; stored energy must not vanish.
+        output_factor = self.overheat_output_factor if self.status == "overheated" else 1.0
         if self.available < self.capacity:
-            generated = min(self.capacity - self.available, self.output_rate * dt)
+            generated = min(self.capacity - self.available, self.output_rate * dt * output_factor)
             generated = self._consume_fuel_for_output(generated)
             if generated > 0:
                 self.available = min(self.capacity, self.available + generated)
                 self.last_generated = generated
 
-        self._apply_heat_from_output(dt)
-
-        # If overheated, mark status and throttle output
-        if self.temperature > self.thermal_limit:
-            self.status = "overheated"
-            self.available *= self.overheat_output_factor
-        elif self.status == "overheated" and self.temperature <= self.thermal_limit * 0.9:
-            self.status = "nominal"
-        elif self.status == "nominal":
-            self.status = "nominal"
-
     def draw_power(self, amount):
+        """Draw ``amount`` kJ atomically from the stored reserve."""
+        if amount <= 0:
+            return amount == 0
         if self.available >= amount:
             self.available -= amount
             self.temperature += amount * self.heat_per_kw

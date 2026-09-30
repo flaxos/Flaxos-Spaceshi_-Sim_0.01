@@ -2,7 +2,8 @@
   import { onMount } from "svelte";
   import Panel from "../layout/Panel.svelte";
   import { gameState } from "../../lib/stores/gameState.js";
-  import { wsClient } from "../../lib/ws/wsClient.js";
+  import { crewSession } from "../../lib/stores/crewSession.js";
+  import { pollShipCommand } from "../../lib/stores/crewPolling.js";
   import {
     asRecord,
     clamp,
@@ -98,11 +99,17 @@
   async function refresh() {
     if (!isVisible || document.hidden) return;
     try {
-      const response = await wsClient.sendShipCommand("get_draw_profile", {});
+      const response = await pollShipCommand("get_draw_profile", {});
       profile = normalizeDrawProfile(response) as Record<string, unknown> | null;
     } catch {
       // best effort
     }
+  }
+
+  let authorityRevision = -1;
+  $: if (authorityRevision !== $crewSession.authorityRevision) {
+    authorityRevision = $crewSession.authorityRevision;
+    profile = null;
   }
 
   onMount(() => {

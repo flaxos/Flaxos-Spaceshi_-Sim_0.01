@@ -5,6 +5,8 @@
   import { tier } from "../../lib/stores/tier.js";
   import { selectedHelmTargetId } from "../../lib/stores/helmUi.js";
   import { wsClient } from "../../lib/ws/wsClient.js";
+  import { crewSession } from "../../lib/stores/crewSession.js";
+  import { pollShipCommand } from "../../lib/stores/crewPolling.js";
   import { describeCommandFailure, isCommandRejected } from "../../lib/ws/commandResponse.js";
   import {
     asRecord,
@@ -55,6 +57,12 @@
   $: hasCoords = [xInput, yInput, zInput].every((value) => value.trim() !== "");
   $: canSolve = Boolean(activeTargetId || hasCoords);
   $: recommended = pickRecommended(navSolutions);
+
+  let authorityRevision = -1;
+  $: if (authorityRevision !== $crewSession.authorityRevision) {
+    authorityRevision = $crewSession.authorityRevision;
+    navSolutions = [];
+  }
 
   onMount(() => {
     void refreshSolutions();
@@ -111,7 +119,7 @@
       const params = activeTargetId
         ? { target_id: activeTargetId }
         : { x: Number(xInput), y: Number(yInput), z: Number(zInput) };
-      const response = await wsClient.sendShipCommand("get_nav_solutions", params);
+      const response = await pollShipCommand("get_nav_solutions", params);
       navSolutions = toSolutionCards(asRecord(response)?.response ?? response);
     } catch {
       navSolutions = [];

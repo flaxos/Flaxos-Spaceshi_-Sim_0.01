@@ -2,7 +2,8 @@
   import { onMount } from "svelte";
   import Panel from "../layout/Panel.svelte";
   import { tier } from "../../lib/stores/tier.js";
-  import { wsClient } from "../../lib/ws/wsClient.js";
+  import { crewSession } from "../../lib/stores/crewSession.js";
+  import { pollShipCommand } from "../../lib/stores/crewPolling.js";
   import { asRecord, formatKw, getDrawProfileBuses, toNumber } from "./engineeringData.js";
 
   let root: HTMLDivElement;
@@ -17,6 +18,12 @@
     1,
     ...buses.flatMap(([, bus]) => [toNumber(bus.available_kw), toNumber(bus.requested_kw)]),
   );
+
+  let authorityRevision = -1;
+  $: if (authorityRevision !== $crewSession.authorityRevision) {
+    authorityRevision = $crewSession.authorityRevision;
+    profile = null;
+  }
 
   onMount(() => {
     if (typeof IntersectionObserver !== "undefined") {
@@ -39,7 +46,7 @@
   async function refresh() {
     if (cpuAssistTier || !isVisible || document.hidden) return;
     try {
-      const response = await wsClient.sendShipCommand("get_draw_profile", {});
+      const response = await pollShipCommand("get_draw_profile", {});
       const record = asRecord(response);
       profile = (asRecord(record?.data) ?? record) as Record<string, unknown>;
     } catch {

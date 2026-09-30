@@ -1,6 +1,7 @@
 import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { compile } from 'svelte/compiler';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -15,12 +16,16 @@ await build({
     'export * from "./src/lib/stores/gameState.ts";',
     'export * from "./src/lib/stores/playerShip.ts";',
     'export * from "./src/lib/stores/crewSession.ts";',
+    'export * from "./src/lib/stores/crewPolling.ts";',
+    'export { crewCardsFromResponse } from "./src/components/ops/CrewPanel.svelte";',
     'export * from "./src/lib/stores/missionState.ts";',
     'export * from "./src/lib/stores/selectedTarget.ts";',
     'export * from "./src/lib/stores/crewAssistance.ts";',
   ].join('\n'), resolveDir: frontend, loader: 'ts' },
   outfile: bundle, bundle: true, format: 'esm', platform: 'node',
   plugins: [{ name: 'transport-fixture', setup(b) {
+    b.onLoad({ filter: /\.svelte$/ }, async args => ({ contents: compile(await readFile(args.path, 'utf8'),
+      { filename: args.path, generate: 'server' }).js.code, loader: 'js' }));
     b.onResolve({ filter: /(?:^|\/)wsClient\.js$/ }, () => ({ path: 'fixture', namespace: 'fixture' }));
     b.onLoad({ filter: /.*/, namespace: 'fixture' }, () => ({ contents: 'export const wsClient = globalThis.__crewTestTransport;', loader: 'js' }));
   } }],
@@ -64,12 +69,13 @@ async function fixture(t) {
     emit(name, detail) { if (name === 'status_change') this.status = detail.status; for (const fn of listeners.get(name) ?? []) fn({ detail }); },
     connect() { this.emit('status_change', { status: 'connected' }); return Promise.resolve(); },
     handlers: {},
+    sendShipCommand(cmd, args = {}) { return this.send(cmd, { ship: this.activeShipId, ...args }); },
     send(cmd, args = {}) {
       requests.push({ cmd, args, t: time.now });
       if (!this.isConnected) return Promise.reject(new Error('Not connected'));
       if (holds.has(cmd)) { const d = holds.get(cmd); holds.delete(cmd); return d.promise; }
       if (this.handlers[cmd]) return Promise.resolve(this.handlers[cmd](args));
-      if (cmd === 'my_status') return Promise.resolve({ ok: true, response: { client_id: 'client_test', ...this.session } });
+      if (cmd === 'my_status') return Promise.resolve({ ok: true, response: { client_id: 'client_test', available_commands: [], ...this.session } });
       if (cmd === 'assign_ship') { this.session.ship_id = args.ship; return Promise.resolve({ ok: true }); }
       if (cmd === 'claim_station') {
         if (this.rejectClaim) return Promise.resolve({ ok: false, error: 'Station claimed by another crew member' });
@@ -335,4 +341,145 @@ test('ignored ship command rejections and transport failures produce shared visi
   f.wsClient.socket = null;
   await assert.rejects(f.wsClient.sendShipCommand('dock', { target: 'station' }), /Not connected/);
   assert.deepEqual(read(f.commandFeedback), { command: 'dock', message: 'Not connected' });
+});
+
+
+test('background ship reads use only the confirmed server allowlist, including captain expansion', async t => {
+  const f = await fixture(t); await f.connect();
+  const commands = ['boarding_status', 'drone_status', 'get_draw_profile', 'get_target_solution', 'get_nav_solutions'];
+  const reads = () => f.requests.filter(r => commands.includes(r.cmd));
+  for (const command of commands) assert.equal(await f.stores.pollShipCommand(command), null);
+  assert.equal(reads().length, 0, 'unassigned UI cannot emit station reads');
+  f.ws.session = { ship_id: 'ship_A', station: 'helm', available_commands: ['get_nav_solutions'] };
+  await f.stores.refreshCrewSession();
+  for (const command of commands.slice(0, -1)) assert.equal(await f.stores.pollShipCommand(command), null);
+  assert.equal(reads().length, 0, 'Helm background cannot emit Ops, Engineering or Tactical reads');
+  assert.deepEqual(await f.stores.pollShipCommand('get_nav_solutions'), { ok: true });
+  f.ws.session = { ship_id: 'ship_A', station: 'tactical', available_commands: ['get_target_solution'] };
+  await f.stores.refreshCrewSession();
+  assert.equal(await f.stores.pollShipCommand('drone_status'), null);
+  assert.deepEqual(await f.stores.pollShipCommand('get_target_solution'), { ok: true });
+  f.ws.session = { ship_id: 'ship_A', station: 'captain', available_commands: commands };
+  await f.stores.refreshCrewSession();
+  for (const command of commands) assert.deepEqual(await f.stores.pollShipCommand(command), { ok: true });
+  assert.equal(await f.stores.pollShipCommand('drone_status', { ship: 'other_ship' }), null);
+  f.ws.handlers.my_status = () => ({ ok: true, response: { ship_id: 'ship_A', station: 'captain' } });
+  await f.stores.refreshCrewSession();
+  assert.equal(await f.stores.pollShipCommand('drone_status'), null, 'missing permissions fail closed');
+  delete f.ws.handlers.my_status; await f.stores.refreshCrewSession();
+  assert.deepEqual(await f.stores.pollShipCommand('drone_status'), { ok: true }, 'verified permissions resume automatically');
+});
+
+test('in-flight background results retire after role, ship, permissions, mission, disconnect and pending claims', async t => {
+  const f = await fixture(t); await f.connect();
+  f.ws.session = { ship_id: 'ship_A', station: 'captain', available_commands: ['drone_status'] };
+  await f.stores.refreshCrewSession();
+  for (const change of ['role', 'ship', 'permissions', 'mission', 'observed_epoch', 'disconnect', 'claim', 'release', 'verification_failure']) {
+    // Restore confirmed authority before each independent retirement case.
+    if (!f.ws.isConnected) { f.ws.emit('status_change', { status: 'connected' }); await settle(); }
+    if (read(f.stores.crewSession).needsRejoin) await f.stores.joinCrewStation('ship_A', 'captain');
+    f.ws.session = { ship_id: 'ship_A', station: 'captain', available_commands: ['drone_status'] };
+    await f.stores.refreshCrewSession();
+    const held = f.hold('drone_status'); const pending = f.stores.pollShipCommand('drone_status');
+    let authorityAction;
+    if (change === 'role') { f.ws.session.station = 'ops'; await f.stores.refreshCrewSession(); }
+    if (change === 'ship') { f.ws.session.ship_id = 'ship_B'; await f.stores.refreshCrewSession(); }
+    if (change === 'permissions') { f.ws.session.available_commands = []; await f.stores.refreshCrewSession(); }
+    if (change === 'mission') { f.ws.emit('mission_changed', {}); await settle(); }
+    if (change === 'observed_epoch') { f.ws.mission.mission_epoch++; await f.time.advance(200); }
+    if (change === 'disconnect') f.ws.emit('status_change', { status: 'disconnected' });
+    if (change === 'claim') {
+      authorityAction = f.hold('assign_ship');
+      const joining = f.stores.joinCrewStation('ship_A', 'captain');
+      assert.equal(await f.stores.pollShipCommand('drone_status'), null);
+      authorityAction.resolve({ ok: false, error: 'Assignment denied' }); await joining;
+    }
+    if (change === 'release') {
+      authorityAction = f.hold('release_station');
+      const releasing = f.stores.releaseCrewStation();
+      assert.equal(await f.stores.pollShipCommand('drone_status'), null);
+      authorityAction.resolve({ ok: false, error: 'Release denied' }); await releasing;
+    }
+    if (change === 'verification_failure') {
+      const failed = f.hold('my_status'); const refreshing = f.stores.refreshCrewSession();
+      failed.reject(new Error('Cannot verify authority')); await refreshing;
+      assert.equal(await f.stores.pollShipCommand('drone_status'), null);
+    }
+    held.resolve({ ok: true, confidential: change });
+    assert.equal(await pending, null, change);
+  }
+});
+
+test('nav selection and acquiring do not authorize target reads; lock transitions retire replies', async t => {
+  const f = await fixture(t); await f.connect();
+  let targeting = { locked_target: null, lock_state: 'idle' };
+  f.ws.handlers.get_state = () => ({ ok: true, state: { id: 'ship_A', targeting }, mission_epoch: 1 });
+  f.ws.session = { ship_id: 'ship_A', station: 'tactical', available_commands: ['get_target_solution', 'assess_damage'] };
+  await f.stores.refreshCrewSession(); await settle();
+  f.stores.selectedTargetId.set('nav_target');
+  const reads = () => f.requests.filter(r => ['get_target_solution', 'assess_damage'].includes(r.cmd));
+  assert.equal(await f.stores.pollLockedShipCommand('get_target_solution'), null);
+  targeting = { locked_target: 'nav_target', lock_state: 'acquiring' }; await f.time.advance(200);
+  assert.equal(await f.stores.pollLockedShipCommand('get_target_solution'), null);
+  assert.equal(await f.stores.pollLockedShipCommand('assess_damage'), null);
+  assert.equal(reads().length, 0);
+  targeting = { locked_target: 'nav_target', lock_state: 'locked' }; await f.time.advance(200);
+  assert.deepEqual(await f.stores.pollLockedShipCommand('get_target_solution'), { ok: true });
+  const held = f.hold('get_target_solution'); const pending = f.stores.pollLockedShipCommand('get_target_solution');
+  targeting = { locked_target: 'nav_target', lock_state: 'idle' }; await f.time.advance(200);
+  assert.equal(read(f.stores.confirmedTargetLock).targetId, null);
+  assert.equal(await f.stores.pollLockedShipCommand('get_target_solution'), null);
+  // Even a rapid unlock/relock of the same contact retires the prior read.
+  targeting = { locked_target: 'nav_target', lock_state: 'locked' }; await f.time.advance(200);
+  held.resolve({ ok: true, confidence: 0.99 }); assert.equal(await pending, null);
+  const oldTarget = f.hold('assess_damage'); const assessment = f.stores.pollLockedShipCommand('assess_damage');
+  targeting = { locked_target: 'new_target', lock_state: 'locked' }; await f.time.advance(200);
+  oldTarget.resolve({ ok: true, hull: 0.5 }); assert.equal(await assessment, null);
+});
+
+
+// Minimal dispatcher projection verified by tests/stations/test_station_commands.py.
+const realCrewContract = JSON.parse(await readFile(new URL('./fixtures/crew-contract.json', import.meta.url), 'utf8'));
+
+test('real dispatcher crew capability and nested envelope restore cards without stale fallback', async t => {
+  const f = await fixture(t); await f.connect();
+  {
+    const contract = realCrewContract.assigned_ops;
+    const role = contract.status.response.station;
+    f.ws.handlers.my_status = () => contract.status;
+    f.ws.handlers.crew_status = () => contract.crew;
+    await f.stores.refreshCrewSession();
+    assert.equal(read(f.stores.crewSession).station, role);
+    assert.equal(f.stores.canPollShipCommand('crew_status'), true, role);
+    const response = await f.stores.pollShipCommand('crew_status');
+    const cards = f.stores.crewCardsFromResponse(response, [{ crewId: 'crew_1', station: 'engineering' }]);
+    assert.equal(cards.length, 1, role);
+    assert.equal(cards[0].name, 'Verified Engineer');
+    assert.equal(cards[0].station, 'engineering');
+    assert.equal(cards[0].fatigue, 0.25);
+    assert.equal(cards[0].stress, 0.1);
+    assert(cards[0].skills.engineering > 0);
+    assert.deepEqual(f.stores.crewCardsFromResponse(null, cards), [], 'skipped reads clear old roster hints');
+    f.ws.handlers.crew_status = () => ({ ok: false, message: 'Crew system not available', response: contract.crew.response });
+    assert.deepEqual(f.stores.crewCardsFromResponse(await f.stores.pollShipCommand('crew_status'), cards), []);
+    assert.deepEqual(f.stores.crewCardsFromResponse(f.ws.handlers.crew_status(), cards), [], 'rejected envelopes cannot provide display data');
+    const held = f.hold('crew_status'); const pending = f.stores.pollShipCommand('crew_status');
+    f.ws.emit('mission_changed', {}); await settle();
+    held.resolve(contract.crew);
+    assert.deepEqual(f.stores.crewCardsFromResponse(await pending, cards), [], 'retired crew replies clear cards');
+  }
+  // A server-authorized assignment without a station still fails the UI gate;
+  // missing assignment or crew support never enables the background read.
+  for (const name of ['assigned_unclaimed', 'unassigned', 'manager_unavailable']) {
+    const contract = realCrewContract[name];
+    f.ws.handlers.my_status = () => contract.status;
+    f.ws.handlers.crew_status = () => contract.crew;
+    await f.stores.refreshCrewSession();
+    assert.equal(await f.stores.pollShipCommand('crew_status'), null, name);
+  }
+  f.ws.handlers.my_status = () => realCrewContract.assigned_ops.status;
+  f.ws.handlers.crew_status = () => realCrewContract.assigned_ops.crew;
+  await f.stores.refreshCrewSession();
+  assert.equal(f.stores.crewCardsFromResponse(await f.stores.pollShipCommand('crew_status'))[0].name,
+    'Verified Engineer', 'a refreshed valid authority resumes crew cards');
 });

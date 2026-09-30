@@ -13,8 +13,9 @@ const frontend = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 const temporary = await mkdtemp(path.join(tmpdir(), 'flaxos-mission-ui-'));
 after(() => rm(temporary, { recursive: true, force: true }));
 const stores = {
-  gameState: writable({}), missionState: writable(null), crewSession: writable({ station: 'helm' }),
-  tier: writable('cpu-assist'), selectedHelmTargetId: writable(''), coverage: writable(null),
+  gameState: writable({}), missionState: writable(null), crewSession: writable({ station: 'helm', connected: true, registered: true, shipId: 'ship_A',
+    needsRejoin: false, busy: false, availableCommands: ['get_target_solution'], authorityRevision: 1 }),
+  tier: writable('cpu-assist'), selectedHelmTargetId: writable(''), selectedTacticalTargetId: writable(''), coverage: writable(null),
 };
 globalThis.__dockingUiStores = stores;
 after(() => { delete globalThis.__dockingUiStores; });
@@ -25,19 +26,22 @@ await build({
     'export { default as MissionObjectives } from "./src/components/mission/MissionObjectives.svelte";',
     'export { default as DockingPanel } from "./src/components/helm/DockingPanel.svelte";',
     'export { default as EngineeringControlPanel } from "./src/components/engineering/EngineeringControlPanel.svelte";',
+    'export { default as TargetingDisplay } from "./src/components/tactical/TargetingDisplay.svelte";',
+    'export { default as FiringSolutionDisplay } from "./src/components/tactical/FiringSolutionDisplay.svelte";',
+
   ].join('\n'), resolveDir: frontend, loader: 'ts' },
   outfile: bundle, bundle: true, format: 'esm', platform: 'node',
   plugins: [{ name: 'controlled-render', setup(b) {
     b.onLoad({ filter: /\.svelte$/ }, async args => ({ contents: compile(await readFile(args.path, 'utf8'),
       { filename: args.path, generate: 'server' }).js.code, loader: 'js' }));
-    b.onResolve({ filter: /(?:gameState|missionState|crewSession|tier|helmUi|wsClient|crewAssistance)\.js$/ },
+    b.onResolve({ filter: /(?:gameState|missionState|crewSession|tier|helmUi|tacticalUi|wsClient|crewAssistance)\.js$/ },
       args => ({ path: path.basename(args.path, '.js'), namespace: 'fixture' }));
     b.onLoad({ filter: /.*/, namespace: 'fixture' }, args => {
-      if (args.path === 'wsClient') return { contents: 'export const wsClient = { addEventListener() {}, status: "disconnected" };', loader: 'js' };
+      if (args.path === 'wsClient') return { contents: 'export const wsClient = { addEventListener() {}, status: "connected", isConnected: true };', loader: 'js' };
       if (args.path === 'crewAssistance') return { contents: `export const crewAssistance = globalThis.__dockingUiStores.coverage;
         export const watchCrewAssistance = () => () => {};
         export { stationCoverage } from ${JSON.stringify(path.join(frontend, 'src/lib/stores/crewAssistance.ts'))};`, loader: 'js', resolveDir: frontend };
-      const names = args.path === 'helmUi' ? ['selectedHelmTargetId'] : [args.path];
+      const names = args.path === 'helmUi' ? ['selectedHelmTargetId'] : args.path === 'tacticalUi' ? ['selectedTacticalTargetId'] : [args.path];
       return { contents: names.map(n => `export const ${n} = globalThis.__dockingUiStores.${n};`).join('\n'), loader: 'js' };
     });
   } }],
@@ -72,4 +76,27 @@ test('an empty Engineering proposal queue does not assert stable automatic contr
   assert(html.includes('No pending proposals'));
   assert(html.includes('an empty queue does not confirm automatic control'));
   assert(!html.includes('Auto-ops is holding') && !html.includes('>Stable<'));
+});
+
+
+test('compiled targeting displays clear embedded solutions for acquiring, unlock and a different selected contact', () => {
+  stores.tier.set('raw');
+  const snapshot = lock_state => ({ mission_epoch: 1, state: { id: 'ship_A', sensors: { contacts: [{ id: 'target_A' }, { id: 'nav_target' }] }, targeting: {
+    lock_state, locked_target: 'target_A', lock_quality: 0.9,
+    solutions: { railgun: { confidence: 0.83, time_of_flight: 123 } },
+  } } });
+  stores.selectedTacticalTargetId.set('target_A');
+  stores.gameState.set(snapshot('locked'));
+  assert(render(ui.FiringSolutionDisplay).includes('83%'), 'confirmed lock preserves embedded solution');
+  assert(render(ui.TargetingDisplay).includes('83%'));
+  for (const state of ['acquiring', 'idle', 'tracking']) {
+    stores.gameState.set(snapshot(state));
+    assert(!render(ui.FiringSolutionDisplay).includes('83%'), state);
+    assert(!render(ui.TargetingDisplay).includes('83%'), state);
+  }
+  stores.gameState.set(snapshot('locked'));
+  stores.selectedTacticalTargetId.set('nav_target');
+  assert(!render(ui.TargetingDisplay).includes('83%'), 'a nav-selected contact cannot inherit another target solution');
+  stores.crewSession.update(session => ({ ...session, availableCommands: null, authorityRevision: 2 }));
+  assert(!render(ui.FiringSolutionDisplay).includes('83%'), 'failed authority verification clears solution fallback');
 });

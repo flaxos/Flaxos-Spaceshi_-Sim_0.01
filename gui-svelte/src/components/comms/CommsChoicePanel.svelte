@@ -3,6 +3,8 @@
   import Panel from "../layout/Panel.svelte";
   import { tier } from "../../lib/stores/tier.js";
   import { wsClient } from "../../lib/ws/wsClient.js";
+  import { crewSession } from "../../lib/stores/crewSession.js";
+  import { pollShipCommand } from "../../lib/stores/crewPolling.js";
   import {
     formatChoiceCountdown,
     normalizeCommsChoices,
@@ -18,6 +20,12 @@
 
   $: cpuAssistTier = $tier === "cpu-assist";
 
+  let authorityRevision = -1;
+  $: if (authorityRevision !== $crewSession.authorityRevision) {
+    authorityRevision = $crewSession.authorityRevision;
+    choices = [];
+  }
+
   onMount(() => {
     void refresh();
     pollHandle = window.setInterval(() => void refresh(), 2000);
@@ -32,7 +40,7 @@
 
   async function refresh() {
     try {
-      const response = await wsClient.sendShipCommand("get_comms_choices", {});
+      const response = await pollShipCommand("get_comms_choices", {});
       choices = normalizeCommsChoices(response);
     } catch {
       choices = [];
