@@ -22,6 +22,7 @@ class DockingSystem(BaseSystem):
         )
 
         self.target_id = None
+        self._target_display_id = None
         self.target_ship = None
         self.status = "idle"
         self.last_check = {}
@@ -82,7 +83,7 @@ class DockingSystem(BaseSystem):
                     "docked",
                     {
                         "ship": ship.id,
-                        "target": ship.docked_to,
+                        "target": self._target_display_id or ship.docked_to,
                         "range": range_to_target,
                         "relative_velocity": relative_speed,
                     },
@@ -119,6 +120,7 @@ class DockingSystem(BaseSystem):
             ship.docked_to = None
         self.status = "idle"
         self.target_id = None
+        self._target_display_id = None
         self.target_ship = None
         self._last_service_report = None
         if event_bus and ship:
@@ -135,12 +137,26 @@ class DockingSystem(BaseSystem):
 
         target_ship = params.get("target_ship")
         target_id = params.get("target_id") or params.get("target")
+        display_id = target_id
         if target_ship and not target_id:
             target_id = getattr(target_ship, "id", None)
         if not target_ship and hasattr(target_id, "id"):
             target_ship = target_id
             target_id = getattr(target_ship, "id", None)
         if not target_ship:
+            # Browser targets are detected stable contact IDs. Resolve only
+            # a current sensor track, never enumerate simulation truth into
+            # the response or silently accept an unknown contact.
+            sensors = ship.systems.get("sensors") if ship else None
+            tracker = getattr(sensors, "contact_tracker", None)
+            if tracker:
+                contacts = tracker.get_all_contacts(getattr(sensors, "sim_time", 0.0))
+                contact = contacts.get(target_id)
+                if contact and getattr(contact, "contact_state", None) != "lost":
+                    target_id = next((real_id for real_id, stable_id in tracker.id_mapping.items()
+                                      if stable_id == target_id), target_id)
+                elif target_id in tracker.id_mapping.values():
+                    return {"error": "Docking target contact is unavailable"}
             all_ships = params.get("all_ships")
             if isinstance(all_ships, dict):
                 target_ship = all_ships.get(target_id)
@@ -155,8 +171,11 @@ class DockingSystem(BaseSystem):
 
         if not target_id:
             return {"error": "Missing target for docking"}
+        if not target_ship:
+            return {"error": "Docking target not found"}
 
         self.target_id = target_id
+        self._target_display_id = display_id or target_id
         self.target_ship = target_ship
         self.status = "docking_initiated"
 
@@ -166,7 +185,7 @@ class DockingSystem(BaseSystem):
                 "docking_initiated",
                 {
                     "ship": ship.id,
-                    "target": target_id,
+                    "target": self._target_display_id,
                     "range": self.last_check.get("range"),
                     "relative_velocity": self.last_check.get("relative_velocity"),
                 },
@@ -174,13 +193,14 @@ class DockingSystem(BaseSystem):
 
         return {
             "status": "docking_requested",
-            "target": target_id,
+            "target": self._target_display_id,
             "docking_range": self.docking_range,
             "max_relative_velocity": self.max_relative_velocity,
         }
 
     def _cmd_cancel_docking(self):
         self.target_id = None
+        self._target_display_id = None
         self.target_ship = None
         self.status = "idle"
         return {"status": "docking_cancelled"}
@@ -282,7 +302,7 @@ class DockingSystem(BaseSystem):
         state = {
             **super().get_state(),
             "status": self.status,
-            "target": self.target_id,
+            "target": self._target_display_id or self.target_id,
             "docking_range": self.docking_range,
             "max_relative_velocity": self.max_relative_velocity,
             "last_check": self.last_check,

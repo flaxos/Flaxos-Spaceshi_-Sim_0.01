@@ -4,7 +4,7 @@ import threading
 import json
 import os
 from datetime import datetime
-from hybrid.simulator import Simulator
+from hybrid.simulator import Simulator, EventLogBuffer
 from hybrid.scenarios.loader import ScenarioLoader
 from hybrid.fleet.fleet_manager import FleetManager
 
@@ -33,6 +33,9 @@ class HybridRunner:
         self.mission = None
         self.last_mission_status = None
         self.player_ship_id = None
+        self._player_ship_ref = None
+        self.mission_epoch = 0
+        self._mission_failure_reason = None
 
         # Scenario loading state - prevents concurrent loads
         self._loading_scenario = False
@@ -53,6 +56,7 @@ class HybridRunner:
     def load_ships(self):
         """Load ships from the fleet directory"""
         ship_count = self.simulator.load_ships_from_directory(self.fleet_dir)
+        self._prepare_ship_runtime()
         print(f"Loaded {ship_count} ships from {self.fleet_dir}")
         return ship_count
         
@@ -119,14 +123,19 @@ class HybridRunner:
     def get_mission_status(self, include_hints=False, clear_hints=False):
         """Return current mission status and metadata."""
         if not self.mission:
-            return {"available": False}
+            return {"available": False, "mission_epoch": self.mission_epoch,
+                    "current_scenario_id": self.current_scenario_id}
         status = self.mission.get_status(sim_time=self.simulator.time)
         status.update({
             "available": True,
             "briefing": self.mission.briefing,
             "success_message": self.mission.success_message,
             "failure_message": self.mission.failure_message,
+            "mission_epoch": self.mission_epoch,
+            "current_scenario_id": self.current_scenario_id,
         })
+        if self._mission_failure_reason:
+            status["failure_reason"] = self._mission_failure_reason
         # Include next_scenario if the mission defines one (for mission progression)
         if getattr(self.mission, "next_scenario", None):
             status["next_scenario"] = self.mission.next_scenario
@@ -181,14 +190,44 @@ class HybridRunner:
         self.simulator.time = 0.0
         self.simulator.tick_count = 0
         self.simulator.projectile_manager.clear()
+        self.simulator.torpedo_manager.clear()
         self.simulator.environment_manager.clear()
+        # Remove events from the prior mission while keeping IDs monotonic
+        # for clients whose event polling was already in flight at reset.
+        old_log = self.simulator.event_log
+        self.simulator.event_log = EventLogBuffer(maxlen=old_log.maxlen)
+        self.simulator.event_log._next_id = old_log._next_id
         self.tick_count = 0
         self.state_cache = {}
         self.last_update_time = 0
         self.last_mission_status = None
+        self.mission = None
+        self.player_ship_id = None
+        self._player_ship_ref = None
+        self._mission_failure_reason = None
+        self.mission_epoch += 1
         self._current_scenario_path = None
         self._current_scenario_name = None
         self.simulator.fleet_manager = FleetManager(simulator=self.simulator)
+
+    @property
+    def current_scenario_id(self):
+        if self._current_scenario_path:
+            return os.path.splitext(os.path.basename(self._current_scenario_path))[0]
+        return None
+
+    def _prepare_ship_runtime(self):
+        """Wire command dependencies without advancing paused physics."""
+        from hybrid.navigation.navigation_controller import NavigationController
+
+        all_ships = list(self.simulator.ships.values())
+        for ship in all_ships:
+            ship._all_ships_ref = all_ships
+            ship._runner_ref = self
+            ship._simulator_ref = self.simulator
+            navigation = ship.systems.get("navigation")
+            if navigation and hasattr(navigation, "controller") and navigation.controller is None:
+                navigation.controller = NavigationController(ship)
 
     def _select_player_ship(self, ships_data):
         for ship in ships_data:
@@ -243,10 +282,7 @@ class HybridRunner:
             # Initialize all_ships reference on each ship immediately after adding
             # This ensures sensors can detect contacts even before the first tick.
             # Also set _runner_ref so mission commands can find the active mission.
-            all_ships = list(self.simulator.ships.values())
-            for ship in all_ships:
-                ship._all_ships_ref = all_ships
-                ship._runner_ref = self
+            self._prepare_ship_runtime()
 
             # Load environmental hazards (asteroid fields, radiation, debris, nebulae)
             env_data = scenario_data.get("environment")
@@ -270,6 +306,7 @@ class HybridRunner:
                 self.player_ship_id = scenario_data["config"].get("player_ship_id")
             if not self.player_ship_id:
                 self.player_ship_id = self._select_player_ship(ships_data)
+            self._player_ship_ref = self.simulator.ships.get(self.player_ship_id)
             if self.mission:
                 self.mission.start(self.simulator.time)
                 self.last_mission_status = self.mission.tracker.mission_status
@@ -357,7 +394,10 @@ class HybridRunner:
         player_ship = None
         if self.player_ship_id:
             player_ship = self.simulator.ships.get(self.player_ship_id)
-        if not player_ship and self.simulator.ships:
+            if player_ship is None or player_ship.is_destroyed():
+                self._fail_player_ship_loss()
+                return
+        elif self.simulator.ships:
             player_ship = next(iter(self.simulator.ships.values()))
         if player_ship:
             previous_status = self.last_mission_status or self.mission.tracker.mission_status
@@ -443,6 +483,43 @@ class HybridRunner:
                     )
 
             self.last_mission_status = current_status
+
+    def _fail_player_ship_loss(self):
+        """Finish on loss of the designated ship, even with no survivors."""
+        from hybrid.scenarios.objectives import ObjectiveStatus
+
+        if self.mission.tracker.mission_status != "in_progress":
+            return
+        reason = f"Player ship {self.player_ship_id} was destroyed or is unavailable"
+        self._mission_failure_reason = reason
+        self.mission.last_sim_time = self.simulator.time
+        self.mission.tracker.mission_status = "failure"
+        self.mission.tracker.completion_time = self.simulator.time
+        for objective in self.mission.tracker.objectives.values():
+            if objective.required and objective.status not in (ObjectiveStatus.COMPLETED, ObjectiveStatus.FAILED):
+                objective.status = ObjectiveStatus.FAILED
+                objective.failure_reason = reason
+        self.last_mission_status = "failure"
+
+        # The original ship retains its event bus after removal. Use it to
+        # notify the whole crew; the simulator bus is the zero-reference fallback.
+        player_ship = self._player_ship_ref
+        bus = player_ship.event_bus if player_ship else self.simulator._event_bus
+        payload = {
+            "type": "mission_complete", "ship_id": self.player_ship_id,
+            "mission": self.get_mission_status(), "mission_status": "failure",
+            "status": "failure", "name": self.mission.name,
+            "description": self.mission.description,
+            "message": f"{self.mission.failure_message} {reason}",
+            "sim_time": self.simulator.time,
+        }
+        bus.publish("mission_complete", payload)
+        if player_ship:
+            comms = player_ship.systems.get("comms")
+            if comms:
+                comms.add_system_message(payload["message"], from_source="MISSION CONTROL", time=self.simulator.time)
+            if self._campaign_state is not None:
+                self._apply_campaign_mission_result(player_ship, "failure")
     
     def _apply_campaign_mission_result(self, player_ship, outcome: str) -> None:
         """Build a mission result dict from the current sim state and apply it.

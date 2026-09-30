@@ -1,7 +1,6 @@
 <script lang="ts">
-  import { onMount, onDestroy, createEventDispatcher } from "svelte";
-  import { wsClient } from "../../lib/ws/wsClient.js";
-  import { playerShipId } from "../../lib/stores/playerShip.js";
+  import { onMount, createEventDispatcher } from "svelte";
+  import { crewSession, initializeCrewSession, joinCrewStation, releaseCrewStation } from "../../lib/stores/crewSession.js";
 
   const dispatch = createEventDispatcher<{
     "station-claimed": { station: string };
@@ -19,157 +18,40 @@
     { id: "fleet_commander", label: "FLEET CMDR",      icon: "◇", desc: "Fleet coordination", color: "#ff66cc" },
   ];
 
-  let registered = false;
-  let assignedShipId: string | null = null;
-  let claimedStation: string | null = null;
-  let isProcessing = false;
-  let statusText = "Not registered";
-  let statusVariant: "info" | "success" | "error" | "" = "";
-  let pollTimer: ReturnType<typeof setInterval> | null = null;
-  let expanded = false; // compact mode in status bar
+  let expanded = false;
+  let previousStation: string | null = null;
 
-  $: canClaim = registered && !!assignedShipId && !isProcessing;
+  $: registered = $crewSession.connected && $crewSession.registered;
+  $: assignedShipId = $crewSession.shipId;
+  $: claimedStation = $crewSession.station;
+  $: isProcessing = $crewSession.busy;
+  $: canClaim = registered && !!assignedShipId && !isProcessing && !$crewSession.needsRejoin;
+  $: statusText = $crewSession.error || ($crewSession.needsRejoin
+    ? "Connection restored. Rejoin your crew from the lobby."
+    : claimedStation ? `Station: ${claimedStation.toUpperCase()}`
+    : assignedShipId ? "Assigned. Select a station." : "Join a ship from the fleet lobby.");
+  $: statusVariant = $crewSession.error ? "error" : claimedStation ? "success" : "info";
 
-  // Watch ship ID from store for auto-assign
-  $: if ($playerShipId && registered && !assignedShipId) {
-    tryAssignShip($playerShipId);
-  }
-
-  function setStatus(msg: string, variant: typeof statusVariant = "") {
-    statusText = msg;
-    statusVariant = variant;
-  }
-
-  async function beginRegistration() {
-    if (isProcessing || registered) return;
-    isProcessing = true;
-    setStatus("Registering...", "info");
-    try {
-      const resp = await wsClient.send("register_client", { client_name: "bridge-gui" }) as { ok?: boolean; error?: string };
-      if (resp && resp.ok !== false) {
-        registered = true;
-        setStatus("Registered. Load a scenario to continue.", "info");
-        startPolling();
-        const shipId = $playerShipId;
-        if (shipId) await tryAssignShip(shipId);
-      } else {
-        setStatus(`Registration failed: ${resp?.error ?? "rejected"}`, "error");
-      }
-    } catch (err: unknown) {
-      setStatus(`Registration error: ${(err as Error).message}`, "error");
-    } finally {
-      isProcessing = false;
-    }
-  }
-
-  async function tryAssignShip(shipId: string) {
-    if (assignedShipId === shipId) return;
-    setStatus(`Assigning to ship ${shipId}...`, "info");
-    try {
-      const resp = await wsClient.send("assign_ship", { ship: shipId }) as { ok?: boolean; error?: string };
-      if (resp && resp.ok !== false) {
-        assignedShipId = shipId;
-        setStatus("Assigned. Select a station.", "success");
-      } else {
-        setStatus(`Ship assign failed: ${resp?.error ?? "rejected"}`, "error");
-      }
-    } catch (err: unknown) {
-      setStatus(`Assign error: ${(err as Error).message}`, "error");
-    }
+  $: if (claimedStation !== previousStation) {
+    if (claimedStation) dispatch("station-claimed", { station: claimedStation });
+    else if (previousStation) dispatch("station-released", { station: previousStation });
+    previousStation = claimedStation;
   }
 
   async function claimStation(stationId: string) {
-    if (isProcessing) return;
-    isProcessing = true;
-    setStatus(`Claiming ${stationId.toUpperCase()}...`, "info");
-    try {
-      const resp = await wsClient.send("claim_station", { station: stationId }) as { ok?: boolean; error?: string };
-      if (resp && resp.ok !== false) {
-        claimedStation = stationId;
-        setStatus(`Station: ${stationId.toUpperCase()}`, "success");
-        expanded = false;
-        dispatch("station-claimed", { station: stationId });
-      } else {
-        setStatus(`Claim failed: ${resp?.error ?? "rejected"}`, "error");
-      }
-    } catch (err: unknown) {
-      setStatus(`Claim error: ${(err as Error).message}`, "error");
-    } finally {
-      isProcessing = false;
-    }
+    if (assignedShipId && await joinCrewStation(assignedShipId, stationId)) expanded = false;
   }
 
   async function releaseStation() {
-    if (isProcessing || !claimedStation) return;
-    isProcessing = true;
-    const prev = claimedStation;
-    setStatus("Releasing...", "info");
-    try {
-      const resp = await wsClient.send("release_station", {}) as { ok?: boolean; error?: string };
-      if (resp && resp.ok !== false) {
-        claimedStation = null;
-        setStatus("Station released. Select a new station.", "info");
-        dispatch("station-released", { station: prev });
-      } else {
-        setStatus(`Release failed: ${resp?.error ?? "rejected"}`, "error");
-      }
-    } catch (err: unknown) {
-      setStatus(`Release error: ${(err as Error).message}`, "error");
-    } finally {
-      isProcessing = false;
-    }
+    await releaseCrewStation();
   }
 
-  async function pollStatus() {
-    if (!wsClient.isConnected) return;
-    if (registered && !assignedShipId && $playerShipId) {
-      await tryAssignShip($playerShipId);
-    }
-    try {
-      const resp = await wsClient.send("my_status", {}) as { ok?: boolean; station?: string; ship_id?: string };
-      if (resp?.ok !== false) {
-        if (resp.ship_id && resp.ship_id !== assignedShipId) assignedShipId = resp.ship_id;
-        // Detect server-side station assignment (e.g. auto-captain on load_scenario)
-        if (resp.station !== undefined && resp.station !== claimedStation) {
-          const prev = claimedStation;
-          claimedStation = resp.station ?? null;
-          // Emit station-claimed so App.svelte can apply view restrictions
-          if (claimedStation && claimedStation !== prev) {
-            dispatch("station-claimed", { station: claimedStation });
-          }
-        }
-      }
-    } catch { /* non-critical */ }
+  function openLobby() {
+    expanded = false;
+    document.dispatchEvent(new CustomEvent("crew-rejoin-request"));
   }
 
-  function startPolling() {
-    if (pollTimer) return;
-    pollTimer = setInterval(pollStatus, 5000);
-  }
-
-  function stopPolling() {
-    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
-  }
-
-  function onStatusChange() {
-    if (wsClient.isConnected && !registered) beginRegistration();
-  }
-
-  function onScenarioLoaded() {
-    if (registered && !assignedShipId && $playerShipId) tryAssignShip($playerShipId);
-  }
-
-  onMount(() => {
-    wsClient.addEventListener("status_change", onStatusChange);
-    document.addEventListener("scenario-loaded", onScenarioLoaded);
-    if (wsClient.isConnected && !registered) beginRegistration();
-  });
-
-  onDestroy(() => {
-    wsClient.removeEventListener("status_change", onStatusChange);
-    document.removeEventListener("scenario-loaded", onScenarioLoaded);
-    stopPolling();
-  });
+  onMount(initializeCrewSession);
 
   function hexToRgb(hex: string): string {
     const h = hex.replace("#", "");
@@ -220,6 +102,12 @@
         </div>
       </div>
       <div class="status-row status-{statusVariant}">{statusText}</div>
+
+      {#if !assignedShipId || $crewSession.needsRejoin}
+        <button class="release-btn" disabled={!registered || isProcessing} on:click={openLobby}>
+          {$crewSession.needsRejoin ? "Rejoin crew" : "Join crew"}
+        </button>
+      {/if}
 
       {#if claimedStation}
         <div class="claimed-card" style="--claimed-color: {stationColor(claimedStation)};">

@@ -23,7 +23,7 @@
 
 <div class="helm-root">
   <div class="cell left-top"><FlightDataPanel /></div>
-  <div class="cell left-bottom"><SensorContacts /></div>
+  <div class="cell left-bottom"><SensorContacts navigation /></div>
 
   <div class="cell center">
     {#if manualLike}

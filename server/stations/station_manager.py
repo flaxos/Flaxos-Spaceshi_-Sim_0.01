@@ -8,12 +8,22 @@ permissions and handling claim lifecycle.
 from dataclasses import dataclass, field
 from typing import Dict, Optional, Set, List, Tuple
 from datetime import datetime
+from functools import wraps
 import logging
 import threading
 
 from .station_types import StationType, PermissionLevel, get_station_commands
 
 logger = logging.getLogger(__name__)
+
+
+def _ownership_locked(method):
+    """Serialize ownership changes; callers may extend a transition to AI state."""
+    @wraps(method)
+    def locked(self, *args, **kwargs):
+        with self.ownership_lock:
+            return method(self, *args, **kwargs)
+    return locked
 
 
 @dataclass
@@ -77,15 +87,20 @@ class StationManager:
         self.allow_multiple_stations = False  # One station per client
         # Counter for generating client IDs
         self._next_client_id = 1
-        # Lock to prevent race conditions in captain election
-        self._election_lock = threading.Lock()
+        # One guard for claims, sessions and captain election. Reentrancy is
+        # required: election/cleanup call release and claim while holding it.
+        # The server also holds it across ownership changes and AI handover.
+        self._election_lock = threading.RLock()
+        self.ownership_lock = self._election_lock
 
+    @_ownership_locked
     def generate_client_id(self) -> str:
         """Generate a unique client ID"""
         client_id = f"client_{self._next_client_id}"
         self._next_client_id += 1
         return client_id
 
+    @_ownership_locked
     def register_client(self, client_id: str, player_name: str) -> ClientSession:
         """
         Register a new client connection.
@@ -115,6 +130,7 @@ class StationManager:
         logger.info(f"Client registered: {client_id} ({player_name})")
         return session
 
+    @_ownership_locked
     def unregister_client(self, client_id: str):
         """
         Client disconnected - release their claims.
@@ -141,6 +157,7 @@ class StationManager:
         """
         return self.sessions.get(client_id)
 
+    @_ownership_locked
     def assign_to_ship(self, client_id: str, ship_id: str) -> bool:
         """
         Assign a client to a ship (but not yet to a station).
@@ -185,6 +202,7 @@ class StationManager:
         logger.info(f"Client {client_id} assigned to ship {ship_id}")
         return True
 
+    @_ownership_locked
     def claim_station(
         self,
         client_id: str,
@@ -255,6 +273,7 @@ class StationManager:
         logger.info(f"Client {client_id} ({session.player_name}) claimed {station.value} on ship {ship_id}")
         return True, f"Station {station.value} claimed successfully"
 
+    @_ownership_locked
     def release_station(
         self,
         client_id: str,
@@ -305,6 +324,7 @@ class StationManager:
         logger.info(f"Client {client_id} released {station.value} on ship {ship_id}")
         return True, f"Station {station.value} released"
 
+    @_ownership_locked
     def get_station_owner(self, ship_id: str, station: StationType) -> Optional[str]:
         """
         Get the client_id controlling a station, if any.
@@ -403,6 +423,7 @@ class StationManager:
 
         return False, f"Unknown command: {command}"
 
+    @_ownership_locked
     def update_activity(self, client_id: str):
         """
         Update last activity timestamp for a client.
@@ -419,6 +440,7 @@ class StationManager:
                 if session.station in ship_claims:
                     ship_claims[session.station].last_activity = datetime.now()
 
+    @_ownership_locked
     def cleanup_stale_claims(self) -> List[str]:
         """
         Release stations from inactive clients.
@@ -455,6 +477,7 @@ class StationManager:
             if session.ship_id == ship_id
         ]
 
+    @_ownership_locked
     def migrate_session(self, old_client_id: str, new_client_id: str) -> bool:
         """
         Migrate an old client session's state to a new client ID.
@@ -511,6 +534,7 @@ class StationManager:
         )
         return True
 
+    @_ownership_locked
     def purge_claims_for_missing_ships(self, active_ship_ids: set) -> List[str]:
         """
         Remove station claims that reference ships no longer in the simulation.

@@ -1,38 +1,38 @@
 <script lang="ts">
   import { derived } from "svelte/store";
-  import { shipState } from "../../lib/stores/gameState.js";
+  import { gameState, shipState } from "../../lib/stores/gameState.js";
   import { tier } from "../../lib/stores/tier.js";
   import { proposals, type Proposal } from "../../lib/stores/proposals.js";
-  import { extractShipState, getOrientation, getVelocity, magnitude, toNumber, toStringValue, asRecord, getSystem } from "../helm/helmData.js";
+  import { extractShipState, getAutopilotSnapshot, getFuelPercent, getHullPercent, getOrientation, getVelocity, magnitude, toNumber, toStringValue, asRecord, getSystem } from "../helm/helmData.js";
 
-  // Mission clock (local time for now; server mission time can replace this)
-  let missionTime = "00:00:00";
-  setInterval(() => {
-    const d = new Date();
-    missionTime = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
-  }, 500);
+  // Both crew clients show the authoritative paused/scaled simulation clock.
+  const missionTime = derived(gameState, ($s) => {
+    const time = $s.t ?? $s.sim_time;
+    if (typeof time !== "number" || !Number.isFinite(time)) return "--:--:--";
+    const seconds = Math.max(0, Math.floor(time));
+    return [Math.floor(seconds / 3600), Math.floor(seconds / 60) % 60, seconds % 60]
+      .map((part) => String(part).padStart(2, "0")).join(":");
+  });
 
   // Hull integrity (supports both nested systems.hull and top-level)
   const hull = derived(shipState, ($s) => {
     if (!$s) return null;
-    const h = $s?.systems?.hull?.integrity ?? $s?.hull_integrity ?? $s?.hull ?? null;
-    if (typeof h === "number") return h > 1 ? Math.round(h) : Math.round(h * 100);
-    return null;
+    const percent = getHullPercent($s);
+    return percent == null ? null : Math.round(percent);
   });
 
   // Fuel percentage
   const fuel = derived(shipState, ($s) => {
     if (!$s) return null;
-    const f = $s?.systems?.propulsion?.fuel_pct ?? $s?.fuel_pct ?? null;
-    if (typeof f === "number") return f > 1 ? Math.round(f) : Math.round(f * 100);
-    return null;
+    const percent = getFuelPercent($s);
+    return percent == null ? null : Math.round(percent);
   });
 
   // Reactor output percent
   const reactor = derived(shipState, ($s) => {
     if (!$s) return null;
-    const r = $s?.systems?.reactor?.output_pct ?? $s?.systems?.power?.reactor_output ?? null;
-    if (typeof r === "number") return Math.round(r > 1 ? r : r * 100);
+    const r = $s.reactor_output ?? $s.engineering?.reactor_output;
+    if (typeof r === "number" && Number.isFinite(r)) return Math.round(Math.max(0, Math.min(1, r)) * 100);
     return null;
   });
 
@@ -40,22 +40,31 @@
   // shipState is already extracted; passing through extractShipState is a no-op guard
   // that also normalizes undefined → {} so downstream helpers don't crash.
   const speed = derived(shipState, ($s) => {
+    if (!$s || (!$s.velocity && typeof $s.velocity_magnitude !== "number")) return null;
+    if (typeof $s.velocity_magnitude === "number") return $s.velocity_magnitude;
     const vel = getVelocity(extractShipState($s as Record<string, unknown>));
     return magnitude(vel);
   });
 
   // Heading (yaw, deg)
   const heading = derived(shipState, ($s) => {
+    if (!$s?.orientation) return null;
     const ship = extractShipState($s as Record<string, unknown>);
     return getOrientation(ship).yaw;
   });
 
+  const navigation = derived(shipState, ($s) => getAutopilotSnapshot($s ?? {}));
+
   // Heat state (K current / K max)
   const heat = derived(shipState, ($s) => {
-    if (!$s) return { current: 0, max: 500 };
+    if (!$s) return null;
     const thermal = asRecord($s)?.thermal ?? getSystem($s as never, "thermal");
-    const current = toNumber(asRecord(thermal)?.heat, toNumber(asRecord($s)?.heat, 0));
-    const max = toNumber(asRecord(thermal)?.heat_max, toNumber(asRecord($s)?.heat_max, 500));
+    const data = asRecord(thermal);
+    if (!data || data.status === "unavailable") return null;
+    const temperature = data.hull_temperature ?? data.heat;
+    if (typeof temperature !== "number") return null;
+    const current = temperature;
+    const max = toNumber(data.max_temperature, toNumber(data.heat_max, 500));
     return { current, max };
   });
 
@@ -73,8 +82,8 @@
   const shipInfo = derived(shipState, ($s) => {
     const ship = asRecord($s) ?? {};
     return {
-      name: toStringValue(ship.name, toStringValue(ship.id, "MCRN Rocinante")),
-      cls: toStringValue(ship.class_name, toStringValue(ship.ship_class, "Corvette")),
+      name: toStringValue(ship.name, toStringValue(ship.id, "Unassigned")),
+      cls: toStringValue(ship.class, toStringValue(ship.class_name, toStringValue(ship.ship_class, "--"))),
     };
   });
 
@@ -106,7 +115,7 @@
     .flat()
     .some((p) => p.urgent);
 
-  $: heatPct = $heat.max > 0 ? ($heat.current / $heat.max) * 100 : 0;
+  $: heatPct = $heat && $heat.max > 0 ? ($heat.current / $heat.max) * 100 : 0;
   $: hc = heatColor(heatPct);
 </script>
 
@@ -124,14 +133,14 @@
   <div class="cell vital">
     <span class="lbl">SPD</span>
     <span class="val">
-      {$speed.toFixed(1)}<span class="unit">m/s</span>
+      {$speed == null ? "--" : $speed.toFixed(1)}<span class="unit">m/s</span>
     </span>
   </div>
 
   <!-- HDG -->
   <div class="cell vital">
     <span class="lbl">HDG</span>
-    <span class="val">{String(Math.round($heading < 0 ? $heading + 360 : $heading)).padStart(3, "0")}°</span>
+    <span class="val">{$heading == null ? "--" : String(Math.round($heading < 0 ? $heading + 360 : $heading)).padStart(3, "0")}°</span>
   </div>
 
   <!-- FUEL -->
@@ -150,8 +159,8 @@
     </span>
   </div>
 
-  <!-- REACTOR -->
-  <div class="cell vital">
+  <!-- Existing Engineering setting, distinct from measured generator power. -->
+  <div class="cell vital" title="Engineering reactor output setting">
     <span class="lbl">RCT</span>
     <span class="val">
       {$reactor !== null ? $reactor : "--"}<span class="unit">%</span>
@@ -159,10 +168,17 @@
   </div>
 
   <!-- Thermal bar -->
+  {#if $navigation.program}
+    <div class="cell vital" title="Shared navigation program and target">
+      <span class="lbl">NAV</span>
+      <span class="val">{$navigation.program.toUpperCase()} {$navigation.targetId}</span>
+    </div>
+  {/if}
+
   <div class="cell thermal">
     <div class="thermal-head">
       <span class="lbl">THERMAL</span>
-      <span class="thermal-k" style="color: {hc}">{Math.round($heat.current)}K</span>
+      <span class="thermal-k" style="color: {hc}">{$heat == null ? "--" : Math.round($heat.current)}K</span>
     </div>
     <div class="bar-track">
       <div class="bar-fill" style="width: {normPct(heatPct)}%; background: {hc}; box-shadow: {heatPct > 65 ? `0 0 6px ${hc}55` : 'none'};"></div>
@@ -194,7 +210,7 @@
   <!-- Mission clock -->
   <div class="cell mission">
     <span class="lbl">MISSION</span>
-    <span class="clock">{missionTime}</span>
+    <span class="clock">{$missionTime}</span>
   </div>
 </header>
 

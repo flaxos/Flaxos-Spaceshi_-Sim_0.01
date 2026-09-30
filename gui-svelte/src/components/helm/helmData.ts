@@ -275,7 +275,7 @@ export function getAutopilotSnapshot(ship: JsonMap): AutopilotSnapshot {
     program,
     phase,
     status: toStringValue(autopilotState.status) || toStringValue(flightComputer.status_text),
-    targetId: toStringValue(ship.target_id) || toStringValue(nav.target_id),
+    targetId: toStringValue(autopilotState.target_id) || toStringValue(ship.target_id) || toStringValue(nav.target_id),
     distance: distanceValue == null ? null : toNumber(distanceValue),
     eta: etaValue == null ? null : toNumber(etaValue),
     progress: clamp(toNumber(flightComputer.progress, 0) * 100, 0, 100),
@@ -360,8 +360,29 @@ export function getMaxAccel(ship: JsonMap): number {
 export function getThrottle(ship: JsonMap): number {
   const helm = getSystem(ship, "helm");
   const propulsion = getSystem(ship, "propulsion");
-  const raw = helm.manual_throttle ?? propulsion.throttle ?? ship.throttle;
+  // Live propulsion throttle includes Engineering's governor. Manual throttle
+  // is a requested input and can differ from the physical drive output.
+  const raw = ship.throttle ?? propulsion.throttle ?? asRecord(ship.helm)?.manual_throttle ?? helm.manual_throttle;
   return clamp(toNumber(raw, 0), 0, 1);
+}
+
+/** Canonical percentages are 0..100, including values below 1%. */
+export function getFuelPercent(ship: JsonMap): number | null {
+  const fuel = asRecord(ship.fuel);
+  const raw = fuel?.percent;
+  return typeof raw === "number" && Number.isFinite(raw) ? clamp(raw, 0, 100) : null;
+}
+
+export function getHullPercent(ship: JsonMap): number | null {
+  const raw = ship.hull_percent;
+  if (typeof raw === "number" && Number.isFinite(raw)) return clamp(raw, 0, 100);
+  const current = ship.hull_integrity;
+  const maximum = ship.max_hull_integrity;
+  if (typeof current === "number" && Number.isFinite(current)
+    && typeof maximum === "number" && Number.isFinite(maximum) && maximum > 0) {
+    return clamp(current / maximum * 100, 0, 100);
+  }
+  return null;
 }
 
 export function getFlightComputer(ship: JsonMap): JsonMap {

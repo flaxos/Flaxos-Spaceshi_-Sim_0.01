@@ -102,6 +102,7 @@ STATION_DEFINITIONS: Dict[StationType, StationDefinition] = {
             "relative_motion", "docking_guidance", "fuel_status",
             "autopilot_status", "waypoints", "course_plot",
             "helm_status", "propulsion_status",
+            "contacts", "target_info",
         },
         required_systems={"propulsion", "helm", "navigation"},
     ),

@@ -100,6 +100,16 @@ class StationTelemetryFilter:
 
             # Common displays (available to most stations)
             "basic_status": ["id", "name", "class", "faction", "timestamp"],
+            # Every crew member shares the same physical ship. These are
+            # read-only values; station command authority is unchanged.
+            "physical_status": ["position", "velocity", "velocity_magnitude",
+                                "acceleration", "acceleration_magnitude",
+                                "orientation", "angular_velocity", "mass",
+                                "dry_mass", "is_drifting", "throttle", "fuel",
+                                "delta_v_remaining", "hull_integrity",
+                                "max_hull_integrity", "hull_percent", "reactor_output"],
+            "shared_contacts": ["sensors", "target_id"],
+            "shared_navigation": ["nav_mode", "autopilot_program", "autopilot_state"],
         }
 
     def filter_ship_telemetry(
@@ -133,6 +143,9 @@ class StationTelemetryFilter:
         # Always include basic status fields
         basic_fields = self.display_field_mapping.get("basic_status", [])
         allowed_fields.update(basic_fields)
+        allowed_fields.update(self.display_field_mapping["physical_status"])
+        allowed_fields.update(self.display_field_mapping["shared_contacts"])
+        allowed_fields.update(self.display_field_mapping["shared_navigation"])
 
         # Filter the telemetry
         filtered = {}

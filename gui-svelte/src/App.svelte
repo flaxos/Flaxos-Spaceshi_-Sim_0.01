@@ -6,7 +6,8 @@
 
   import { onMount } from "svelte";
   import { initializeConnection } from "./lib/stores/playerShip.js";
-  import { playerShipId } from "./lib/stores/playerShip.js";
+  import { crewSession, initializeCrewSession, refreshCrewSession } from "./lib/stores/crewSession.js";
+  import { commandFeedback } from "./lib/stores/commandFeedback.js";
 
   import BridgeHeader from "./components/layout/BridgeHeader.svelte";
   import StatusBar from "./components/layout/StatusBar.svelte";
@@ -34,49 +35,46 @@
   };
 
   let activeView = "mission";
-  let allowedViews: string[] | null = null; // null = all (pre-station-claim)
+  let allowedViews: string[] = ["mission"];
+  let previousStation: string | null = null;
+
+  $: allowedViews = $crewSession.station ? (STATION_VIEWS[$crewSession.station] ?? ["mission"]) : ["mission"];
+  $: if (!allowedViews.includes(activeView)) activeView = "mission";
+  $: if ($crewSession.station !== previousStation) {
+    previousStation = $crewSession.station;
+    activeView = previousStation ? (allowedViews.find(view => view !== "mission") ?? "mission") : "mission";
+  }
 
   function onViewChange(e: CustomEvent<{ view: string }>) {
     activeView = e.detail.view;
   }
 
   function onStationClaimed(e: CustomEvent<{ station: string }>) {
-    const station = e.detail.station;
-    allowedViews = STATION_VIEWS[station] ?? ["mission"];
-    // Auto-switch to first allowed view that isn't mission (if available)
-    const preferred = allowedViews.find((v) => v !== "mission") ?? allowedViews[0];
-    if (preferred && !allowedViews.includes(activeView)) {
-      activeView = preferred;
-    }
+    // Authority is shared with the lobby/header through crewSession.
+    if (e.detail.station !== $crewSession.station) void refreshCrewSession();
   }
 
   function onStationReleased() {
-    allowedViews = null; // unlock all views
+    activeView = "mission";
   }
 
   // Listen for scenario-loaded to switch to the first active bridge view
-  function onScenarioLoaded(e: Event) {
-    // Server returns player_ship_id / assigned_ship — check all possible keys
-    type ScenarioDetail = Record<string, string | undefined>;
-    const detail = (e as CustomEvent<ScenarioDetail>).detail ?? {};
-    const shipId = detail.ship_id ?? detail.player_ship_id ?? detail.assigned_ship ?? detail.assignedShip;
-    if (shipId) playerShipId.set(shipId);
-
-    // If the server auto-assigned a station (e.g. captain), apply view restrictions
-    const station = detail.station ?? detail.auto_station;
-    if (station && STATION_VIEWS[station]) {
-      allowedViews = STATION_VIEWS[station];
-    }
-
-    if (allowedViews?.includes("helm")) activeView = "helm";
-    else if (allowedViews) activeView = allowedViews[0];
-    else activeView = "helm";
+  async function onScenarioLoaded() {
+    await refreshCrewSession();
+    if ($crewSession.station) activeView = allowedViews.find(view => view !== "mission") ?? "mission";
   }
 
+  function onRejoinRequested() { activeView = "mission"; }
+
   onMount(() => {
+    initializeCrewSession();
     initializeConnection();
     document.addEventListener("scenario-loaded", onScenarioLoaded);
-    return () => document.removeEventListener("scenario-loaded", onScenarioLoaded);
+    document.addEventListener("crew-rejoin-request", onRejoinRequested);
+    return () => {
+      document.removeEventListener("scenario-loaded", onScenarioLoaded);
+      document.removeEventListener("crew-rejoin-request", onRejoinRequested);
+    };
   });
 </script>
 
@@ -90,6 +88,19 @@
     on:view-change={onViewChange}
   />
   <StatusBar />
+
+  {#if $crewSession.needsRejoin}
+    <div class="crew-notice" role="status">
+      {$crewSession.connected ? "Connection restored. Rejoin your ship and station to continue." : "Connection lost. Ship controls are unavailable."}
+      <button disabled={!$crewSession.connected || !$crewSession.registered} on:click={() => document.dispatchEvent(new CustomEvent("crew-rejoin-request"))}>Rejoin crew</button>
+    </div>
+  {/if}
+  {#if $commandFeedback}
+    <div class="command-error" role="alert">
+      <span>{$commandFeedback.command}: {$commandFeedback.message}</span>
+      <button aria-label="Dismiss command error" on:click={() => commandFeedback.set(null)}>×</button>
+    </div>
+  {/if}
 
   <!-- ── View stack ── -->
   <div class="view-stack">
@@ -124,6 +135,20 @@
 </div>
 
 <style>
+  .crew-notice, .command-error {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 7px 12px;
+    color: var(--text-primary);
+    background: var(--bg-raised);
+    border-bottom: 1px solid var(--bd-default);
+    flex-shrink: 0;
+  }
+
+  .command-error { color: var(--crit, #ff5555); }
+
   :global(html), :global(body) {
     height: 100%;
     overflow: hidden;

@@ -257,6 +257,8 @@ def get_ship_telemetry(ship, sim_time: float = None) -> Dict[str, Any]:
         "dry_mass": getattr(ship, "dry_mass", ship.mass),
         "moment_of_inertia": getattr(ship, "moment_of_inertia", 0.0),
         "is_drifting": is_drifting,
+        "throttle": getattr(propulsion, "throttle", 0.0) if propulsion else 0.0,
+        "reactor_output": engineering_state.get("reactor_output") if engineering_state else None,
         "fuel": {
             "level": fuel_level,
             "max": max_fuel,

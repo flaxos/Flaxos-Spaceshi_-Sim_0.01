@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { onMount, onDestroy } from "svelte";
-  import { wsClient } from "../lib/ws/wsClient.js";
+  import { crewSession } from "../lib/stores/crewSession.js";
+  import { missionState, type SharedMission } from "../lib/stores/missionState.js";
   import Panel from "../components/layout/Panel.svelte";
   import ScenarioLoader from "../components/mission/ScenarioLoader.svelte";
   import MissionObjectives from "../components/mission/MissionObjectives.svelte";
@@ -8,85 +8,30 @@
   import CommandPrompt from "../components/mission/CommandPrompt.svelte";
   import ServerAdminPanel from "../components/mission/ServerAdminPanel.svelte";
 
-  // Game state: "lobby" | "playing" | "ended"
   type GamePhase = "lobby" | "playing" | "ended";
   let phase: GamePhase = "lobby";
-
-  // Reference to ScenarioLoader so we can call showPostMission()
   let loaderRef: ScenarioLoader | undefined;
-
-  // Which config panel is active
   let activePanel: "objectives" | "campaign" | "console" | "server" = "server";
+  let showingResult = false;
 
-  // ── Event wiring ─────────────────────────────────────────────────
-  function onScenarioLoaded(e: Event) {
-    const detail = (e as CustomEvent<Record<string, unknown>>).detail;
-    // station claim or started flag → transition to playing
-    if (detail?.station || detail?.started || detail?.assignedShip) {
-      phase = "playing";
-    } else if (detail?.ship_id || detail?.scenario) {
-      // scenario loaded but not yet in lobby-to-playing transition — stay in lobby
-      // (ScenarioLoader transitions to lobby screen internally)
-    }
-  }
-
-  function onMissionEnd(e: Event) {
-    const detail = (e as CustomEvent<{ status?: string }>).detail;
-    if (detail?.status === "success" || detail?.status === "failure") {
+  function syncMission(mission: SharedMission | null, station: string | null) {
+    const status = mission?.mission_status ?? mission?.status;
+    if (station && mission?.available && (status === "success" || status === "failure")) {
       phase = "ended";
-      loaderRef?.showPostMission();
+      showingResult = true;
+      loaderRef?.showPostMission(mission);
+    } else {
+      phase = station && mission?.available ? "playing" : "lobby";
+      if (mission && showingResult && status !== "success" && status !== "failure") {
+        showingResult = false;
+        loaderRef?.showCurrentLobby();
+      }
     }
   }
 
-  function onNextMission() {
-    phase = "lobby";
-    // ScenarioLoader will handle the state internally
-  }
-
-  let missionEndHandler: ((e: Event) => void) | null = null;
-  let scenarioLoadedHandler: ((e: Event) => void) | null = null;
-  let nextMissionHandler: ((e: Event) => void) | null = null;
-  let missionPollGen = 0;
-
-  async function pollForMissionEnd(gen: number) {
-    if (gen !== missionPollGen || phase !== "playing") return;
-    try {
-      const resp = await wsClient.send("get_mission", {}) as { ok?: boolean; mission?: { mission_status?: string; status?: string } };
-      if (gen !== missionPollGen) return;
-      const status = resp?.mission?.mission_status ?? resp?.mission?.status;
-      if (status === "success" || status === "failure") {
-        phase = "ended";
-        loaderRef?.showPostMission();
-        return; // stop polling
-      }
-    } catch { /* skip */ }
-    if (gen === missionPollGen) setTimeout(() => pollForMissionEnd(gen), 3000);
-  }
-
-  $: if (phase === "playing") {
-    missionPollGen++;
-    pollForMissionEnd(missionPollGen);
-  } else {
-    missionPollGen++; // cancel any running poll
-  }
-
-  onMount(() => {
-    scenarioLoadedHandler = onScenarioLoaded;
-    document.addEventListener("scenario-loaded", scenarioLoadedHandler);
-
-    missionEndHandler = onMissionEnd;
-    document.addEventListener("mission_complete", missionEndHandler);
-
-    nextMissionHandler = () => onNextMission();
-    document.addEventListener("next-mission", nextMissionHandler);
-  });
-
-  onDestroy(() => {
-    missionPollGen++;
-    if (scenarioLoadedHandler) document.removeEventListener("scenario-loaded", scenarioLoadedHandler);
-    if (missionEndHandler) document.removeEventListener("mission_complete", missionEndHandler);
-    if (nextMissionHandler) document.removeEventListener("next-mission", nextMissionHandler);
-  });
+  // All crew watch the same authoritative mission, including after terminal
+  // outcomes so another client's reset returns this browser to the lobby.
+  $: syncMission($missionState, $crewSession.station);
 </script>
 
 <div class="mission-view">
@@ -102,8 +47,6 @@
         <div class="loader-wrap" class:compact={phase === "playing"}>
           <ScenarioLoader
             bind:this={loaderRef}
-            on:scenario-loaded={(e) => onScenarioLoaded(e)}
-            on:next-mission={() => onNextMission()}
           />
         </div>
       </Panel>

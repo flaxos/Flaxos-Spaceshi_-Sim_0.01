@@ -16,6 +16,7 @@
     setEngagementRules,
     toggleAutoTactical as setAutoTacticalEnabled,
     toggleWeaponAuthorization,
+    type TacticalWeaponType,
   } from "./tacticalActions.js";
   import { proposals } from "../../lib/stores/proposals.js";
 
@@ -36,7 +37,7 @@
   let engagementPending = false;
   let autoTacticalPending = false;
 
-  async function fireNow(weaponType: "railgun" | "torpedo" | "missile") {
+  async function fireNow(weaponType: TacticalWeaponType) {
     if (firingNow) return;
     firingNow = weaponType;
     try {
@@ -46,7 +47,7 @@
     }
   }
 
-  async function toggleAuthorization(kind: "railgun" | "torpedo" | "missile") {
+  async function toggleAuthorization(kind: TacticalWeaponType) {
     await toggleWeaponAuthorization(kind, authorized[kind], { profile: "direct" });
   }
 

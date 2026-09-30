@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onDestroy } from "svelte";
   import Panel from "../layout/Panel.svelte";
   import { gameState } from "../../lib/stores/gameState.js";
   import { tier } from "../../lib/stores/tier.js";
@@ -29,6 +30,10 @@
   let feedback = "";
   let throttleTimer: number | null = null;
 
+  onDestroy(() => {
+    if (throttleTimer != null) window.clearTimeout(throttleTimer);
+  });
+
   $: ship = extractShipState($gameState);
   $: currentPosition = getPosition(ship);
   $: currentVelocity = getVelocity(ship);
@@ -44,8 +49,14 @@
   function scheduleThrottle(value: number) {
     throttlePercent = value;
     if (throttleTimer != null) window.clearTimeout(throttleTimer);
-    throttleTimer = window.setTimeout(() => {
-      void wsClient.sendShipCommand("set_thrust", { thrust: value / 100 });
+    throttleTimer = window.setTimeout(async () => {
+      feedback = "";
+      try {
+        const response = await wsClient.sendShipCommand("set_thrust", { thrust: value / 100 });
+        if (isCommandRejected(response)) feedback = `Error: ${describeCommandFailure(response)}`;
+      } catch (error) {
+        feedback = error instanceof Error ? error.message : "Thrust command failed";
+      }
     }, 40);
   }
 
