@@ -9,6 +9,7 @@ import pytest
 
 from hybrid.core.event_bus import EventBus
 from hybrid.simulator import Simulator
+from hybrid.systems.combat import combat_log
 from hybrid.systems.crew_binding_system import CrewBindingSystem
 from hybrid.systems.thermal_system import SPACE_BACKGROUND_TEMP
 
@@ -18,24 +19,31 @@ def plant(monkeypatch):
     old_shared = (EventBus._instance, CrewBindingSystem._shared_crew_manager,
                   CrewBindingSystem._shared_binder)
     old_random, old_numpy = random.getstate(), np.random.get_state()
+    old_combat_log = combat_log._combat_log_instance
     EventBus._instance = None
     CrewBindingSystem._shared_crew_manager = None
     CrewBindingSystem._shared_binder = None
+    combat_log._combat_log_instance = None
     random.seed(20261001)
     np.random.seed(20261001)
     clock = {"now": 1000.0}
     monkeypatch.setattr("time.time", lambda: clock["now"])
-    config = json.loads((Path(__file__).resolve().parents[1] /
-                         "scenarios/intercept_scenario.json").read_text())["ships"][0]
-    simulator = Simulator(dt=0.1)
-    ship = simulator.add_ship("thermal-test", config)
-    simulator.start()
-    yield simulator, ship, clock
-    simulator.stop()
-    EventBus._instance, CrewBindingSystem._shared_crew_manager, \
-        CrewBindingSystem._shared_binder = old_shared
-    random.setstate(old_random)
-    np.random.set_state(old_numpy)
+    simulator = None
+    try:
+        config = json.loads((Path(__file__).resolve().parents[1] /
+                             "scenarios/intercept_scenario.json").read_text())["ships"][0]
+        simulator = Simulator(dt=0.1)
+        ship = simulator.add_ship("thermal-test", config)
+        simulator.start()
+        yield simulator, ship, clock
+    finally:
+        if simulator is not None:
+            simulator.stop()
+        EventBus._instance, CrewBindingSystem._shared_crew_manager, \
+            CrewBindingSystem._shared_binder = old_shared
+        combat_log._combat_log_instance = old_combat_log
+        random.setstate(old_random)
+        np.random.set_state(old_numpy)
 
 
 def prepare(ship, mode="manual"):
