@@ -3,7 +3,7 @@
 Verified **2026-10-01 UTC** against main
 `1ceec6256f207bdaccb0072b4d3905bdfb9cb8ce` and live PR metadata. This is a
 readiness snapshot, not release approval. PR418, PR419 and PR422 are merged;
-PR420, PR421, PR423, PR424 and PR425 are open drafts. Historical PR bodies saying “keep draft”
+PR420, PR421, PR423, PR424, PR425 and PR426 are open drafts. Historical PR bodies saying “keep draft”
 do not override the actual merge state. Draft features are absent from this main.
 
 Checks apply to their linked revisions, not a combined candidate. Native-stack
@@ -16,11 +16,11 @@ and headless evidence are distinguished below. **Owner human UAT remains pending
 | 1. Power accounting / station polling | [PR419](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/pull/419) **merged**; original cooling | 25 frontend; Python 2,361 pass + known failure; seeded **headless** docking; [CI](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/actions/runs/36784311586) | Recorded local Chrome/WS/TCP role, telemetry and permission smoke | Human crew/solo UAT; high-load shortages remain possible |
 | 2. Enemy-fire / gimbal frame | [PR420](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/pull/420) **draft**; partial repair | 18 new / 424 focused; 25 frontend; Python 2,379 pass + known failure; [CI](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/actions/runs/36792992141) | **Headless** combat traces; captured failure still fires zero shots | NPC policy decision and combat UAT |
 | 3. Truthful lobby refresh | [PR421](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/pull/421) **draft** | 34 frontend, 9 lobby; Python 2,361 pass + known failure; [CI](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/actions/runs/36802513043) | Same-host contexts; 8 native groups: peer changes, stale replies, visibility, Refresh/reconnect | Human lobby UAT and review |
-| 4. Post-dock cutoff controls | [PR422](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/pull/422) **merged** | 27 frontend; Python 2,362 pass + known failure; [CI](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/actions/runs/36804117035) | Actual CPU ASSIST → MANUAL → Manual Flight; accepted 20% → 0% | Human docking/cutoff/fuel check; cutoff stays manual |
+| 4. Post-dock cutoff controls | [PR422](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/pull/422) **merged**; bounded runtime reliability follow-up [PR426](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/pull/426) **draft** | PR426: 38 frontend; local Python 2,364 pass + known failure; [final-head CI](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/actions/runs/36939846743): 2,362 pass + known failure; independent review complete | Clean 6daf1b9: 9 real two-context groups, including stale-zero/repeat/rapid cutoff, retirement, running nonzero and actual zero / zero fuel burn | Review and human docking/cutoff/fuel check; cutoff stays manual |
 | 5. First tutorial guidance | **Merged in PR422** | Same PR422 checks; scenario structure unchanged | Sequential native text/coverage/control smoke; no completed flight or live completion-text check | Human First Contact completion/reminder check |
 | 6. CPU thermal assistance | Authorized bounded field repair in [PR425](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/pull/425) **draft** | 16 new; 27 frontend; local Python 2,380 pass + known failure; [CI](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/actions/runs/36932906315); independent review complete | Final-head native heating → visible MANUAL proposals → selected denial/approval; owned-stack cleanup passes | Review and thermal human UAT; broader automation separately scoped |
 | 7. NPC combat follow-through | **Blocked**; no additional implementation | Task 2 diagnosis; no separate checks | No new playtest | Same NPC policy decision |
-| 8. Repeatable crew smoke | [PR423](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/pull/423) **draft**; UI-readiness guard | 13 harness + 27 frontend; CI Python 2,362 pass + known failure; [current CI](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/actions/runs/36935647085); independent review complete | Clean heads ea44da4 and 282e8fa: 5 native groups each; controlled stale-read failure/pass pair retained | Runtime Console/UI stale-display hazard; human UAT; no completed docking |
+| 8. Repeatable crew smoke | [PR423](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/pull/423) **draft**; readiness guard and marked Console-read compatibility | 14 harness + 27 frontend; CI Python 2,362 pass + known failure; [current CI](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/actions/runs/36939193914); independent review complete | Clean 1e4aaa6: unmodified runner passes 5 groups and cleanup; earlier ea44da4/282e8fa evidence retained | Review and human UAT; runtime correction remains a separate unmerged PR426; no completed docking |
 | 9. Two actual computers | **Pending / untested** | No device/network acceptance | Same-host contexts do **not** establish this | Verified second physical device/path; no network/security/local-runtime changes here |
 | 10. Documentation reconciliation | Docs-only checklist | Link/diff checks; independent consistency review; no gameplay rerun | No new playtest | Owner review and gates below |
 
@@ -33,8 +33,9 @@ and headless evidence are distinguished below. **Owner human UAT remains pending
 | PR420 | [b9a87be](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/commit/b9a87be2a5e1409d449dcebb967931980facd75b) | Unmerged |
 | PR421 | [345c4d4](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/commit/345c4d4926f90cf00ca405d68788b3841ea26b33) | Unmerged |
 | PR422 | [54b632a](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/commit/54b632ab8caa643a8c9e2052d3b9c2edb62db306) | [1ceec62](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/commit/1ceec6256f207bdaccb0072b4d3905bdfb9cb8ce) |
-| PR423 | [ea44da4](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/commit/ea44da46fa2d2c67e3cb2e06f506aee1a51794f2) | Unmerged |
+| PR423 | [1e4aaa6](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/commit/1e4aaa6f057af47c47ccda87c29d0d486b728374) | Unmerged |
 | PR425 | [282e8fa](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/commit/282e8fa950e1da4a09ce9b0b6566bb9e2cac78f9) | Unmerged |
+| PR426 | [6daf1b9](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/commit/6daf1b96ccabffabb034809e08eb3c759f2b8db0) | Unmerged |
 
 PR418 retains 17 native phases: crewed docking at 792.8 sim seconds and solo at
 812.9, at its earlier SHA. These automated flights do not establish later-head
@@ -44,7 +45,7 @@ baseline failures and exact-SHA evidence remain privately retained; links are om
 
 Every listed Python CI retains active
 `tests/test_gameplay_loop.py::TestCombat::test_enemy_ai_fires_back`.
-Current-main task 6 and PR422/423 report **2,362 passes / 1 failure**. PR420 does
+Main and PR422/423/426 CI selections report **2,362 passes / 1 failure**. PR420 does
 not resolve the captured zero-shot case. **CI is not all green**; no skipping,
 weakened assertion or passing retry closes it. PR421 review retained 30 passes /
 4 fixture-import failures versus root/CI's 34 passes; the unrelated cleanup race
@@ -79,18 +80,63 @@ and blurring emits no change event or cutoff request. A later UI poll restores
 20%. This demonstrates the mechanism matching the historical trace, rather
 than erasing its missing DOM evidence or counting a retry as resolution.
 
-PR423 now waits for a correlated normal UI poll reporting the preceding actual
+At ea44da4, PR423 added a wait for a correlated normal UI poll reporting the preceding actual
 throttle, then the rendered number/display, before its next edit. Console full
 snapshots and optimistic DOM alone cannot satisfy readiness. It adds three
 focused regressions (13 total), captures action values/times/poll IDs, and uses
 one edit/command with the existing 10s limits. Its completed CI passes 27
 frontend/13 harness tests, check and build; unsuppressed Python reports 2,362
 passes / 1 known enemy-fire failure. The CI merge tree equals ea44da4. The
-thermal repair source and head remain unchanged. The underlying shared-cache Console/UI desynchronization
-is **not repaired**: a visible 0% alone can be stale while thrust remains 20%.
+thermal repair source and head remain unchanged. At that historical head, shared-cache Console/UI desynchronization was
+**not repaired**: a visible 0% alone could be stale while thrust remained 20%.
 There is no evidence of an accepted-zero command being rejected or ineffective.
 These same-host checks do not establish human, two-device or completed-docking
 acceptance. Human UAT must check actual zero and zero fuel burn with the display.
+
+The authorized bounded runtime follow-up is now in draft PR426 at clean
+6daf1b9. The existing 200 ms UI chain requests self-contained snapshots, even
+when another same-client read advances the shared delta cursor. Numeric input
+retains its draft during telemetry; explicit zero commits on blur even without
+change, and CUT THRUST uses the normal authorized command. Only numeric zero
+bypasses the existing 50 ms transport throttle. Captured ship/revision guards,
+a stable 40 ms timer owner and explicit retirement of both DOM drafts prevent
+old edits from surviving crew changes or unmount. Server permissions, explicit
+rejoin, nonzero throttling, physics, cooling and thermal policy remain unchanged.
+
+Current-main focused regressions report 20 passes / 9 failures; a clean-main
+real paused-server reproduction confirms actual 20% / displayed 0% and no zero request.
+Three subsequent runtime native attempts remain retained. The first passed six
+groups but incorrectly treated a MISSION tab change as an unmount; views remain
+mounted under CSS. The second used the real MANUAL-to-ARCADE unmount and exposed
+a retired draft still visible after release. The strengthened regression also
+reproduced numeric/range DOM reset failures in the partial repair. Final 6daf1b9
+passes all nine groups with zero page errors and completed owned-stack cleanup.
+It includes full and non-full real read ordering, one unchanged real 20% response
+held 849 ms while numeric zero and repeat zero are accepted, a normal button
+cutoff 41.5 ms after nonzero, actual unmount and release/rejoin retirement, and
+running normal 20% / range 35% with positive fuel burn followed by actual zero and both
+canonical/Engineering burn rates zero. Scripted timing/DOM controls are labelled;
+these are automated same-host checks, not human or completed-flight acceptance.
+
+Final PR426 frontend has 38 passes, check 0 errors/warnings and build pass.
+Unsuppressed local root Python reports 2,364 passes / 1 known enemy-fire failure /
+1 existing collection warning (162.86s). Exact-head CI reports 2,362 passes /
+1 same active failure (270.38s); its merge 6b27fa8 has the identical tree to 6daf1b9.
+Independent source, atomic event, native correlation and evidence review is
+complete. All failed attempts remain retained. Full snapshots increase paused
+traffic: approximate serialized sizes of sampled, parsed ship-targeted responses
+have median 5.7 KB Helm and 8.8 KB Engineering. These are payload estimates,
+not a capacity benchmark; larger Captain/fleet load is not benchmarked.
+
+PR423's separate harness-only head 1e4aaa6 marks its own Console reads, allowing
+full UI polls and legacy deltas to satisfy readiness while excluding Console
+responses. An unmodified clean-head run passes all five groups and cleanup;
+14 harness/27 frontend tests, check and build pass in CI 36939193914. Python
+retains 2,362 passes / 1 known enemy-fire failure (260.28s); merge 8662170 has the
+identical tree. The runtime proof uses an explicitly versioned private helper
+extension at 6daf1b9; it is not a combined-draft or unchanged-helper claim.
+PR425 remains unchanged at 282e8fa. Human UAT, two-device play and completed
+docking remain pending, and the shared server delta protocol is not redesigned.
 
 ## Assistance limits and next owner gates
 
@@ -119,9 +165,10 @@ work remains separately scoped. Use the [short owner thermal check](https://gith
 
 - [ ] Choose coast-and-aim versus sensor-aware velocity matching in the [PR420 diagnosis](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/blob/b9a87be2a5e1409d449dcebb967931980facd75b/docs/ENEMY_FIRE_DIAGNOSIS.md).
 - [x] Authorize the bounded thermal field repair; implemented in draft PR425. Review and human thermal UAT remain pending.
-- [ ] Review/test [draft lobby behavior](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/blob/345c4d4926f90cf00ca405d68788b3841ea26b33/docs/LOBBY_OCCUPANCY_REFRESH.md) and [draft crew smoke](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/blob/ea44da46fa2d2c67e3cb2e06f506aee1a51794f2/docs/SHARED_SHIP_PLAYTEST.md#repeatable-short-crew-smoke-real-stack) at their separate pinned heads.
+- [ ] Review/test [draft lobby behavior](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/blob/345c4d4926f90cf00ca405d68788b3841ea26b33/docs/LOBBY_OCCUPANCY_REFRESH.md) and [draft crew smoke](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/blob/1e4aaa6f057af47c47ccda87c29d0d486b728374/docs/SHARED_SHIP_PLAYTEST.md#repeatable-short-crew-smoke-real-stack) at their separate pinned heads.
 - [ ] Report crewed, solo and [first-tutorial UAT](FIRST_TUTORIAL_DOCKING_GUIDANCE.md), including rejoin and MANUAL → Manual Flight → Throttle 0%. Use the [isolated main setup](SHARED_SHIP_PLAYTEST.md#safe-linux-checkout-and-build), preserving the running local playtest.
-- [ ] Scope/review the separately open Console/UI telemetry desynchronization; the PR423 guard improves the smoke and does not repair the runtime display hazard.
+- [x] Authorize the bounded runtime reliability repair; implemented in draft PR426.
+- [ ] Review PR426 at 6daf1b9 and human-check numeric 0% / CUT THRUST, actual zero / zero fuel burn, observer reconnect and explicit rejoin. The PR423 guard remains a separate harness feature.
 - [ ] Supply task 9's second actual computer and verified path, then authorize a separate two-device check. No same-host substitution or network/security change here.
 - [ ] After authorized integration, record the candidate SHA and rerun unsuppressed checks/UAT; separate draft results do not establish combined acceptance.
 
