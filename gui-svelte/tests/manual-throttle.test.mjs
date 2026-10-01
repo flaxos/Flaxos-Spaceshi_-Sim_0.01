@@ -134,6 +134,15 @@ test('pending throttle intent retires after authority change and unmount', async
   });
   await f.page.waitForTimeout(100);
   assert.deepEqual(await f.commands(), [], 'an old edit must not target a newly selected ship');
+  assert.equal(await f.input.inputValue(), '0', 'retiring authority must also discard the pending numeric draft');
+  await f.page.evaluate(async () => {
+    const range = document.querySelector('.throttle input[type=range]');
+    range.value = '35'; range.dispatchEvent(new Event('input', { bubbles: true }));
+    await window.__authority({ shipId: 'third_ship', authorityRevision: 3 });
+  });
+  await f.page.waitForTimeout(100);
+  assert.deepEqual(await f.commands(), []);
+  assert.equal(await f.page.locator('.throttle input[type=range]').inputValue(), '0', 'retiring authority must discard the pending range draft');
   await f.page.evaluate(async () => {
     const input = document.querySelector('.throttle input[type=number]');
     input.value = '25'; input.dispatchEvent(new Event('input', { bubbles: true }));

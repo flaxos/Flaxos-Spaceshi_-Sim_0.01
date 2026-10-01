@@ -25,6 +25,8 @@
   let throttlePercent = 0;
   let throttleNumberDraft = "0";
   let throttleNumberDirty = false;
+  let throttleNumberInput: HTMLInputElement | null = null;
+  let throttleRangeInput: HTMLInputElement | null = null;
   let throttleAuthorityRevision = -1;
   let draftPitch = 0;
   let draftYaw = 0;
@@ -60,6 +62,12 @@
     if (throttleAction.timer != null) window.clearTimeout(throttleAction.timer);
     throttleAction.timer = null;
     throttleNumberDirty = false;
+    throttlePercent = actualThrottlePercent;
+    throttleNumberDraft = String(actualThrottlePercent);
+    // Input/change can return the reactive draft to its old value in one
+    // batch while the native field has changed. Retire that DOM edit too.
+    if (throttleNumberInput) throttleNumberInput.value = String(actualThrottlePercent);
+    if (throttleRangeInput) throttleRangeInput.value = String(actualThrottlePercent);
   }
   $: draftPitch = currentHeading.pitch;
   $: draftYaw = currentHeading.yaw;
@@ -200,8 +208,8 @@
         <span>Throttle</span>
         <strong>{actualThrottlePercent}%</strong>
       </div>
-      <input type="range" min="0" max="100" step="1" value={throttlePercent} disabled={!canThrottle} on:input={(event) => scheduleThrottle(Number((event.currentTarget as HTMLInputElement).value))} />
-      <input type="number" min="0" max="100" step="1" value={throttleNumberDraft} disabled={!canThrottle} on:input={editThrottleNumber} on:change={() => commitThrottleNumber()} on:blur={() => commitThrottleNumber(true)} />
+      <input type="range" min="0" max="100" step="1" bind:this={throttleRangeInput} value={throttlePercent} disabled={!canThrottle} on:input={(event) => scheduleThrottle(Number((event.currentTarget as HTMLInputElement).value))} />
+      <input type="number" min="0" max="100" step="1" bind:this={throttleNumberInput} value={throttleNumberDraft} disabled={!canThrottle} on:input={editThrottleNumber} on:change={() => commitThrottleNumber()} on:blur={() => commitThrottleNumber(true)} />
       <button type="button" disabled={!canThrottle} on:click={cutThrust}>CUT THRUST</button>
     </div>
 
