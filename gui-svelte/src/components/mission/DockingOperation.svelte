@@ -16,7 +16,7 @@
     <li><strong>Helm:</strong> select Tycho Station, choose CPU ASSIST, select that contact in the flight computer and APPROVE rendezvous. In Nav Tools, REQUEST DOCK on the same contact.</li>
     <li><strong>Engineering:</strong> choose MANUAL to use Engineering Control. Monitor fuel and thermal state; coordinate the drive governor with Helm. Restore the drive limit to 100% for the approach.</li>
     <li><strong>Final approach:</strong> 5 km is an approach milestone. Docking requires at most 50 m and 1 m/s relative speed. The request can wait while rendezvous approaches.</li>
-    <li><strong>After docking:</strong> manually set Helm thrust to zero and confirm actual output. Replay uses existing captain/admin authority; undocking is optional.</li>
+    <li><strong>After docking:</strong> choose MANUAL at Helm. In Manual Flight, manually set Helm thrust to zero (Throttle 0%) and confirm actual output. Replay uses existing captain/admin authority; undocking is optional.</li>
   </ol>
   <p class="assist-limits">Solo: prepare any Engineering settings before releasing that seat and joining Helm. You approve the navigation program. Unclaimed Engineering CPU only watches heat sinks when fitted; it does not manage the reactor or drive governor. CPU ASSIST is a control tier, not a complete replacement crew.</p>
 </section>

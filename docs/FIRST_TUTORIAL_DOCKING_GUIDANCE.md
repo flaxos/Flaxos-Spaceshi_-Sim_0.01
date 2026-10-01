@@ -7,14 +7,16 @@ manual post-dock thrust cutoff. Its briefing, approach hint and completion text
 repeat the relevant limits and cutoff instruction.
 
 5 km is an approach milestone. Docking requires at most 50 m and 1 m/s relative
-speed. After docking, manually set Helm thrust to zero and confirm actual output;
+speed. After docking, choose MANUAL at Helm and use Manual Flight to manually set
+Helm thrust to zero (Throttle 0%) and confirm actual output;
 the station can constrain motion while drive and fuel use continue. CPU ASSIST
 still requires approving the navigation program. Solo pilots explicitly release
 and claim stations; Engineering CPU coverage is limited to heat sinks when fitted.
 
 The tutorial's ships, objectives, hint triggers, progression and physics are
 unchanged. This adds guidance to existing behavior. PR418 already supplied the
-Docking Test's post-dock instruction; this change extends it to First Contact.
+Docking Test's post-dock instruction; this change makes its MANUAL → Manual Flight
+control path explicit and extends it to First Contact.
 Power accounting and the original cooling policy from PR419 remain in place.
 
 ## Human verification
@@ -27,7 +29,8 @@ checkout and runtime alone. Launch “Tutorial: Intercept and Dock,” then:
    approach milestone, 50 m / 1 m/s limits, explicit cutoff and CPU coverage.
 2. Explicitly join Helm; use the detected Tycho contact, CPU ASSIST rendezvous
    approval and Nav Tools REQUEST DOCK. Check the original three objectives.
-3. After actual docking, manually set the Manual Flight throttle to zero. Confirm
+3. After actual docking, choose MANUAL at Helm and set the Manual Flight throttle
+   to 0%. Confirm
    actual output and fuel use, then check that the completion text also reminds
    you to cut thrust. Repeat with a companion on Engineering if available.
 

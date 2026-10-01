@@ -222,6 +222,10 @@ class TestPreMission:
         assert "Approach milestone" in approach_hint["message"]
         assert "50 m and 1 m/s" in approach_hint["message"]
         assert "manually set Helm thrust to zero" in approach_hint["message"]
+        for text in [mission.briefing, mission.success_message, approach_hint["message"]]:
+            assert "choose MANUAL at Helm" in text
+            assert "Manual Flight" in text
+            assert "Throttle 0%" in text
 
     def test_scenario_02_has_loadout_information(self):
         """Combat scenario ships have weapon systems defined."""

@@ -87,7 +87,8 @@ mission:
        This is an approach milestone, not the final docking range
     5. The docking system will complete the dock automatically
        once you are at most 50 m away and relative speed is at most 1 m/s
-    6. After docking, manually set Helm thrust to zero and confirm actual output
+    6. After docking, choose MANUAL at Helm and open Manual Flight
+       Then manually set Helm thrust to zero (Throttle 0%) and confirm actual output
        Docking does not establish an automatic thrust cutoff; drive and fuel
        use can continue while the ship is held at the station
 
@@ -124,7 +125,8 @@ mission:
   success_message: |
     Excellent work! You've successfully docked with Tycho Station.
 
-    After docking, manually set Helm thrust to zero and confirm actual output.
+    After docking, choose MANUAL at Helm and open Manual Flight.
+    Then manually set Helm thrust to zero (Throttle 0%) and confirm actual output.
     Docking can hold the ship at the station while drive and fuel use continue.
 
     You've learned:
@@ -150,4 +152,4 @@ mission:
       message: "Getting close! The autopilot is decelerating for final approach."
     - trigger: "range < 5000"
       target: "target_station"
-      message: "Approach milestone reached. Request docking with the station contact; the final dock requires at most 50 m and 1 m/s relative speed. After docking, manually set Helm thrust to zero and confirm actual output."
+      message: "Approach milestone reached. Request docking with the station contact; the final dock requires at most 50 m and 1 m/s relative speed. After docking, choose MANUAL at Helm, then use Manual Flight to manually set Helm thrust to zero (Throttle 0%) and confirm actual output."

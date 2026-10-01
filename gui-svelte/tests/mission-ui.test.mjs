@@ -57,6 +57,7 @@ test('both Tycho docking missions retain the briefing, manual cutoff and existin
     const html = render(ui.MissionObjectives);
     for (const text of ['Short summary', 'Detailed existing operation', 'Docking crew guide', 'Engineering',
       'at most 50 m and 1 m/s', 'manually set Helm thrust to zero', 'Coverage unavailable',
+      'choose MANUAL at Helm', 'In Manual Flight', 'Throttle 0%',
       'does not manage the reactor or drive governor', 'CPU ASSIST is a control tier']) assert(html.includes(text), `${scenario}: ${text}`);
   }
   for (const scenario of ['other', '02_combat_destroy', null, undefined]) {
