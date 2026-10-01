@@ -83,9 +83,18 @@ mission:
     1. Use sensors to detect the station
     2. Target the station contact
     3. Engage autopilot in rendezvous mode to approach
-    4. When within 5km, request docking
+    4. When within 5km, request docking with the same station contact
+       This is an approach milestone, not the final docking range
     5. The docking system will complete the dock automatically
-       once range and velocity criteria are met
+       once you are at most 50 m away and relative speed is at most 1 m/s
+    6. After docking, choose MANUAL at Helm and open Manual Flight
+       Then manually set Helm thrust to zero (Throttle 0%) and confirm actual output
+       Docking does not establish an automatic thrust cutoff; drive and fuel
+       use can continue while the ship is held at the station
+
+    Use the Docking crew guide in Mission Objectives for the existing Helm
+    and Engineering controls. Solo pilots must explicitly change stations;
+    CPU ASSIST does not replace a complete crew or manage the drive governor.
 
     Good luck!
 
@@ -116,6 +125,10 @@ mission:
   success_message: |
     Excellent work! You've successfully docked with Tycho Station.
 
+    After docking, choose MANUAL at Helm and open Manual Flight.
+    Then manually set Helm thrust to zero (Throttle 0%) and confirm actual output.
+    Docking can hold the ship at the station while drive and fuel use continue.
+
     You've learned:
     - How to use passive sensors to detect contacts
     - How to lock a target
@@ -139,4 +152,4 @@ mission:
       message: "Getting close! The autopilot is decelerating for final approach."
     - trigger: "range < 5000"
       target: "target_station"
-      message: "Within docking range! Use the docking panel to request docking with the station."
+      message: "Approach milestone reached. Request docking with the station contact; the final dock requires at most 50 m and 1 m/s relative speed. After docking, choose MANUAL at Helm, then use Manual Flight to manually set Helm thrust to zero (Throttle 0%) and confirm actual output."

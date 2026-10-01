@@ -40,7 +40,7 @@ await build({
       if (args.path === 'wsClient') return { contents: 'export const wsClient = { addEventListener() {}, status: "connected", isConnected: true };', loader: 'js' };
       if (args.path === 'crewAssistance') return { contents: `export const crewAssistance = globalThis.__dockingUiStores.coverage;
         export const watchCrewAssistance = () => () => {};
-        export { stationCoverage } from ${JSON.stringify(path.join(frontend, 'src/lib/stores/crewAssistance.ts'))};`, loader: 'js', resolveDir: frontend };
+        export { stationCoverage, isDockingGuideScenario } from ${JSON.stringify(path.join(frontend, 'src/lib/stores/crewAssistance.ts'))};`, loader: 'js', resolveDir: frontend };
       const names = args.path === 'helmUi' ? ['selectedHelmTargetId'] : args.path === 'tacticalUi' ? ['selectedTacticalTargetId'] : [args.path];
       return { contents: names.map(n => `export const ${n} = globalThis.__dockingUiStores.${n};`).join('\n'), loader: 'js' };
     });
@@ -49,15 +49,23 @@ await build({
 const ui = await import(pathToFileURL(bundle));
 const render = component => ui.render(component).body;
 
-test('mission summary retains full briefing and existing docking station instructions', () => {
-  stores.missionState.set({ available: true, current_scenario_id: '07_docking_test', name: 'Docking Test',
-    description: 'Short summary', briefing: 'Detailed existing operation', mission_status: 'in_progress',
-    objectives: { dock: { description: 'Dock with Tycho Station', status: 'pending', type: 'dock_with' } } });
-  const html = render(ui.MissionObjectives);
-  for (const text of ['Short summary', 'Detailed existing operation', 'Docking crew guide', 'Engineering',
-    'at most 50 m and 1 m/s', 'manually set Helm thrust to zero', 'Coverage unavailable']) assert(html.includes(text), text);
-  stores.missionState.set({ available: true, current_scenario_id: 'other', name: 'Another mission' });
-  assert(!render(ui.MissionObjectives).includes('Docking crew guide'), 'guidance must not invent tasks for other missions');
+test('both Tycho docking missions retain the briefing, manual cutoff and existing crew limits', () => {
+  for (const scenario of ['01_tutorial_intercept', '07_docking_test']) {
+    stores.missionState.set({ available: true, current_scenario_id: scenario, name: 'Docking mission',
+      description: 'Short summary', briefing: 'Detailed existing operation', mission_status: 'in_progress',
+      objectives: { dock: { description: 'Dock with Tycho Station', status: 'pending', type: 'dock_with' } } });
+    const html = render(ui.MissionObjectives);
+    for (const text of ['Short summary', 'Detailed existing operation', 'Docking crew guide', 'Engineering',
+      'at most 50 m and 1 m/s', 'manually set Helm thrust to zero', 'Coverage unavailable',
+      'choose MANUAL at Helm', 'In Manual Flight', 'Throttle 0%',
+      'does not manage the reactor or drive governor', 'CPU ASSIST is a control tier']) assert(html.includes(text), `${scenario}: ${text}`);
+  }
+  for (const scenario of ['other', '02_combat_destroy', null, undefined]) {
+    stores.missionState.set({ available: true, current_scenario_id: scenario, name: 'Another mission' });
+    assert(!render(ui.MissionObjectives).includes('Docking crew guide'), 'guidance must not invent tasks for other missions');
+  }
+  stores.missionState.set({ available: false, current_scenario_id: '01_tutorial_intercept' });
+  assert(!render(ui.MissionObjectives).includes('Docking crew guide'), 'unloaded missions do not show a guide');
 });
 
 test('docking faults and missing telemetry are not rendered as approach or readiness', () => {
