@@ -47,16 +47,29 @@ repair does not resolve the pending NPC combat policy in PR420.
 Use an isolated checkout with a thermally fitted ship such as UNS Hunter;
 First Contact has no thermal system. Keep the running local playtest untouched.
 
-1. Claim Engineering, select CPU ASSIST, and verify Auto-Engineering is disabled.
-   Set Engineering mode to **MANUAL** before explicitly enabling it.
-2. With no incoming fire, set reactor output to 100%, thrust to 0% and retract
-   radiators. Let actual thermal telemetry rise above 60%. Within a scan, expect
+1. For a short solo check, claim Captain so you can also set thrust. Open
+   **Mission → Console** and prepare the plant with ordinary commands (replace
+   `player_ship` if your fitted ship has a different ID):
+
+   ```text
+   set_engineering_mode {"ship":"player_ship","mode":"manual"}
+   set_thrust {"ship":"player_ship","thrust":0}
+   set_reactor_output {"ship":"player_ship","output":1}
+   manage_radiators {"ship":"player_ship","deployed":false}
+   ```
+
+   Return to **Engineering**, select CPU ASSIST, verify Auto-Engineering is
+   disabled, then explicitly enable it. In a crewed check, Engineering can
+   manage proposals and the plant; Helm or Captain must set thrust.
+2. With no incoming fire, let actual thermal telemetry rise above 60% with
+   reactor at 100%, thrust at 0% and radiators retracted. Within a scan, expect
    **REDUCE REACTOR** and **DEPLOY RADIATORS**, with confidence/reason matching
    the thermal percentage. No action should occur merely from a MANUAL proposal.
 3. Before expiry, deny one proposal and approve the other. Confirm only the
    approved action changes its setting. A captain can pause to inspect a
    pending proposal; pause stops simulation ticks but not the displayed clock.
-4. Disable Auto-Engineering, deploy balanced radiators, set reactor to 10% and
-   leave Manual Flight thrust at 0%. Report the SHA, observed settings and any
-   discrepancy. This is a thermal proposal check, not sustained CPU crew or
-   docking acceptance.
+4. Disable Auto-Engineering. Use Mission → Console to set reactor output to
+   `0.1` and radiators to `{"deployed":true,"priority":"balanced"}`, with the
+   same commands and ship ID above; keep thrust at 0%. Report the SHA, observed
+   settings and any discrepancy. This is a thermal proposal check, not sustained
+   CPU crew or docking acceptance.
