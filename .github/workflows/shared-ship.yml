@@ -34,5 +34,7 @@ jobs:
           cache-dependency-path: gui-svelte/package-lock.json
       - run: npm ci
       - run: npm test
+      - run: node --test tools/tests/gui_crew_smoke.test.js
+        working-directory: .
       - run: npm run check
       - run: npm run build

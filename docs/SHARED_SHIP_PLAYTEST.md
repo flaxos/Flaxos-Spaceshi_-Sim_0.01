@@ -5,6 +5,80 @@ Python server. Two people operate one physical ship at Helm and Engineering.
 Physics, navigation algorithms and combat AI remain the existing simulation.
 The first acceptance mission is the existing `07_docking_test` scenario.
 
+## Repeatable short crew smoke (real stack)
+
+The crew mode of the existing GUI smoke runner checks the current Svelte UI with
+two independent Chromium contexts through the real WebSocket bridge and TCP
+station server. It launches and stops its own loopback stack, and refuses to
+attach if TCP 8765, WS 8081 or HTTP 3100 is occupied. Run in a fresh testing
+checkout; it loads a mission and changes only that owned runtime. This mode uses
+no RCON authentication or new credentials. It currently supports Linux/macOS.
+
+While the smoke PR is unmerged, use its branch and compare the printed SHA with
+the exact tested head in the PR. This setup leaves any existing playtest alone:
+
+```bash
+FLAXOS_SMOKE_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/flaxos-crew-smoke.XXXXXX")
+export FLAXOS_SMOKE_ROOT
+git clone --single-branch --branch codex/repeatable-crew-smoke \
+  https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01.git "$FLAXOS_SMOKE_ROOT/repo"
+cd "$FLAXOS_SMOKE_ROOT/repo"
+git checkout --detach
+git rev-parse HEAD
+python3 -m venv "$FLAXOS_SMOKE_ROOT/venv"
+"$FLAXOS_SMOKE_ROOT/venv/bin/python" -m pip install -r requirements.txt
+(cd gui-svelte && npm ci)
+```
+
+The repository's Playwright module needs an installed Chromium browser. Use an
+existing compatible browser by exporting `FLAXOS_CHROMIUM=/usr/bin/chromium`, or
+install Playwright's browser with `node node_modules/playwright/cli.js install chromium`.
+Then run the same smoke command for each new checkout/run:
+
+```bash
+node tools/gui_smoke_check.js --crew --start-stack \
+  --python "$FLAXOS_SMOKE_ROOT/venv/bin/python" \
+  --evidence-dir "$FLAXOS_SMOKE_ROOT/evidence"
+```
+
+Exit zero means all crew assertions passed and owned stack ports were released.
+A failure exits nonzero and still closes its browser and owned process group.
+Ctrl+C also stops its owned stack. An existing evidence directory is refused;
+use a new path for each run. Optional evidence includes a JSON result, correlated
+native commands/responses and screenshots. Startup credentials/auth traffic are
+excluded and credential fields are redacted; keep evidence private unless its
+sharing is explicitly authorized. The result records the Git SHA and whether
+the testing checkout was dirty. A dirty result is diagnostic, not exact-head
+acceptance. The short check normally takes less than a minute.
+
+The fixed `07_docking_test` setup uses scale 1, reactor output 30%, and zero
+initial thrust. Client A explicitly moves from Captain to Helm; B joins
+Engineering. It verifies complementary views, occupied-seat protection, actual
+server permission denials, and Engineering's allowed reactor command. The seat
+probe releases Engineering before attempting occupied Helm, then explicitly
+rejoins Engineering after the denial. A real
+socket close releases A's seat, reconnect stays an unassigned observer until
+the Rejoin crew click, and B keeps Engineering. Rejoined Helm uses MANUAL →
+Manual Flight → Throttle 20%, then explicitly 0%; native telemetry confirms both.
+For a stable final comparison A temporarily claims Captain, pauses, and returns
+to Helm. Both stations must report the same clock/mission epoch, position,
+velocity, fuel, hull, reactor setting and actual zero throttle. Final Engineering
+fuel burn must also be zero. Contexts and stack then close.
+
+Run the focused runner/trace regressions separately:
+
+```bash
+node --test tools/tests/gui_crew_smoke.test.js
+```
+
+Those tests exercise evidence correlation, stale replies, valid denial checks,
+port refusal, existing-evidence preservation and real process-group teardown;
+they do not replace the live smoke. Frontend store/UI mock regressions and the
+legacy CPU debug smoke remain separate. This short live run does not finish the
+docking mission, validate navigation/combat/thermal policy, establish remote
+network access, or constitute owner human acceptance. Use the longer two-person
+exercise below for a human flight and outcome; retain that evidence separately.
+
 ## Safe Linux checkout and build
 
 Use a fresh clone, especially if existing worktrees contain changes or already
