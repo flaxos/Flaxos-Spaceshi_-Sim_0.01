@@ -5,23 +5,30 @@ Python server. Two people operate one physical ship at Helm and Engineering.
 Physics, navigation algorithms and combat AI remain the existing simulation.
 The first acceptance mission is the existing `07_docking_test` scenario.
 
+See [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) for the dated main/PR/evidence
+snapshot. PR418, PR419 and PR422 are merged; lobby freshness and repeatable crew
+smoke remain separate drafts. Two browser contexts on one host do not establish
+the pending two-actual-computer access check or owner human acceptance.
+
 ## Safe Linux checkout and build
 
 Use a fresh clone, especially if existing worktrees contain changes or already
 hold the draft branch. These commands create a unique directory and never switch,
-reset, stash or overwrite an existing checkout. The draft is unmerged. Compare
-the printed SHA with the final tested SHA in the guided-docking draft PR's report before
-testing; if it differs, stop and obtain that exact revision.
+reset, stash or overwrite an existing checkout. This setup pins the verified
+main snapshot `1ceec6256f207bdaccb0072b4d3905bdfb9cb8ce`, which includes merged
+PR419 and PR422. Compare the printed SHA before testing. For an unmerged feature,
+use its PR's separate checkout and exact tested head; do not assume it is on main.
+Earlier guided-docking setup and results remain in the linked PR history.
 
 ```bash
 FLAXOS_TEST_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/flaxos-playtest.XXXXXX")
 export FLAXOS_TEST_ROOT
 (
   set -e
-  git clone --single-branch --branch codex/guided-docking-operation \
+  git clone --single-branch --branch main \
     https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01.git "$FLAXOS_TEST_ROOT/repo"
   cd "$FLAXOS_TEST_ROOT/repo"
-  git checkout --detach
+  git checkout --detach 1ceec6256f207bdaccb0072b4d3905bdfb9cb8ce
   git rev-parse HEAD
   python3 -m venv "$FLAXOS_TEST_ROOT/venv"
   "$FLAXOS_TEST_ROOT/venv/bin/python" -m pip install -r requirements.txt pytest

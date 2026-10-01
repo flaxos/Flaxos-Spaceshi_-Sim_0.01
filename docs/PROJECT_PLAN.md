@@ -1,5 +1,9 @@
 # Project Plan (Condensed)
 
+For the requested ten-task release pass and its pending acceptance/owner gates,
+see [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md). The sprint roadmap below is
+retained as the broader project plan.
+
 ## Vision
 Hard sci‑fi tactical bridge sim. *Expanse* tone with *Artemis/Nebulous* command flow.
 

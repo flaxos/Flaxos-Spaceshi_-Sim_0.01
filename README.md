@@ -101,18 +101,19 @@ Password rotation is runtime-only. If you restart the stack, the server returns 
 
 ### UAT Runbook
 
-For the current draft shared-ship repair, start with
-[the two-client shared ship playtest](docs/SHARED_SHIP_PLAYTEST.md). It includes
+Start with the [ten-task release checklist](docs/RELEASE_CHECKLIST.md) for verified
+main, actual merged/draft status and remaining owner gates. Use
+[the two-client shared ship playtest](docs/SHARED_SHIP_PLAYTEST.md) for the
 safe Linux sync/build/run instructions and a short Helm + Engineering docking
 exercise. Human acceptance is pending until the owner reports a playtest result.
 
 Use the current docs set for regression and demo readiness:
 
-- [docs/UAT_MASTER_PLAN.md](/home/flax/games/spaceship-sim/docs/UAT_MASTER_PLAN.md)
-- [docs/UAT_COMMANDS.md](/home/flax/games/spaceship-sim/docs/UAT_COMMANDS.md)
-- [docs/STATION_UAT_WIRING_CHECKLIST.md](/home/flax/games/spaceship-sim/docs/STATION_UAT_WIRING_CHECKLIST.md)
-- [docs/MOBILE_GUI_TESTING.md](/home/flax/games/spaceship-sim/docs/MOBILE_GUI_TESTING.md)
-- [docs/README.md](/home/flax/games/spaceship-sim/docs/README.md)
+- [docs/UAT_MASTER_PLAN.md](docs/UAT_MASTER_PLAN.md)
+- [docs/UAT_COMMANDS.md](docs/UAT_COMMANDS.md)
+- [docs/STATION_UAT_WIRING_CHECKLIST.md](docs/STATION_UAT_WIRING_CHECKLIST.md)
+- [docs/MOBILE_GUI_TESTING.md](docs/MOBILE_GUI_TESTING.md)
+- [docs/README.md](docs/README.md)
 
 Recommended operator workflow:
 
