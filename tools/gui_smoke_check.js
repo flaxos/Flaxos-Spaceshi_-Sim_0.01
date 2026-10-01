@@ -195,7 +195,7 @@ async function main() {
       if (stopped()) throw new Error("Owned GUI stack did not remain healthy after startup.");
     }
     let startedStack = false;
-    if (!(await httpReady(options.url))) {
+    if (!options.crew && !(await httpReady(options.url))) {
       if (!options.autoStart) {
         throw new Error(`GUI is not reachable at ${options.url}. Re-run with --start-stack or start the GUI stack manually.`);
       }
