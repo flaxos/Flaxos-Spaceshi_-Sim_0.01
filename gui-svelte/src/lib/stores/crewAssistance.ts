@@ -47,7 +47,7 @@ export function watchCrewAssistance(): () => void {
     .subscribe(({ session, mission }) => {
       const ship = session.shipId;
       const key = session.connected && session.registered && !session.needsRejoin && ship && session.station
-        && isDockingGuideScenario(mission?.current_scenario_id)
+        && mission && isDockingGuideScenario(mission.current_scenario_id)
         ? `${ship}:${session.station}:${mission.mission_epoch}` : "";
       if (key === previousKey) return;
       previousKey = key;
