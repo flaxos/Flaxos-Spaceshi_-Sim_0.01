@@ -60,6 +60,15 @@ rejoins Engineering after the denial. A real
 socket close releases A's seat, reconnect stays an unassigned observer until
 the Rejoin crew click, and B keeps Engineering. Rejoined Helm uses MANUAL →
 Manual Flight → Throttle 20%, then explicitly 0%; native telemetry confirms both.
+After each accepted edit, the runner waits for the existing UI state poll to
+report that actual throttle and for the number field/display to match it before
+continuing. Full Console reads alone do not update the UI store; they can consume
+the shared server delta and leave a stale 0% field after actual 20% thrust. Filling
+an unchanged 0% field does not emit the numeric input's change event. This guard
+prevents that smoke ordering race without command retries or longer time limits.
+It does not repair the underlying Console/UI telemetry desynchronization;
+human UAT must verify the visible setting and actual cutoff/fuel burn together.
+The result also retains numeric edit values, times and correlated UI poll IDs.
 For a stable final comparison A temporarily claims Captain, pauses, and returns
 to Helm. Both stations must report the same clock/mission epoch, position,
 velocity, fuel, hull, reactor setting and actual zero throttle. Final Engineering

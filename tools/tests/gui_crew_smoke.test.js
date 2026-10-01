@@ -39,6 +39,58 @@ test("a previous thrust command cannot satisfy a new cutoff action", () => {
   assert.equal(trace.request("helm", cursor, "set_thrust", { thrust: 0 }), undefined);
 });
 
+test("a Console snapshot or optimistic display cannot substitute for actual UI poll telemetry", () => {
+  const trace = new CrewTrace();
+  trace.record("helm", 2, "sent", sent(1, "set_thrust", { ship: "player", thrust: .2 }));
+  trace.record("helm", 2, "received", received(1));
+  const command = trace.request("helm", 0, "set_thrust", { thrust: .2 });
+  trace.record("helm", 2, "sent", sent(2, "get_state", { ship: "player", full: true }));
+  trace.record("helm", 2, "received", received(2, { state: { id: "player", throttle: .2 } }));
+  trace.record("helm", 2, "sent", sent(3, "get_state", { ship: "player" }));
+  trace.record("helm", 2, "received", received(3, { _delta: true }));
+  assert.equal(trace.throttlePollAfter(command, .2), undefined);
+  trace.record("helm", 2, "sent", sent(4, "get_state", { ship: "player" }));
+  // A legitimate delta can omit unchanged ok/ship metadata.
+  trace.record("helm", 2, "received", JSON.stringify({ type: "response", data: {
+    _request_id: 4, _delta: true, state: { id: "player", throttle: .2 } } }));
+  assert.equal(trace.throttlePollAfter(command, .2).request.frame._request_id, 4);
+});
+
+test("thrust readiness rejects older polls, wrong sessions/ships, denials and mismatched throttle", () => {
+  const trace = new CrewTrace();
+  trace.record("helm", 2, "sent", sent(1, "get_state", { ship: "player" }));
+  trace.record("helm", 2, "received", received(1, { state: { id: "player", throttle: .2 } }));
+  trace.record("helm", 2, "sent", sent(2, "set_thrust", { ship: "player", thrust: .2 }));
+  const command = trace.request("helm", 0, "set_thrust", { thrust: .2 });
+  for (const [client, socket, args, data] of [
+    ["engineering", 2, { ship: "player" }, { state: { id: "player", throttle: .2 } }],
+    ["helm", 1, { ship: "player" }, { state: { id: "player", throttle: .2 } }],
+    ["helm", 2, { ship: "other" }, { state: { id: "player", throttle: .2 } }],
+    ["helm", 2, { ship: "player" }, { state: { id: "other", throttle: .2 } }],
+    ["helm", 2, { ship: "player" }, { ok: false, state: { id: "player", throttle: .2 } }],
+    ["helm", 2, { ship: "player" }, { state: { id: "player", throttle: 0 } }],
+  ]) {
+    const id = trace.entries.length + 10;
+    trace.record(client, socket, "sent", sent(id, "get_state", args));
+    trace.record(client, socket, "received", received(id, data));
+    assert.equal(trace.throttlePollAfter(command, .2), undefined);
+  }
+  assert.equal(trace.throttlePollAfter({ ...command }, .2), undefined);
+});
+
+test("zero readiness requires a new correlated zero UI poll after the cutoff request", () => {
+  const trace = new CrewTrace();
+  trace.record("helm", 2, "sent", sent(1, "get_state", { ship: "player" }));
+  trace.record("helm", 2, "received", received(1, { state: { id: "player", throttle: 0 } }));
+  trace.record("helm", 2, "sent", sent(2, "set_thrust", { ship: "player", thrust: 0 }));
+  const command = trace.request("helm", 0, "set_thrust", { thrust: 0 });
+  assert.equal(trace.throttlePollAfter(command, 0), undefined);
+  trace.record("helm", 2, "sent", sent(3, "get_state", { ship: "player" }));
+  assert.equal(trace.throttlePollAfter(command, 0), undefined);
+  trace.record("helm", 2, "received", received(3, { state: { id: "player", throttle: 0 } }));
+  assert.equal(trace.throttlePollAfter(command, 0).request.frame._request_id, 3);
+});
+
 test("actual Playwright Node frame events decode their string or Buffer payload", () => {
   const trace = new CrewTrace();
   trace.record("helm", 1, "sent", { payload: sent(1) });

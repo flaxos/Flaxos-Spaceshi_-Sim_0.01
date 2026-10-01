@@ -40,6 +40,20 @@ class CrewTrace {
     return this.entries.find(row => row.client === request.client && row.socket === request.socket && row.direction === "received" &&
       row.frame.data?._request_id === request.frame._request_id)?.frame.data;
   }
+  throttlePollAfter(request, throttle) {
+    const start = this.entries.indexOf(request);
+    if (start < 0) return;
+    for (const row of this.entries.slice(start + 1)) {
+      if (row.client !== request.client || row.socket !== request.socket || row.direction !== "sent" ||
+          row.command !== "get_state" || row.frame.ship !== request.frame.ship || row.frame.full === true) continue;
+      const response = this.response(row);
+      // Normal UI polls can return deltas without an `ok` field. A Console
+      // full read updates the server cache but does not publish to gameState.
+      if (response?.ok !== false && response?.state?.id === request.frame.ship && response.state.throttle === throttle) {
+        return { request: row, response };
+      }
+    }
+  }
 }
 
 async function until(check, description, timeoutMs = 10000) {
@@ -67,11 +81,11 @@ function sharedPhysical(response) {
 }
 
 async function runCrewSmoke({ browser, url, evidenceDir, repoRoot }) {
-  const trace = new CrewTrace(), errors = [], checks = [], clients = [], snapshots = [];
+  const trace = new CrewTrace(), errors = [], checks = [], clients = [], snapshots = [], manualActions = [];
   const result = { status: "failed", sha: execFileSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).trim(),
     dirtyCheckout: !!execFileSync("git", ["status", "--porcelain"], { cwd: repoRoot, encoding: "utf8" }).trim(),
     scenario: "07_docking_test", independentContexts: 2, actualSvelteWsTcp: true, transportMocked: false,
-    completedDockingFlight: false, humanUAT: "pending", checks, snapshots };
+    completedDockingFlight: false, humanUAT: "pending", checks, snapshots, manualActions };
   if (evidenceDir) await fs.mkdir(evidenceDir, { recursive: true, mode: 0o700 });
   const screenshot = async (page, name) => { if (evidenceDir) await page.screenshot({ path: path.join(evidenceDir, `${name}.png`) }); };
   async function invoke(client, command, args, action) {
@@ -103,13 +117,29 @@ async function runCrewSmoke({ browser, url, evidenceDir, repoRoot }) {
       client.page.locator(".station-btn").filter({ has: client.page.locator(".station-btn-label", { hasText: new RegExp(`^${station.toUpperCase()}$`) }) }).click()));
     await client.page.locator(".claimed-badge", { hasText: station.toUpperCase() }).waitFor();
   }
-  async function manualThrust(client, percent) {
+  async function manualThrust(client, percent, previousPercent) {
     await client.page.getByRole("tab", { name: "1 HELM", exact: true }).click();
     await client.page.getByRole("button", { name: "MANUAL", exact: true }).click();
     const input = client.page.locator(".manual-flight-panel .throttle input[type=number]");
+    const display = client.page.locator(".manual-flight-panel .throttle .row-head strong");
+    const displayMatches = async value => (await input.inputValue()) === String(value) && (await display.textContent()) === `${value}%`;
+    const action = { client: client.label, percent, previousPercent, startedAt: Date.now() };
+    manualActions.push(action);
+    await until(() => displayMatches(previousPercent), `displayed thrust before ${percent}% edit`);
+    action.fieldBeforeEdit = await input.inputValue();
+    const start = trace.entries.length;
     const response = await invoke(client, "set_thrust", { ship: SHIP, thrust: percent / 100 }, async () => { await input.fill(String(percent)); await input.press("Tab"); });
+    action.fieldAfterBlur = await input.inputValue();
     assertAccepted(response);
-    await until(async () => (await state(client)).state.throttle === percent / 100, `actual thrust ${percent}%`);
+    const command = trace.request(client.label, start, "set_thrust", { ship: SHIP, thrust: percent / 100 });
+    // Observe the existing gameState poll rather than issuing full Console
+    // reads that can leave the UI's next delta empty. Optimistic DOM alone is
+    // insufficient: it may still be replaced by the last authoritative value.
+    const poll = await until(() => trace.throttlePollAfter(command, percent / 100), `UI poll actual thrust ${percent}%`);
+    await until(() => displayMatches(percent), `displayed actual thrust ${percent}%`);
+    action.pollRequestId = poll.request.frame._request_id;
+    action.pollSocket = poll.request.socket;
+    action.readyAt = Date.now();
   }
   try {
     for (const label of ["helm", "engineering"]) {
@@ -198,10 +228,10 @@ async function runCrewSmoke({ browser, url, evidenceDir, repoRoot }) {
     assert.equal((await session(a)).station, "helm"); assert.equal((await session(b)).station, "engineering");
     checks.push("Real socket close frees Helm; reconnect remains observer until explicit UI rejoin; peer Engineering survives");
 
-    await manualThrust(a, 20);
+    await manualThrust(a, 20, 0);
     const burning = await state(a); assert.equal(burning.state.throttle, .2);
     snapshots.push({ phase: "manual 20% after explicit rejoin", response: burning });
-    await manualThrust(a, 0);
+    await manualThrust(a, 0, 20);
     const cutoff = await state(a); assert.equal(cutoff.state.throttle, 0);
     snapshots.push({ phase: "explicit manual zero command", response: cutoff });
     await a.page.getByRole("tab", { name: "1 HELM", exact: true }).click();
