@@ -44,7 +44,7 @@ test("a Console snapshot or optimistic display cannot substitute for actual UI p
   trace.record("helm", 2, "sent", sent(1, "set_thrust", { ship: "player", thrust: .2 }));
   trace.record("helm", 2, "received", received(1));
   const command = trace.request("helm", 0, "set_thrust", { thrust: .2 });
-  trace.record("helm", 2, "sent", sent(2, "get_state", { ship: "player", full: true }));
+  trace.record("helm", 2, "sent", sent(2, "get_state", { ship: "player", full: true, _crew_smoke_console: true }));
   trace.record("helm", 2, "received", received(2, { state: { id: "player", throttle: .2 } }));
   trace.record("helm", 2, "sent", sent(3, "get_state", { ship: "player" }));
   trace.record("helm", 2, "received", received(3, { _delta: true }));
@@ -53,6 +53,22 @@ test("a Console snapshot or optimistic display cannot substitute for actual UI p
   // A legitimate delta can omit unchanged ok/ship metadata.
   trace.record("helm", 2, "received", JSON.stringify({ type: "response", data: {
     _request_id: 4, _delta: true, state: { id: "player", throttle: .2 } } }));
+  assert.equal(trace.throttlePollAfter(command, .2).request.frame._request_id, 4);
+});
+
+test("normal full UI polls remain readiness evidence while marked Console reads cannot substitute", () => {
+  const trace = new CrewTrace();
+  trace.record("helm", 2, "sent", sent(1, "set_thrust", { ship: "player", thrust: .2 }));
+  const command = trace.request("helm", 0, "set_thrust", { thrust: .2 });
+  for (const full of [false, true]) {
+    const id = full ? 3 : 2;
+    trace.record("helm", 2, "sent", sent(id, "get_state", { ship: "player", full, _crew_smoke_console: true }));
+    trace.record("helm", 2, "received", received(id, { state: { id: "player", throttle: .2 } }));
+    assert.equal(trace.throttlePollAfter(command, .2), undefined);
+    assert.equal(trace.request("helm", 0, "get_state", { _crew_smoke_console: true }).frame._request_id, 2);
+  }
+  trace.record("helm", 2, "sent", sent(4, "get_state", { ship: "player", full: true }));
+  trace.record("helm", 2, "received", received(4, { state: { id: "player", throttle: .2 } }));
   assert.equal(trace.throttlePollAfter(command, .2).request.frame._request_id, 4);
 });
 

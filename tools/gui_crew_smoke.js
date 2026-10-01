@@ -45,10 +45,10 @@ class CrewTrace {
     if (start < 0) return;
     for (const row of this.entries.slice(start + 1)) {
       if (row.client !== request.client || row.socket !== request.socket || row.direction !== "sent" ||
-          row.command !== "get_state" || row.frame.ship !== request.frame.ship || row.frame.full === true) continue;
+          row.command !== "get_state" || row.frame.ship !== request.frame.ship || row.frame._crew_smoke_console === true) continue;
       const response = this.response(row);
-      // Normal UI polls can return deltas without an `ok` field. A Console
-      // full read updates the server cache but does not publish to gameState.
+      // UI polls may be full snapshots or deltas without an `ok` field.
+      // Explicitly marked Console reads do not publish to gameState.
       if (response?.ok !== false && response?.state?.id === request.frame.ship && response.state.throttle === throttle) {
         return { request: row, response };
       }
@@ -95,6 +95,9 @@ async function runCrewSmoke({ browser, url, evidenceDir, repoRoot }) {
     return until(() => trace.response(request), `${client.label} correlated ${command} response`);
   }
   async function consoleCommand(client, command, args = {}) {
+    // Harmless trace provenance for a normal get_state read: full:true no
+    // longer distinguishes the Console from the UI's self-contained polls.
+    if (command === "get_state") args = { ...args, _crew_smoke_console: true };
     const page = client.page;
     await page.getByRole("tab", { name: "0 MISSION", exact: true }).click();
     await page.getByRole("tab", { name: "CONSOLE", exact: true }).click();
@@ -132,9 +135,8 @@ async function runCrewSmoke({ browser, url, evidenceDir, repoRoot }) {
     action.fieldAfterBlur = await input.inputValue();
     assertAccepted(response);
     const command = trace.request(client.label, start, "set_thrust", { ship: SHIP, thrust: percent / 100 });
-    // Observe the existing gameState poll rather than issuing full Console
-    // reads that can leave the UI's next delta empty. Optimistic DOM alone is
-    // insufficient: it may still be replaced by the last authoritative value.
+    // Observe the existing gameState poll, independently of marked Console
+    // reads. Optimistic DOM alone cannot establish actual thrust readiness.
     const poll = await until(() => trace.throttlePollAfter(command, percent / 100), `UI poll actual thrust ${percent}%`);
     await until(() => displayMatches(percent), `displayed actual thrust ${percent}%`);
     action.pollRequestId = poll.request.frame._request_id;
