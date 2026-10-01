@@ -19,6 +19,11 @@ export interface CrewAssistance {
 const snapshot = writable<CrewAssistance | null>(null);
 export const crewAssistance = { subscribe: snapshot.subscribe };
 
+/** These existing Tycho docking missions share the same station guide. */
+export function isDockingGuideScenario(scenarioId: string | null | undefined): boolean {
+  return scenarioId === "01_tutorial_intercept" || scenarioId === "07_docking_test";
+}
+
 /** Mounted by the existing docking guidance panel. Retired sessions/epochs
  * cannot publish a late occupancy response or keep its poll chain alive. */
 export function watchCrewAssistance(): () => void {
@@ -42,7 +47,7 @@ export function watchCrewAssistance(): () => void {
     .subscribe(({ session, mission }) => {
       const ship = session.shipId;
       const key = session.connected && session.registered && !session.needsRejoin && ship && session.station
-        && mission?.current_scenario_id === "07_docking_test"
+        && isDockingGuideScenario(mission?.current_scenario_id)
         ? `${ship}:${session.station}:${mission.mission_epoch}` : "";
       if (key === previousKey) return;
       previousKey = key;

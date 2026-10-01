@@ -120,8 +120,9 @@ test('crew assistance distinguishes human ownership, passive seats and condition
   assert.equal(f.stores.stationCoverage(data, 'engineering'), 'Unstaffed');
 });
 
-test('late crew coverage cannot publish after disconnect, rejoin, role change or same-time epoch reset', async t => {
-  const f = await fixture(t); await f.connect();
+for (const scenario of ['01_tutorial_intercept', '07_docking_test']) {
+test(`${scenario}: late crew coverage cannot publish after disconnect, rejoin, role change or same-time epoch reset`, async t => {
+  const f = await fixture(t); f.ws.mission.current_scenario_id = scenario; await f.connect();
   f.ws.handlers.station_status = args => ({ ok: true, response: coverage(args.ship, f.ws.mission.mission_epoch, true) });
   const stop = f.stores.watchCrewAssistance(); t.after(stop);
   await f.stores.joinCrewStation('ship_A', 'helm'); await settle();
@@ -145,6 +146,29 @@ test('late crew coverage cannot publish after disconnect, rejoin, role change or
   assert.equal(read(f.stores.crewAssistance), null, 'a mismatched server snapshot cannot establish readiness');
   stop(); await f.time.advance(1000);
   assert.equal(read(f.stores.crewAssistance), null);
+});
+}
+
+test('tutorial crew guidance reads only for an assigned station and stops when leaving the guided mission', async t => {
+  const f = await fixture(t);
+  f.ws.mission.current_scenario_id = '01_tutorial_intercept';
+  f.ws.handlers.station_status = args => ({ ok: true, response: coverage(args.ship, f.ws.mission.mission_epoch, true) });
+  const stop = f.stores.watchCrewAssistance(); t.after(stop);
+  await f.connect();
+  const reads = () => f.requests.filter(row => row.cmd === 'station_status');
+  assert.equal(reads().length, 0, 'an observer does not request own-ship assistance');
+  await f.stores.joinCrewStation('ship_A', 'helm'); await settle();
+  assert.equal(read(f.stores.crewAssistance).ship_id, 'ship_A');
+  const old = f.hold('station_status'); await f.time.advance(1000);
+  f.ws.mission.current_scenario_id = '02_combat_destroy';
+  f.ws.emit('mission_changed', {}); await settle();
+  assert.equal(read(f.stores.crewAssistance), null);
+  const count = reads().length;
+  old.resolve({ ok: true, response: coverage('ship_A', 1, true) }); await settle();
+  await f.time.advance(3000);
+  assert.equal(read(f.stores.crewAssistance), null, 'late tutorial coverage cannot publish in another mission');
+  assert.equal(reads().length, count, 'the coverage poll chain is retired');
+  assert(!f.requests.some(row => row.cmd === 'set_thrust'), 'guidance never cuts thrust automatically');
 });
 
 test('event identity accepts time zero and distinct paused events while suppressing exact duplicates', async t => {

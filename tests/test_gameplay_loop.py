@@ -209,6 +209,20 @@ class TestPreMission:
             f"Briefing too short or missing: '{briefing[:80]}'"
         )
 
+    def test_scenario_01_guides_docking_limits_and_manual_cutoff(self):
+        """Tutorial prose distinguishes approach, physical docking and manual cutoff."""
+        from hybrid.scenarios.loader import ScenarioLoader
+        mission = ScenarioLoader.load(SCENARIO_01)["mission"]
+        assert "at most 50 m" in mission.briefing
+        assert "at most 1 m/s" in mission.briefing
+        assert "approach milestone" in mission.briefing
+        assert "manually set Helm thrust to zero" in mission.briefing
+        assert "manually set Helm thrust to zero" in mission.success_message
+        approach_hint = next(h for h in mission.hints if h["trigger"] == "range < 5000")
+        assert "Approach milestone" in approach_hint["message"]
+        assert "50 m and 1 m/s" in approach_hint["message"]
+        assert "manually set Helm thrust to zero" in approach_hint["message"]
+
     def test_scenario_02_has_loadout_information(self):
         """Combat scenario ships have weapon systems defined."""
         from hybrid.scenarios.loader import ScenarioLoader

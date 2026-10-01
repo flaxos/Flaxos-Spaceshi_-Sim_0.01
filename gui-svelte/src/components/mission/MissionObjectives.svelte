@@ -1,5 +1,6 @@
 <script lang="ts">
   import { missionState } from "../../lib/stores/missionState.js";
+  import { isDockingGuideScenario } from "../../lib/stores/crewAssistance.js";
   import DockingOperation from "./DockingOperation.svelte";
 
   interface Objective {
@@ -74,7 +75,7 @@
       {/if}
     </div>
 
-    {#if $missionState?.current_scenario_id === "07_docking_test"}
+    {#if isDockingGuideScenario($missionState?.current_scenario_id)}
       <DockingOperation />
     {/if}
 
