@@ -4,6 +4,8 @@
   import { gameState } from "../../lib/stores/gameState.js";
   import { tier } from "../../lib/stores/tier.js";
   import { wsClient } from "../../lib/ws/wsClient.js";
+  import { crewSession } from "../../lib/stores/crewSession.js";
+  import { canPollShipCommand } from "../../lib/stores/crewPolling.js";
   import { describeCommandFailure, isCommandRejected } from "../../lib/ws/commandResponse.js";
   import {
     computeEta,
@@ -21,6 +23,9 @@
   } from "./helmData.js";
 
   let throttlePercent = 0;
+  let throttleNumberDraft = "0";
+  let throttleNumberDirty = false;
+  let throttleAuthorityRevision = -1;
   let draftPitch = 0;
   let draftYaw = 0;
   let draftRoll = 0;
@@ -28,10 +33,12 @@
   let courseY = "";
   let courseZ = "";
   let feedback = "";
-  let throttleTimer: number | null = null;
+  // Imperative ownership must survive a same-task reactive update/unmount.
+  const throttleAction: { timer: number | null; sequence: number } = { timer: null, sequence: 0 };
 
   onDestroy(() => {
-    if (throttleTimer != null) window.clearTimeout(throttleTimer);
+    throttleAction.sequence++;
+    if (throttleAction.timer != null) window.clearTimeout(throttleAction.timer);
   });
 
   $: ship = extractShipState($gameState);
@@ -41,23 +48,66 @@
   $: waypoint = getWaypoint(ship);
   $: waypointDistance = waypoint ? distance(waypoint, currentPosition) : 0;
   $: waypointEta = waypoint ? computeEta(waypointDistance, magnitude(currentVelocity)) : null;
-  $: throttlePercent = Math.round(getThrottle(ship) * 100);
+  $: actualThrottlePercent = Math.round(getThrottle(ship) * 100);
+  $: if (!throttleNumberDirty) {
+    throttlePercent = actualThrottlePercent;
+    throttleNumberDraft = String(actualThrottlePercent);
+  }
+  $: canThrottle = canPollShipCommand("set_thrust", $crewSession);
+  $: if (throttleAuthorityRevision !== $crewSession.authorityRevision) {
+    throttleAuthorityRevision = $crewSession.authorityRevision;
+    throttleAction.sequence++;
+    if (throttleAction.timer != null) window.clearTimeout(throttleAction.timer);
+    throttleAction.timer = null;
+    throttleNumberDirty = false;
+  }
   $: draftPitch = currentHeading.pitch;
   $: draftYaw = currentHeading.yaw;
   $: draftRoll = currentHeading.roll;
 
   function scheduleThrottle(value: number) {
+    const authority = $crewSession;
+    if (!canPollShipCommand("set_thrust", authority)) return;
+    const action = ++throttleAction.sequence;
     throttlePercent = value;
-    if (throttleTimer != null) window.clearTimeout(throttleTimer);
-    throttleTimer = window.setTimeout(async () => {
+    if (throttleAction.timer != null) window.clearTimeout(throttleAction.timer);
+    throttleAction.timer = window.setTimeout(async () => {
+      throttleAction.timer = null;
+      if (action !== throttleAction.sequence || $crewSession.authorityRevision !== authority.authorityRevision
+        || !canPollShipCommand("set_thrust", $crewSession)) return;
       feedback = "";
       try {
-        const response = await wsClient.sendShipCommand("set_thrust", { thrust: value / 100 });
-        if (isCommandRejected(response)) feedback = `Error: ${describeCommandFailure(response)}`;
+        const response = await wsClient.sendShipCommand("set_thrust", { ship: authority.shipId, thrust: value / 100 });
+        if (action === throttleAction.sequence && $crewSession.authorityRevision === authority.authorityRevision
+          && isCommandRejected(response)) feedback = `Error: ${describeCommandFailure(response)}`;
       } catch (error) {
-        feedback = error instanceof Error ? error.message : "Thrust command failed";
+        if (action === throttleAction.sequence && $crewSession.authorityRevision === authority.authorityRevision) {
+          feedback = error instanceof Error ? error.message : "Thrust command failed";
+        }
       }
     }, 40);
+  }
+
+  function editThrottleNumber(event: Event) {
+    throttleNumberDraft = (event.currentTarget as HTMLInputElement).value;
+    throttleNumberDirty = true;
+  }
+
+  function commitThrottleNumber(zeroOnly = false) {
+    if (!throttleNumberDirty) return;
+    const value = Number(throttleNumberDraft);
+    if (throttleNumberDraft.trim() === "" || !Number.isFinite(value) || value < 0 || value > 100) {
+      feedback = "Enter a throttle from 0 to 100";
+      return;
+    }
+    if (zeroOnly && value !== 0) return;
+    throttleNumberDirty = false;
+    scheduleThrottle(value);
+  }
+
+  function cutThrust() {
+    throttleNumberDirty = false;
+    scheduleThrottle(0);
   }
 
   async function applyOrientation() {
@@ -148,10 +198,11 @@
     <div class="throttle">
       <div class="row-head">
         <span>Throttle</span>
-        <strong>{throttlePercent}%</strong>
+        <strong>{actualThrottlePercent}%</strong>
       </div>
-      <input type="range" min="0" max="100" step="1" value={throttlePercent} on:input={(event) => scheduleThrottle(Number((event.currentTarget as HTMLInputElement).value))} />
-      <input type="number" min="0" max="100" step="1" value={throttlePercent} on:change={(event) => scheduleThrottle(Number((event.currentTarget as HTMLInputElement).value))} />
+      <input type="range" min="0" max="100" step="1" value={throttlePercent} disabled={!canThrottle} on:input={(event) => scheduleThrottle(Number((event.currentTarget as HTMLInputElement).value))} />
+      <input type="number" min="0" max="100" step="1" value={throttleNumberDraft} disabled={!canThrottle} on:input={editThrottleNumber} on:change={() => commitThrottleNumber()} on:blur={() => commitThrottleNumber(true)} />
+      <button type="button" disabled={!canThrottle} on:click={cutThrust}>CUT THRUST</button>
     </div>
 
     {#if $tier !== "arcade"}
