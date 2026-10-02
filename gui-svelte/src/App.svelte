@@ -126,7 +126,7 @@
       <FleetView />
     </div>
     <div class="view-container" class:active={activeView === "mission"}>
-      <MissionView />
+      <MissionView visible={activeView === "mission"} />
     </div>
     <div class="view-container" class:active={activeView === "editor"}>
       <EditorView />

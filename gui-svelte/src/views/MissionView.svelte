@@ -8,6 +8,8 @@
   import CommandPrompt from "../components/mission/CommandPrompt.svelte";
   import ServerAdminPanel from "../components/mission/ServerAdminPanel.svelte";
 
+  export let visible = true;
+
   type GamePhase = "lobby" | "playing" | "ended";
   let phase: GamePhase = "lobby";
   let loaderRef: ScenarioLoader | undefined;
@@ -47,6 +49,7 @@
         <div class="loader-wrap" class:compact={phase === "playing"}>
           <ScenarioLoader
             bind:this={loaderRef}
+            {visible}
           />
         </div>
       </Panel>

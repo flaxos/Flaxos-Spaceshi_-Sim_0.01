@@ -103,6 +103,46 @@ function coverage(ship, epoch, claimed = false) {
   } };
 }
 
+test('an intervening Console snapshot cannot hide actual thrust from the next UI poll', async t => {
+  const f = await fixture(t); await f.connect();
+  let actualThrottle = 0, cachedThrottle;
+  f.ws.handlers.get_state = args => {
+    const snapshot = { ok: true, t: 0, mission_epoch: 1, state: { id: 'ship_A', throttle: actualThrottle } };
+    const full = args.full || cachedThrottle === undefined;
+    const changed = cachedThrottle !== actualThrottle;
+    cachedThrottle = actualThrottle;
+    return full ? snapshot : changed ? { _delta: true, state: snapshot.state } : { _delta: true };
+  };
+  f.stores.startPolling('ship_A'); await settle();
+  assert.equal(read(f.stores.gameState).state.throttle, 0);
+  for (const full of [true, false]) {
+    actualThrottle += .2;
+    assert.equal((await f.ws.send('get_state', { ship: 'ship_A', full })).state.throttle, actualThrottle);
+    await f.time.advance(200);
+    assert.equal(read(f.stores.gameState).state.throttle, actualThrottle, 'Console read must not strand UI at stale zero');
+  }
+  const count = f.requests.filter(r => r.cmd === 'get_state').length;
+  await f.time.advance(600);
+  assert.equal(f.requests.filter(r => r.cmd === 'get_state').length, count + 3, 'one unchanged 200ms chain');
+});
+
+test('delayed prior-session zero telemetry cannot replace rejoined actual nonzero thrust', async t => {
+  const f = await fixture(t); await f.connect();
+  f.ws.session = { ship_id: 'ship_A', station: 'helm' };
+  await f.stores.refreshCrewSession();
+  const old = f.hold('get_state'); await f.time.advance(200);
+  f.ws.emit('status_change', { status: 'disconnected' });
+  f.ws.session = { ship_id: null, station: null };
+  f.ws.emit('status_change', { status: 'connected' }); await settle();
+  assert.equal(read(f.stores.crewSession).needsRejoin, true);
+  assert.equal(read(f.stores.playerShipId), null);
+  f.ws.handlers.get_state = args => ({ ok: true, t: 1, mission_epoch: 1, state: args.ship ? { id: args.ship, throttle: .2 } : undefined });
+  await f.stores.joinCrewStation('ship_A', 'helm'); await settle();
+  old.resolve({ ok: true, t: 0, mission_epoch: 1, state: { id: 'ship_A', throttle: 0 } }); await settle();
+  assert.equal(read(f.stores.gameState).state.throttle, .2);
+  assert(!f.requests.some(r => r.cmd === 'set_thrust'), 'telemetry/session changes never imply cutoff');
+});
+
 test('crew assistance distinguishes human ownership, passive seats and conditional heat-sink watch', async t => {
   const f = await fixture(t);
   const data = coverage('ship_A', 1);
@@ -337,6 +377,25 @@ async function transportFixture(t) {
   module.wsClient.status = 'connected';
   return { ...module, time, messages, reply(data) { module.wsClient._handleMessage(JSON.stringify({ type: 'response', data })); } };
 }
+
+test('rapid explicit zero bypasses only the action throttle, retains nonzero limits and ship guard', async t => {
+  const f = await transportFixture(t);
+  const realNow = Date.now; Date.now = () => 1000 + f.time.now; t.after(() => { Date.now = realNow; });
+  f.wsClient.setActiveShipId('ship_A');
+  const burn = f.wsClient.sendShipCommand('set_thrust', { thrust: .2 });
+  f.reply({ _request_id: f.messages.at(-1)._request_id, ok: true }); await burn;
+  const cutoff = f.wsClient.sendShipCommand('set_thrust', { thrust: 0 });
+  assert.equal(f.messages.length, 2, 'explicit zero must reach the wire inside the50ms window');
+  f.reply({ _request_id: f.messages.at(-1)._request_id, ok: true }); await cutoff;
+  const repeat = f.wsClient.sendShipCommand('set_thrust', { thrust: 0 });
+  assert.equal(f.messages.length, 3);
+  f.reply({ _request_id: f.messages.at(-1)._request_id, ok: true }); await repeat;
+  assert.equal((await f.wsClient.sendShipCommand('set_thrust', { thrust: .3 })).reason, 'throttled');
+  assert.equal(f.messages.length, 3, 'ordinary nonzero throttle is unchanged');
+  f.wsClient.setActiveShipId(null);
+  assert.equal((await f.wsClient.sendShipCommand('set_thrust', { thrust: 0 })).ok, false);
+  assert.equal(f.messages.length, 3, 'zero does not bypass the unassigned-ship guard');
+});
 
 test('late unknown-ID and ID-less replies cannot steal a pending state/claim response', async t => {
   const f = await transportFixture(t);

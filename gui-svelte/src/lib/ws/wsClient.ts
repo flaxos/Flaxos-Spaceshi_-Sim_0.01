@@ -131,9 +131,15 @@ class WSClient extends EventTarget {
     );
   }
 
-  private _shouldThrottle(cmd: string): boolean {
+  private _shouldThrottle(cmd: string, args: Record<string, unknown>): boolean {
     if (THROTTLE_EXEMPT.has(cmd)) return false;
     const now = Date.now();
+    // Explicit manual cutoff must reach the normal authorized command path,
+    // including immediately after a nonzero command. Keep nonzero limits.
+    if (cmd === "set_thrust" && args.thrust === 0) {
+      this._commandThrottle.set(cmd, now);
+      return false;
+    }
     const last = this._commandThrottle.get(cmd) ?? 0;
     if (now - last < THROTTLE_MS) return true;
     this._commandThrottle.set(cmd, now);
@@ -222,7 +228,7 @@ class WSClient extends EventTarget {
   }
 
   send(cmd: string, args: Record<string, unknown> = {}): Promise<unknown> {
-    if (this._shouldThrottle(cmd)) {
+    if (this._shouldThrottle(cmd, args)) {
       const response = { ok: false, reason: "throttled" };
       this._reportRejection(cmd, response);
       return Promise.resolve(response);
