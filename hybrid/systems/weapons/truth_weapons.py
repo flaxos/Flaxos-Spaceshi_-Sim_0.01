@@ -243,7 +243,7 @@ class FiringSolution:
 
     # Geometry
     range_to_target: float = 0.0  # Current range (m)
-    lead_angle: Dict[str, float] = field(default_factory=lambda: {"pitch": 0.0, "yaw": 0.0})
+    lead_angle: Dict[str, float] = field(default_factory=lambda: {"pitch": 0.0, "yaw": 0.0})  # World frame
     intercept_point: Dict[str, float] = field(default_factory=lambda: {"x": 0.0, "y": 0.0, "z": 0.0})
     time_of_flight: float = 0.0  # Projectile flight time (s)
 
@@ -277,6 +277,10 @@ class FiringSolution:
     tracking: bool = False  # Turret is tracking target
     ready_to_fire: bool = False  # All conditions met
     reason: str = ""  # Explanation if not ready
+
+    # Ship-relative aim for the gimbal and firing arc. None preserves the
+    # legacy world-angle fallback for manually constructed solutions.
+    body_aim: Optional[Dict[str, float]] = None
 
 
 class TruthWeapon:
@@ -478,8 +482,11 @@ class TruthWeapon:
         # Determine desired angles from the firing solution.
         # If no valid solution, hold position (gimbal error stays stale).
         if self.current_solution and self.current_solution.valid:
-            desired_az = self.current_solution.lead_angle.get("yaw", 0.0)
-            desired_el = self.current_solution.lead_angle.get("pitch", 0.0)
+            aim = self.current_solution.body_aim
+            if aim is None:
+                aim = self.current_solution.lead_angle
+            desired_az = aim.get("yaw", 0.0)
+            desired_el = aim.get("pitch", 0.0)
         else:
             # No solution -- hold current position, report large error
             self._gimbal_error = 999.0
@@ -582,7 +589,7 @@ class TruthWeapon:
             target_accel: Target acceleration vector {x, y, z} in m/s².
                 Maneuvering targets are harder to predict during slug flight.
             shooter_heading: Ship orientation {pitch, yaw, roll} in degrees.
-                Required for firing arc checks — arcs are defined relative
+                Required for gimbal aim and firing arc checks — both are relative
                 to the ship's nose, so world-space aim angles must be
                 converted to ship-relative bearings for comparison.
 
@@ -690,6 +697,17 @@ class TruthWeapon:
                 solution.lead_angle["pitch"] = math.degrees(
                     math.atan2(aim_vector["z"], horiz_dist)
                 )
+
+        # Gimbal limits and firing arcs share the ship-relative frame.
+        # Keep the world lead/intercept intact for ballistic projectiles.
+        if shooter_heading is not None:
+            from hybrid.utils.math_utils import calculate_bearing
+            solution.body_aim = calculate_bearing(
+                shooter_pos, solution.intercept_point, shooter_heading
+            )
+        else:
+            # Without a heading, retain the legacy +X-facing assumption.
+            solution.body_aim = dict(solution.lead_angle)
 
         # Calculate hit probability
         # Accuracy degrades with range — PDCs use a steep exponential curve
@@ -848,22 +866,8 @@ class TruthWeapon:
             el_min = self.firing_arc.get("elevation_min", -90)
             el_max = self.firing_arc.get("elevation_max", 90)
 
-            if shooter_heading is not None:
-                # Convert intercept-point bearing to ship-relative frame.
-                # We use the same quaternion-based calculate_bearing that
-                # the sensor system uses, giving us a proper 3D rotation
-                # from world space into the ship body frame.
-                from hybrid.utils.math_utils import calculate_bearing
-                rel_bearing = calculate_bearing(
-                    shooter_pos, solution.intercept_point, shooter_heading
-                )
-                yaw = rel_bearing["yaw"]
-                pitch = rel_bearing["pitch"]
-            else:
-                # Fallback: no heading provided, use world-space angles.
-                # Only correct if the ship faces along +X (yaw=0, pitch=0).
-                yaw = solution.lead_angle["yaw"]
-                pitch = solution.lead_angle["pitch"]
+            yaw = solution.body_aim["yaw"]
+            pitch = solution.body_aim["pitch"]
 
             # Normalize yaw to [-180, 180] for comparison
             while yaw > 180:
