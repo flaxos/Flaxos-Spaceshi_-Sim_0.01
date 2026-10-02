@@ -1,13 +1,14 @@
 # Ten-task release checklist
 
-Verified **2026-10-02 UTC** against main
+Snapshot **2026-10-02 23:31 UTC** against main
 `1ceec6256f207bdaccb0072b4d3905bdfb9cb8ce` and live PR metadata. This is a
 readiness snapshot, not release approval. PR418, PR419 and PR422 are merged;
-PR420, PR421, PR423, PR424, PR425 and PR426 are open drafts. Historical PR bodies saying “keep draft”
+PR420, PR421, PR423, PR424, PR425, PR426 and PR427 are open drafts. Historical PR bodies saying “keep draft”
 do not override the actual merge state. Draft features are absent from this main.
 
-Checks apply to their linked revisions, not a combined candidate. Native-stack
-and headless evidence are distinguished below. **Owner human UAT remains pending.**
+Source-PR checks apply to their linked revisions; PR427's combined-candidate
+results are recorded separately below. Native-stack and headless evidence are
+distinguished. **Owner human UAT remains pending.**
 
 ## Requested tasks 1–10
 
@@ -36,6 +37,7 @@ and headless evidence are distinguished below. **Owner human UAT remains pending
 | PR423 | [1e4aaa6](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/commit/1e4aaa6f057af47c47ccda87c29d0d486b728374) | Unmerged |
 | PR425 | [282e8fa](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/commit/282e8fa950e1da4a09ce9b0b6566bb9e2cac78f9) | Unmerged |
 | PR426 | [6daf1b9](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/commit/6daf1b96ccabffabb034809e08eb3c759f2b8db0) | Unmerged |
+| [PR427 combined candidate](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/pull/427) | [e943ecc](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/commit/e943eccfc6a13da9c2f4541d1b737149b6f4eddf) | Unmerged |
 
 PR418 retains 17 native phases: crewed docking at 792.8 sim seconds and solo at
 812.9, at its earlier SHA. These automated flights do not establish later-head
@@ -138,17 +140,51 @@ extension at 6daf1b9; it is not a combined-draft or unchanged-helper claim.
 PR425 remains unchanged at 282e8fa. Human UAT, two-device play and completed
 docking remain pending, and the shared server delta protocol is not redesigned.
 
-## Authorized integration in preparation
+## Combined integration candidate
 
-The owner authorized bounded integration of PR421 `345c4d4`, PR423 `1e4aaa6`,
-PR425 `282e8fa` and PR426 `6daf1b9`. Their full revision pins are above.
-Integration is in preparation; no combined candidate SHA or completed integration
-checks are recorded here. The PR424 branch remains documentation-only.
-No GitHub PR merge or deployment is authorized by this integration scope.
+Draft PR427 at `e943eccfc6a13da9c2f4541d1b737149b6f4eddf`, based on main
+`1ceec6256f207bdaccb0072b4d3905bdfb9cb8ce`, combines the authorized PR421
+`345c4d4`, PR423 `1e4aaa6`, PR425 `282e8fa` and PR426 `6daf1b9` heads through
+four auditable merge commits retaining their ancestry. Source heads remain
+separate from this candidate. PR424 remains documentation-only; all these
+drafts remain unmerged into main. No GitHub PR merge or deployment is authorized.
+
+Completed automated checks at clean `e943ecc`:
+
+- 47 frontend tests, 14 harness regressions and 16 focused thermal regressions;
+  type check 0 errors / 0 warnings and production build pass.
+- Unsuppressed root-discovery Python: **2,380 passes / 1 known enemy-fire failure /
+  1 existing collection warning**, 167.40 seconds.
+- Unmodified official native crew runner: five groups, zero page errors and
+  completed owned-stack cleanup.
+- Controlled native runtime check: nine groups, zero page errors and completed
+  cleanup. Scripted real read ordering and a held original response are labelled;
+  no response replacement or human playtest is claimed.
+- Native thermal check: seven groups, zero page errors and completed cleanup.
+  Actual Hunter heating from 300.9 to 311.5 K (62%) produces visible MANUAL
+  proposals without automatic plant changes. Native denial leaves the reactor
+  unchanged; selective approval deploys the chosen radiators.
+- Native lobby check: eight groups, zero page errors and completed cleanup.
+  Peer claim appears in about 1.97 seconds; release/header changes, hidden view,
+  real unmount, controlled visibility/original stale reply, manual Refresh,
+  leave/return, reconnect/explicit rejoin and observer denial are covered.
+
+[PR427 CI](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/actions/runs/37077357196)
+Svelte passes 47 frontend / 14 harness tests, check and build. Unsuppressed
+Python `tests/` reports **2,378 passes / 1 failure**, 234.82 seconds, solely the
+active `tests/test_gameplay_loop.py::TestCombat::test_enemy_ai_fires_back`.
+The root-discovery run includes two tools tests outside this CI selection.
+CI merge checkout `78a94f2caa698926389691e66382f4326fee2a9c` has tree
+`43a7d079fe3036469802c83e0cd3b3b8f02959b7`, identical to clean `e943ecc`.
+Independent combined review is complete; no new material integration finding.
+**Combined checks are not all green.** These same-host automated checks
+do not establish human, two-device, completed-docking or Captain/fleet load
+acceptance; all owned ports were released.
 
 The owner also selected NPC coast-and-aim. Its implementation is proceeding
-separately from this four-PR integration. PR420's verified head remains `b9a87be`;
-no new coast-and-aim code or validation results are claimed at this snapshot.
+separately from this four-PR integration. PR420 was last verified at `b9a87be`
+on **2026-10-02 23:27 UTC**; no new coast-and-aim code or validation results are
+claimed by this snapshot.
 
 ## Assistance limits and next owner gates
 
@@ -178,12 +214,14 @@ work remains separately scoped. Use the [short owner thermal check](https://gith
 - [x] Select coast-and-aim; the [pinned PR420 diagnosis](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/blob/b9a87be2a5e1409d449dcebb967931980facd75b/docs/ENEMY_FIRE_DIAGNOSIS.md) retains the earlier alternatives. Separate implementation/validation and combat UAT remain pending.
 - [x] Authorize the bounded thermal field repair; implemented in draft PR425. Review and human thermal UAT remain pending.
 - [ ] Review/test [draft lobby behavior](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/blob/345c4d4926f90cf00ca405d68788b3841ea26b33/docs/LOBBY_OCCUPANCY_REFRESH.md) and [draft crew smoke](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/blob/1e4aaa6f057af47c47ccda87c29d0d486b728374/docs/SHARED_SHIP_PLAYTEST.md#repeatable-short-crew-smoke-real-stack) at their separate pinned heads.
-- [ ] Report crewed, solo and [first-tutorial UAT](FIRST_TUTORIAL_DOCKING_GUIDANCE.md), including rejoin and MANUAL → Manual Flight → Throttle 0%. Use the [isolated main setup](SHARED_SHIP_PLAYTEST.md#safe-linux-checkout-and-build), preserving the running local playtest.
+- [ ] Report crewed, solo and [first-tutorial UAT](FIRST_TUTORIAL_DOCKING_GUIDANCE.md), including rejoin and MANUAL → Manual Flight → Throttle 0%. Use an isolated checkout at the selected exact revision; for PR427, pin `e943ecc`, adapting the [isolated setup](SHARED_SHIP_PLAYTEST.md#safe-linux-checkout-and-build) and preserving the running local playtest.
 - [x] Authorize the bounded runtime reliability repair; implemented in draft PR426.
 - [ ] Review PR426 at 6daf1b9 and human-check numeric 0% / CUT THRUST, actual zero / zero fuel burn, observer reconnect and explicit rejoin. The PR423 guard remains a separate harness feature.
 - [ ] Supply task 9's second actual computer and verified path, then authorize a separate two-device check. No same-host substitution or network/security change here.
-- [x] Authorize bounded integration of PR421/423/425/426; candidate preparation remains in progress.
-- [ ] Record the resulting integration candidate SHA and rerun unsuppressed checks/UAT; separate draft results do not establish combined acceptance.
+- [x] Authorize bounded integration of PR421/423/425/426; draft PR427 records candidate `e943ecc` separately from the source heads.
+- [x] Independently review PR427's recorded combined checks at its exact SHA; no new material integration finding. The known failure and human UAT gates remain open.
+- [ ] Benchmark larger Captain/fleet load separately; the retained snapshot payload estimates are not a capacity benchmark.
 
-This ten-task pass ends at these acceptance and decision gates. No merge, PR
-closure, new capability or network/local-runtime change is performed here.
+This ten-task pass ends at these acceptance and decision gates. No GitHub PR
+merge, PR closure, deployment or network/local-playtest change is performed by
+this documentation reconciliation.
