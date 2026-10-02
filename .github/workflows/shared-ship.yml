@@ -33,6 +33,9 @@ jobs:
           cache: npm
           cache-dependency-path: gui-svelte/package-lock.json
       - run: npm ci
+      - name: Install Chromium for native component regressions
+        run: node node_modules/playwright/cli.js install --with-deps chromium
+        working-directory: .
       - run: npm test
       - run: node --test tools/tests/gui_crew_smoke.test.js
         working-directory: .

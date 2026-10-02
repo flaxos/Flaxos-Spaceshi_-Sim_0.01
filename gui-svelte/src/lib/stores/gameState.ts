@@ -56,9 +56,10 @@ async function _fetchState(gen: number, shipId?: string | null): Promise<void> {
   if (gen !== _generation) return;
 
   try {
-    const params: Record<string, unknown> = {};
+    // Console and UI share a server delta baseline on this socket. Every UI
+    // read must be self-contained, even when another reader consumed a change.
+    const params: Record<string, unknown> = { full: true };
     if (shipId) params.ship = shipId;
-    if (!_hasFullState) params.full = true;
 
     const response = await wsClient.send("get_state", params) as GameState;
     if (gen !== _generation || !response || response.ok === false) return;
