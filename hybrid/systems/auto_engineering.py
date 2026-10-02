@@ -6,7 +6,7 @@ and crew fatigue to propose engineering actions. Player approves or denies.
 
 Modes:
   - auto: proposals auto-execute after 8s timeout
-  - manual: wait for player approval indefinitely
+  - manual: proposals expire after 8s unless approved
 """
 
 from __future__ import annotations
@@ -79,7 +79,8 @@ class AutoEngineeringSystem(BaseSystem):
             return
 
         thermal_state = thermal.get_state() if hasattr(thermal, "get_state") else {}
-        hull_temp_pct = thermal_state.get("hull_temp_pct", 0.0)
+        # ThermalSystem reports a 0-100 percentage; thresholds use a fraction.
+        hull_temp_pct = thermal_state.get("temperature_percent", 0.0) / 100.0
 
         if hull_temp_pct > HIGH_TEMP_PCT:
             key = "reduce_reactor"
@@ -107,7 +108,7 @@ class AutoEngineeringSystem(BaseSystem):
             return
 
         thermal_state = thermal.get_state() if hasattr(thermal, "get_state") else {}
-        hull_temp_pct = thermal_state.get("hull_temp_pct", 0.0)
+        hull_temp_pct = thermal_state.get("temperature_percent", 0.0) / 100.0
 
         eng_state = engineering.get_state() if hasattr(engineering, "get_state") else {}
         rads_deployed = eng_state.get("radiators_deployed", True)
