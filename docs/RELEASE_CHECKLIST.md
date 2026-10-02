@@ -1,6 +1,6 @@
 # Ten-task release checklist
 
-Verified **2026-10-01 UTC** against main
+Verified **2026-10-02 UTC** against main
 `1ceec6256f207bdaccb0072b4d3905bdfb9cb8ce` and live PR metadata. This is a
 readiness snapshot, not release approval. PR418, PR419 and PR422 are merged;
 PR420, PR421, PR423, PR424, PR425 and PR426 are open drafts. Historical PR bodies saying “keep draft”
@@ -14,12 +14,12 @@ and headless evidence are distinguished below. **Owner human UAT remains pending
 | Task | Implementation / delivery | Unit and CI evidence | Live evidence | Remaining gate |
 |---|---|---|---|---|
 | 1. Power accounting / station polling | [PR419](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/pull/419) **merged**; original cooling | 25 frontend; Python 2,361 pass + known failure; seeded **headless** docking; [CI](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/actions/runs/36784311586) | Recorded local Chrome/WS/TCP role, telemetry and permission smoke | Human crew/solo UAT; high-load shortages remain possible |
-| 2. Enemy-fire / gimbal frame | [PR420](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/pull/420) **draft**; partial repair | 18 new / 424 focused; 25 frontend; Python 2,379 pass + known failure; [CI](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/actions/runs/36792992141) | **Headless** combat traces; captured failure still fires zero shots | NPC policy decision and combat UAT |
+| 2. Enemy-fire / gimbal frame | [PR420](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/pull/420) **draft**; partial repair | 18 new / 424 focused; 25 frontend; Python 2,379 pass + known failure; [CI](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/actions/runs/36792992141) | **Headless** combat traces; captured failure still fires zero shots | Selected coast-and-aim implementation/validation and combat UAT |
 | 3. Truthful lobby refresh | [PR421](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/pull/421) **draft** | 34 frontend, 9 lobby; Python 2,361 pass + known failure; [CI](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/actions/runs/36802513043) | Same-host contexts; 8 native groups: peer changes, stale replies, visibility, Refresh/reconnect | Human lobby UAT and review |
 | 4. Post-dock cutoff controls | [PR422](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/pull/422) **merged**; bounded runtime reliability follow-up [PR426](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/pull/426) **draft** | PR426: 38 frontend; local Python 2,364 pass + known failure; [final-head CI](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/actions/runs/36939846743): 2,362 pass + known failure; independent review complete | Clean 6daf1b9: 9 real two-context groups, including stale-zero/repeat/rapid cutoff, retirement, running nonzero and actual zero / zero fuel burn | Review and human docking/cutoff/fuel check; cutoff stays manual |
 | 5. First tutorial guidance | **Merged in PR422** | Same PR422 checks; scenario structure unchanged | Sequential native text/coverage/control smoke; no completed flight or live completion-text check | Human First Contact completion/reminder check |
 | 6. CPU thermal assistance | Authorized bounded field repair in [PR425](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/pull/425) **draft** | 16 new; 27 frontend; local Python 2,380 pass + known failure; [CI](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/actions/runs/36932906315); independent review complete | Final-head native heating → visible MANUAL proposals → selected denial/approval; owned-stack cleanup passes | Review and thermal human UAT; broader automation separately scoped |
-| 7. NPC combat follow-through | **Blocked**; no additional implementation | Task 2 diagnosis; no separate checks | No new playtest | Same NPC policy decision |
+| 7. NPC combat follow-through | Coast-and-aim **selected**; separate implementation in progress | Task 2 diagnosis; new validation pending | No new playtest recorded | Separate implementation/validation and combat UAT |
 | 8. Repeatable crew smoke | [PR423](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/pull/423) **draft**; readiness guard and marked Console-read compatibility | 14 harness + 27 frontend; CI Python 2,362 pass + known failure; [current CI](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/actions/runs/36939193914); independent review complete | Clean 1e4aaa6: unmodified runner passes 5 groups and cleanup; earlier ea44da4/282e8fa evidence retained | Review and human UAT; runtime correction remains a separate unmerged PR426; no completed docking |
 | 9. Two actual computers | **Pending / untested** | No device/network acceptance | Same-host contexts do **not** establish this | Verified second physical device/path; no network/security/local-runtime changes here |
 | 10. Documentation reconciliation | Docs-only checklist | Link/diff checks; independent consistency review; no gameplay rerun | No new playtest | Owner review and gates below |
@@ -138,6 +138,18 @@ extension at 6daf1b9; it is not a combined-draft or unchanged-helper claim.
 PR425 remains unchanged at 282e8fa. Human UAT, two-device play and completed
 docking remain pending, and the shared server delta protocol is not redesigned.
 
+## Authorized integration in preparation
+
+The owner authorized bounded integration of PR421 `345c4d4`, PR423 `1e4aaa6`,
+PR425 `282e8fa` and PR426 `6daf1b9`. Their full revision pins are above.
+Integration is in preparation; no combined candidate SHA or completed integration
+checks are recorded here. The PR424 branch remains documentation-only.
+No GitHub PR merge or deployment is authorized by this integration scope.
+
+The owner also selected NPC coast-and-aim. Its implementation is proceeding
+separately from this four-PR integration. PR420's verified head remains `b9a87be`;
+no new coast-and-aim code or validation results are claimed at this snapshot.
+
 ## Assistance limits and next owner gates
 
 The [fallback Engineering CPU](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/blob/1ceec6256f207bdaccb0072b4d3905bdfb9cb8ce/server/stations/ai_crew.py#L183)
@@ -163,14 +175,15 @@ its existing eight-second execution. Cooling, sink capacity, crew competence
 and station authority are unchanged. Broader threshold/timing or CPU autonomy
 work remains separately scoped. Use the [short owner thermal check](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/blob/282e8fa950e1da4a09ce9b0b6566bb9e2cac78f9/docs/AUTO_ENGINEERING_THERMAL_REPAIR.md#short-owner-playtest).
 
-- [ ] Choose coast-and-aim versus sensor-aware velocity matching in the [PR420 diagnosis](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/blob/b9a87be2a5e1409d449dcebb967931980facd75b/docs/ENEMY_FIRE_DIAGNOSIS.md).
+- [x] Select coast-and-aim; the [pinned PR420 diagnosis](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/blob/b9a87be2a5e1409d449dcebb967931980facd75b/docs/ENEMY_FIRE_DIAGNOSIS.md) retains the earlier alternatives. Separate implementation/validation and combat UAT remain pending.
 - [x] Authorize the bounded thermal field repair; implemented in draft PR425. Review and human thermal UAT remain pending.
 - [ ] Review/test [draft lobby behavior](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/blob/345c4d4926f90cf00ca405d68788b3841ea26b33/docs/LOBBY_OCCUPANCY_REFRESH.md) and [draft crew smoke](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/blob/1e4aaa6f057af47c47ccda87c29d0d486b728374/docs/SHARED_SHIP_PLAYTEST.md#repeatable-short-crew-smoke-real-stack) at their separate pinned heads.
 - [ ] Report crewed, solo and [first-tutorial UAT](FIRST_TUTORIAL_DOCKING_GUIDANCE.md), including rejoin and MANUAL → Manual Flight → Throttle 0%. Use the [isolated main setup](SHARED_SHIP_PLAYTEST.md#safe-linux-checkout-and-build), preserving the running local playtest.
 - [x] Authorize the bounded runtime reliability repair; implemented in draft PR426.
 - [ ] Review PR426 at 6daf1b9 and human-check numeric 0% / CUT THRUST, actual zero / zero fuel burn, observer reconnect and explicit rejoin. The PR423 guard remains a separate harness feature.
 - [ ] Supply task 9's second actual computer and verified path, then authorize a separate two-device check. No same-host substitution or network/security change here.
-- [ ] After authorized integration, record the candidate SHA and rerun unsuppressed checks/UAT; separate draft results do not establish combined acceptance.
+- [x] Authorize bounded integration of PR421/423/425/426; candidate preparation remains in progress.
+- [ ] Record the resulting integration candidate SHA and rerun unsuppressed checks/UAT; separate draft results do not establish combined acceptance.
 
 This ten-task pass ends at these acceptance and decision gates. No merge, PR
 closure, new capability or network/local-runtime change is performed here.
