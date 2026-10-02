@@ -14,6 +14,7 @@ from hybrid.navigation.autopilot.orbit import OrbitAutopilot
 from hybrid.navigation.autopilot.evasive import EvasiveAutopilot
 from hybrid.navigation.autopilot.rendezvous import RendezvousAutopilot
 from hybrid.navigation.autopilot.all_stop import AllStopAutopilot
+from hybrid.navigation.autopilot.npc_coast_and_aim import NPCCoastAndAimAutopilot
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +23,7 @@ class AutopilotFactory:
 
     # Registry of available autopilot programs
     PROGRAMS = {
+        "npc_coast_and_aim": NPCCoastAndAimAutopilot,
         "match": MatchVelocityAutopilot,
         "match_velocity": MatchVelocityAutopilot,
         "intercept": InterceptAutopilot,
@@ -72,6 +74,9 @@ class AutopilotFactory:
                 f"Unknown autopilot program: '{program_name}'. "
                 f"Available: {available}"
             )
+
+        if program_name_lower == "npc_coast_and_aim" and not getattr(ship, "ai_enabled", False):
+            raise ValueError("NPC coast-and-aim requires an AI-enabled ship")
 
         if program_name_lower == "off":
             # Special case: return None to disengage

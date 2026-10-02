@@ -27,6 +27,7 @@ import numpy as np
 
 from hybrid.fleet.npc_behavior import BehaviorProfile, get_profile, infer_role
 from hybrid.fleet.threat_assessment import AIThreatAssessment
+from hybrid.navigation.autopilot.npc_coast_and_aim import operator_controls_ship
 from hybrid.fleet.ai_doctrine import (
     SalvoCoordinator,
     EvasionState,
@@ -760,8 +761,10 @@ class AIController:
             # Start locking target while closing
             self._lock_target(contact_id)
         else:
-            # In weapon range -- match velocity and fire
-            self._ensure_autopilot("match", target_id=contact_id)
+            # In weapon range -- coast so velocity correction cannot turn
+            # the nose away from the forward mount while acquiring/firing.
+            if not operator_controls_ship(self.ship):
+                self._ensure_autopilot("npc_coast_and_aim", target_id=contact_id)
             self._engage_target(contact_id, contact)
 
     def _behavior_intercept(self):
