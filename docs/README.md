@@ -28,4 +28,5 @@ These are still useful, but they should not be treated as the source of truth fo
 - `python3 tools/check_station_wiring.py`
 - `python3 tools/uat_monitor.py --follow --fail-on-critical`
 - `tools/uat_commands.sh`
-- `node tools/gui_smoke_check.js --start-stack`
+- `node tools/gui_smoke_check.js --crew --start-stack` — owned real-stack crew check;
+  see [repeat instructions and limits](SHARED_SHIP_PLAYTEST.md#repeatable-short-crew-smoke-real-stack)
