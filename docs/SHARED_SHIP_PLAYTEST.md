@@ -20,9 +20,12 @@ checkout; it loads a mission and changes only that owned runtime. This mode uses
 no RCON authentication or new credentials. It currently supports Linux/macOS.
 
 For original PR423 source-run reproducibility, use its branch and compare the
-printed SHA with its exact tested head. For the combined current-main revision,
-use the release checklist and the isolated setup below. Both leave an existing
-playtest alone:
+printed SHA with its exact tested head. The following clone is **PR423 source
+only**, not combined UAT. For the combined current-main revision, adapt the Safe
+Linux setup below: replace its historical `1ceec62` pin with exact tested head
+`c5c5c40cfdb572591f7e9f74a85fe1bc06551aeb`, or identical-tree merged main
+`de20f5e777775e86283725200f261bc6d743c078`. Compare the printed SHA before testing.
+Both setups leave an existing playtest alone:
 
 ```bash
 FLAXOS_SMOKE_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/flaxos-crew-smoke.XXXXXX")
