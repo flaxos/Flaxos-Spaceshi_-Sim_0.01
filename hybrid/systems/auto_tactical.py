@@ -20,7 +20,9 @@ from typing import Optional
 
 from hybrid.core.base_system import BaseSystem
 from hybrid.fleet.threat_assessment import AIThreatAssessment
+from hybrid.systems.crew_binding_system import CrewBindingSystem
 from hybrid.systems.proposals import ProposalManager, Proposal
+from server.stations.crew_system import StationSkill
 
 logger = logging.getLogger(__name__)
 
@@ -97,6 +99,23 @@ class AutoTacticalSystem(BaseSystem):
         except Exception as e:
             logger.debug(f"Auto-designate failed: {e}")
 
+    def _get_crew_efficiency(self, ship) -> float:
+        """Look up best crew gunnery efficiency for this ship.
+
+        Returns 0.5 default if no crew data is available, so proposals
+        still work without the crew system -- just at reduced confidence.
+        """
+        crew_eff = 0.5
+        crew_mgr = CrewBindingSystem._shared_crew_manager
+        if crew_mgr and hasattr(crew_mgr, 'get_ship_crew'):
+            crew_list = crew_mgr.get_ship_crew(ship.id)
+            if crew_list:
+                crew_eff = max(
+                    c.get_current_efficiency(StationSkill.GUNNERY)
+                    for c in crew_list
+                )
+        return crew_eff
+
     def _propose_fire(self, ship, event_bus, now: float):
         """Propose fire action if firing solution confidence is sufficient."""
         targeting = ship.systems.get("targeting")
@@ -114,7 +133,7 @@ class AutoTacticalSystem(BaseSystem):
         if not solution or solution.get("confidence", 0.0) < MIN_FIRE_CONFIDENCE:
             return
 
-        confidence = solution["confidence"]
+        base_confidence = solution["confidence"]
         weapon_action = self._select_weapon(ship)
         if not weapon_action or not self._proposals.can_propose(weapon_action, now):
             return
@@ -123,12 +142,17 @@ class AutoTacticalSystem(BaseSystem):
                 and weapon_action != "fire_pdc"):
             return
 
+        # Crew skill scales confidence: 50% baseline + 50% from crew efficiency
+        crew_eff = self._get_crew_efficiency(ship)
+        adjusted_confidence = base_confidence * (0.5 + 0.5 * crew_eff)
+
         auto_exec = self.engagement_mode == EngagementMode.WEAPONS_FREE
         proposal = self._proposals.create(
             prefix="TP", action=weapon_action, target=locked,
-            confidence=confidence,
-            reason=f"Solution confidence {confidence:.0%} on {locked}",
+            confidence=adjusted_confidence,
+            reason=f"Solution confidence {adjusted_confidence:.0%} on {locked}",
             timeout=PROPOSAL_TIMEOUT, auto_execute=auto_exec, now=now,
+            crew_efficiency=crew_eff,
         )
 
         if event_bus and ship:

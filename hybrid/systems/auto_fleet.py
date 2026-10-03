@@ -21,7 +21,9 @@ from enum import Enum
 from typing import Dict, Optional
 
 from hybrid.core.base_system import BaseSystem
+from hybrid.systems.crew_binding_system import CrewBindingSystem
 from hybrid.systems.proposals import ProposalManager, Proposal
+from server.stations.crew_system import StationSkill
 
 logger = logging.getLogger(__name__)
 
@@ -157,6 +159,23 @@ class AutoFleetSystem(BaseSystem):
             "fleet_id": fleet.get("fleet_id") or fleet.get("id"),
         }
 
+    def _get_crew_efficiency(self, ship) -> float:
+        """Look up best crew fleet tactics efficiency for this ship.
+
+        Returns 0.5 default if no crew data is available, so proposals
+        still work without the crew system -- just at reduced confidence.
+        """
+        crew_eff = 0.5
+        crew_mgr = CrewBindingSystem._shared_crew_manager
+        if crew_mgr and hasattr(crew_mgr, 'get_ship_crew'):
+            crew_list = crew_mgr.get_ship_crew(ship.id)
+            if crew_list:
+                crew_eff = max(
+                    c.get_current_efficiency(StationSkill.FLEET_TACTICS)
+                    for c in crew_list
+                )
+        return crew_eff
+
     def _propose_formation(self, state: dict, ship, event_bus, now: float):
         """Propose formation change based on threat geometry."""
         action_key = "recommend_formation"
@@ -171,17 +190,20 @@ class AutoFleetSystem(BaseSystem):
         if current == recommended:
             return
 
-        confidence = 0.7 + min(threat_count * 0.05, 0.25)
+        base_confidence = 0.7 + min(threat_count * 0.05, 0.25)
         auto_exec = self.fleet_mode == FleetMode.AUTO
+        crew_eff = self._get_crew_efficiency(ship)
+        adjusted_confidence = base_confidence * (0.5 + 0.5 * crew_eff)
 
         proposal = self._proposals.create(
             prefix="FL", action=action_key,
             target=recommended,
-            confidence=confidence,
+            confidence=adjusted_confidence,
             reason=f"{threat_count} threat(s) detected -- recommend {recommended.upper()} formation",
             timeout=PROPOSAL_TIMEOUT,
             auto_execute=auto_exec, now=now,
             params={"formation": recommended, "fleet_id": state.get("fleet_id")},
+            crew_efficiency=crew_eff,
         )
 
         if event_bus and ship:
@@ -198,17 +220,20 @@ class AutoFleetSystem(BaseSystem):
         if state["avg_damage"] < RETREAT_DAMAGE_THRESHOLD:
             return
 
-        confidence = min(0.5 + state["avg_damage"], 1.0)
+        base_confidence = min(0.5 + state["avg_damage"], 1.0)
         auto_exec = self.fleet_mode == FleetMode.AUTO
+        crew_eff = self._get_crew_efficiency(ship)
+        adjusted_confidence = base_confidence * (0.5 + 0.5 * crew_eff)
 
         proposal = self._proposals.create(
             prefix="FL", action=action_key,
             target="retreat",
-            confidence=confidence,
+            confidence=adjusted_confidence,
             reason=f"Fleet damage {state['avg_damage']:.0%} -- recommend RETREAT",
             timeout=PROPOSAL_TIMEOUT,
             auto_execute=auto_exec, now=now,
             params={"maneuver": "evasive", "fleet_id": state.get("fleet_id")},
+            crew_efficiency=crew_eff,
         )
 
         if event_bus and ship:
@@ -225,17 +250,20 @@ class AutoFleetSystem(BaseSystem):
         if state["spread"] < REGROUP_SPREAD_THRESHOLD:
             return
 
-        confidence = min(0.6 + (state["spread"] - REGROUP_SPREAD_THRESHOLD) / 50000, 1.0)
+        base_confidence = min(0.6 + (state["spread"] - REGROUP_SPREAD_THRESHOLD) / 50000, 1.0)
         auto_exec = self.fleet_mode == FleetMode.AUTO
+        crew_eff = self._get_crew_efficiency(ship)
+        adjusted_confidence = base_confidence * (0.5 + 0.5 * crew_eff)
 
         proposal = self._proposals.create(
             prefix="FL", action=action_key,
             target="regroup",
-            confidence=confidence,
+            confidence=adjusted_confidence,
             reason=f"Formation spread {state['spread']/1000:.1f}km -- recommend REGROUP",
             timeout=PROPOSAL_TIMEOUT,
             auto_execute=auto_exec, now=now,
             params={"maneuver": "hold", "fleet_id": state.get("fleet_id")},
+            crew_efficiency=crew_eff,
         )
 
         if event_bus and ship:
@@ -252,17 +280,20 @@ class AutoFleetSystem(BaseSystem):
         if state["threat_count"] < 2 or len(state["ships"]) < 2:
             return
 
-        confidence = 0.75
+        base_confidence = 0.75
         auto_exec = self.fleet_mode == FleetMode.AUTO
+        crew_eff = self._get_crew_efficiency(ship)
+        adjusted_confidence = base_confidence * (0.5 + 0.5 * crew_eff)
 
         proposal = self._proposals.create(
             prefix="FL", action=action_key,
             target="distribute_targets",
-            confidence=confidence,
+            confidence=adjusted_confidence,
             reason=f"{state['threat_count']} threats, {len(state['ships'])} ships -- recommend SPLIT FIRE",
             timeout=PROPOSAL_TIMEOUT,
             auto_execute=auto_exec, now=now,
             params={"fleet_id": state.get("fleet_id")},
+            crew_efficiency=crew_eff,
         )
 
         if event_bus and ship:

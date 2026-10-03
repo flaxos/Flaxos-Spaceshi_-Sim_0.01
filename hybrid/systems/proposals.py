@@ -28,6 +28,7 @@ class Proposal:
     auto_execute: bool
     status: str = "pending"
     params: Dict[str, Any] = field(default_factory=dict)
+    crew_efficiency: float = 1.0
 
     def to_dict(self) -> dict:
         """Serialize for telemetry."""
@@ -43,6 +44,7 @@ class Proposal:
             "auto_execute": self.auto_execute,
             "status": self.status,
             "time_remaining": max(0.0, self.timeout - (time.time() - self.created_at)),
+            "crew_efficiency": round(self.crew_efficiency, 3),
         }
 
 
@@ -128,7 +130,8 @@ class ProposalManager:
     def create(self, prefix: str, action: str, target: str,
                confidence: float, reason: str, timeout: float,
                auto_execute: bool, now: float,
-               params: Optional[Dict[str, Any]] = None) -> Proposal:
+               params: Optional[Dict[str, Any]] = None,
+               crew_efficiency: float = 1.0) -> Proposal:
         """Create and store a new proposal.
 
         Args:
@@ -141,6 +144,7 @@ class ProposalManager:
             auto_execute: Whether to auto-execute on timeout
             now: Current time
             params: Extra parameters for execution
+            crew_efficiency: Crew skill efficiency that influenced confidence
 
         Returns:
             The new Proposal
@@ -156,6 +160,7 @@ class ProposalManager:
             timeout=timeout,
             auto_execute=auto_execute,
             params=params or {},
+            crew_efficiency=crew_efficiency,
         )
         self._proposals.append(proposal)
         self._last_proposal_time[action] = now
