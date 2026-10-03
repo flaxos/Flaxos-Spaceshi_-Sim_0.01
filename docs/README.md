@@ -4,6 +4,7 @@ This directory contains both current operational docs and historical design/refe
 
 ## Current Docs
 
+- [ENEMY_FIRE_DIAGNOSIS.md](ENEMY_FIRE_DIAGNOSIS.md): task 2 weapon-frame repair, captured zero-shot gates and pending NPC policy decision
 - [SHARED_SHIP_PLAYTEST.md](SHARED_SHIP_PLAYTEST.md): draft repair checkout, current Svelte two-client acceptance and owner exercise
 
 - [UAT_MASTER_PLAN.md](/home/flax/games/spaceship-sim/docs/UAT_MASTER_PLAN.md): full human UAT ladder, mission order, and log-monitoring guidance
