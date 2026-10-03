@@ -43,7 +43,7 @@ evidence are distinguished. **Owner human UAT remains pending.**
 | PR425 | [282e8fa](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/commit/282e8fa950e1da4a09ce9b0b6566bb9e2cac78f9) | Included via PR427 at 6e6dabf; source PR remains draft |
 | PR426 | [6daf1b9](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/commit/6daf1b96ccabffabb034809e08eb3c759f2b8db0) | Included via PR427 at 6e6dabf; source PR remains draft |
 | [PR427 crew integration](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/pull/427) | [e943ecc](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/commit/e943eccfc6a13da9c2f4541d1b737149b6f4eddf) | [6e6dabf](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/commit/6e6dabf4d8c0cec006650f9d93d92711addfe8ae); identical tree |
-| [PR428 NPC continuation](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/pull/428) | [a42e892](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/commit/a42e89205bd0f88659feff98ed2c2c8e36680c17) | Absent from main; merged into PR420 at [cd4d691](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/commit/cd4d69117f7244303acc0bb7adfdd8b29cc0ab39), identical source tree |
+| [PR428 NPC continuation](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/pull/428) | [a42e892](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/commit/a42e89205bd0f88659feff98ed2c2c8e36680c17) | Included via PR429 at de20f5e; first merged into PR420 at [cd4d691](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/commit/cd4d69117f7244303acc0bb7adfdd8b29cc0ab39), identical source tree |
 | [PR429 NPC + crew candidate](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/pull/429) | [c5c5c40](https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01/commit/c5c5c40cfdb572591f7e9f74a85fe1bc06551aeb) | Merged externally at de20f5e; identical tested tree; combined checks below |
 
 PR418 retains 17 native phases: crewed docking at 792.8 sim seconds and solo at
@@ -217,7 +217,7 @@ accounting, and real projectiles. Hull damage is **22 / 0 / 0**. Two native
 station-server runs use independent TCP seats and the existing
 `02_combat_destroy` mission: each produces two projectiles, with **zero
 successful hits**. Unauthorized Tactical thrust is denied. Native firing is
-proved; browser/human combat acceptance, hit success and mission victory remain
+proved; full browser combat and human acceptance, hit success and mission victory remain
 pending. These are source-head results, not new combined validation.
 
 The bounded combined candidate was published as

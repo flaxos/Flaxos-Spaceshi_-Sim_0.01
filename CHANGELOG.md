@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Heat management system foundation (v0.6.0 Phase 1 damage core foundation, commit `5abe7ae`; heat generation wiring pending).
 
 ### Fixed
+- Gimballed weapons now aim in the same ship-relative frame as their firing arcs, preserving world-space ballistic lead. The 60-second enemy-fire failure still needs an NPC tactics decision; see `docs/ENEMY_FIRE_DIAGNOSIS.md`.
 - Captain station claims now auto-elevate permissions for override actions.
 - Phase 2 integration tests no longer return values (removes pytest warnings).
 - Station meta-commands can now run without requiring a ship assignment.

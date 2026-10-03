@@ -21,17 +21,13 @@ Phases covered:
                            next_scenario chaining, mission events
   Phase 6 – Multi-station: captain gate, station claim/release
 
-KNOWN BUGS FOUND DURING TEST AUTHORING
-=======================================
-BUG-01: Enemy AI never fires in scenario 02
-  - faction_rules.py HOSTILE_PAIRS does not include ("pirates", "neutral")
-  - Player ship defaults to faction="neutral" (loader default)
-  - pirate.ai_controller._get_hostile_contacts() returns [] because
-    are_hostile("pirates","neutral") == False
-  - Result: pirate stays in AIBehavior.IDLE forever; never attacks
-  - Fix: add frozenset({"pirates","neutral"}) to HOSTILE_PAIRS, or give the
-    player ship faction="unsa"/"civilian" in scenario 02 YAML
-  - Filed as: test_enemy_ai_fires_back (currently marked xfail)
+KNOWN COMBAT OBSERVATION
+=======================
+test_enemy_ai_fires_back can still produce zero shots while the pirate is
+in ATTACK with a full lock. Pirates/neutral hostility is already explicit.
+Velocity matching can turn the target outside the forward firing arc before
+an AI firing decision. The assertion remains active with its original 60 s
+window; see docs/ENEMY_FIRE_DIAGNOSIS.md for the captured case and scope.
 
 COMMAND ROUTING NOTES (important for tests that call _issue())
 ==============================================================
@@ -769,12 +765,17 @@ class TestCombat:
         _tick_n(sim, int(60 / DT))
 
         shots_after = pirate_combat.shots_fired
+        weapon_readiness = {
+            wid: w.current_solution.reason if w.current_solution else "No solution"
+            for wid, w in pirate_combat.truth_weapons.items()
+        }
         assert shots_after > shots_before, (
             f"Enemy AI did not fire within 60 sim-seconds.\n"
             f"  shots_before: {shots_before}\n"
             f"  shots_after:  {shots_after}\n"
             f"  AI behavior:  {getattr(pirate.ai_controller, 'behavior', 'N/A')}\n"
-            f"  BUG: are_hostile('pirates','neutral') == False"
+            f"  Lock state: {pirate.systems['targeting'].lock_state}\n"
+            f"  Weapon readiness: {weapon_readiness}"
         )
 
     def test_subsystem_cascade_sensors_degrade_sensor_factor(self):

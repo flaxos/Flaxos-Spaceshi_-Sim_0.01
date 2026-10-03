@@ -106,6 +106,9 @@ main, actual merged/draft status and remaining owner gates. Use
 [the two-client shared ship playtest](docs/SHARED_SHIP_PLAYTEST.md) for the
 safe Linux sync/build/run instructions and a short Helm + Engineering docking
 exercise. Human acceptance is pending until the owner reports a playtest result.
+The same runbook also provides a
+[repeatable short real-stack crew smoke](docs/SHARED_SHIP_PLAYTEST.md#repeatable-short-crew-smoke-real-stack)
+using the existing GUI smoke runner's `--crew` mode.
 
 Use the current docs set for regression and demo readiness:
 
