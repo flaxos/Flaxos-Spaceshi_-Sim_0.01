@@ -1,5 +1,10 @@
 # HANDOFF
 
+Current ten-task readiness and live PR merge states are recorded in
+[RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md). The sections below are preserved
+historical snapshots; their draft labels, runtime PIDs and test totals do not
+describe the current release candidate.
+
 ## Delivery review and owner decision — 2026-10-01
 
 Current scope is roadmap item 1 only: finish the existing local power/accounting

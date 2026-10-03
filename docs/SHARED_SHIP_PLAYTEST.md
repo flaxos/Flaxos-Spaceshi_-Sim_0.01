@@ -5,6 +5,11 @@ Python server. Two people operate one physical ship at Helm and Engineering.
 Physics, navigation algorithms and combat AI remain the existing simulation.
 The first acceptance mission is the existing `07_docking_test` scenario.
 
+See [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) for the dated main/PR/evidence
+snapshot and exact combined revision. Lobby, cutoff, thermal and crew-smoke
+features are included on main via PR427/PR429. Two browser contexts on one host
+do not establish two physical computers or owner human acceptance.
+
 ## Repeatable short crew smoke (real stack)
 
 The crew mode of the existing GUI smoke runner checks the current Svelte UI with
@@ -14,8 +19,13 @@ attach if TCP 8765, WS 8081 or HTTP 3100 is occupied. Run in a fresh testing
 checkout; it loads a mission and changes only that owned runtime. This mode uses
 no RCON authentication or new credentials. It currently supports Linux/macOS.
 
-While the smoke PR is unmerged, use its branch and compare the printed SHA with
-the exact tested head in the PR. This setup leaves any existing playtest alone:
+For original PR423 source-run reproducibility, use its branch and compare the
+printed SHA with its exact tested head. The following clone is **PR423 source
+only**, not combined UAT. For the combined current-main revision, adapt the Safe
+Linux setup below: replace its historical `1ceec62` pin with exact tested head
+`c5c5c40cfdb572591f7e9f74a85fe1bc06551aeb`, or identical-tree merged main
+`de20f5e777775e86283725200f261bc6d743c078`. Compare the printed SHA before testing.
+Both setups leave an existing playtest alone:
 
 ```bash
 FLAXOS_SMOKE_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/flaxos-crew-smoke.XXXXXX")
@@ -66,8 +76,10 @@ continuing. Full Console reads alone do not update the UI store; they can consum
 the shared server delta and leave a stale 0% field after actual 20% thrust. Filling
 an unchanged 0% field does not emit the numeric input's change event. This guard
 prevents that smoke ordering race without command retries or longer time limits.
-It does not repair the underlying Console/UI telemetry desynchronization;
-human UAT must verify the visible setting and actual cutoff/fuel burn together.
+That original source guard alone did not repair Console/UI telemetry
+desynchronization; the later PR426 full-snapshot/cutoff repair is included on
+main through PR427. Human UAT must still verify the visible setting and actual
+cutoff/fuel burn together.
 The result also retains numeric edit values, times and correlated UI poll IDs.
 For a stable final comparison A temporarily claims Captain, pauses, and returns
 to Helm. Both stations must report the same clock/mission epoch, position,
@@ -92,19 +104,21 @@ exercise below for a human flight and outcome; retain that evidence separately.
 
 Use a fresh clone, especially if existing worktrees contain changes or already
 hold the draft branch. These commands create a unique directory and never switch,
-reset, stash or overwrite an existing checkout. The draft is unmerged. Compare
-the printed SHA with the final tested SHA in the guided-docking draft PR's report before
-testing; if it differs, stop and obtain that exact revision.
+reset, stash or overwrite an existing checkout. This setup pins the verified
+main snapshot `1ceec6256f207bdaccb0072b4d3905bdfb9cb8ce`, which includes merged
+PR419 and PR422. Compare the printed SHA before testing. For an unmerged feature,
+use its PR's separate checkout and exact tested head; do not assume it is on main.
+Earlier guided-docking setup and results remain in the linked PR history.
 
 ```bash
 FLAXOS_TEST_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/flaxos-playtest.XXXXXX")
 export FLAXOS_TEST_ROOT
 (
   set -e
-  git clone --single-branch --branch codex/guided-docking-operation \
+  git clone --single-branch --branch main \
     https://github.com/flaxos/Flaxos-Spaceshi_-Sim_0.01.git "$FLAXOS_TEST_ROOT/repo"
   cd "$FLAXOS_TEST_ROOT/repo"
-  git checkout --detach
+  git checkout --detach 1ceec6256f207bdaccb0072b4d3905bdfb9cb8ce
   git rev-parse HEAD
   python3 -m venv "$FLAXOS_TEST_ROOT/venv"
   "$FLAXOS_TEST_ROOT/venv/bin/python" -m pip install -r requirements.txt pytest
